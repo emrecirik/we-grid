@@ -79,7 +79,7 @@ export class ProductListComponent {
 ## Ekran görüntüleri
 
 Aşağıdaki görsellerin tamamı bu depodaki örnek uygulamalardan alınmış gerçek ekranlardır; hepsini
-tek sayfada görmek için [`docs/gallery.html`](docs/gallery.html) dosyasını açabilirsiniz.
+tek sayfada görmek için [ekran galerisine](https://emrecirik.github.io/we-grid/) bakabilirsiniz.
 
 ### Kolon menüsü — son kullanıcının değiştirebildiği her şey
 

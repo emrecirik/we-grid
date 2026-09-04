@@ -81,7 +81,7 @@ per grid instance.
 ## What it looks like
 
 Every screenshot below is a real screen from one of the sample applications in this repository —
-see [`docs/gallery.html`](docs/gallery.html) for all of them on one page.
+see the [screen gallery](https://emrecirik.github.io/we-grid/) for all of them on one page.
 
 ### The column menu — everything the end user can change
 
