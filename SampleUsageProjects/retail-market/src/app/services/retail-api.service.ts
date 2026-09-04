@@ -8,7 +8,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, delay, map, shareReplay } from 'rxjs';
-import { WeGridColumnFilterState, WeGridSortDirection } from '@we-grid/angular';
+import { WeGridColumnFilterState, WeGridSortDirection } from 'we-grid-angular';
 
 import { Product } from '../models/retail.models';
 import { MockFieldTypes, MockPagedResult, applyMockFilters, applyMockSort, paginateMock } from './mock-query.util';

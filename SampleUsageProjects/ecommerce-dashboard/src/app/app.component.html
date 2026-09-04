@@ -7,9 +7,14 @@
       and the user's column layout is persisted through a custom <code>WeGridLayoutStore</code>.
     </p>
   </div>
-  <span class="layout-flag" [class.layout-flag--on]="layoutSaved">
-    {{ layoutSaved ? 'Layout saved for this user' : 'Default layout' }}
-  </span>
+  <div class="header-actions">
+    <button type="button" class="theme-btn" (click)="toggleTheme()">
+      {{ theme === 'dark' ? 'Light theme' : 'Dark theme' }}
+    </button>
+    <span class="layout-flag" [class.layout-flag--on]="layoutSaved">
+      {{ layoutSaved ? 'Layout saved for this user' : 'Default layout' }}
+    </span>
+  </div>
 </header>
 
 <main class="app-main">

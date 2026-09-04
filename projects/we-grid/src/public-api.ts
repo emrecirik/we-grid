@@ -1,5 +1,5 @@
 /*
- * Public API surface of @we-grid/angular
+ * Public API surface of we-grid-angular
  */
 
 // Main component

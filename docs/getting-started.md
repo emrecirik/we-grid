@@ -3,7 +3,7 @@
 ## 1. Install
 
 ```bash
-npm install @we-grid/angular @angular/cdk
+npm install we-grid-angular @angular/cdk
 ```
 
 `WeGridComponent`, `WeGridCellDirective`, and `WeGridRowDetailDirective` are all standalone —
@@ -25,13 +25,13 @@ needs its base positioning CSS:
 
 ## 3. (Optional) Add the default theme
 
-`@we-grid/angular` ships a framework-independent default theme built entirely from CSS custom
+`we-grid-angular` ships a framework-independent default theme built entirely from CSS custom
 properties, with light and dark variants:
 
 ```json
 "styles": [
   "node_modules/@angular/cdk/overlay-prebuilt.css",
-  "node_modules/@we-grid/angular/styles/we-grid-theme.scss",
+  "node_modules/we-grid-angular/styles/we-grid-theme.scss",
   "src/styles.scss"
 ]
 ```
@@ -43,7 +43,7 @@ variables to match your own design system (see [theming.md](theming.md)).
 ## 4. Define columns and render the grid
 
 ```ts
-import { WeGridColumnDef } from '@we-grid/angular';
+import { WeGridColumnDef } from 'we-grid-angular';
 
 columns: WeGridColumnDef<Product>[] = [
   { field: 'code', header: 'Code', width: 120 },
@@ -90,7 +90,7 @@ By default, column layout is saved to `localStorage`. To persist it server-side 
 `WeGridLayoutStore` and provide it via `WE_GRID_LAYOUT_STORE`:
 
 ```ts
-import { WE_GRID_LAYOUT_STORE, WeGridLayout, WeGridLayoutStore } from '@we-grid/angular';
+import { WE_GRID_LAYOUT_STORE, WeGridLayout, WeGridLayoutStore } from 'we-grid-angular';
 
 @Injectable({ providedIn: 'root' })
 export class BackendGridLayoutStore implements WeGridLayoutStore {

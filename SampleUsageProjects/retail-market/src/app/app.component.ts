@@ -11,7 +11,7 @@ import {
   WeGridRowClassFn,
   WeGridSortChange,
   WeGridSortDirection
-} from '@we-grid/angular';
+} from 'we-grid-angular';
 
 import { BulkActionResult, Product } from './models/retail.models';
 import { RetailApiService } from './services/retail-api.service';

@@ -1,34 +1,32 @@
 # See https://docs.github.com/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
 
-# Compiled output
+# ── Compiled output ────────────────────────────────────────────────────────
 /dist
 /tmp
 /out-tsc
 /bazel-out
 
-# Node
+# ── Dependencies ───────────────────────────────────────────────────────────
 /node_modules
-npm-debug.log
-yarn-error.log
 
-# IDEs and editors
-.idea/
-.project
-.classpath
-.c9/
-*.launch
-.settings/
-*.sublime-workspace
+# ── Credentials and secrets — never commit these ───────────────────────────
+# .npmrc can hold a publish token; .env files hold API keys.
+.npmrc
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+credentials.json
 
-# Visual Studio Code
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-.history/*
-
-# Miscellaneous
+# ── Logs and local caches ──────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 /.angular/cache
 .sass-cache/
 /connect.lock
@@ -37,11 +35,28 @@ yarn-error.log
 testem.log
 /typings
 
-# System files
-.DS_Store
-Thumbs.db
+# ── Packaging artifacts ────────────────────────────────────────────────────
+*.tgz
 
-# Personal / internal notes
+# ── IDEs and editors ───────────────────────────────────────────────────────
+.idea/
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
+.history/*
+
+# Visual Studio Code — the four files below are shared workspace config
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# ── AI assistant config and personal / internal notes ──────────────────────
+# Local working context; not part of the public project.
 CLAUDE.md
 **/CLAUDE.md
 .claude/
@@ -49,10 +64,19 @@ CLAUDE.md
 AGENTS.md
 .cursor/
 .windsurf/
+.aider*
 NOTES.md
 TODO.private.md
 Docs/internal/
 *.private.md
+*.local.md
 
-# Playwright MCP artifacts from local testing
+# ── Local test artifacts ───────────────────────────────────────────────────
 .playwright-mcp/
+/playwright-report
+/test-results
+
+# ── System files ───────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini

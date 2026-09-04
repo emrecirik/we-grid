@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for considering a contribution to `@we-grid/angular`.
+Thanks for considering a contribution to `we-grid-angular`.
 
 ## Setup
 
@@ -11,9 +11,9 @@ npm install
 ## Development loop
 
 ```bash
-npx ng build we-grid                                            # build the library
-npx ng test we-grid --watch=false --browsers=ChromeHeadless      # run unit tests
-npx ng serve playground                                          # try changes in the demo app
+npm run build:lib     # build the library
+npm test              # run the unit tests (headless Chrome)
+npm start             # try changes in the playground app
 ```
 
 The playground app (`projects/playground`) is a dev/documentation sandbox — when adding a feature,
@@ -30,9 +30,10 @@ add or extend a demo section there so it's exercised outside of unit tests too.
   `we-grid-icons.model.ts`).
 - Comments and identifiers are in English.
 - Add or update unit tests (`*.spec.ts`) for any behavioral change.
-- Run `npx ng build we-grid` and the test suite before opening a PR — both must be clean.
+- Run `npm run build:lib` and `npm test` before opening a PR — both must be clean. CI runs the
+  same two steps plus a build of all three sample applications.
 
 ## Reporting issues
 
-Please include: Angular version, `@we-grid/angular` version, a minimal reproduction (StackBlitz or
+Please include: Angular version, `we-grid-angular` version, a minimal reproduction (StackBlitz or
 a small repo), and the expected vs. actual behavior.

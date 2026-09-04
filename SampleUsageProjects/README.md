@@ -1,6 +1,6 @@
 # we-grid sample applications
 
-Three self-contained Angular applications that use `@we-grid/angular` the way a real product would.
+Three self-contained Angular applications that use `we-grid-angular` the way a real product would.
 They live in this workspace and are registered in `angular.json`, so they build and serve with the
 Angular CLI like any other project here.
 
@@ -16,16 +16,16 @@ Bootstrap, Material or any other CSS framework.
 
 ## Running them
 
-The apps resolve `@we-grid/angular` through the workspace `tsconfig.json` path alias, which points
+The apps resolve `we-grid-angular` through the workspace `tsconfig.json` path alias, which points
 at `dist/we-grid` — so build the library once first:
 
 ```bash
 npm install
-npx ng build we-grid          # required before the first app build/serve
+npm run build:lib             # required before the first app build/serve
 
-npx ng serve banking              # http://localhost:4200
-npx ng serve retail-market
-npx ng serve ecommerce-dashboard
+npm run start:banking             # http://localhost:4200
+npm run start:retail
+npm run start:ecommerce
 ```
 
 Production builds:

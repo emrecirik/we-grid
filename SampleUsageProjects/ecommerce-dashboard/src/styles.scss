@@ -7,6 +7,22 @@
   --app-border: #e2e8f0;
   --app-text: #0f172a;
   --app-muted: #64748b;
+  --app-bg: #f6f7f9;
+  --app-surface: #ffffff;
+  --app-danger: #b91c1c;
+}
+
+/* The app's own chrome follows the same theme switch the grid reacts to
+   (`data-theme` on <html>) so light/dark stays consistent across the page. */
+:root[data-theme='dark'] {
+  --app-accent: #fbbf24;
+  --app-accent-soft: #3a2a10;
+  --app-border: #343a46;
+  --app-text: #e5e7eb;
+  --app-muted: #9aa3b2;
+  --app-bg: #171a20;
+  --app-surface: #1e2129;
+  --app-danger: #f87171;
 }
 
 * { box-sizing: border-box; }
@@ -14,7 +30,7 @@
 html, body {
   margin: 0;
   padding: 0;
-  background: #f6f7f9;
+  background: var(--app-bg);
   color: var(--app-text);
   font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 14px;

@@ -1,11 +1,15 @@
-# @we-grid/angular
+# we-grid-angular
+
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Angular 18](https://img.shields.io/badge/Angular-18.x-dd0031.svg)](https://angular.dev)
+[![CSS framework yok](https://img.shields.io/badge/CSS%20framework-yok-success.svg)](docs/theming.md)
 
 [English](README.md)
 
 Hiçbir tema/CSS framework bağımlılığı olmayan (Bootstrap/Material gerekmez), Angular CDK üzerine
-kurulu standalone component/direktiflerden oluşan, temalanabilir bir Angular veri grid'i.
+kurulu standalone component/direktiflerden oluşan, ücretsiz ve temalanabilir bir Angular veri grid'i.
 
-<!-- ekran görüntüsü yer tutucusu -->
+![we-grid ile yapılmış sipariş operasyon ekranı](docs/images/ecommerce-dashboard.png)
 
 ## Özellikler
 
@@ -23,11 +27,8 @@ kurulu standalone component/direktiflerden oluşan, temalanabilir bir Angular ve
 ## Kurulum
 
 ```bash
-npm install @we-grid/angular @angular/cdk
+npm install we-grid-angular @angular/cdk
 ```
-
-> **Not:** `@we-grid/angular` yeni bir paket adı — yayınlamadan önce npm'de müsaitliğini
-> (`npm view @we-grid/angular`) kontrol edin veya sahip olduğunuz bir scope/isimle değiştirin.
 
 Peer bağımlılıklar: `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/cdk` (Angular 18.x).
 
@@ -38,7 +39,7 @@ temayı uygulamanızın global stillerine ekleyin:
 // angular.json
 "styles": [
   "node_modules/@angular/cdk/overlay-prebuilt.css",
-  "node_modules/@we-grid/angular/styles/we-grid-theme.scss",
+  "node_modules/we-grid-angular/styles/we-grid-theme.scss",
   "src/styles.scss"
 ]
 ```
@@ -47,7 +48,7 @@ temayı uygulamanızın global stillerine ekleyin:
 
 ```ts
 import { Component } from '@angular/core';
-import { WeGridComponent, WeGridColumnDef } from '@we-grid/angular';
+import { WeGridComponent, WeGridColumnDef } from 'we-grid-angular';
 
 interface Product {
   id: number;
@@ -75,6 +76,59 @@ export class ProductListComponent {
 
 `gridKey` zorunludur — kullanıcının kolon düzeni bu anahtarla saklanır, her grid örneği için benzersiz olmalıdır.
 
+## Ekran görüntüleri
+
+Aşağıdaki görsellerin tamamı bu depodaki örnek uygulamalardan alınmış gerçek ekranlardır; hepsini
+tek sayfada görmek için [`docs/gallery.html`](docs/gallery.html) dosyasını açabilirsiniz.
+
+### Kolon menüsü — son kullanıcının değiştirebildiği her şey
+
+Başlığa sağ tıklayın (veya ⚙ düğmesini kullanın): kolon gizleme, yeniden adlandırma, sabitleme,
+sıralama, içeriğe göre genişletme, alt toplam fonksiyonu seçme, yoğunluk değiştirme, kolona göre
+gruplama ve düzeni sıfırlama. Seçilen her şey kullanıcı ve `gridKey` bazında saklanır.
+
+![Tüm kolon aksiyonlarını içeren başlık menüsü](docs/images/header-menu.png)
+
+### Filtre satırı, filtre çipleri ve canlı toplamlar
+
+Filtre satırı her kolona bir operatör ve değer verir; aktif filtreler kaldırılabilir çiplere dönüşür.
+`serverSide` açıkken her değişiklik yalnızca bir event'tir — bu örnekteki KPI kartları ve alt toplam
+satırı, görünen sayfayı değil filtrelenmiş kümenin tamamını temel alarak backend'de hesaplanır.
+
+![Aktif şehir filtresi ve güncellenen KPI kartları](docs/images/filter-row.png)
+
+### Gruplama, grup bazlı alt toplamlar ve satır seçimi
+
+![Kategoriye göre gruplanmış ürünler, alt toplamlar ve toplu aksiyon çubuğu](docs/images/retail-market.png)
+
+### Master-detail satırlar ve sabitlenmiş kolonlar
+
+![Masraf kırılımı açılmış banka hareketleri](docs/images/banking.png)
+
+### Koyu tema
+
+Koyu tema, üst bir elemana eklenen tek bir `data-theme="dark"` özniteliğidir — grid input'u yok,
+ek bundle yok. Her renk, ezebileceğiniz bir `--we-grid-*` custom property'sidir.
+
+![Aynı ekranın koyu temalı hâli](docs/images/dark-theme.png)
+
+## Örnek uygulamalar
+
+Üçü de bu workspace'te kayıtlı ve Angular CLI ile çalıştırılabilir
+([`SampleUsageProjects/`](SampleUsageProjects/README.md)):
+
+| Uygulama | Gösterdiği |
+|---|---|
+| [`banking`](SampleUsageProjects/banking) | Satır bazında farklı para birimleri, sabitlenmiş kolon, tarih aralığı filtresi, backend'den gelen toplamlar, master-detail satırlar |
+| [`retail-market`](SampleUsageProjects/retail-market) | Alt toplamlı gruplama, boolean kolon ve filtresi, `rowClass` ile satır vurgulama, çoklu seçim ve toplu aksiyonlar, yoğunluk değiştirme |
+| [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | Sunucu taraflı referans örnek: mock backend'e karşı sayfalama/sıralama/filtreleme, KPI kartları, `displayValue` ile durum rozetleri, özel layout store, XML veri kaynağı, koyu tema anahtarı |
+
+```bash
+npm install
+npm run build:lib                 # önce kütüphaneyi derleyin
+npm run start:ecommerce           # sonra herhangi bir örnek uygulamayı
+```
+
 ## Dokümantasyon
 
 İngilizce dokümanlar birincil kaynaktır:
@@ -84,20 +138,24 @@ export class ProductListComponent {
 - [Sunucu taraflı sayfalama/sıralama/filtreleme](docs/server-side.md)
 - [Temalama](docs/theming.md)
 - [Yerelleştirme](docs/localization.md)
-- [React desteği (yoktur)](docs/react.md)
+- [React ile kullanılabilir mi?](docs/react.md)
 
 ## Geliştirme
 
-Bu depo, kütüphanenin `projects/we-grid` altında, demo uygulamanın `projects/playground` altında
-olduğu bir Angular CLI workspace'idir.
+Bu depo; kütüphanenin `projects/we-grid`, özellik denemelerinin `projects/playground` ve üç örnek
+uygulamanın `SampleUsageProjects/` altında olduğu bir Angular CLI workspace'idir.
 
 ```bash
 npm install
-npx ng build we-grid              # kütüphaneyi derle (dist/we-grid)
-npx ng test we-grid --watch=false --browsers=ChromeHeadless
-npx ng serve playground           # demo uygulamayı çalıştır
+npm run build:lib     # kütüphaneyi dist/we-grid altına derler
+npm test              # 92 birim testi, headless Chrome
+npm start             # playground uygulamasını çalıştırır
 ```
+
+## Katkı
+
+Issue ve pull request'ler memnuniyetle karşılanır — bkz. [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Lisans
 
-MIT — bkz. [LICENSE](LICENSE).
+MIT — bkz. [LICENSE](LICENSE). Ticari kullanım dahil serbesttir.

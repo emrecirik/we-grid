@@ -3,10 +3,14 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve playground",
     "build": "ng build",
-    "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "build:lib": "ng build we-grid",
+    "watch:lib": "ng build we-grid --watch --configuration development",
+    "test": "ng test we-grid --watch=false --browsers=ChromeHeadless",
+    "start:banking": "ng serve banking",
+    "start:retail": "ng serve retail-market",
+    "start:ecommerce": "ng serve ecommerce-dashboard"
   },
   "private": true,
   "dependencies": {

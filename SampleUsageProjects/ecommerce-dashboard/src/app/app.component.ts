@@ -10,7 +10,7 @@ import {
   WeGridPageChange,
   WeGridSortChange,
   WeGridSortDirection
-} from '@we-grid/angular';
+} from 'we-grid-angular';
 
 import { Order, OrderKpis, orderStatusLabel } from './models/ecommerce.models';
 import { OrderApiService } from './services/order-api.service';
@@ -46,6 +46,7 @@ export class AppComponent implements OnInit, OnDestroy {
   kpis: OrderKpis = { orderCount: 0, revenue: 0, averageOrderValue: 0, openOrderCount: 0, cancelledCount: 0 };
   summaryValues: Record<string, number> = {};
   layoutSaved = false;
+  theme: 'light' | 'dark' = 'light';
 
   readonly columns: WeGridColumnDef<Order>[] = [
     { field: 'orderNo', header: 'Order No', width: 155, pinned: 'left' },
@@ -78,6 +79,15 @@ export class AppComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+  }
+
+  /**
+   * The grid's default theme reads `data-theme` from an ancestor element, so a host app
+   * switches light/dark by setting that single attribute — no grid input involved.
+   */
+  toggleTheme(): void {
+    this.theme = this.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.setAttribute('data-theme', this.theme);
   }
 
   // ─── Grid -> component: the three server-side hooks ───────────────────────────────────────

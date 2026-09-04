@@ -9,7 +9,7 @@
   justify-content: space-between;
   gap: 16px;
   padding: 24px 28px 20px;
-  background: #fff;
+  background: var(--app-surface);
   border-bottom: 1px solid var(--app-border);
 
   h1 {
@@ -24,6 +24,23 @@
     color: var(--app-muted);
     line-height: 1.5;
   }
+}
+
+.header-actions {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.theme-btn {
+  padding: 4px 12px;
+  border: 1px solid var(--app-border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--app-text);
+  font-size: 12px;
+  white-space: nowrap;
 }
 
 .layout-flag {
@@ -60,7 +77,7 @@
   flex-direction: column;
   gap: 2px;
   padding: 14px 16px;
-  background: #fff;
+  background: var(--app-surface);
   border: 1px solid var(--app-border);
   border-radius: 8px;
 }
@@ -78,7 +95,7 @@
 }
 
 .kpi__value--warn {
-  color: #b91c1c;
+  color: var(--app-danger);
 }
 
 .kpi__note {
@@ -87,7 +104,7 @@
 }
 
 .card {
-  background: #fff;
+  background: var(--app-surface);
   border: 1px solid var(--app-border);
   border-radius: 8px;
   padding: 16px;

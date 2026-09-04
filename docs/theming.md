@@ -1,6 +1,6 @@
 # Theming
 
-`@we-grid/angular` never hardcodes colors or depends on a design system — every visual token comes
+`we-grid-angular` never hardcodes colors or depends on a design system — every visual token comes
 from a CSS custom property with a fallback, e.g. `background: var(--we-grid-bg, #fff)`. This means
 you can theme it two ways:
 
@@ -58,7 +58,7 @@ dependency (no Remix Icon, Font Awesome, Material Icons, ...).
 To replace the whole icon set:
 
 ```ts
-import { WE_GRID_ICONS, WeGridIcons } from '@we-grid/angular';
+import { WE_GRID_ICONS, WeGridIcons } from 'we-grid-angular';
 
 const myIcons: WeGridIcons = {
   close: '<svg>...</svg>',

@@ -3,7 +3,7 @@
 **There isn't any, and there are no plans to add it.** This page exists so you don't have to find
 that out the hard way.
 
-`@we-grid/angular` is built directly on Angular-specific APIs that have no React equivalent:
+`we-grid-angular` is built directly on Angular-specific APIs that have no React equivalent:
 
 - **Angular CDK Overlay** for the header context menu and filter popover (positioning, backdrop,
   focus trapping) — this is Angular CDK, not a portable library.
@@ -35,9 +35,9 @@ the scope of what this repository provides.
 Two mature, actively maintained, and genuinely React-native options:
 
 - [**TanStack Table**](https://tanstack.com/table) — headless, you build the UI; closest
-  philosophically to how much control `@we-grid/angular` gives you over rendering.
+  philosophically to how much control `we-grid-angular` gives you over rendering.
 - [**AG Grid**](https://www.ag-grid.com/) — a full-featured, batteries-included grid with a React
-  wrapper, closer to `@we-grid/angular`'s feature set (grouping, pinning, master-detail, etc.) out
+  wrapper, closer to `we-grid-angular`'s feature set (grouping, pinning, master-detail, etc.) out
   of the box.
 
 Neither of these is affiliated with this project — they're just the honest recommendation.

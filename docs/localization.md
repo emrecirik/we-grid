@@ -11,7 +11,7 @@ If you don't provide anything, the grid falls back to English (`weGridLocaleEn`)
 ## Using the built-in Turkish translation
 
 ```ts
-import { WE_GRID_LOCALE, weGridLocaleTr } from '@we-grid/angular';
+import { WE_GRID_LOCALE, weGridLocaleTr } from 'we-grid-angular';
 
 // app.config.ts
 providers: [
@@ -29,7 +29,7 @@ which part of the UI they belong to — the main grid template, the header conte
 filter popover) and provide it the same way:
 
 ```ts
-import { WE_GRID_LOCALE, WeGridLocale, weGridLocaleEn } from '@we-grid/angular';
+import { WE_GRID_LOCALE, WeGridLocale, weGridLocaleEn } from 'we-grid-angular';
 
 const myLocale: WeGridLocale = {
   ...weGridLocaleEn,

@@ -10,7 +10,7 @@ import {
   WeGridRowDetailDirective,
   WeGridSortChange,
   WeGridSortDirection
-} from '@we-grid/angular';
+} from 'we-grid-angular';
 
 import { BankTransaction, LoanRecord } from './models/banking.models';
 import { BankingApiService } from './services/banking-api.service';

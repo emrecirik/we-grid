@@ -1,24 +1,66 @@
-# WeGrid
+# we-grid-angular
 
-This library was generated with [Angular CLI](https://github.com/angular/angular-cli) version 18.2.0.
+A themeable Angular data grid with no styling-framework dependency — no Bootstrap, no Material,
+no icon font. Standalone components and directives on top of Angular CDK.
 
-## Code scaffolding
+```bash
+npm install we-grid-angular @angular/cdk
+```
 
-Run `ng generate component component-name --project we-grid` to generate a new component. You can also use `ng generate directive|pipe|service|class|guard|interface|enum|module --project we-grid`.
-> Note: Don't forget to add `--project we-grid` or else it will be added to the default project in your `angular.json` file. 
+```ts
+import { WeGridComponent, WeGridColumnDef } from 'we-grid-angular';
 
-## Build
+@Component({
+  standalone: true,
+  imports: [WeGridComponent],
+  template: `<we-grid gridKey="products" [columns]="columns" [data]="products" trackByField="id" />`
+})
+export class ProductListComponent {
+  columns: WeGridColumnDef<Product>[] = [
+    { field: 'code', header: 'Code', width: 120 },
+    { field: 'name', header: 'Name', width: 220 },
+    { field: 'price', header: 'Price', type: 'currency', width: 130, summary: 'sum' }
+  ];
+}
+```
 
-Run `ng build we-grid` to build the project. The build artifacts will be stored in the `dist/` directory.
+Add the CDK overlay stylesheet (used by the header/filter menus) and, optionally, the bundled
+default theme to your global styles:
 
-## Publishing
+```json
+"styles": [
+  "node_modules/@angular/cdk/overlay-prebuilt.css",
+  "node_modules/we-grid-angular/styles/we-grid-theme.scss",
+  "src/styles.scss"
+]
+```
 
-After building your library with `ng build we-grid`, go to the dist folder `cd dist/we-grid` and run `npm publish`.
+## What it does
 
-## Running unit tests
+- Column hide/show, rename, drag-to-reorder, resize, pin left/right, autofit-to-content
+- Density modes, and a per-user column layout persisted automatically (localStorage by default,
+  or your own backend through the `WE_GRID_LAYOUT_STORE` token)
+- Filter row, per-column filter popover, active-filter chips
+- Single-level grouping with collapsible sections and per-group summaries
+- Subtotal row: sum / average / min / max / count, per column
+- Master-detail rows via a `weGridRowDetail` template
+- Server-side paging, sorting and filtering (opt-in, auto-detected from your event bindings)
+- Localizable UI text (`WE_GRID_LOCALE`) and swappable inline-SVG icons (`WE_GRID_ICONS`)
+- Theming through plain CSS custom properties (`--we-grid-*`), light and dark
 
-Run `ng test we-grid` to execute the unit tests via [Karma](https://karma-runner.github.io).
+Peer dependencies: `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/cdk` (Angular 18.x).
 
-## Further help
+## Documentation
 
-To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+Full docs, screenshots and three runnable sample applications live in the repository:
+<https://github.com/emrecirik/we-grid>
+
+- [Getting started](https://github.com/emrecirik/we-grid/blob/main/docs/getting-started.md)
+- [API reference](https://github.com/emrecirik/we-grid/blob/main/docs/api.md)
+- [Server-side paging/sorting/filtering](https://github.com/emrecirik/we-grid/blob/main/docs/server-side.md)
+- [Theming](https://github.com/emrecirik/we-grid/blob/main/docs/theming.md)
+- [Localization](https://github.com/emrecirik/we-grid/blob/main/docs/localization.md)
+
+## License
+
+MIT

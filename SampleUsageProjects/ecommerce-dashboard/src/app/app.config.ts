@@ -1,6 +1,6 @@
 import { ApplicationConfig, provideZoneChangeDetection } from '@angular/core';
 import { provideHttpClient } from '@angular/common/http';
-import { WE_GRID_LAYOUT_STORE } from '@we-grid/angular';
+import { WE_GRID_LAYOUT_STORE } from 'we-grid-angular';
 
 import { UserLayoutStore } from './services/user-layout-store';
 

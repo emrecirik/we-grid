@@ -24,7 +24,7 @@
       "dom"
     ],
     "paths": {
-      "@we-grid/angular": [
+      "we-grid-angular": [
         "./dist/we-grid"
       ]
     }

@@ -13,7 +13,7 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, delay, map, shareReplay } from 'rxjs';
-import { WeGridColumnFilterState, WeGridSortDirection } from '@we-grid/angular';
+import { WeGridColumnFilterState, WeGridSortDirection } from 'we-grid-angular';
 
 import { Order, orderStatusLabel } from '../models/ecommerce.models';
 import { OrderKpis } from '../models/ecommerce.models';

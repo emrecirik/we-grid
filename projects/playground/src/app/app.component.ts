@@ -7,7 +7,7 @@ import {
   WeGridPageChange,
   WeGridRowDetailDirective,
   WeGridSortChange
-} from '@we-grid/angular';
+} from 'we-grid-angular';
 
 interface Product {
   id: number;

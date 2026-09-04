@@ -1,11 +1,15 @@
-# @we-grid/angular
+# we-grid-angular
+
+[![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![Angular 18](https://img.shields.io/badge/Angular-18.x-dd0031.svg)](https://angular.dev)
+[![No CSS framework](https://img.shields.io/badge/CSS%20framework-none-success.svg)](docs/theming.md)
 
 [Türkçe](README.tr.md)
 
-A themeable Angular data grid with no styling framework dependency (no Bootstrap/Material
-required) — built as a set of standalone components/directives on top of Angular CDK.
+A free, themeable Angular data grid with **no styling-framework dependency** — no Bootstrap, no
+Material, no icon font. Standalone components and directives on top of Angular CDK.
 
-<!-- screenshot placeholder -->
+![Order operations dashboard built with we-grid](docs/images/ecommerce-dashboard.png)
 
 ## Features
 
@@ -24,11 +28,8 @@ required) — built as a set of standalone components/directives on top of Angul
 ## Installation
 
 ```bash
-npm install @we-grid/angular @angular/cdk
+npm install we-grid-angular @angular/cdk
 ```
-
-> **Note:** `@we-grid/angular` is a new package name — verify its availability on npm before
-> publishing (`npm view @we-grid/angular`), or adjust the scope/name to one you own.
 
 Peer dependencies: `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/cdk` (Angular 18.x).
 
@@ -39,7 +40,7 @@ styles, and optionally the bundled default theme:
 // angular.json
 "styles": [
   "node_modules/@angular/cdk/overlay-prebuilt.css",
-  "node_modules/@we-grid/angular/styles/we-grid-theme.scss",
+  "node_modules/we-grid-angular/styles/we-grid-theme.scss",
   "src/styles.scss"
 ]
 ```
@@ -48,7 +49,7 @@ styles, and optionally the bundled default theme:
 
 ```ts
 import { Component } from '@angular/core';
-import { WeGridComponent, WeGridColumnDef } from '@we-grid/angular';
+import { WeGridComponent, WeGridColumnDef } from 'we-grid-angular';
 
 interface Product {
   id: number;
@@ -77,6 +78,46 @@ export class ProductListComponent {
 `gridKey` is required — the user's column layout is persisted under this key, so keep it unique
 per grid instance.
 
+## What it looks like
+
+Every screenshot below is a real screen from one of the sample applications in this repository —
+see [`docs/gallery.html`](docs/gallery.html) for all of them on one page.
+
+### The column menu — everything the end user can change
+
+Right-click any header (or use the ⚙ button) to hide, rename, pin, sort, autofit, set a subtotal
+function, switch density, group by the column, or reset the layout. Whatever they pick is saved
+per user and per `gridKey`.
+
+![Header context menu with all column actions](docs/images/header-menu.png)
+
+### Filter row, filter chips and live totals
+
+The filter row gives every column an operator and a value; active filters become removable chips.
+With `serverSide` on, each change is just an event — the KPI cards and the subtotal row in this
+sample are recomputed by the backend over the whole filtered set, not the visible page.
+
+![Filter row with an active City filter and updated KPI cards](docs/images/filter-row.png)
+
+### Grouping with per-group subtotals, and row selection
+
+![Products grouped by category with subtotals and a bulk action bar](docs/images/retail-market.png)
+
+### Master-detail rows and pinned columns
+
+![Bank transactions with an expanded fee-breakdown detail row](docs/images/banking.png)
+
+### Dark theme
+
+Dark mode is a single `data-theme="dark"` attribute on an ancestor element — no grid input, no
+extra bundle. Every colour is a `--we-grid-*` custom property you can override.
+
+![The same dashboard in dark theme](docs/images/dark-theme.png)
+
+### Column visibility
+
+![Column list submenu with per-column checkboxes](docs/images/column-menu.png)
+
 ## Examples
 
 Three full sample applications live in [`SampleUsageProjects/`](SampleUsageProjects/README.md), each
@@ -86,11 +127,12 @@ registered in this workspace and runnable with the Angular CLI:
 |---|---|
 | [`banking`](SampleUsageProjects/banking) | Currency columns with mixed per-row currencies, a pinned column, date-range filtering, backend-supplied totals, master-detail rows |
 | [`retail-market`](SampleUsageProjects/retail-market) | Grouping with subtotals, boolean column + filter, `rowClass` highlighting, multi-select with bulk actions, density switching |
-| [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | The server-side reference example: paging/sorting/filtering against a mock backend, KPI cards, `displayValue` status badges, a custom layout store, XML data source |
+| [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | The server-side reference example: paging/sorting/filtering against a mock backend, KPI cards, `displayValue` status badges, a custom layout store, XML data source, a dark-theme switch |
 
 ```bash
-npx ng build we-grid              # build the library first
-npx ng serve ecommerce-dashboard  # then any sample app
+npm install
+npm run build:lib                 # build the library first
+npm run start:ecommerce           # then any sample app
 ```
 
 ## Documentation
@@ -100,20 +142,24 @@ npx ng serve ecommerce-dashboard  # then any sample app
 - [Server-side pagination/sorting/filtering](docs/server-side.md)
 - [Theming](docs/theming.md)
 - [Localization](docs/localization.md)
-- [React support (there is none)](docs/react.md)
+- [Can I use this from React?](docs/react.md)
 
 ## Development
 
-This repo is an Angular CLI workspace with the library at `projects/we-grid` and a demo app at
-`projects/playground`.
+This repo is an Angular CLI workspace with the library at `projects/we-grid`, a feature sandbox at
+`projects/playground`, and the three sample apps under `SampleUsageProjects/`.
 
 ```bash
 npm install
-npx ng build we-grid              # build the library (dist/we-grid)
-npx ng test we-grid --watch=false --browsers=ChromeHeadless
-npx ng serve playground           # run the demo app
+npm run build:lib     # build the library into dist/we-grid
+npm test              # 92 unit tests, headless Chrome
+npm start             # run the playground app
 ```
+
+## Contributing
+
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE). Free to use, including commercially.

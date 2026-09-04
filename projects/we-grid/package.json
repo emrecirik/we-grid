@@ -1,7 +1,30 @@
 {
-  "name": "@we-grid/angular",
+  "name": "we-grid-angular",
   "version": "0.1.0",
   "description": "A themeable, framework-agnostic-styled Angular data grid — column resize/reorder/pin, filter row, grouping, subtotal row, master-detail, server-side pagination.",
+  "license": "MIT",
+  "author": "Emre CIRIK",
+  "homepage": "https://github.com/emrecirik/we-grid#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/emrecirik/we-grid.git",
+    "directory": "projects/we-grid"
+  },
+  "bugs": {
+    "url": "https://github.com/emrecirik/we-grid/issues"
+  },
+  "keywords": [
+    "angular",
+    "data-grid",
+    "datagrid",
+    "table",
+    "grid",
+    "angular-cdk",
+    "server-side-pagination",
+    "column-resize",
+    "grouping",
+    "themeable"
+  ],
   "peerDependencies": {
     "@angular/common": "^18.2.0",
     "@angular/core": "^18.2.0",

@@ -5,7 +5,7 @@
  * client-side (see we-grid-filter.util.ts in the library).
  */
 
-import { WeGridColumnFilterState, WeGridSortDirection } from '@we-grid/angular';
+import { WeGridColumnFilterState, WeGridSortDirection } from 'we-grid-angular';
 
 /** Column types the mock backend knows how to filter/sort on */
 export type MockFieldType = 'text' | 'number' | 'currency' | 'date' | 'datetime' | 'boolean';

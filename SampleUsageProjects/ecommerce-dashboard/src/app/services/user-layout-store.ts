@@ -9,7 +9,7 @@
 
 import { Injectable } from '@angular/core';
 import { Observable, of } from 'rxjs';
-import { WeGridLayout, WeGridLayoutStore } from '@we-grid/angular';
+import { WeGridLayout, WeGridLayoutStore } from 'we-grid-angular';
 
 const STORAGE_PREFIX = 'ecommerce-dashboard:layout';
 

@@ -1,0 +1,31 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build library
+        run: npm run build:lib
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build sample applications
+        run: |
+          npx ng build banking
+          npx ng build retail-market
+          npx ng build ecommerce-dashboard
