@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.1.1 — 2026-09-04
+
+- Ship the MIT license text inside the npm package. `package.json` declared `"license": "MIT"`
+  but the `LICENSE` file itself was never included in the tarball, so anyone installing from
+  npm got the declaration without the terms.
+
 ## 0.1.0 — Initial open-source release
 
 - Extracted from an internal ERP project into an independent Angular CLI workspace

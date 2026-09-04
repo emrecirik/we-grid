@@ -1,6 +1,6 @@
 {
   "name": "we-grid-angular",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A themeable, framework-agnostic-styled Angular data grid — column resize/reorder/pin, filter row, grouping, subtotal row, master-detail, server-side pagination.",
   "license": "MIT",
   "author": "Emre CIRIK",
