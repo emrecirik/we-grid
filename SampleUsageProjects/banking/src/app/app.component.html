@@ -1,0 +1,113 @@
+<header class="app-header">
+  <h1>Retail Banking — Account Activity</h1>
+  <p>
+    Server-side paging/sorting/filtering over a mock backend, currency columns with per-row
+    currencies, a pinned account column, backend-supplied summary totals and a master-detail row
+    that breaks a transaction down into its fee lines.
+  </p>
+</header>
+
+<main class="app-main">
+  <section class="card">
+    <div class="card__head">
+      <h2>Account Transactions</h2>
+      <span class="hint">
+        Open the filter row and use the <strong>Transaction Date</strong> column with the
+        <em>between</em> operator to pick a date range.
+      </span>
+    </div>
+
+    <we-grid
+      gridKey="banking-transactions"
+      [columns]="transactionColumns"
+      [data]="transactions"
+      [loading]="transactionsLoading"
+      trackByField="id"
+      [serverSide]="true"
+      [totalCount]="totalCount"
+      [page]="page"
+      [pageSize]="pageSize"
+      [sortField]="sortField"
+      [sortDirection]="sortDirection"
+      [filterRow]="true"
+      [grouping]="true"
+      [expandable]="true"
+      [summaryValues]="summaryValues"
+      (pageChange)="onPageChange($event)"
+      (sortChange)="onSortChange($event)"
+      (filterChange)="onFilterChange($event)"
+    >
+      <!-- Mixed currencies in one column: render the row's own currency, colour debits red -->
+      <ng-template weGridCell="amount" [weGridCellRowsOf]="transactions" let-row>
+        <span class="money" [class.money--negative]="row.amount < 0">
+          {{ formatMoney(row.amount, row.currency) }}
+        </span>
+      </ng-template>
+
+      <ng-template weGridCell="amountTry" [weGridCellRowsOf]="transactions" let-row>
+        <span class="money" [class.money--negative]="row.amountTry < 0">
+          {{ formatMoney(row.amountTry, 'TRY') }}
+        </span>
+      </ng-template>
+
+      <ng-template weGridCell="typeCode" [weGridCellRowsOf]="transactions" let-row>
+        <span class="tag" [class.tag--credit]="row.direction === 'credit'">{{ row.typeLabel }}</span>
+      </ng-template>
+
+      <!-- Master-detail: the breakdown lines already travel with the row, so expanding costs no request -->
+      <ng-template weGridRowDetail [weGridRowDetailRowsOf]="transactions" let-row>
+        <div class="detail">
+          <div class="detail__head">
+            <strong>{{ row.reference }}</strong>
+            <span>{{ row.description }}</span>
+          </div>
+          <table class="detail__table">
+            <thead>
+              <tr>
+                <th>Code</th>
+                <th>Line</th>
+                <th class="right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let line of row.breakdown">
+                <td>{{ line.code }}</td>
+                <td>{{ line.label }}</td>
+                <td class="right">{{ formatMoney(line.amount, row.currency) }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </ng-template>
+    </we-grid>
+  </section>
+
+  <section class="card">
+    <div class="card__head">
+      <h2>Loan Portfolio</h2>
+      <span class="hint">
+        The full list is loaded once and handed to the grid as-is, so filtering, sorting and
+        grouping all run client-side — no <code>serverSide</code> input at all. The grid renders
+        every row it is given; paging is the parent's job, so there is no pager here.
+      </span>
+    </div>
+
+    <we-grid
+      gridKey="banking-loans"
+      [columns]="loanColumns"
+      [data]="loans"
+      [loading]="loansLoading"
+      trackByField="id"
+      [filterRow]="true"
+      [grouping]="true"
+    >
+      <ng-template weGridCell="riskGrade" [weGridCellRowsOf]="loans" let-row>
+        <span [class]="riskClass(row.riskGrade)">{{ row.riskGrade }}</span>
+      </ng-template>
+
+      <ng-template weGridCell="overdueDays" [weGridCellRowsOf]="loans" let-row>
+        <span [class.money--negative]="row.overdueDays > 0">{{ row.overdueDays }}</span>
+      </ng-template>
+    </we-grid>
+  </section>
+</main>

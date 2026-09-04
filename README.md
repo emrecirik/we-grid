@@ -77,6 +77,22 @@ export class ProductListComponent {
 `gridKey` is required — the user's column layout is persisted under this key, so keep it unique
 per grid instance.
 
+## Examples
+
+Three full sample applications live in [`SampleUsageProjects/`](SampleUsageProjects/README.md), each
+registered in this workspace and runnable with the Angular CLI:
+
+| App | Shows |
+|---|---|
+| [`banking`](SampleUsageProjects/banking) | Currency columns with mixed per-row currencies, a pinned column, date-range filtering, backend-supplied totals, master-detail rows |
+| [`retail-market`](SampleUsageProjects/retail-market) | Grouping with subtotals, boolean column + filter, `rowClass` highlighting, multi-select with bulk actions, density switching |
+| [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | The server-side reference example: paging/sorting/filtering against a mock backend, KPI cards, `displayValue` status badges, a custom layout store, XML data source |
+
+```bash
+npx ng build we-grid              # build the library first
+npx ng serve ecommerce-dashboard  # then any sample app
+```
+
 ## Documentation
 
 - [Getting started](docs/getting-started.md)

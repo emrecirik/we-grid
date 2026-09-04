@@ -1,0 +1,83 @@
+<header class="app-header">
+  <div>
+    <h1>Order Operations Dashboard</h1>
+    <p>
+      The reference example for the server-side contract: paging, sorting and filtering all travel
+      to a mock backend, the KPI cards are computed over the filtered set (not the visible page),
+      and the user's column layout is persisted through a custom <code>WeGridLayoutStore</code>.
+    </p>
+  </div>
+  <span class="layout-flag" [class.layout-flag--on]="layoutSaved">
+    {{ layoutSaved ? 'Layout saved for this user' : 'Default layout' }}
+  </span>
+</header>
+
+<main class="app-main">
+  <section class="kpis">
+    <article class="kpi">
+      <span class="kpi__label">Orders</span>
+      <strong class="kpi__value">{{ kpis.orderCount }}</strong>
+      <span class="kpi__note">matching the current filter</span>
+    </article>
+    <article class="kpi">
+      <span class="kpi__label">Revenue</span>
+      <strong class="kpi__value">{{ formatMoney(kpis.revenue) }}</strong>
+      <span class="kpi__note">gross, incl. shipping</span>
+    </article>
+    <article class="kpi">
+      <span class="kpi__label">Average order</span>
+      <strong class="kpi__value">{{ formatMoney(kpis.averageOrderValue) }}</strong>
+      <span class="kpi__note">revenue / order count</span>
+    </article>
+    <article class="kpi">
+      <span class="kpi__label">Open orders</span>
+      <strong class="kpi__value">{{ kpis.openOrderCount }}</strong>
+      <span class="kpi__note">not delivered or cancelled</span>
+    </article>
+    <article class="kpi">
+      <span class="kpi__label">Cancelled</span>
+      <strong class="kpi__value kpi__value--warn">{{ kpis.cancelledCount }}</strong>
+      <span class="kpi__note">needs follow-up</span>
+    </article>
+  </section>
+
+  <section class="card">
+    <div class="card__head">
+      <h2>Orders</h2>
+      <span class="hint">
+        Source data is <code>assets/data/orders.xml</code>, parsed with <code>DOMParser</code> —
+        the grid itself never sees the transport format.
+      </span>
+    </div>
+
+    <we-grid
+      [gridKey]="gridKey"
+      [columns]="columns"
+      [data]="orders"
+      [loading]="loading"
+      trackByField="id"
+      [serverSide]="true"
+      [totalCount]="totalCount"
+      [page]="page"
+      [pageSize]="pageSize"
+      [sortField]="sortField"
+      [sortDirection]="sortDirection"
+      [filterRow]="true"
+      [grouping]="true"
+      [summaryValues]="summaryValues"
+      (pageChange)="onPageChange($event)"
+      (sortChange)="onSortChange($event)"
+      (filterChange)="onFilterChange($event)"
+      (layoutChange)="onLayoutChange($event)"
+    >
+      <ng-template weGridCell="statusCode" [weGridCellRowsOf]="orders" let-row>
+        <span [class]="statusClass(row.statusCode)">{{ statusLabel(row.statusCode) }}</span>
+      </ng-template>
+
+      <ng-template weGridCell="carrier" [weGridCellRowsOf]="orders" let-row>
+        <span class="muted" *ngIf="!row.carrier">not assigned</span>
+        <span *ngIf="row.carrier">{{ row.carrier }}</span>
+      </ng-template>
+    </we-grid>
+  </section>
+</main>

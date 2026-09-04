@@ -1,0 +1,26 @@
+/* Global styles — no CSS framework, only the we-grid default theme plus a few app-level rules. */
+@import '../../../projects/we-grid/styles/we-grid-theme.scss';
+
+:root {
+  --app-accent: #1d4ed8;
+  --app-accent-soft: #eff6ff;
+  --app-border: #e2e8f0;
+  --app-text: #0f172a;
+  --app-muted: #64748b;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #f6f7f9;
+  color: var(--app-text);
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}

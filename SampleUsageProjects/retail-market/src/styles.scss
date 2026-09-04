@@ -1,0 +1,40 @@
+/* Global styles — no CSS framework, only the we-grid default theme plus a few app-level rules. */
+@import '../../../projects/we-grid/styles/we-grid-theme.scss';
+
+:root {
+  --app-accent: #047857;
+  --app-accent-soft: #ecfdf5;
+  --app-border: #e2e8f0;
+  --app-text: #0f172a;
+  --app-muted: #64748b;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: #f6f7f9;
+  color: var(--app-text);
+  font-family: "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 14px;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+/*
+ * Row highlighting for the `rowClass` input.
+ * These classes are put on the grid's own <tr>, which lives inside the library component — a
+ * component-scoped rule in app.component.scss would never reach it, so they belong here.
+ */
+.we-grid__row.row-critical-stock td {
+  background: #fff7ed;
+}
+
+.we-grid__row.row-out-of-stock td {
+  background: #fef2f2;
+  color: #991b1b;
+}

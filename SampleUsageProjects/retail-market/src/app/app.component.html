@@ -1,0 +1,85 @@
+<header class="app-header">
+  <h1>Market Operations — Products &amp; Stock</h1>
+  <p>
+    Grouping with per-group subtotals, a boolean shelf column with its boolean filter, critical
+    stock highlighting through <code>rowClass</code>, multi-row selection with a bulk action bar and
+    an app-level density switch.
+  </p>
+</header>
+
+<main class="app-main">
+  <section class="card">
+    <div class="toolbar">
+      <div class="toolbar__group">
+        <span class="toolbar__label">Density</span>
+        <button
+          type="button"
+          *ngFor="let option of densities"
+          class="chip"
+          [class.chip--active]="density === option"
+          (click)="setDensity(option)"
+        >
+          {{ option }}
+        </button>
+      </div>
+
+      <div class="toolbar__group">
+        <span class="hint">
+          Open the column menu on <strong>Category</strong> and choose
+          <em>Group by this field</em> — every group header carries its own subtotal. Grouping runs
+          over the loaded page, and this grid pages on the server, so it groups those 50 rows.
+        </span>
+      </div>
+    </div>
+
+    <div class="bulkbar" *ngIf="selectedProducts.length > 0">
+      <span class="bulkbar__count">{{ selectedProducts.length }} selected</span>
+      <span class="bulkbar__value">Retail value: {{ formatMoney(selectedValue) }}</span>
+      <button type="button" class="btn" (click)="applyShelfStatus(true)">Move to shelf</button>
+      <button type="button" class="btn" (click)="applyShelfStatus(false)">Pull from shelf</button>
+      <button type="button" class="btn btn--primary" (click)="requestReplenishment()">
+        Request replenishment
+      </button>
+    </div>
+
+    <div class="notice" *ngIf="lastAction">
+      {{ lastAction.message }} — {{ lastAction.affectedRows }} row(s).
+      <button type="button" class="notice__close" (click)="clearSelectionMessage()">×</button>
+    </div>
+
+    <we-grid
+      gridKey="retail-products"
+      [columns]="columns"
+      [data]="products"
+      [loading]="loading"
+      trackByField="id"
+      [serverSide]="true"
+      [totalCount]="totalCount"
+      [page]="page"
+      [pageSize]="pageSize"
+      [sortField]="sortField"
+      [sortDirection]="sortDirection"
+      [filterRow]="true"
+      [grouping]="true"
+      selectable="multi"
+      [rowClass]="rowClass"
+      (pageChange)="onPageChange($event)"
+      (sortChange)="onSortChange($event)"
+      (filterChange)="onFilterChange($event)"
+      (selectionChange)="selectedProducts = $event"
+    >
+      <ng-template weGridCell="onShelf" [weGridCellRowsOf]="products" let-row>
+        <span class="pill" [class.pill--off]="!row.onShelf">{{ row.onShelf ? 'On shelf' : 'Backroom' }}</span>
+      </ng-template>
+
+      <ng-template weGridCell="stockQty" [weGridCellRowsOf]="products" let-row>
+        <span class="qty" [class.qty--low]="row.stockQty <= row.minStockQty">{{ row.stockQty }}</span>
+      </ng-template>
+    </we-grid>
+
+    <p class="legend">
+      <span class="legend__swatch legend__swatch--critical"></span> stock at or below the minimum
+      <span class="legend__swatch legend__swatch--out"></span> out of stock
+    </p>
+  </section>
+</main>
