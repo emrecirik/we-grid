@@ -28,8 +28,10 @@ jobs:
           cache: npm
 
       # Trusted publishing needs npm 11.5.1+, newer than the version bundled with Node 20.
+      # Pinned to the 11.x line on purpose: npm 12 requires Node 22+, and the build stays on
+      # the same Node version CI uses so the published output matches what CI tested.
       - name: Update npm
-        run: npm install -g npm@latest
+        run: npm install -g npm@^11.5.1
 
       - run: npm ci
 
@@ -39,13 +41,19 @@ jobs:
       - name: Unit tests
         run: npm test
 
-      - name: Verify the tag matches the package version
+      # On a tag push the tag must match the built version; a manual run just uses the built
+      # version, so the workflow can be exercised without inventing a tag.
+      - name: Resolve the version to publish
         id: version
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
           PKG=$(node -p "require('./dist/we-grid/package.json').version")
-          echo "tag=$TAG package=$PKG"
-          test "$TAG" = "$PKG" || { echo "::error::Tag $GITHUB_REF_NAME does not match package version $PKG"; exit 1; }
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            TAG="${GITHUB_REF_NAME#v}"
+            echo "tag=$TAG package=$PKG"
+            test "$TAG" = "$PKG" || { echo "::error::Tag $GITHUB_REF_NAME does not match package version $PKG"; exit 1; }
+          else
+            echo "manual run — publishing whatever the workspace builds: $PKG"
+          fi
           echo "value=$PKG" >> "$GITHUB_OUTPUT"
 
       # Makes the workflow idempotent: re-running it, or tagging a version that was published
