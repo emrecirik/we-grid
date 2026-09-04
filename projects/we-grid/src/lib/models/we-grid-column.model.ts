@@ -1,0 +1,111 @@
+import { TemplateRef } from '@angular/core';
+
+/** Column data type — cell rendering and default formatting are driven by this */
+export type WeGridColumnType = 'text' | 'number' | 'date' | 'datetime' | 'currency' | 'boolean' | 'custom';
+
+/** Cell / header alignment */
+export type WeGridAlign = 'start' | 'center' | 'end';
+
+/** Column pin direction */
+export type WeGridPinned = 'left' | 'right' | null;
+
+/** Grid density mode — determines row height */
+export type WeGridDensity = 'comfortable' | 'normal' | 'compact';
+
+/** Sort direction */
+export type WeGridSortDirection = 'asc' | 'desc' | null;
+
+/** Subtotal (summary row) function — a column with 'none' does not participate in the summary row */
+export type WeGridSummaryFunction = 'sum' | 'count' | 'avg' | 'min' | 'max' | 'none';
+
+/** sum/avg/min/max only make sense on numeric columns — text/date/boolean/custom only offer count */
+export function isWeGridNumericSummaryType(type: WeGridColumnType): boolean {
+  return type === 'number' || type === 'currency';
+}
+
+/** Context passed to a `weGridCell` template — used as `let-row`, `let-value="value"` */
+export interface WeGridCellContext<T> {
+  $implicit: T;
+  row: T;
+  value: unknown;
+  rowIndex: number;
+  column: WeGridColumnDef<T>;
+}
+
+/**
+ * Column definition supplied by the developer (the default layout).
+ * User customizations (visibility, order, width, name, pin) are stored separately
+ * in `WeGridColumnLayout` and merged on top of this definition.
+ */
+export interface WeGridColumnDef<T> {
+  /** Field path on the row object — nested access via `a.b.c` is supported */
+  field: string;
+  /** Default header text */
+  header: string;
+  /** Cell render type — defaults to 'text' */
+  type?: WeGridColumnType;
+  /** Width in pixels */
+  width?: number;
+  /** Minimum width in pixels (resize/autofit never goes below this) */
+  minWidth?: number;
+  /**
+   * Maximum width in pixels — only bounds autofit (manual dragging is unaffected).
+   * For free-text columns that can grow unbounded (e.g. a `STRING_AGG` result), autofit would
+   * otherwise apply the measured content width verbatim; a cell with thousands of characters could
+   * blow up the column (and therefore the whole table) to an unreasonable size. If set, autofit
+   * never exceeds this value, though the user can still drag the edge to widen it further.
+   */
+  maxWidth?: number;
+  /** Default visibility — defaults to true */
+  visible?: boolean;
+  /** Default order (ascending) */
+  order?: number;
+  /** Word wrap — defaults to false (single line, ellipsis) */
+  wrap?: boolean;
+  /** Cell/header alignment */
+  align?: WeGridAlign;
+  /** Whether sortable — defaults to true */
+  sortable?: boolean;
+  /** Default pin direction */
+  pinned?: WeGridPinned;
+  /** date/datetime/number/currency format (same convention as Angular's DatePipe/DecimalPipe) */
+  format?: string;
+  /**
+   * Custom cell template (can also be supplied via the `weGridCell` directive) — works
+   * INDEPENDENTLY of `type`. If the field holds numeric/currency data, keep `type: 'number'` /
+   * `'currency'` and still use a template; only setting `type: 'custom'` for rendering purposes
+   * silently disables the sum/avg/min/max summary menu.
+   */
+  cellTemplate?: TemplateRef<WeGridCellContext<T>>;
+  /** Tooltip shown when hovering over the header */
+  headerTooltip?: string;
+  /** If true, the user cannot hide this column (e.g. an actions column) */
+  lockVisible?: boolean;
+  /** If true, the user cannot rename this column */
+  lockRename?: boolean;
+  /** If true, clicking this cell does not bubble into the row's rowClick event — used for action/button columns */
+  stopRowClick?: boolean;
+  /**
+   * Developer-supplied default summary function — defaults to 'none'.
+   * If the user makes their own choice from the header menu (including a deliberate 'none'), that
+   * choice becomes permanent and overrides this default — on reload, the developer's default never
+   * silently re-enables a total the user turned off.
+   */
+  summary?: WeGridSummaryFunction;
+  /**
+   * Whether this column can be edited in the filter row — defaults to true. Set to `false` for
+   * columns where filtering makes no sense (e.g. action/button columns); the cell stays empty in
+   * the filter row when it's open. Only relevant on grids where the `filterRow` input is true.
+   */
+  filterable?: boolean;
+  /**
+   * Converts a raw/code value on the row (e.g. `status: 1`, `supplierCode: '120'`) into the
+   * human-readable text shown to the user (e.g. "Draft", "120 - ABC Supplies Inc."). When supplied,
+   * GROUP HEADERS, text filtering, and the "Filter by this value" context menu action all use this
+   * label instead of the raw value — the user searches/groups by what they already see on screen
+   * rather than the raw code. If omitted, the existing behavior (raw `field` value, formatted via
+   * `formatWeGridValue`) is unchanged, so this is fully backward compatible. Sorting is NOT
+   * affected by this — sorting always continues to use the raw `field` value.
+   */
+  displayValue?: (row: T) => string;
+}

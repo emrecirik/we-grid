@@ -1,0 +1,63 @@
+<div class="we-grid-filter-popover" (keydown.escape)="close()" (keydown.enter)="onEnterKey($event)">
+  <div class="we-grid-filter-popover__header">
+    <span>{{ headerLabel }}</span>
+    <button type="button" class="we-grid-filter-popover__close" (click)="close()" [attr.aria-label]="locale.close" [title]="locale.close"><span [innerHTML]="icon('close')" aria-hidden="true"></span></button>
+  </div>
+
+  @if (column?.type === 'boolean') {
+    <select
+      class="we-grid-filter-popover__select"
+      [attr.aria-label]="locale.filterAriaLabel + ': ' + headerLabel"
+      [ngModel]="filterState.value"
+      (ngModelChange)="emitValue($event)"
+    >
+      <option value="all">{{ locale.all }}</option>
+      <option value="true">{{ locale.yes }}</option>
+      <option value="false">{{ locale.no }}</option>
+    </select>
+  } @else if (column?.type === 'number' || column?.type === 'currency') {
+    <select class="we-grid-filter-popover__select" [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + headerLabel" [ngModel]="filterState.operator" (ngModelChange)="emitOperator($event)">
+      <option value="eq">=</option>
+      <option value="gt">&gt;</option>
+      <option value="lt">&lt;</option>
+      <option value="between">{{ locale.between }}</option>
+    </select>
+    @if (filterState.operator === 'between') {
+      <div class="we-grid-filter-popover__range">
+        <input type="number" class="we-grid-filter-popover__input" placeholder="min" [ngModel]="filterState.value" (ngModelChange)="emitValue($event, 'value')" />
+        <span class="we-grid-filter-popover__range-sep">—</span>
+        <input type="number" class="we-grid-filter-popover__input" placeholder="max" [ngModel]="filterState.value2" (ngModelChange)="emitValue($event, 'value2')" />
+      </div>
+    } @else {
+      <input type="number" class="we-grid-filter-popover__input" [placeholder]="locale.value" [ngModel]="filterState.value" (ngModelChange)="emitValue($event, 'value')" />
+    }
+  } @else if (column?.type === 'date' || column?.type === 'datetime') {
+    <select class="we-grid-filter-popover__select" [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + headerLabel" [ngModel]="filterState.operator" (ngModelChange)="emitOperator($event)">
+      <option value="eq">{{ locale.equals }}</option>
+      <option value="before">{{ locale.before }}</option>
+      <option value="after">{{ locale.after }}</option>
+      <option value="between">{{ locale.between }}</option>
+    </select>
+    @if (filterState.operator === 'between') {
+      <div class="we-grid-filter-popover__range">
+        <input type="date" class="we-grid-filter-popover__input" [ngModel]="filterState.value" (ngModelChange)="emitValue($event, 'value')" />
+        <span class="we-grid-filter-popover__range-sep">—</span>
+        <input type="date" class="we-grid-filter-popover__input" [ngModel]="filterState.value2" (ngModelChange)="emitValue($event, 'value2')" />
+      </div>
+    } @else {
+      <input type="date" class="we-grid-filter-popover__input" [ngModel]="filterState.value" (ngModelChange)="emitValue($event, 'value')" />
+    }
+  } @else {
+    <select class="we-grid-filter-popover__select" [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + headerLabel" [ngModel]="filterState.operator" (ngModelChange)="emitOperator($event)">
+      <option value="contains">{{ locale.contains }}</option>
+      <option value="startsWith">{{ locale.startsWith }}</option>
+      <option value="equals">{{ locale.equals }}</option>
+    </select>
+    <input type="text" class="we-grid-filter-popover__input" [placeholder]="locale.value" [ngModel]="filterState.value" (ngModelChange)="emitValue($event, 'value')" />
+  }
+
+  <div class="we-grid-filter-popover__footer">
+    <button type="button" class="we-grid-filter-popover__btn we-grid-filter-popover__btn--clear" (click)="clear()">{{ locale.clear }}</button>
+    <button type="button" class="we-grid-filter-popover__btn we-grid-filter-popover__btn--apply" (click)="close()">{{ locale.apply }}</button>
+  </div>
+</div>

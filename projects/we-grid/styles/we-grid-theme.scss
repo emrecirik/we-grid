@@ -1,0 +1,91 @@
+// ─────────────────────────────────────────────────────────────────────
+// @we-grid/angular default theme
+// The grid itself only reads CSS custom properties (see WeGridComponent's SCSS —
+// `var(--we-grid-xxx, fallback)` everywhere), so it never depends on any particular design
+// system. This file provides a complete, framework-independent set of sensible defaults for both
+// light and dark; copy it and override values to match your own design system/branding.
+//
+// Dark mode is opt-in via `[data-theme="dark"]` on an ancestor element (e.g. <body> or <html>),
+// or automatically via `prefers-color-scheme` when no explicit theme has been set. The
+// prefers-color-scheme block is guarded with `:not([data-theme="light"])` so an explicit light
+// choice always wins over the OS preference, and `[data-theme="dark"]` is repeated afterwards so
+// an explicit dark toggle always wins in both directions.
+// ─────────────────────────────────────────────────────────────────────
+
+:root {
+  --we-grid-bg: #ffffff;
+  --we-grid-font-color: #212529;
+  --we-grid-border-color: #dee2e6;
+  --we-grid-header-bg: #f3f6f9;
+  --we-grid-header-color: #212529;
+  --we-grid-row-hover-bg: rgba(0, 0, 0, 0.035);
+  --we-grid-row-selected-bg: rgba(64, 81, 137, 0.1);
+  --we-grid-accent-color: #405189;
+  --we-grid-muted-color: #878a99;
+  --we-grid-font-size: 0.8125rem;
+  --we-grid-font-size-compact: 0.75rem;
+  --we-grid-radius: 0.25rem;
+  --we-grid-row-height: 2.75rem;
+  --we-grid-skeleton-base: #eceef1;
+  --we-grid-skeleton-shine: #f6f7f8;
+  --we-grid-menu-bg: #ffffff;
+  --we-grid-menu-color: #212529;
+  --we-grid-menu-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+  --we-grid-warning-color: #f7b84b;
+  --we-grid-chips-bg: rgba(64, 81, 137, 0.04);
+  --we-grid-detail-bg: rgba(0, 0, 0, 0.015);
+  --we-grid-summary-bg: #f3f6f9;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --we-grid-bg: #1e2129;
+    --we-grid-font-color: #ced4da;
+    --we-grid-border-color: #32394e;
+    --we-grid-header-bg: #262b38;
+    --we-grid-header-color: #ced4da;
+    --we-grid-row-hover-bg: rgba(255, 255, 255, 0.04);
+    --we-grid-row-selected-bg: rgba(64, 81, 137, 0.25);
+    --we-grid-accent-color: #5b73b8;
+    --we-grid-muted-color: #878a99;
+    --we-grid-skeleton-base: #32394e;
+    --we-grid-skeleton-shine: #3a4256;
+    --we-grid-menu-bg: #262b38;
+    --we-grid-menu-color: #ced4da;
+    --we-grid-menu-shadow: 0 0.5rem 1.75rem rgba(0, 0, 0, 0.45);
+    --we-grid-warning-color: #f7b84b;
+    --we-grid-chips-bg: rgba(91, 115, 184, 0.12);
+    --we-grid-detail-bg: rgba(255, 255, 255, 0.03);
+    --we-grid-summary-bg: #262b38;
+  }
+}
+
+:root[data-theme='dark'] {
+  --we-grid-bg: #1e2129;
+  --we-grid-font-color: #ced4da;
+  --we-grid-border-color: #32394e;
+  --we-grid-header-bg: #262b38;
+  --we-grid-header-color: #ced4da;
+  --we-grid-row-hover-bg: rgba(255, 255, 255, 0.04);
+  --we-grid-row-selected-bg: rgba(64, 81, 137, 0.25);
+  --we-grid-accent-color: #5b73b8;
+  --we-grid-muted-color: #878a99;
+  --we-grid-skeleton-base: #32394e;
+  --we-grid-skeleton-shine: #3a4256;
+  --we-grid-menu-bg: #262b38;
+  --we-grid-menu-color: #ced4da;
+  --we-grid-menu-shadow: 0 0.5rem 1.75rem rgba(0, 0, 0, 0.45);
+  --we-grid-warning-color: #f7b84b;
+  --we-grid-chips-bg: rgba(91, 115, 184, 0.12);
+  --we-grid-detail-bg: rgba(255, 255, 255, 0.03);
+  --we-grid-summary-bg: #262b38;
+}
+
+// The grid's column/filter/summary context menus are rendered through the Angular CDK Overlay,
+// appended at the end of <body>. If your host app also uses a modal/dialog system with its own
+// stacking context (a Bootstrap modal, a Material dialog, etc.), raise the overlay container's
+// z-index above it so menus stay clickable while a modal is open — adjust the value to sit above
+// whatever your host app's modal layer uses.
+.cdk-overlay-container {
+  z-index: 1070;
+}

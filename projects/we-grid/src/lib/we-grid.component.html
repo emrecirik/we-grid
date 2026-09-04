@@ -1,0 +1,539 @@
+<div
+  class="we-grid"
+  [class.we-grid--compact]="density === 'compact'"
+  [class.we-grid--comfortable]="density === 'comfortable'"
+  [class.we-grid--clickable]="rowClick.observed"
+>
+  <div class="we-grid__toolbar">
+    @if (groupField) {
+      <span class="we-grid__group-chip">
+        <span [innerHTML]="icon('stack')" aria-hidden="true"></span>
+        {{ locale.groupingLabel }} {{ groupFieldHeaderLabel() }}
+        <button type="button" class="we-grid__group-chip-remove" (click)="clearGrouping()" [attr.aria-label]="locale.clearGroupingAria" [title]="locale.clearGroupingAria">
+          <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+        </button>
+      </span>
+    }
+    @if (filterRow) {
+      <button
+        type="button"
+        class="we-grid__filter-toggle-btn"
+        [class.we-grid__filter-toggle-btn--active]="filterRowVisible"
+        (click)="toggleFilterRowVisible()"
+        [attr.aria-pressed]="filterRowVisible"
+        [attr.aria-label]="locale.filterRowButton"
+        [title]="locale.filterRowButton"
+      >
+        <span [innerHTML]="icon('filter')" aria-hidden="true"></span> {{ locale.filterRowButton }}
+      </button>
+    }
+    <button
+      #gearButton
+      type="button"
+      class="we-grid__gear-btn"
+      (click)="openColumnsMenuFromToolbar()"
+      [attr.aria-label]="locale.columnsButton"
+      [title]="locale.columnsButton"
+    >
+      <span [innerHTML]="icon('settings')" aria-hidden="true"></span> {{ locale.columnsButton }}
+    </button>
+  </div>
+
+  @if ((filterRow && hasActiveFilters) || isFilteringPageOnly || isSortingPageOnly) {
+    <div class="we-grid__chips-row">
+      @for (chip of activeFilterChips; track chip.field) {
+        <span class="we-grid__filter-chip">
+          <span class="we-grid__filter-chip-label">{{ chip.label }}</span>
+          <button
+            type="button"
+            class="we-grid__filter-chip-remove"
+            (click)="clearFilterByField(chip.field)"
+            [attr.aria-label]="locale.clear + ': ' + chip.label"
+            [title]="locale.clear"
+          >
+            <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+          </button>
+        </span>
+      }
+      @if (isFilteringPageOnly) {
+        <span class="we-grid__filter-scope-hint" [title]="locale.onlyThisPageSearched">
+          <span [innerHTML]="icon('warning')" aria-hidden="true"></span> {{ locale.onlyThisPageSearched }}
+        </span>
+      }
+      @if (isSortingPageOnly) {
+        <span class="we-grid__filter-scope-hint" [title]="locale.onlyThisPageSorted">
+          <span [innerHTML]="icon('warning')" aria-hidden="true"></span> {{ locale.onlyThisPageSorted }}
+        </span>
+      }
+      @if (hasActiveFilters) {
+        <button type="button" class="we-grid__filter-clear-btn" (click)="clearAllFilters()">
+          <span [innerHTML]="icon('filterOff')" aria-hidden="true"></span> {{ locale.clearAllFilters }}
+        </button>
+      }
+    </div>
+  }
+
+  <div class="we-grid__scroll">
+    <table
+      class="we-grid__table"
+      role="grid"
+      [style.width.px]="tableWidthPx"
+      [attr.aria-rowcount]="totalCount || displayData.length"
+      [attr.aria-colcount]="renderColumns.length"
+    >
+      <thead>
+        <tr class="we-grid__header-row" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="onColumnDrop($event)">
+          @if (expandable) {
+            <th class="we-grid__expand-col" scope="col" [style.left.px]="0"></th>
+          }
+          @if (selectable !== 'none') {
+            <th class="we-grid__select-col" scope="col" [style.left.px]="expandColWidthPx">
+              @if (selectable === 'multi') {
+                <input type="checkbox" [checked]="allSelected" (change)="toggleSelectAll()" [attr.aria-label]="locale.all" />
+              }
+            </th>
+          }
+          @for (col of renderColumns; track col.field) {
+            <th
+              #thRef
+              cdkDrag
+              cdkDragLockAxis="x"
+              cdkDragPreviewClass="we-grid__drag-preview"
+              [cdkDragData]="col"
+              role="columnheader"
+              tabindex="0"
+              scope="col"
+              [attr.aria-sort]="col.sortable ? ariaSort(col) : null"
+              [style.width.px]="col.width"
+              [style.min-width.px]="col.minWidth"
+              [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+              [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+              [class.we-grid__th--pinned-left]="col.pinned === 'left'"
+              [class.we-grid__th--pinned-right]="col.pinned === 'right'"
+              [class.we-grid__th--sortable]="col.sortable"
+              [title]="col.headerTooltip || null"
+              (contextmenu)="onHeaderContextMenu($event, col)"
+              (keydown)="onHeaderKeydown($event, col, thRef)"
+            >
+              <div class="we-grid__th-inner">
+                <span class="we-grid__th-label" [style.text-align]="col.align" (click)="onHeaderLabelClick(col)">
+                  {{ displayHeader(col) }}
+                </span>
+                @if (col.sortable && currentSort?.field === col.field) {
+                  <span
+                    class="we-grid__sort-icon"
+                    [innerHTML]="currentSort?.direction === 'asc' ? icon('sortAsc') : icon('sortDesc')"
+                    aria-hidden="true"
+                  ></span>
+                }
+                @if (filterRow && col.filterable) {
+                  <button
+                    type="button"
+                    class="we-grid__th-filter-btn"
+                    [class.we-grid__th-filter-btn--active]="isColumnFilterActive(col)"
+                    (click)="onFilterIconClick($event, col, thRef)"
+                    [attr.aria-label]="locale.filterAriaLabel + ': ' + displayHeader(col)"
+                    [attr.aria-pressed]="isColumnFilterActive(col)"
+                    [title]="locale.filterAriaLabel"
+                  >
+                    <span [innerHTML]="isColumnFilterActive(col) ? icon('filterFilled') : icon('filter')" aria-hidden="true"></span>
+                  </button>
+                }
+                <button
+                  type="button"
+                  class="we-grid__th-menu-btn"
+                  (click)="onHeaderContextMenu($event, col)"
+                  [attr.aria-label]="locale.columns + ': ' + displayHeader(col)"
+                >
+                  <span [innerHTML]="icon('settings')" aria-hidden="true"></span>
+                </button>
+              </div>
+              <div class="we-grid__resize-handle" (pointerdown)="onResizeStart($event, col, thRef)"></div>
+            </th>
+          }
+        </tr>
+        @if (filterRow && filterRowVisible) {
+          <tr class="we-grid__filter-row">
+            @if (expandable) {
+              <th class="we-grid__expand-col" scope="col"></th>
+            }
+            @if (selectable !== 'none') {
+              <th class="we-grid__select-col" scope="col" [style.left.px]="expandColWidthPx"></th>
+            }
+            @for (col of renderColumns; track col.field) {
+              <th
+                scope="col"
+                class="we-grid__filter-cell"
+                [style.width.px]="col.width"
+                [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                [class.we-grid__th--pinned-left]="col.pinned === 'left'"
+                [class.we-grid__th--pinned-right]="col.pinned === 'right'"
+              >
+                @if (col.filterable) {
+                  @if (col.type === 'boolean') {
+                    <select
+                      class="we-grid__filter-select"
+                      [attr.aria-label]="locale.filterAriaLabel + ': ' + displayHeader(col)"
+                      [ngModel]="getFilterState(col).value"
+                      (ngModelChange)="setFilterValue(col, $event)"
+                    >
+                      <option value="all">{{ locale.all }}</option>
+                      <option value="true">{{ locale.yes }}</option>
+                      <option value="false">{{ locale.no }}</option>
+                    </select>
+                  } @else {
+                    <div class="we-grid__filter-controls">
+                      @if (col.type === 'number' || col.type === 'currency') {
+                        <select
+                          class="we-grid__filter-op"
+                          [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + displayHeader(col)"
+                          [ngModel]="getFilterState(col).operator"
+                          (ngModelChange)="setFilterOperator(col, $event)"
+                        >
+                          <option value="eq">=</option>
+                          <option value="gt">&gt;</option>
+                          <option value="lt">&lt;</option>
+                          <option value="between">{{ locale.between }}</option>
+                        </select>
+                        @if (getFilterState(col).operator === 'between') {
+                          <input type="number" class="we-grid__filter-input we-grid__filter-input--sm" placeholder="min" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
+                          <input type="number" class="we-grid__filter-input we-grid__filter-input--sm" placeholder="max" [ngModel]="getFilterState(col).value2" (ngModelChange)="setFilterValue(col, $event, 'value2')" />
+                        } @else {
+                          <input type="number" class="we-grid__filter-input" [placeholder]="locale.value" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
+                        }
+                      } @else if (col.type === 'date' || col.type === 'datetime') {
+                        <select
+                          class="we-grid__filter-op"
+                          [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + displayHeader(col)"
+                          [ngModel]="getFilterState(col).operator"
+                          (ngModelChange)="setFilterOperator(col, $event)"
+                        >
+                          <option value="eq">{{ locale.equals }}</option>
+                          <option value="before">{{ locale.before }}</option>
+                          <option value="after">{{ locale.after }}</option>
+                          <option value="between">{{ locale.between }}</option>
+                        </select>
+                        @if (getFilterState(col).operator === 'between') {
+                          <input type="date" class="we-grid__filter-input we-grid__filter-input--sm" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
+                          <input type="date" class="we-grid__filter-input we-grid__filter-input--sm" [ngModel]="getFilterState(col).value2" (ngModelChange)="setFilterValue(col, $event, 'value2')" />
+                        } @else {
+                          <input type="date" class="we-grid__filter-input" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
+                        }
+                      } @else {
+                        <select
+                          class="we-grid__filter-op"
+                          [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + displayHeader(col)"
+                          [ngModel]="getFilterState(col).operator"
+                          (ngModelChange)="setFilterOperator(col, $event)"
+                        >
+                          <option value="contains">{{ locale.contains }}</option>
+                          <option value="startsWith">{{ locale.startsWith }}</option>
+                          <option value="equals">{{ locale.equals }}</option>
+                        </select>
+                        <input type="text" class="we-grid__filter-input" [placeholder]="locale.value" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
+                      }
+                    </div>
+                  }
+                }
+              </th>
+            }
+          </tr>
+        }
+      </thead>
+      <tbody>
+        @if (loading && displayData.length === 0) {
+          <!-- The skeleton is only shown on the very first load (when we have no rows at all) — a
+               search/page change while rows already exist doesn't replace/flicker them with skeletons. -->
+          @for (i of skeletonRows; track i) {
+            <tr class="we-grid__skeleton-row">
+              @if (expandable) {
+                <td class="we-grid__expand-col"></td>
+              }
+              @if (selectable !== 'none') {
+                <td class="we-grid__select-col"></td>
+              }
+              @for (col of renderColumns; track col.field) {
+                <td [style.width.px]="col.width"><div class="we-grid__skeleton-bar"></div></td>
+              }
+            </tr>
+          }
+        } @else if (displayData.length === 0) {
+          <tr>
+            <td class="we-grid__empty" [attr.colspan]="totalColSpan">
+              @if (hasActiveFilters) {
+                <span [innerHTML]="icon('filterOff')" class="fs-1" aria-hidden="true"></span>
+                <p class="mt-2 mb-1">{{ locale.noRecordsMatchFilter }}</p>
+                <button type="button" class="we-grid__empty-clear-btn" (click)="clearAllFilters()">{{ locale.clearFilters }}</button>
+              } @else {
+                <span [innerHTML]="icon('inbox')" class="fs-1" aria-hidden="true"></span>
+                <p class="mt-2 mb-0">{{ resolvedEmptyMessage }}</p>
+              }
+            </td>
+          </tr>
+        } @else if (groupedSections) {
+          <!-- A separate render branch while grouping is on (grouping=true + the user picked a
+               field) — displayData ITSELF does NOT change (selection/footer/summary always keep
+               working off displayData), groupedSections only distributes rows into group buckets
+               for DISPLAY purposes. -->
+          @for (section of groupedSections; track section.key) {
+            <tr class="we-grid__group-row">
+              <td [attr.colspan]="totalColSpan">
+                <button
+                  type="button"
+                  class="we-grid__group-toggle"
+                  [class.we-grid__group-toggle--open]="!section.collapsed"
+                  [attr.aria-expanded]="!section.collapsed"
+                  [attr.aria-label]="section.collapsed ? locale.groupByThisField : locale.removeGrouping"
+                  (click)="toggleGroupCollapse(section)"
+                >
+                  <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+                </button>
+                <span class="we-grid__group-label">{{ groupFieldHeaderLabel() }}: {{ section.label }}</span>
+                <span class="we-grid__group-count">{{ section.rows.length }} {{ locale.recordsLabel }}</span>
+                @if (groupSummaryLabel(section); as sumText) {
+                  <span class="we-grid__group-summary">{{ sumText }}</span>
+                }
+              </td>
+            </tr>
+            @if (!section.collapsed) {
+              @for (entry of section.rows; track trackByRow(entry.row)) {
+                <tr
+                  class="we-grid__row"
+                  [class.we-grid__row--selected]="isSelected(entry.row)"
+                  [ngClass]="rowClassFor(entry.row, entry.index)"
+                  (click)="onRowClick(entry.row, entry.index)"
+                  (dblclick)="onRowDblClick(entry.row, entry.index)"
+                >
+                  @if (expandable) {
+                    <td class="we-grid__expand-col" (click)="$event.stopPropagation()">
+                      @if (canExpandRows) {
+                        <button
+                          type="button"
+                          class="we-grid__expand-btn"
+                          [class.we-grid__expand-btn--open]="isRowExpanded(entry.row)"
+                          [attr.aria-expanded]="isRowExpanded(entry.row)"
+                          [attr.aria-label]="locale.groupByThisField"
+                          (click)="toggleRowExpand(entry.row, $event)"
+                        >
+                          <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+                        </button>
+                      }
+                    </td>
+                  }
+                  @if (selectable !== 'none') {
+                    <td class="we-grid__select-col" [style.left.px]="expandColWidthPx" (click)="$event.stopPropagation()">
+                      <input
+                        [type]="selectable === 'multi' ? 'checkbox' : 'radio'"
+                        [checked]="isSelected(entry.row)"
+                        (change)="toggleRowSelection(entry.row)"
+                        [attr.aria-label]="locale.all"
+                      />
+                    </td>
+                  }
+                  @for (col of renderColumns; track col.field) {
+                    <td
+                      [style.width.px]="col.width"
+                      [style.text-align]="col.align"
+                      [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                      [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                      [class.we-grid__td--wrap]="col.wrap"
+                      [class.we-grid__td--nowrap]="!col.wrap"
+                      [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+                      [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+                      [title]="col.wrap || getCellTemplate(col) ? null : formatCell(entry.row, col)"
+                      (click)="col.stopRowClick && $event.stopPropagation()"
+                      (contextmenu)="onCellContextMenu($event, col, entry.row)"
+                    >
+                      @if (getCellTemplate(col); as tmpl) {
+                        <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(entry.row, col, entry.index)"></ng-container>
+                      } @else {
+                        {{ formatCell(entry.row, col) }}
+                      }
+                    </td>
+                  }
+                </tr>
+                @if (canExpandRows && isRowDetailMounted(entry.row)) {
+                  <tr class="we-grid__detail-row" [hidden]="!isRowExpanded(entry.row)">
+                    <td [attr.colspan]="totalColSpan">
+                      <ng-container *ngTemplateOutlet="rowDetailDirective!.templateRef; context: buildRowDetailContext(entry.row, entry.index)"></ng-container>
+                    </td>
+                  </tr>
+                }
+              }
+            }
+          }
+        } @else {
+          @for (row of displayData; track trackByRow(row); let i = $index) {
+            <tr
+              class="we-grid__row"
+              [class.we-grid__row--selected]="isSelected(row)"
+              [ngClass]="rowClassFor(row, i)"
+              (click)="onRowClick(row, i)"
+              (dblclick)="onRowDblClick(row, i)"
+            >
+              @if (expandable) {
+                <td class="we-grid__expand-col" (click)="$event.stopPropagation()">
+                  @if (canExpandRows) {
+                    <button
+                      type="button"
+                      class="we-grid__expand-btn"
+                      [class.we-grid__expand-btn--open]="isRowExpanded(row)"
+                      [attr.aria-expanded]="isRowExpanded(row)"
+                      [attr.aria-label]="locale.groupByThisField"
+                      (click)="toggleRowExpand(row, $event)"
+                    >
+                      <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+                    </button>
+                  }
+                </td>
+              }
+              @if (selectable !== 'none') {
+                <td class="we-grid__select-col" [style.left.px]="expandColWidthPx" (click)="$event.stopPropagation()">
+                  <input
+                    [type]="selectable === 'multi' ? 'checkbox' : 'radio'"
+                    [checked]="isSelected(row)"
+                    (change)="toggleRowSelection(row)"
+                    [attr.aria-label]="locale.all"
+                  />
+                </td>
+              }
+              @for (col of renderColumns; track col.field) {
+                <td
+                  [style.width.px]="col.width"
+                  [style.text-align]="col.align"
+                  [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                  [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                  [class.we-grid__td--wrap]="col.wrap"
+                  [class.we-grid__td--nowrap]="!col.wrap"
+                  [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+                  [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+                  [title]="col.wrap || getCellTemplate(col) ? null : formatCell(row, col)"
+                  (click)="col.stopRowClick && $event.stopPropagation()"
+                  (contextmenu)="onCellContextMenu($event, col, row)"
+                >
+                  @if (getCellTemplate(col); as tmpl) {
+                    <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(row, col, i)"></ng-container>
+                  } @else {
+                    {{ formatCell(row, col) }}
+                  }
+                </td>
+              }
+            </tr>
+            <!-- NOTE: uses the mount-once + [hidden] pattern instead of `@if (canExpandRows &&
+                 isRowExpanded(row))`. Reproducibly confirmed in this environment: once an
+                 @if/*ngIf view becomes true and is added to the DOM, flipping back to false does
+                 NOT remove it again (only the first false→true transition is reliable — confirmed
+                 with a minimal isolated repro, not specific to we-grid). So the detail content is
+                 mounted only ONCE, the first time a row is expanded, via `isRowDetailMounted`
+                 (this @if never transitions true→false, the row stays "mounted" permanently), and
+                 subsequent toggles use `[hidden]` without removing it from the DOM. -->
+            @if (canExpandRows && isRowDetailMounted(row)) {
+              <tr class="we-grid__detail-row" [hidden]="!isRowExpanded(row)">
+                <td [attr.colspan]="totalColSpan">
+                  <ng-container *ngTemplateOutlet="rowDetailDirective!.templateRef; context: buildRowDetailContext(row, i)"></ng-container>
+                </td>
+              </tr>
+            }
+          }
+        }
+      </tbody>
+      @if (hasSummaryRow) {
+        <tfoot>
+          <tr class="we-grid__summary-row">
+            @if (expandable) {
+              <td class="we-grid__expand-col"></td>
+            }
+            @if (selectable !== 'none') {
+              <td class="we-grid__select-col" [style.left.px]="expandColWidthPx" [title]="totalRecordCountForSummary + ' ' + locale.recordsLabel">
+                <span class="we-grid__summary-count">{{ totalRecordCountForSummary }}</span>
+              </td>
+            }
+            @for (col of renderColumns; track col.field; let first = $first) {
+              <td
+                class="we-grid__summary-cell"
+                [style.width.px]="col.width"
+                [style.text-align]="col.align"
+                [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+                [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+                [title]="summaryCellText(col)"
+              >
+                @if (first && selectable === 'none') {
+                  <span class="we-grid__summary-count" [title]="totalRecordCountForSummary + ' ' + locale.recordsLabel">{{ totalRecordCountForSummary }} {{ locale.recordsLabel }}</span>
+                }
+                @if (summaryCellText(col); as text) {
+                  <span class="we-grid__summary-value">{{ text }}</span>
+                }
+              </td>
+            }
+          </tr>
+        </tfoot>
+      }
+    </table>
+  </div>
+
+  <div class="we-grid__footer">
+    <div class="we-grid__footer-info">{{ totalCount || displayData.length }} {{ locale.recordsLabel }} — {{ locale.pageOf(page, totalPagesComputed) }}</div>
+    <nav class="we-grid__pager" [attr.aria-label]="locale.paginationAriaLabel">
+      <button
+        type="button"
+        class="we-grid__pager-btn"
+        (click)="goToPage(1)"
+        [disabled]="page <= 1"
+        [attr.aria-label]="locale.firstPage"
+      ><span [innerHTML]="icon('chevronFirst')" aria-hidden="true"></span></button>
+      <button
+        type="button"
+        class="we-grid__pager-btn"
+        (click)="goToPage(page - 1)"
+        [disabled]="page <= 1"
+        [attr.aria-label]="locale.previousPage"
+      ><span [innerHTML]="icon('chevronRight')" style="transform: scaleX(-1); display: inline-block;" aria-hidden="true"></span></button>
+
+      @if (pageNumbersComputed[0] > 1) {
+        <button type="button" class="we-grid__pager-btn" (click)="goToPage(1)" [attr.aria-label]="locale.pageAriaLabel(1)">1</button>
+        @if (pageNumbersComputed[0] > 2) {
+          <span class="we-grid__pager-ellipsis" aria-hidden="true">&hellip;</span>
+        }
+      }
+      @for (p of pageNumbersComputed; track p) {
+        <button
+          type="button"
+          class="we-grid__pager-btn"
+          [class.we-grid__pager-btn--active]="p === page"
+          (click)="goToPage(p)"
+          [attr.aria-current]="p === page ? 'page' : null"
+          [attr.aria-label]="locale.pageAriaLabel(p)"
+        >{{ p }}</button>
+      }
+      @if (pageNumbersComputed[pageNumbersComputed.length - 1] < totalPagesComputed) {
+        @if (pageNumbersComputed[pageNumbersComputed.length - 1] < totalPagesComputed - 1) {
+          <span class="we-grid__pager-ellipsis" aria-hidden="true">&hellip;</span>
+        }
+        <button
+          type="button"
+          class="we-grid__pager-btn"
+          (click)="goToPage(totalPagesComputed)"
+          [attr.aria-label]="locale.pageAriaLabel(totalPagesComputed)"
+        >{{ totalPagesComputed }}</button>
+      }
+
+      <button
+        type="button"
+        class="we-grid__pager-btn"
+        (click)="goToPage(page + 1)"
+        [disabled]="page >= totalPagesComputed"
+        [attr.aria-label]="locale.nextPage"
+      ><span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span></button>
+      <button
+        type="button"
+        class="we-grid__pager-btn"
+        (click)="goToPage(totalPagesComputed)"
+        [disabled]="page >= totalPagesComputed"
+        [attr.aria-label]="locale.lastPage"
+      ><span [innerHTML]="icon('chevronLast')" aria-hidden="true"></span></button>
+    </nav>
+  </div>
+</div>

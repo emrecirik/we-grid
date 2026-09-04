@@ -1,0 +1,730 @@
+:host {
+  display: block;
+  --we-grid-row-height: 2.75rem;
+}
+
+.we-grid {
+  display: flex;
+  flex-direction: column;
+  background: var(--we-grid-bg, #fff);
+  color: var(--we-grid-font-color, #212529);
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  font-size: var(--we-grid-font-size, 0.8125rem);
+}
+
+.we-grid--comfortable {
+  --we-grid-row-height: 3.25rem;
+}
+
+.we-grid--compact {
+  --we-grid-row-height: 2.1rem;
+  font-size: var(--we-grid-font-size-compact, 0.75rem);
+}
+
+// ─── Toolbar ──────────────────────────────────────────────────────────
+.we-grid__toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  padding: 0.375rem 0.5rem;
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+  flex-wrap: wrap;
+}
+
+// Filter/grouping toolbar items (shown when filterRow/grouping=true — off by default)
+.we-grid__filter-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  border-radius: var(--we-grid-radius, 0.25rem);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.04));
+    outline: none;
+  }
+}
+
+.we-grid__filter-toggle-btn--active {
+  background: var(--we-grid-accent-color, #405189);
+  border-color: var(--we-grid-accent-color, #405189);
+  color: #fff;
+}
+
+.we-grid__filter-scope-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.72rem;
+  color: var(--we-grid-warning-color, #f7b84b);
+}
+
+// ─── Active filter chip strip (primary feedback for header funnel filtering) ─────────
+// A separate row BELOW the toolbar — so which filters are active stays visible at all times, even
+// while the filter row itself is closed (the default state), independent from horizontal scroll.
+.we-grid__chips-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+  background: var(--we-grid-chips-bg, rgba(64, 81, 137, 0.04));
+}
+
+.we-grid__filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  max-width: 16rem;
+  background: var(--we-grid-accent-color, #405189);
+  color: #fff;
+  border-radius: 1rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.65rem;
+  font-size: 0.75rem;
+}
+
+.we-grid__filter-chip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-grid__filter-chip-remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 50%;
+  width: 1.15rem;
+  height: 1.15rem;
+  line-height: 1;
+  font-size: 0.65rem;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: rgba(255, 255, 255, 0.35);
+    outline: none;
+  }
+}
+
+.we-grid__filter-clear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-left: auto;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  border-radius: var(--we-grid-radius, 0.25rem);
+  padding: 0.2rem 0.55rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.05));
+    outline: none;
+  }
+}
+
+.we-grid__group-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: var(--we-grid-accent-color, #405189);
+  color: #fff;
+  border-radius: 1rem;
+  padding: 0.2rem 0.3rem 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  margin-right: auto;
+}
+
+.we-grid__group-chip-remove {
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 50%;
+  width: 1.15rem;
+  height: 1.15rem;
+  line-height: 1;
+  font-size: 0.65rem;
+  cursor: pointer;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.35);
+  }
+}
+
+.we-grid__gear-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  border-radius: var(--we-grid-radius, 0.25rem);
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8125rem;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.04));
+    outline: none;
+  }
+}
+
+// ─── Scroll area ──────────────────────────────────────────────────────
+.we-grid__scroll {
+  overflow-x: auto;
+  overflow-y: visible;
+  max-width: 100%;
+}
+
+.we-grid__table {
+  // Combining table-layout:fixed with width:100% stretches every column proportionally BEYOND its
+  // real width whenever the total column width is less than the container; width:auto, on the
+  // other hand, doesn't shrink the table back down after a resize (confirmed in Chromium — the
+  // browser doesn't redo its shrink-to-fit calculation after the initial one). So we compute the
+  // total width in the component and bind it directly via [style.width.px]="tableWidthPx" — this
+  // rule here is only a safety-net fallback.
+  width: max-content;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+// ─── Header ──────────────────────────────────────────────────────────
+.we-grid__header-row th {
+  // NOTE: position only accepts one value — this used to be accidentally overridden with
+  // "relative", which broke the left/right pinning of .we-grid__th--pinned-left/right.
+  // position:sticky is also a valid containing block for the absolutely-positioned resize-handle,
+  // so there's no need for relative here either.
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--we-grid-header-bg, #f3f6f9);
+  color: var(--we-grid-header-color, inherit);
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-right: 1px solid transparent;
+  font-weight: 600;
+  white-space: nowrap;
+  padding: 0;
+  user-select: none;
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: -2px;
+  }
+}
+
+// NOTE: prefixed with "th." here so specificity matches/beats .we-grid__header-row th
+// (class+element) — otherwise z-index:3 never applies, a pinned column stays at the same
+// z-index:2 as a non-pinned one and loses to DOM order (visually, the header text appeared to
+// disappear behind the next column).
+// left/right are NOT hardcoded to 0 here — with more than one column pinned the same direction
+// they used to overlap. The cumulative offset is now computed in the component
+// (recomputeRenderColumns) and bound per-row via [style.left.px]/[style.right.px] (see
+// we-grid.component.html).
+.we-grid__header-row th.we-grid__th--pinned-left,
+.we-grid__header-row th.we-grid__th--pinned-right {
+  position: sticky;
+  z-index: 3;
+}
+
+// The selection column always stays pinned at the far left (or right after the expand arrow, if
+// present) — the pinned-left offset math (recomputeRenderColumns) is based on this column's
+// width, so it must be sticky too; otherwise on horizontal scroll the selection column would drift
+// away from the pinned columns, opening a gap between them. The left value is bound in the
+// component via [style.left.px]="expandColWidthPx" (see we-grid.component.html) — 0 here is just the fallback.
+.we-grid__header-row th.we-grid__select-col {
+  position: sticky;
+  left: 0;
+  z-index: 4;
+}
+
+// The expand-arrow column is always the leftmost pinned column — sits even before the selection column.
+.we-grid__expand-col {
+  width: 2rem;
+  min-width: 2rem;
+  text-align: center;
+  position: sticky;
+  left: 0;
+}
+
+.we-grid__header-row th.we-grid__expand-col {
+  z-index: 4;
+}
+
+.we-grid__row td.we-grid__expand-col {
+  z-index: 2;
+  background: var(--we-grid-bg, #fff);
+}
+
+.we-grid__expand-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.15rem;
+  border-radius: 0.2rem;
+  transition: transform 0.15s ease;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.08));
+    outline: none;
+  }
+
+  &--open {
+    transform: rotate(90deg);
+  }
+}
+
+// ─── Filter row (opt-in, filterRow=true) ──────────────────────────────
+// NOTE: the vertical sticky position is based approximately on the row-height variable
+// (--we-grid-row-height), not the header's ACTUAL height — since header padding differs slightly
+// from a data row, pixel-perfect alignment isn't guaranteed. If this becomes an issue, the header
+// height should be measured with JS and written to a CSS custom property instead (see README
+// "Known limitations").
+.we-grid__filter-row th {
+  position: sticky;
+  top: var(--we-grid-row-height, 2.75rem);
+  z-index: 2;
+  background: var(--we-grid-bg, #fff);
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+  padding: 0.3rem 0.35rem;
+  font-weight: 400;
+}
+
+.we-grid__filter-row th.we-grid__th--pinned-left,
+.we-grid__filter-row th.we-grid__th--pinned-right {
+  z-index: 3;
+}
+
+.we-grid__filter-controls {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.we-grid__filter-op,
+.we-grid__filter-input,
+.we-grid__filter-select {
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 0.2rem;
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font-size: 0.75rem;
+  padding: 0.2rem 0.3rem;
+  min-width: 0;
+}
+
+.we-grid__filter-input {
+  flex: 1;
+  width: 100%;
+}
+
+.we-grid__filter-input--sm {
+  flex: 1;
+  width: 0;
+}
+
+.we-grid__filter-op {
+  flex: 0 0 auto;
+}
+
+.we-grid__filter-select {
+  width: 100%;
+}
+
+// ─── Grouping (opt-in, grouping=true) ─────────────────────────────────
+.we-grid__group-row td {
+  padding: 0.4rem 0.6rem;
+  background: var(--we-grid-header-bg, #f3f6f9);
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+  font-weight: 600;
+}
+
+.we-grid__group-toggle {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.1rem 0.3rem;
+  margin-right: 0.4rem;
+  transition: transform 0.15s ease;
+
+  &--open {
+    transform: rotate(90deg);
+  }
+}
+
+.we-grid__group-label {
+  margin-right: 0.5rem;
+}
+
+.we-grid__group-count {
+  display: inline-block;
+  margin-right: 0.5rem;
+  padding: 0 0.4rem;
+  border-radius: 0.75rem;
+  background: var(--we-grid-accent-color, #405189);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.we-grid__group-summary {
+  font-weight: 400;
+  font-size: 0.75rem;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+// ─── Row expansion (master-detail) ────────────────────────────────────
+.we-grid__detail-row td {
+  padding: 0.75rem 1rem;
+  background: var(--we-grid-detail-bg, rgba(0, 0, 0, 0.015));
+  border-bottom: 1px solid var(--we-grid-border-color, #eef0f2);
+}
+
+.we-grid__th-inner {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.5rem;
+  cursor: grab;
+}
+
+.we-grid__th--sortable .we-grid__th-label {
+  cursor: pointer;
+}
+
+.we-grid__th-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.we-grid__sort-icon {
+  font-size: 0.65rem;
+  color: var(--we-grid-accent-color, #405189);
+}
+
+.we-grid__th-menu-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.2rem;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.08));
+    outline: none;
+  }
+}
+
+// The header funnel icon — normally faint (outline), turns filled/colored with a highlighted
+// background once that column has an active filter (see the [ngClass]/[innerHTML] binding in we-grid.component.html).
+.we-grid__th-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.5;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.2rem;
+  font-size: 0.8em;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.08));
+    outline: none;
+  }
+}
+
+.we-grid__th-filter-btn--active {
+  opacity: 1;
+  color: var(--we-grid-accent-color, #405189);
+}
+
+.we-grid__resize-handle {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 6px;
+  height: 100%;
+  cursor: col-resize;
+  touch-action: none;
+
+  &:hover {
+    background: var(--we-grid-accent-color, #405189);
+    opacity: 0.4;
+  }
+}
+
+// ─── Body ────────────────────────────────────────────────────────────
+.we-grid__row {
+  // Without a rowClick listener, the row already isn't clickable — the cursor only becomes a
+  // pointer when there IS a listener (see .we-grid--clickable, bound to the host based on rowClick.observed).
+  cursor: default;
+
+  td {
+    height: var(--we-grid-row-height);
+    padding: 0 0.5rem;
+    border-bottom: 1px solid var(--we-grid-border-color, #eef0f2);
+    background: var(--we-grid-bg, #fff);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  &:hover td {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.035));
+  }
+}
+
+.we-grid--clickable .we-grid__row {
+  cursor: pointer;
+}
+
+.we-grid__row--selected td {
+  background: var(--we-grid-row-selected-bg, rgba(64, 81, 137, 0.1));
+}
+
+.we-grid__td--wrap {
+  white-space: normal !important;
+  word-break: break-word;
+}
+
+// NOTE: the th.pinned rules are defined above (.we-grid__th--pinned-left/right) — redefining them
+// here only applies to the body <td>; redefining for th a second time used to accidentally
+// overwrite z-index (to 1 instead of 3), breaking the header/body stacking order.
+// left/right are not hardcoded to 0 here either — bound per-row from the component's pinnedOffset.
+.we-grid__td--pinned-left,
+.we-grid__td--pinned-right {
+  position: sticky;
+  z-index: 1;
+}
+
+.we-grid__select-col {
+  width: 2.5rem;
+  min-width: 2.5rem;
+  text-align: center;
+}
+
+// The selection column in the body is sticky for the same reason as the header — stays above pinned td's (z-index:1).
+.we-grid__row td.we-grid__select-col {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+}
+
+// ─── Subtotal (summary row) ────────────────────────────────────────────
+// tfoot shares the same sticky/pinned mechanism as the header (class-based
+// .we-grid__td--pinned-left/right, defined above), so it stays aligned with the header on
+// horizontal scroll.
+.we-grid__summary-row td {
+  height: var(--we-grid-row-height);
+  padding: 0 0.5rem;
+  border-top: 2px solid var(--we-grid-border-color, #dee2e6);
+  background: var(--we-grid-summary-bg, var(--we-grid-header-bg, #f3f6f9));
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-grid__summary-row td.we-grid__select-col,
+.we-grid__summary-row td.we-grid__expand-col {
+  position: sticky;
+  z-index: 2;
+}
+
+.we-grid__summary-value {
+  display: block;
+  font-weight: 600;
+}
+
+.we-grid__summary-count {
+  display: inline-block;
+  margin-right: 0.35rem;
+  padding: 0 0.35rem;
+  border-radius: 0.75rem;
+  background: var(--we-grid-accent-color, #405189);
+  color: #fff;
+  font-size: 0.68rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+// ─── Empty / loading state ─────────────────────────────────────────────
+.we-grid__empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+// When a filter produces 0 rows, a "Clear filters" link is shown instead of an empty table (see we-grid.component.html)
+.we-grid__empty-clear-btn {
+  border: none;
+  background: transparent;
+  color: var(--we-grid-accent-color, #405189);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: inherit;
+  padding: 0;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 0.8;
+    outline: none;
+  }
+}
+
+.we-grid__skeleton-row td {
+  height: var(--we-grid-row-height);
+  padding: 0 0.5rem;
+  border-bottom: 1px solid var(--we-grid-border-color, #eef0f2);
+}
+
+.we-grid__skeleton-bar {
+  height: 0.85rem;
+  border-radius: 0.2rem;
+  background: linear-gradient(
+    90deg,
+    var(--we-grid-skeleton-base, #eceef1) 25%,
+    var(--we-grid-skeleton-shine, #f6f7f8) 37%,
+    var(--we-grid-skeleton-base, #eceef1) 63%
+  );
+  background-size: 400% 100%;
+  animation: we-grid-skeleton 1.4s ease infinite;
+}
+
+@keyframes we-grid-skeleton {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+// ─── Footer / pagination ────────────────────────────────────────────
+.we-grid__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  border-top: 1px solid var(--we-grid-border-color, #dee2e6);
+  font-size: 0.8rem;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-grid__footer-info {
+  white-space: nowrap;
+}
+
+// On a narrow screen (e.g. 390px), if the numbered page list overflows, it scrolls horizontally
+// within its own container — the pager wrapper handles the scroll, not the whole footer, so the
+// page body doesn't widen.
+.we-grid__pager {
+  display: flex;
+  align-items: center;
+  gap: 0.2rem;
+  flex-wrap: wrap;
+  max-width: 100%;
+  overflow-x: auto;
+
+  button {
+    border: 1px solid var(--we-grid-border-color, #dee2e6);
+    background: var(--we-grid-bg, #fff);
+    color: inherit;
+    border-radius: var(--we-grid-radius, 0.25rem);
+    min-width: 1.75rem;
+    height: 1.75rem;
+    padding: 0 0.35rem;
+    font-size: 0.75rem;
+    line-height: 1;
+    cursor: pointer;
+    flex: 0 0 auto;
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    &:hover:not(:disabled) {
+      background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.05));
+    }
+  }
+}
+
+.we-grid__pager-btn--active {
+  background: var(--we-grid-accent-color, #405189) !important;
+  border-color: var(--we-grid-accent-color, #405189) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.we-grid__pager-ellipsis {
+  padding: 0 0.15rem;
+  flex: 0 0 auto;
+  user-select: none;
+}
+
+// ─── CDK drag preview ─────────────────────────────────────────────────
+// NOTE: cdk-drag-preview is appended by the overlay at the end of <body> (outside the component's
+// DOM tree), so :host ::ng-deep can't reach it. This used to target the generic
+// .cdk-drag-preview class, so it styled the preview of EVERY cdk-drag-drop usage in the host app
+// (not just we-grid's). Now cdkDragPreviewClass gives a we-grid-specific class (see
+// we-grid.component.html th[cdkDrag]) — the rule only applies to it, no global leakage.
+::ng-deep .we-grid__drag-preview {
+  background: var(--we-grid-header-bg, #f3f6f9);
+  border: 1px solid var(--we-grid-accent-color, #405189);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  padding: 0.4rem 0.75rem;
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.2);
+}
+
+// The placeholder stays inside its own cdkDropList (inside the host's DOM tree), so it CAN be
+// scoped with :host — the generic .cdk-drag-placeholder doesn't leak globally here.
+:host ::ng-deep .cdk-drag-placeholder {
+  opacity: 0.3;
+}
+
+// ─── Dark mode ─────────────────────────────────────────────────────────
+// Opt in by setting `[data-theme="dark"]` on an ancestor element (e.g. <body> or <html>) — see
+// docs/theming.md. This block only nudges the selection color; the bulk of dark-mode theming
+// lives in the CSS custom property defaults (styles/we-grid-theme.scss).
+:host-context([data-theme='dark']) .we-grid {
+  --we-grid-row-selected-bg: rgba(64, 81, 137, 0.25);
+}

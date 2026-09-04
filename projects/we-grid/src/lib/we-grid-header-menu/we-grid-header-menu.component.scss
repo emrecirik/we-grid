@@ -1,0 +1,120 @@
+:host {
+  display: block;
+  min-width: 220px;
+  max-width: 280px;
+  background: var(--we-grid-menu-bg, var(--we-grid-header-bg, #fff));
+  color: var(--we-grid-menu-color, var(--we-grid-font-color, #212529));
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  box-shadow: var(--we-grid-menu-shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+  font-size: var(--we-grid-font-size, 0.8125rem);
+  padding: 0.25rem;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.we-grid-menu {
+  display: flex;
+  flex-direction: column;
+}
+
+.we-grid-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  border: none;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  padding: 0.4rem 0.6rem;
+  border-radius: 0.2rem;
+  cursor: pointer;
+  font-size: inherit;
+
+  &:hover:not(:disabled),
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.05));
+    outline: none;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.we-grid-menu__icon {
+  width: 1rem;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.we-grid-menu__arrow {
+  margin-left: auto;
+}
+
+.we-grid-menu__check {
+  margin-left: auto;
+  color: var(--we-grid-accent-color, #405189);
+}
+
+.we-grid-menu__submenu-panel {
+  display: flex;
+  flex-direction: column;
+  margin-left: 0.75rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--we-grid-border-color, #dee2e6);
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.we-grid-menu__checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.3rem 0.5rem;
+  cursor: pointer;
+  border-radius: 0.2rem;
+
+  &:hover {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.05));
+  }
+
+  input[disabled] {
+    cursor: not-allowed;
+  }
+}
+
+.we-grid-menu__divider {
+  height: 1px;
+  margin: 0.25rem 0.4rem;
+  background: var(--we-grid-border-color, #dee2e6);
+}
+
+.we-grid-menu__rename {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.4rem;
+}
+
+.we-grid-menu__rename-input {
+  flex: 1;
+  padding: 0.25rem 0.4rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 0.2rem;
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font-size: inherit;
+}
+
+.we-grid-menu__rename-ok {
+  border: none;
+  background: var(--we-grid-accent-color, #405189);
+  color: #fff;
+  border-radius: 0.2rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  cursor: pointer;
+}

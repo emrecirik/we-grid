@@ -1,0 +1,94 @@
+<div class="page">
+  <header class="page__header">
+    <h1>we-grid playground</h1>
+    <p>Demonstrates the core features of <code>&#64;we-grid/angular</code>. Not a production UI — a dev/documentation sandbox.</p>
+  </header>
+
+  <section class="demo">
+    <h2>1. Basic grid</h2>
+    <we-grid
+      gridKey="playground-basic"
+      [columns]="basicColumns"
+      [data]="basicData"
+      trackByField="id"
+    ></we-grid>
+  </section>
+
+  <section class="demo">
+    <h2>2. Custom cell template (<code>weGridCell</code>)</h2>
+    <we-grid
+      gridKey="playground-template"
+      [columns]="templateColumns"
+      [data]="templateData"
+      trackByField="id"
+    >
+      <ng-template weGridCell="inStock" [weGridCellRowsOf]="templateData" let-row>
+        <span class="badge" [class.badge--ok]="row.inStock" [class.badge--warn]="!row.inStock">
+          {{ row.inStock ? 'In stock' : 'Out of stock' }}
+        </span>
+      </ng-template>
+    </we-grid>
+  </section>
+
+  <section class="demo">
+    <h2>3. Grouping</h2>
+    <p class="demo__hint">Right-click a header (or a cell) and choose "Group by this field".</p>
+    <we-grid
+      gridKey="playground-grouping"
+      [columns]="groupingColumns"
+      [data]="groupingData"
+      [grouping]="true"
+      trackByField="id"
+    ></we-grid>
+  </section>
+
+  <section class="demo">
+    <h2>4. Filter row</h2>
+    <we-grid
+      gridKey="playground-filter"
+      [columns]="filterColumns"
+      [data]="filterData"
+      [filterRow]="true"
+      trackByField="id"
+    ></we-grid>
+  </section>
+
+  <section class="demo">
+    <h2>5. Master-detail (<code>weGridRowDetail</code>)</h2>
+    <we-grid
+      gridKey="playground-detail"
+      [columns]="detailColumns"
+      [data]="detailData"
+      [expandable]="true"
+      trackByField="id"
+    >
+      <ng-template weGridRowDetail [weGridRowDetailRowsOf]="detailData" let-row>
+        <div class="detail-panel">
+          <div><strong>Full name:</strong> {{ row.name }}</div>
+          <div><strong>Category:</strong> {{ row.category }}</div>
+          <div><strong>Last updated:</strong> {{ row.updatedAt | date: 'mediumDate' }}</div>
+        </div>
+      </ng-template>
+    </we-grid>
+  </section>
+
+  <section class="demo">
+    <h2>6. Server-side mode (simulated)</h2>
+    <p class="demo__hint">Pagination and sorting are handled by an in-memory mock with a short artificial delay — no real HTTP call is made.</p>
+    <we-grid
+      gridKey="playground-server"
+      [columns]="serverColumns"
+      [data]="serverData"
+      [loading]="serverLoading"
+      [serverSide]="true"
+      [totalCount]="serverTotalCount"
+      [page]="serverPage"
+      [pageSize]="serverPageSize"
+      [sortField]="serverSortField"
+      [sortDirection]="serverSortDirection"
+      trackByField="id"
+      (pageChange)="onServerPageChange($event)"
+      (sortChange)="onServerSortChange($event)"
+    ></we-grid>
+  </section>
+</div>

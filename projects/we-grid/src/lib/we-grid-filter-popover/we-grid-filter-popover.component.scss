@@ -1,0 +1,110 @@
+:host {
+  display: block;
+  width: 15.5rem;
+  max-width: calc(100vw - 1.5rem);
+  background: var(--we-grid-menu-bg, var(--we-grid-header-bg, #fff));
+  color: var(--we-grid-menu-color, var(--we-grid-font-color, #212529));
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  box-shadow: var(--we-grid-menu-shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+  font-size: var(--we-grid-font-size, 0.8125rem);
+}
+
+.we-grid-filter-popover {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.6rem;
+}
+
+.we-grid-filter-popover__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-weight: 600;
+  margin-bottom: 0.1rem;
+}
+
+.we-grid-filter-popover__close {
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.2rem;
+  font-weight: 400;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.08));
+    outline: none;
+  }
+}
+
+.we-grid-filter-popover__select,
+.we-grid-filter-popover__input {
+  width: 100%;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 0.2rem;
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font-size: inherit;
+  padding: 0.35rem 0.45rem;
+  min-width: 0;
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: -1px;
+  }
+}
+
+.we-grid-filter-popover__range {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.we-grid-filter-popover__range-sep {
+  flex: 0 0 auto;
+  opacity: 0.6;
+}
+
+.we-grid-filter-popover__footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.we-grid-filter-popover__btn {
+  flex: 1;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  padding: 0.35rem 0.5rem;
+  font-size: inherit;
+  cursor: pointer;
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.05));
+    outline: none;
+  }
+}
+
+.we-grid-filter-popover__btn--apply {
+  background: var(--we-grid-accent-color, #405189);
+  border-color: var(--we-grid-accent-color, #405189);
+  color: #fff;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-accent-color, #405189);
+    opacity: 0.9;
+  }
+}

@@ -1,0 +1,106 @@
+import { WeGridColumnType, WeGridSummaryFunction } from '../models/we-grid-column.model';
+import { WeGridLocale, weGridLocaleEn } from '../models/we-grid-locale.model';
+import { formatWeGridValue, getNestedValue } from './we-grid-value.util';
+
+/** Which data scope the summary was computed over — the label must always make the scope explicit */
+export type WeGridSummaryScope = 'override' | 'server' | 'client';
+
+interface SummaryColumnLike {
+  field: string;
+  type: WeGridColumnType;
+  format?: string;
+  summary: WeGridSummaryFunction;
+}
+
+function summaryLabels(locale: WeGridLocale): Record<WeGridSummaryScope, Record<Exclude<WeGridSummaryFunction, 'none'>, string>> {
+  return {
+    // override coming from the server's summaryValues — a genuine grand total
+    override: {
+      sum: `Grand ${locale.sum.toLowerCase()}`,
+      avg: `Grand ${locale.average.toLowerCase()}`,
+      min: `Grand ${locale.min.toLowerCase()}`,
+      max: `Grand ${locale.max.toLowerCase()}`,
+      count: `Grand ${locale.count.toLowerCase()}`
+    },
+    // serverSide=true but no override — only the totals of the LOADED PAGE, labeled separately so the user isn't misled
+    server: {
+      sum: `Page ${locale.sum.toLowerCase()}`,
+      avg: `Page ${locale.average.toLowerCase()}`,
+      min: `Page ${locale.min.toLowerCase()}`,
+      max: `Page ${locale.max.toLowerCase()}`,
+      count: `Page ${locale.count.toLowerCase()}`
+    },
+    // serverSide=false — all the data is already loaded, a genuine total
+    client: { sum: locale.sum, avg: locale.average, min: locale.min, max: locale.max, count: locale.count }
+  };
+}
+
+export function weGridSummaryLabel(fn: Exclude<WeGridSummaryFunction, 'none'>, scope: WeGridSummaryScope, locale: WeGridLocale = weGridLocaleEn): string {
+  return summaryLabels(locale)[scope][fn];
+}
+
+/**
+ * Computes a single column's summary value over the loaded rows.
+ * null/undefined/'' values don't count. For sum/avg/min/max, values that don't convert to a
+ * number (NaN) are skipped too. Returns null when there's no valid value to compute (the summary
+ * row then shows '-').
+ */
+export function computeWeGridSummary<T>(rows: T[], field: string, fn: WeGridSummaryFunction): number | null {
+  if (fn === 'none') return null;
+
+  const raw = rows.map((row) => getNestedValue(row, field)).filter((v) => v !== null && v !== undefined && v !== '');
+
+  if (fn === 'count') {
+    return raw.length;
+  }
+
+  const numbers = raw.map((v) => Number(v)).filter((n) => !isNaN(n));
+  if (numbers.length === 0) return null;
+
+  switch (fn) {
+    case 'sum':
+      return numbers.reduce((a, b) => a + b, 0);
+    case 'avg':
+      return numbers.reduce((a, b) => a + b, 0) / numbers.length;
+    case 'min':
+      return Math.min(...numbers);
+    case 'max':
+      return Math.max(...numbers);
+    default:
+      return null;
+  }
+}
+
+/** count is always a whole number — even if the column is currency/formatted, it never gets decimals or a currency symbol */
+function formatSummaryNumber(value: number, col: SummaryColumnLike, fn: Exclude<WeGridSummaryFunction, 'none'>): string {
+  if (fn === 'count') {
+    return formatWeGridValue(value, 'number', '0-0');
+  }
+  return formatWeGridValue(value, col.type, col.format);
+}
+
+/**
+ * Builds the "Label: value" text shown in a summary row cell.
+ * - When `overrideValue` is given (the server's grand total), it's used directly with a "Grand ..." label.
+ * - Otherwise it's computed over `rows`, and the scope is spelled out in the label (page vs. real total).
+ * Returns null when summary is 'none' (nothing is shown in the cell).
+ */
+export function buildWeGridSummaryText<T>(
+  rows: T[],
+  col: SummaryColumnLike,
+  scope: 'server' | 'client',
+  overrideValue: number | undefined,
+  locale: WeGridLocale = weGridLocaleEn
+): string | null {
+  if (col.summary === 'none') return null;
+  const fn = col.summary;
+
+  if (overrideValue !== undefined) {
+    return `${weGridSummaryLabel(fn, 'override', locale)}: ${formatSummaryNumber(overrideValue, col, fn)}`;
+  }
+
+  const computed = computeWeGridSummary(rows, col.field, fn);
+  const label = weGridSummaryLabel(fn, scope, locale);
+  if (computed === null) return `${label}: -`;
+  return `${label}: ${formatSummaryNumber(computed, col, fn)}`;
+}

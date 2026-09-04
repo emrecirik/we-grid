@@ -1,0 +1,236 @@
+<div class="we-grid-menu" role="menu" [attr.aria-label]="locale.columns" (keydown)="onKeydown($event)">
+  @if (column && !column.lockVisible) {
+    <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'hide-column', field: column.field })">
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('eyeOff')"></span> {{ locale.hideColumn }}
+    </button>
+  }
+
+  <button
+    #menuItem
+    type="button"
+    role="menuitem"
+    class="we-grid-menu__item"
+    [attr.aria-expanded]="columnsOpen"
+    (click)="columnsOpen = !columnsOpen"
+  >
+    <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('settings')"></span> {{ locale.columns }}
+    <span class="we-grid-menu__arrow" aria-hidden="true" [innerHTML]="icon('chevronRight')"></span>
+  </button>
+  @if (columnsOpen) {
+    <div class="we-grid-menu__submenu-panel" role="group" [attr.aria-label]="locale.columns">
+      @for (col of allColumns; track col.field) {
+        <label class="we-grid-menu__checkbox-item">
+          <input
+            type="checkbox"
+            [checked]="col.visible"
+            [disabled]="col.lockVisible"
+            (change)="emit({ type: 'toggle-column', field: col.field, visible: !col.visible })"
+          />
+          <span>{{ displayHeader(col) }}</span>
+        </label>
+      }
+    </div>
+  }
+
+  <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'show-all-columns' })">
+    <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('eye')"></span> {{ locale.showAllColumns }}
+  </button>
+
+  @if (column && enableGrouping) {
+    <div class="we-grid-menu__divider"></div>
+
+    <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'group-by', field: column.field })">
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('stack')"></span> {{ locale.groupByThisField }}
+      @if (groupField === column.field) {
+        <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+      }
+    </button>
+    @if (groupField) {
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'clear-grouping' })">
+        <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('close')"></span> {{ locale.removeGrouping }}
+      </button>
+    }
+    @if (hasCellValue) {
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'quick-filter', field: column.field, value: cellValue })">
+        <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('filter')"></span> {{ locale.filterByThisValue }}
+      </button>
+    }
+  }
+
+  @if (column) {
+    <div class="we-grid-menu__divider"></div>
+
+    @if (!column.lockRename) {
+      @if (!renaming) {
+        <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="startRename()">
+          <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('pencil')"></span> {{ locale.rename }}
+        </button>
+      } @else {
+        <div class="we-grid-menu__rename" (click)="$event.stopPropagation()">
+          <input
+            id="we-grid-rename-input"
+            type="text"
+            class="we-grid-menu__rename-input"
+            [(ngModel)]="renameValue"
+            (keydown.enter)="commitRename()"
+            (keydown.escape)="cancelRename($event)"
+          />
+          <button type="button" class="we-grid-menu__rename-ok" (click)="commitRename()" [attr.aria-label]="locale.apply"><span [innerHTML]="icon('check')" aria-hidden="true"></span></button>
+        </div>
+      }
+    }
+
+    <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'toggle-wrap', field: column.field })">
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('wrapText')"></span> {{ locale.wrapText }}
+      @if (column.wrap) {
+        <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+      }
+    </button>
+
+    <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'autofit', field: column.field })">
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('arrowLeftRight')"></span> {{ locale.autofitWidth }}
+    </button>
+
+    <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" [attr.aria-expanded]="pinOpen" (click)="pinOpen = !pinOpen">
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('pin')"></span> {{ locale.pin }}
+      <span class="we-grid-menu__arrow" aria-hidden="true" [innerHTML]="icon('chevronRight')"></span>
+    </button>
+    @if (pinOpen) {
+      <div class="we-grid-menu__submenu-panel" role="group" [attr.aria-label]="locale.pin">
+        <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'pin', field: column.field, pinned: 'left' })">
+          {{ locale.pinLeft }}
+          @if (column.pinned === 'left') {
+            <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+          }
+        </button>
+        <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'pin', field: column.field, pinned: 'right' })">
+          {{ locale.pinRight }}
+          @if (column.pinned === 'right') {
+            <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+          }
+        </button>
+        <button
+          #menuItem
+          type="button"
+          role="menuitem"
+          class="we-grid-menu__item"
+          [disabled]="!column.pinned"
+          (click)="emit({ type: 'pin', field: column.field, pinned: null })"
+        >
+          {{ locale.unpin }}
+        </button>
+      </div>
+    }
+
+    @if (column.sortable) {
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'sort', field: column.field, direction: 'asc' })">
+        <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('sortAsc')"></span> {{ locale.sortAscending }}
+        @if (sort?.field === column.field && sort?.direction === 'asc') {
+          <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+        }
+      </button>
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'sort', field: column.field, direction: 'desc' })">
+        <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('sortDesc')"></span> {{ locale.sortDescending }}
+        @if (sort?.field === column.field && sort?.direction === 'desc') {
+          <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+        }
+      </button>
+      <button
+        #menuItem
+        type="button"
+        role="menuitem"
+        class="we-grid-menu__item"
+        [disabled]="sort?.field !== column.field"
+        (click)="emit({ type: 'sort', field: column.field, direction: null })"
+      >
+        {{ locale.clearSort }}
+      </button>
+    }
+
+    <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" [attr.aria-expanded]="summaryOpen" (click)="summaryOpen = !summaryOpen">
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('calculator')"></span> {{ locale.summary }}
+      <span class="we-grid-menu__arrow" aria-hidden="true" [innerHTML]="icon('chevronRight')"></span>
+    </button>
+    @if (summaryOpen) {
+      <div class="we-grid-menu__submenu-panel" role="group" [attr.aria-label]="locale.summary">
+        @if (isNumericColumn(column)) {
+          <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emitSummary(column.field, 'sum')">
+            {{ locale.sum }}
+            @if (column.summary === 'sum') {
+              <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+            }
+          </button>
+          <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emitSummary(column.field, 'avg')">
+            {{ locale.average }}
+            @if (column.summary === 'avg') {
+              <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+            }
+          </button>
+          <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emitSummary(column.field, 'min')">
+            {{ locale.min }}
+            @if (column.summary === 'min') {
+              <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+            }
+          </button>
+          <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emitSummary(column.field, 'max')">
+            {{ locale.max }}
+            @if (column.summary === 'max') {
+              <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+            }
+          </button>
+        }
+        <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emitSummary(column.field, 'count')">
+          {{ locale.count }}
+          @if (column.summary === 'count') {
+            <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+          }
+        </button>
+        <button
+          #menuItem
+          type="button"
+          role="menuitem"
+          class="we-grid-menu__item"
+          [disabled]="column.summary === 'none'"
+          (click)="emitSummary(column.field, 'none')"
+        >
+          {{ locale.none }}
+        </button>
+      </div>
+    }
+  }
+
+  <div class="we-grid-menu__divider"></div>
+
+  <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" [attr.aria-expanded]="densityOpen" (click)="densityOpen = !densityOpen">
+    <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('listSettings')"></span> {{ locale.density }}
+    <span class="we-grid-menu__arrow" aria-hidden="true" [innerHTML]="icon('chevronRight')"></span>
+  </button>
+  @if (densityOpen) {
+    <div class="we-grid-menu__submenu-panel" role="group" [attr.aria-label]="locale.density">
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'density', density: 'comfortable' })">
+        {{ locale.comfortable }}
+        @if (density === 'comfortable') {
+          <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+        }
+      </button>
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'density', density: 'normal' })">
+        {{ locale.normal }}
+        @if (density === 'normal') {
+          <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+        }
+      </button>
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'density', density: 'compact' })">
+        {{ locale.compact }}
+        @if (density === 'compact') {
+          <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+        }
+      </button>
+    </div>
+  }
+
+  <div class="we-grid-menu__divider"></div>
+
+  <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'reset-layout' })">
+    <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('restart')"></span> {{ locale.resetLayout }}
+  </button>
+</div>
