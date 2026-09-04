@@ -1,0 +1,51 @@
+name: Release
+
+# Publishes the library to npm when a v* tag is pushed.
+#
+# Authentication is npm Trusted Publishing (OIDC) — there is no NPM_TOKEN secret and no
+# one-time password. It requires a one-off setup on npmjs.com: package settings →
+# Trusted Publisher → GitHub Actions, with repository `emrecirik/we-grid` and workflow
+# `release.yml`. Until that is configured, this workflow will fail at the publish step.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # required for OIDC trusted publishing
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      # Trusted publishing needs npm 11.5.1+, newer than the version bundled with Node 20.
+      - name: Update npm
+        run: npm install -g npm@latest
+
+      - run: npm ci
+
+      - name: Build library
+        run: npm run build:lib
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Verify the tag matches the package version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG=$(node -p "require('./dist/we-grid/package.json').version")
+          echo "tag=$TAG package=$PKG"
+          test "$TAG" = "$PKG" || { echo "::error::Tag $GITHUB_REF_NAME does not match package version $PKG"; exit 1; }
+
+      - name: Publish to npm
+        run: npm publish
+        working-directory: dist/we-grid

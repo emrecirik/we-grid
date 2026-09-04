@@ -1,7 +1,7 @@
 [
   {
     "id": 1,
-    "barcode": "8681000000000",
+    "barcode": "2910000000000",
     "name": "Butter 1 kg",
     "category": "Dairy",
     "supplier": "Wrendel Components",
@@ -19,7 +19,7 @@
   },
   {
     "id": 2,
-    "barcode": "8681000000037",
+    "barcode": "2910024137569",
     "name": "Rye Bread 6-pack",
     "category": "Bakery",
     "supplier": "Wrendel Components",
@@ -37,7 +37,7 @@
   },
   {
     "id": 3,
-    "barcode": "8681000000074",
+    "barcode": "2910048275138",
     "name": "Sparkling Water 1 kg",
     "category": "Beverages",
     "supplier": "Rethlin Chemicals",
@@ -55,7 +55,7 @@
   },
   {
     "id": 4,
-    "barcode": "8681000000111",
+    "barcode": "2910072412707",
     "name": "Tomato 500 g",
     "category": "Fruit & Vegetable",
     "supplier": "Wrendel Components",
@@ -73,7 +73,7 @@
   },
   {
     "id": 5,
-    "barcode": "8681000000148",
+    "barcode": "2910096550276",
     "name": "Frozen Peas 750 ml",
     "category": "Frozen",
     "supplier": "Elmara Logistics",
@@ -91,7 +91,7 @@
   },
   {
     "id": 6,
-    "barcode": "8681000000185",
+    "barcode": "2910120687845",
     "name": "Dish Soap 750 ml",
     "category": "Cleaning",
     "supplier": "Vosk Paper Mill",
@@ -109,7 +109,7 @@
   },
   {
     "id": 7,
-    "barcode": "8681000000222",
+    "barcode": "2910144825414",
     "name": "Chocolate Bar 1 kg",
     "category": "Snacks",
     "supplier": "Thalberg Electric",
@@ -127,7 +127,7 @@
   },
   {
     "id": 8,
-    "barcode": "8681000000259",
+    "barcode": "2910168962983",
     "name": "Minced Beef 1 L",
     "category": "Meat & Poultry",
     "supplier": "Sunhollow Farms",
@@ -145,7 +145,7 @@
   },
   {
     "id": 9,
-    "barcode": "8681000000296",
+    "barcode": "2910193100552",
     "name": "White Cheese 1 L",
     "category": "Dairy",
     "supplier": "Vantia Foods Ltd.",
@@ -163,7 +163,7 @@
   },
   {
     "id": 10,
-    "barcode": "8681000000333",
+    "barcode": "2910217238121",
     "name": "Pita 750 ml",
     "category": "Bakery",
     "supplier": "Northgale Textiles",
@@ -181,7 +181,7 @@
   },
   {
     "id": 11,
-    "barcode": "8681000000370",
+    "barcode": "2910241375690",
     "name": "Iced Tea 6-pack",
     "category": "Beverages",
     "supplier": "Orvane Beverages",
@@ -199,7 +199,7 @@
   },
   {
     "id": 12,
-    "barcode": "8681000000407",
+    "barcode": "2910265513259",
     "name": "Lettuce 1 L",
     "category": "Fruit & Vegetable",
     "supplier": "Vosk Paper Mill",
@@ -217,7 +217,7 @@
   },
   {
     "id": 13,
-    "barcode": "8681000000444",
+    "barcode": "2910289650828",
     "name": "Frozen Fries 750 ml",
     "category": "Frozen",
     "supplier": "Solvent Works Inc.",
@@ -235,7 +235,7 @@
   },
   {
     "id": 14,
-    "barcode": "8681000000481",
+    "barcode": "2910313788397",
     "name": "Surface Spray 250 g",
     "category": "Cleaning",
     "supplier": "Solvent Works Inc.",
@@ -253,7 +253,7 @@
   },
   {
     "id": 15,
-    "barcode": "8681000000518",
+    "barcode": "2910337925966",
     "name": "Chocolate Bar 12-pack",
     "category": "Snacks",
     "supplier": "Sunhollow Farms",
@@ -271,7 +271,7 @@
   },
   {
     "id": 16,
-    "barcode": "8681000000555",
+    "barcode": "2910362063535",
     "name": "Minced Beef 12-pack",
     "category": "Meat & Poultry",
     "supplier": "Kordel Supply Co.",
@@ -289,7 +289,7 @@
   },
   {
     "id": 17,
-    "barcode": "8681000000592",
+    "barcode": "2910386201104",
     "name": "Whole Milk 12-pack",
     "category": "Dairy",
     "supplier": "Brightpine Trading",
@@ -307,7 +307,7 @@
   },
   {
     "id": 18,
-    "barcode": "8681000000629",
+    "barcode": "2910410338673",
     "name": "Sesame Bagel 750 ml",
     "category": "Bakery",
     "supplier": "Thalberg Electric",
@@ -325,7 +325,7 @@
   },
   {
     "id": 19,
-    "barcode": "8681000000666",
+    "barcode": "2910434476242",
     "name": "Iced Tea 12-pack",
     "category": "Beverages",
     "supplier": "Rethlin Chemicals",
@@ -343,7 +343,7 @@
   },
   {
     "id": 20,
-    "barcode": "8681000000703",
+    "barcode": "2910458613811",
     "name": "Apple 1 L",
     "category": "Fruit & Vegetable",
     "supplier": "Sunhollow Farms",
@@ -361,7 +361,7 @@
   },
   {
     "id": 21,
-    "barcode": "8681000000740",
+    "barcode": "2910482751380",
     "name": "Ice Cream 1 L",
     "category": "Frozen",
     "supplier": "Northgale Textiles",
@@ -379,7 +379,7 @@
   },
   {
     "id": 22,
-    "barcode": "8681000000777",
+    "barcode": "2910506888949",
     "name": "Surface Spray 250 g",
     "category": "Cleaning",
     "supplier": "Urvane Plastics",
@@ -397,7 +397,7 @@
   },
   {
     "id": 23,
-    "barcode": "8681000000814",
+    "barcode": "2910531026518",
     "name": "Chocolate Bar 1 L",
     "category": "Snacks",
     "supplier": "Elmara Logistics",
@@ -415,7 +415,7 @@
   },
   {
     "id": 24,
-    "barcode": "8681000000851",
+    "barcode": "2910555164087",
     "name": "Chicken Breast 750 ml",
     "category": "Meat & Poultry",
     "supplier": "Wrendel Components",
@@ -433,7 +433,7 @@
   },
   {
     "id": 25,
-    "barcode": "8681000000888",
+    "barcode": "2910579301656",
     "name": "Yoghurt 500 g",
     "category": "Dairy",
     "supplier": "Quarn Metals",
@@ -451,7 +451,7 @@
   },
   {
     "id": 26,
-    "barcode": "8681000000925",
+    "barcode": "2910603439225",
     "name": "Sesame Bagel 250 g",
     "category": "Bakery",
     "supplier": "Brightpine Trading",
@@ -469,7 +469,7 @@
   },
   {
     "id": 27,
-    "barcode": "8681000000962",
+    "barcode": "2910627576794",
     "name": "Iced Tea 500 g",
     "category": "Beverages",
     "supplier": "Sunhollow Farms",
@@ -487,7 +487,7 @@
   },
   {
     "id": 28,
-    "barcode": "8681000000999",
+    "barcode": "2910651714363",
     "name": "Tomato 250 g",
     "category": "Fruit & Vegetable",
     "supplier": "Elmara Logistics",
@@ -505,7 +505,7 @@
   },
   {
     "id": 29,
-    "barcode": "8681000001036",
+    "barcode": "2910675851932",
     "name": "Frozen Fries 250 g",
     "category": "Frozen",
     "supplier": "Sunhollow Farms",
@@ -523,7 +523,7 @@
   },
   {
     "id": 30,
-    "barcode": "8681000001073",
+    "barcode": "2910699989501",
     "name": "Bleach 250 g",
     "category": "Cleaning",
     "supplier": "Urvane Plastics",
@@ -541,7 +541,7 @@
   },
   {
     "id": 31,
-    "barcode": "8681000001110",
+    "barcode": "2910724127070",
     "name": "Roasted Nuts 250 g",
     "category": "Snacks",
     "supplier": "Orvane Beverages",
@@ -559,7 +559,7 @@
   },
   {
     "id": 32,
-    "barcode": "8681000001147",
+    "barcode": "2910748264639",
     "name": "Chicken Breast 250 g",
     "category": "Meat & Poultry",
     "supplier": "Brightpine Trading",
@@ -577,7 +577,7 @@
   },
   {
     "id": 33,
-    "barcode": "8681000001184",
+    "barcode": "2910772402208",
     "name": "Whole Milk 6-pack",
     "category": "Dairy",
     "supplier": "Thalberg Electric",
@@ -595,7 +595,7 @@
   },
   {
     "id": 34,
-    "barcode": "8681000001221",
+    "barcode": "2910796539777",
     "name": "Sesame Bagel 1 L",
     "category": "Bakery",
     "supplier": "Vantia Foods Ltd.",
@@ -613,7 +613,7 @@
   },
   {
     "id": 35,
-    "barcode": "8681000001258",
+    "barcode": "2910820677346",
     "name": "Sparkling Water 1 kg",
     "category": "Beverages",
     "supplier": "Urvane Plastics",
@@ -631,7 +631,7 @@
   },
   {
     "id": 36,
-    "barcode": "8681000001295",
+    "barcode": "2910844814915",
     "name": "Apple 1 kg",
     "category": "Fruit & Vegetable",
     "supplier": "Urvane Plastics",
@@ -649,7 +649,7 @@
   },
   {
     "id": 37,
-    "barcode": "8681000001332",
+    "barcode": "2910868952484",
     "name": "Frozen Fries 6-pack",
     "category": "Frozen",
     "supplier": "Elmara Logistics",
@@ -667,7 +667,7 @@
   },
   {
     "id": 38,
-    "barcode": "8681000001369",
+    "barcode": "2910893090053",
     "name": "Dish Soap 500 g",
     "category": "Cleaning",
     "supplier": "Palekit Packaging",
@@ -685,7 +685,7 @@
   },
   {
     "id": 39,
-    "barcode": "8681000001406",
+    "barcode": "2910917227622",
     "name": "Chocolate Bar 750 ml",
     "category": "Snacks",
     "supplier": "Quarn Metals",
@@ -703,7 +703,7 @@
   },
   {
     "id": 40,
-    "barcode": "8681000001443",
+    "barcode": "2910941365191",
     "name": "Minced Beef 6-pack",
     "category": "Meat & Poultry",
     "supplier": "Wrendel Components",
@@ -721,7 +721,7 @@
   },
   {
     "id": 41,
-    "barcode": "8681000001480",
+    "barcode": "2910965502760",
     "name": "Whole Milk 500 g",
     "category": "Dairy",
     "supplier": "Elmara Logistics",
@@ -739,7 +739,7 @@
   },
   {
     "id": 42,
-    "barcode": "8681000001517",
+    "barcode": "2910989640329",
     "name": "Sourdough Loaf 250 g",
     "category": "Bakery",
     "supplier": "Orvane Beverages",
@@ -757,7 +757,7 @@
   },
   {
     "id": 43,
-    "barcode": "8681000001554",
+    "barcode": "2911013777898",
     "name": "Ayran 1 kg",
     "category": "Beverages",
     "supplier": "Wrendel Components",
@@ -775,7 +775,7 @@
   },
   {
     "id": 44,
-    "barcode": "8681000001591",
+    "barcode": "2911037915467",
     "name": "Tomato 750 ml",
     "category": "Fruit & Vegetable",
     "supplier": "Brightpine Trading",
@@ -793,7 +793,7 @@
   },
   {
     "id": 45,
-    "barcode": "8681000001628",
+    "barcode": "2911062053036",
     "name": "Pizza Base 1 kg",
     "category": "Frozen",
     "supplier": "Northgale Textiles",
@@ -811,7 +811,7 @@
   },
   {
     "id": 46,
-    "barcode": "8681000001665",
+    "barcode": "2911086190605",
     "name": "Laundry Gel 500 g",
     "category": "Cleaning",
     "supplier": "Quarn Metals",
@@ -829,7 +829,7 @@
   },
   {
     "id": 47,
-    "barcode": "8681000001702",
+    "barcode": "2911110328174",
     "name": "Chocolate Bar 750 ml",
     "category": "Snacks",
     "supplier": "Urvane Plastics",
@@ -847,7 +847,7 @@
   },
   {
     "id": 48,
-    "barcode": "8681000001739",
+    "barcode": "2911134465743",
     "name": "Minced Beef 250 g",
     "category": "Meat & Poultry",
     "supplier": "Sunhollow Farms",
@@ -865,7 +865,7 @@
   },
   {
     "id": 49,
-    "barcode": "8681000001776",
+    "barcode": "2911158603312",
     "name": "Butter 12-pack",
     "category": "Dairy",
     "supplier": "Rethlin Chemicals",
@@ -883,7 +883,7 @@
   },
   {
     "id": 50,
-    "barcode": "8681000001813",
+    "barcode": "2911182740881",
     "name": "Croissant 12-pack",
     "category": "Bakery",
     "supplier": "Vantia Foods Ltd.",
@@ -901,7 +901,7 @@
   },
   {
     "id": 51,
-    "barcode": "8681000001850",
+    "barcode": "2911206878450",
     "name": "Iced Tea 12-pack",
     "category": "Beverages",
     "supplier": "Marbeck Machinery",
@@ -919,7 +919,7 @@
   },
   {
     "id": 52,
-    "barcode": "8681000001887",
+    "barcode": "2911231016019",
     "name": "Banana 500 g",
     "category": "Fruit & Vegetable",
     "supplier": "Wrendel Components",
@@ -937,7 +937,7 @@
   },
   {
     "id": 53,
-    "barcode": "8681000001924",
+    "barcode": "2911255153588",
     "name": "Frozen Peas 750 ml",
     "category": "Frozen",
     "supplier": "Sunhollow Farms",
@@ -955,7 +955,7 @@
   },
   {
     "id": 54,
-    "barcode": "8681000001961",
+    "barcode": "2911279291157",
     "name": "Laundry Gel 1 L",
     "category": "Cleaning",
     "supplier": "Elmara Logistics",
@@ -973,7 +973,7 @@
   },
   {
     "id": 55,
-    "barcode": "8681000001998",
+    "barcode": "2911303428726",
     "name": "Chocolate Bar 12-pack",
     "category": "Snacks",
     "supplier": "Wrendel Components",
@@ -991,7 +991,7 @@
   },
   {
     "id": 56,
-    "barcode": "8681000002035",
+    "barcode": "2911327566295",
     "name": "Turkey Slices 750 ml",
     "category": "Meat & Poultry",
     "supplier": "Vantia Foods Ltd.",
@@ -1009,7 +1009,7 @@
   },
   {
     "id": 57,
-    "barcode": "8681000002072",
+    "barcode": "2911351703864",
     "name": "Whole Milk 500 g",
     "category": "Dairy",
     "supplier": "Vantia Foods Ltd.",
@@ -1027,7 +1027,7 @@
   },
   {
     "id": 58,
-    "barcode": "8681000002109",
+    "barcode": "2911375841433",
     "name": "Sourdough Loaf 500 g",
     "category": "Bakery",
     "supplier": "Brightpine Trading",
@@ -1045,7 +1045,7 @@
   },
   {
     "id": 59,
-    "barcode": "8681000002146",
+    "barcode": "2911399979002",
     "name": "Sparkling Water 12-pack",
     "category": "Beverages",
     "supplier": "Thalberg Electric",
@@ -1063,7 +1063,7 @@
   },
   {
     "id": 60,
-    "barcode": "8681000002183",
+    "barcode": "2911424116571",
     "name": "Pepper 1 kg",
     "category": "Fruit & Vegetable",
     "supplier": "Sunhollow Farms",
@@ -1081,7 +1081,7 @@
   },
   {
     "id": 61,
-    "barcode": "8681000002220",
+    "barcode": "2911448254140",
     "name": "Frozen Peas 6-pack",
     "category": "Frozen",
     "supplier": "Thalberg Electric",
@@ -1099,7 +1099,7 @@
   },
   {
     "id": 62,
-    "barcode": "8681000002257",
+    "barcode": "2911472391709",
     "name": "Laundry Gel 500 g",
     "category": "Cleaning",
     "supplier": "Rethlin Chemicals",
@@ -1117,7 +1117,7 @@
   },
   {
     "id": 63,
-    "barcode": "8681000002294",
+    "barcode": "2911496529278",
     "name": "Roasted Nuts 500 g",
     "category": "Snacks",
     "supplier": "Urvane Plastics",
@@ -1135,7 +1135,7 @@
   },
   {
     "id": 64,
-    "barcode": "8681000002331",
+    "barcode": "2911520666847",
     "name": "Minced Beef 12-pack",
     "category": "Meat & Poultry",
     "supplier": "Palekit Packaging",
@@ -1153,7 +1153,7 @@
   },
   {
     "id": 65,
-    "barcode": "8681000002368",
+    "barcode": "2911544804416",
     "name": "Whole Milk 12-pack",
     "category": "Dairy",
     "supplier": "Palekit Packaging",
@@ -1171,7 +1171,7 @@
   },
   {
     "id": 66,
-    "barcode": "8681000002405",
+    "barcode": "2911568941985",
     "name": "Croissant 1 kg",
     "category": "Bakery",
     "supplier": "Urvane Plastics",
@@ -1189,7 +1189,7 @@
   },
   {
     "id": 67,
-    "barcode": "8681000002442",
+    "barcode": "2911593079554",
     "name": "Orange Juice 1 kg",
     "category": "Beverages",
     "supplier": "Marbeck Machinery",
@@ -1207,7 +1207,7 @@
   },
   {
     "id": 68,
-    "barcode": "8681000002479",
+    "barcode": "2911617217123",
     "name": "Cucumber 1 kg",
     "category": "Fruit & Vegetable",
     "supplier": "Sunhollow Farms",
@@ -1225,7 +1225,7 @@
   },
   {
     "id": 69,
-    "barcode": "8681000002516",
+    "barcode": "2911641354692",
     "name": "Frozen Peas 750 ml",
     "category": "Frozen",
     "supplier": "Solvent Works Inc.",
@@ -1243,7 +1243,7 @@
   },
   {
     "id": 70,
-    "barcode": "8681000002553",
+    "barcode": "2911665492261",
     "name": "Surface Spray 1 kg",
     "category": "Cleaning",
     "supplier": "Kordel Supply Co.",
@@ -1261,7 +1261,7 @@
   },
   {
     "id": 71,
-    "barcode": "8681000002590",
+    "barcode": "2911689629830",
     "name": "Salted Crisps 1 L",
     "category": "Snacks",
     "supplier": "Orvane Beverages",
@@ -1279,7 +1279,7 @@
   },
   {
     "id": 72,
-    "barcode": "8681000002627",
+    "barcode": "2911713767399",
     "name": "Minced Beef 750 ml",
     "category": "Meat & Poultry",
     "supplier": "Wrendel Components",
@@ -1297,7 +1297,7 @@
   },
   {
     "id": 73,
-    "barcode": "8681000002664",
+    "barcode": "2911737904968",
     "name": "Whole Milk 750 ml",
     "category": "Dairy",
     "supplier": "Sunhollow Farms",
@@ -1315,7 +1315,7 @@
   },
   {
     "id": 74,
-    "barcode": "8681000002701",
+    "barcode": "2911762042537",
     "name": "Pita 12-pack",
     "category": "Bakery",
     "supplier": "Wrendel Components",
@@ -1333,7 +1333,7 @@
   },
   {
     "id": 75,
-    "barcode": "8681000002738",
+    "barcode": "2911786180106",
     "name": "Cola 1 L",
     "category": "Beverages",
     "supplier": "Rethlin Chemicals",
@@ -1351,7 +1351,7 @@
   },
   {
     "id": 76,
-    "barcode": "8681000002775",
+    "barcode": "2911810317675",
     "name": "Lettuce 1 L",
     "category": "Fruit & Vegetable",
     "supplier": "Vantia Foods Ltd.",
@@ -1369,7 +1369,7 @@
   },
   {
     "id": 77,
-    "barcode": "8681000002812",
+    "barcode": "2911834455244",
     "name": "Frozen Fries 500 g",
     "category": "Frozen",
     "supplier": "Wrendel Components",
@@ -1387,7 +1387,7 @@
   },
   {
     "id": 78,
-    "barcode": "8681000002849",
+    "barcode": "2911858592813",
     "name": "Laundry Gel 750 ml",
     "category": "Cleaning",
     "supplier": "Vosk Paper Mill",
@@ -1405,7 +1405,7 @@
   },
   {
     "id": 79,
-    "barcode": "8681000002886",
+    "barcode": "2911882730382",
     "name": "Crackers 1 L",
     "category": "Snacks",
     "supplier": "Rethlin Chemicals",
@@ -1423,7 +1423,7 @@
   },
   {
     "id": 80,
-    "barcode": "8681000002923",
+    "barcode": "2911906867951",
     "name": "Beef Cubes 6-pack",
     "category": "Meat & Poultry",
     "supplier": "Quarn Metals",
@@ -1441,7 +1441,7 @@
   },
   {
     "id": 81,
-    "barcode": "8681000002960",
+    "barcode": "2911931005520",
     "name": "Whole Milk 250 g",
     "category": "Dairy",
     "supplier": "Marbeck Machinery",
@@ -1459,7 +1459,7 @@
   },
   {
     "id": 82,
-    "barcode": "8681000002997",
+    "barcode": "2911955143089",
     "name": "Sesame Bagel 1 kg",
     "category": "Bakery",
     "supplier": "Palekit Packaging",
@@ -1477,7 +1477,7 @@
   },
   {
     "id": 83,
-    "barcode": "8681000003034",
+    "barcode": "2911979280658",
     "name": "Cola 1 L",
     "category": "Beverages",
     "supplier": "Rethlin Chemicals",
@@ -1495,7 +1495,7 @@
   },
   {
     "id": 84,
-    "barcode": "8681000003071",
+    "barcode": "2912003418227",
     "name": "Tomato 1 kg",
     "category": "Fruit & Vegetable",
     "supplier": "Vosk Paper Mill",
@@ -1513,7 +1513,7 @@
   },
   {
     "id": 85,
-    "barcode": "8681000003108",
+    "barcode": "2912027555796",
     "name": "Frozen Peas 6-pack",
     "category": "Frozen",
     "supplier": "Thalberg Electric",
@@ -1531,7 +1531,7 @@
   },
   {
     "id": 86,
-    "barcode": "8681000003145",
+    "barcode": "2912051693365",
     "name": "Dish Soap 250 g",
     "category": "Cleaning",
     "supplier": "Solvent Works Inc.",
@@ -1549,7 +1549,7 @@
   },
   {
     "id": 87,
-    "barcode": "8681000003182",
+    "barcode": "2912075830934",
     "name": "Chocolate Bar 1 L",
     "category": "Snacks",
     "supplier": "Elmara Logistics",
@@ -1567,7 +1567,7 @@
   },
   {
     "id": 88,
-    "barcode": "8681000003219",
+    "barcode": "2912099968503",
     "name": "Beef Cubes 500 g",
     "category": "Meat & Poultry",
     "supplier": "Rethlin Chemicals",
@@ -1585,7 +1585,7 @@
   },
   {
     "id": 89,
-    "barcode": "8681000003256",
+    "barcode": "2912124106072",
     "name": "Yoghurt 750 ml",
     "category": "Dairy",
     "supplier": "Northgale Textiles",
@@ -1603,7 +1603,7 @@
   },
   {
     "id": 90,
-    "barcode": "8681000003293",
+    "barcode": "2912148243641",
     "name": "Sesame Bagel 250 g",
     "category": "Bakery",
     "supplier": "Quarn Metals",
@@ -1621,7 +1621,7 @@
   },
   {
     "id": 91,
-    "barcode": "8681000003330",
+    "barcode": "2912172381210",
     "name": "Cola 500 g",
     "category": "Beverages",
     "supplier": "Elmara Logistics",
@@ -1639,7 +1639,7 @@
   },
   {
     "id": 92,
-    "barcode": "8681000003367",
+    "barcode": "2912196518779",
     "name": "Pepper 250 g",
     "category": "Fruit & Vegetable",
     "supplier": "Marbeck Machinery",
@@ -1657,7 +1657,7 @@
   },
   {
     "id": 93,
-    "barcode": "8681000003404",
+    "barcode": "2912220656348",
     "name": "Ice Cream 250 g",
     "category": "Frozen",
     "supplier": "Brightpine Trading",
@@ -1675,7 +1675,7 @@
   },
   {
     "id": 94,
-    "barcode": "8681000003441",
+    "barcode": "2912244793917",
     "name": "Bleach 1 kg",
     "category": "Cleaning",
     "supplier": "Marbeck Machinery",
@@ -1693,7 +1693,7 @@
   },
   {
     "id": 95,
-    "barcode": "8681000003478",
+    "barcode": "2912268931486",
     "name": "Chocolate Bar 12-pack",
     "category": "Snacks",
     "supplier": "Kordel Supply Co.",
@@ -1711,7 +1711,7 @@
   },
   {
     "id": 96,
-    "barcode": "8681000003515",
+    "barcode": "2912293069055",
     "name": "Chicken Breast 12-pack",
     "category": "Meat & Poultry",
     "supplier": "Northgale Textiles",
@@ -1729,7 +1729,7 @@
   },
   {
     "id": 97,
-    "barcode": "8681000003552",
+    "barcode": "2912317206624",
     "name": "Butter 500 g",
     "category": "Dairy",
     "supplier": "Kordel Supply Co.",
@@ -1747,7 +1747,7 @@
   },
   {
     "id": 98,
-    "barcode": "8681000003589",
+    "barcode": "2912341344193",
     "name": "Sourdough Loaf 250 g",
     "category": "Bakery",
     "supplier": "Orvane Beverages",
@@ -1765,7 +1765,7 @@
   },
   {
     "id": 99,
-    "barcode": "8681000003626",
+    "barcode": "2912365481762",
     "name": "Ayran 1 L",
     "category": "Beverages",
     "supplier": "Vosk Paper Mill",
@@ -1783,7 +1783,7 @@
   },
   {
     "id": 100,
-    "barcode": "8681000003663",
+    "barcode": "2912389619331",
     "name": "Cucumber 500 g",
     "category": "Fruit & Vegetable",
     "supplier": "Northgale Textiles",
@@ -1801,7 +1801,7 @@
   },
   {
     "id": 101,
-    "barcode": "8681000003700",
+    "barcode": "2912413756900",
     "name": "Pizza Base 500 g",
     "category": "Frozen",
     "supplier": "Sunhollow Farms",
@@ -1819,7 +1819,7 @@
   },
   {
     "id": 102,
-    "barcode": "8681000003737",
+    "barcode": "2912437894469",
     "name": "Laundry Gel 500 g",
     "category": "Cleaning",
     "supplier": "Brightpine Trading",
@@ -1837,7 +1837,7 @@
   },
   {
     "id": 103,
-    "barcode": "8681000003774",
+    "barcode": "2912462032038",
     "name": "Chocolate Bar 1 L",
     "category": "Snacks",
     "supplier": "Elmara Logistics",
@@ -1855,7 +1855,7 @@
   },
   {
     "id": 104,
-    "barcode": "8681000003811",
+    "barcode": "2912486169607",
     "name": "Chicken Breast 6-pack",
     "category": "Meat & Poultry",
     "supplier": "Vantia Foods Ltd.",
@@ -1873,7 +1873,7 @@
   },
   {
     "id": 105,
-    "barcode": "8681000003848",
+    "barcode": "2912510307176",
     "name": "Cream 750 ml",
     "category": "Dairy",
     "supplier": "Rethlin Chemicals",
@@ -1891,7 +1891,7 @@
   },
   {
     "id": 106,
-    "barcode": "8681000003885",
+    "barcode": "2912534444745",
     "name": "Sourdough Loaf 250 g",
     "category": "Bakery",
     "supplier": "Urvane Plastics",
@@ -1909,7 +1909,7 @@
   },
   {
     "id": 107,
-    "barcode": "8681000003922",
+    "barcode": "2912558582314",
     "name": "Orange Juice 12-pack",
     "category": "Beverages",
     "supplier": "Wrendel Components",
@@ -1927,7 +1927,7 @@
   },
   {
     "id": 108,
-    "barcode": "8681000003959",
+    "barcode": "2912582719883",
     "name": "Pepper 1 kg",
     "category": "Fruit & Vegetable",
     "supplier": "Vosk Paper Mill",
@@ -1945,7 +1945,7 @@
   },
   {
     "id": 109,
-    "barcode": "8681000003996",
+    "barcode": "2912606857452",
     "name": "Pizza Base 250 g",
     "category": "Frozen",
     "supplier": "Vosk Paper Mill",
@@ -1963,7 +1963,7 @@
   },
   {
     "id": 110,
-    "barcode": "8681000004033",
+    "barcode": "2912630995021",
     "name": "Dish Soap 1 kg",
     "category": "Cleaning",
     "supplier": "Thalberg Electric",
@@ -1981,7 +1981,7 @@
   },
   {
     "id": 111,
-    "barcode": "8681000004070",
+    "barcode": "2912655132590",
     "name": "Roasted Nuts 1 L",
     "category": "Snacks",
     "supplier": "Urvane Plastics",
@@ -1999,7 +1999,7 @@
   },
   {
     "id": 112,
-    "barcode": "8681000004107",
+    "barcode": "2912679270159",
     "name": "Turkey Slices 250 g",
     "category": "Meat & Poultry",
     "supplier": "Palekit Packaging",
@@ -2017,7 +2017,7 @@
   },
   {
     "id": 113,
-    "barcode": "8681000004144",
+    "barcode": "2912703407728",
     "name": "Kashkaval 250 g",
     "category": "Dairy",
     "supplier": "Vantia Foods Ltd.",
@@ -2035,7 +2035,7 @@
   },
   {
     "id": 114,
-    "barcode": "8681000004181",
+    "barcode": "2912727545297",
     "name": "Sourdough Loaf 1 kg",
     "category": "Bakery",
     "supplier": "Kordel Supply Co.",
@@ -2053,7 +2053,7 @@
   },
   {
     "id": 115,
-    "barcode": "8681000004218",
+    "barcode": "2912751682866",
     "name": "Orange Juice 1 kg",
     "category": "Beverages",
     "supplier": "Kordel Supply Co.",
@@ -2071,7 +2071,7 @@
   },
   {
     "id": 116,
-    "barcode": "8681000004255",
+    "barcode": "2912775820435",
     "name": "Cucumber 250 g",
     "category": "Fruit & Vegetable",
     "supplier": "Rethlin Chemicals",
@@ -2089,7 +2089,7 @@
   },
   {
     "id": 117,
-    "barcode": "8681000004292",
+    "barcode": "2912799958004",
     "name": "Frozen Fries 1 L",
     "category": "Frozen",
     "supplier": "Solvent Works Inc.",
@@ -2107,7 +2107,7 @@
   },
   {
     "id": 118,
-    "barcode": "8681000004329",
+    "barcode": "2912824095573",
     "name": "Bleach 250 g",
     "category": "Cleaning",
     "supplier": "Thalberg Electric",
@@ -2125,7 +2125,7 @@
   },
   {
     "id": 119,
-    "barcode": "8681000004366",
+    "barcode": "2912848233142",
     "name": "Salted Crisps 750 ml",
     "category": "Snacks",
     "supplier": "Sunhollow Farms",
@@ -2143,7 +2143,7 @@
   },
   {
     "id": 120,
-    "barcode": "8681000004403",
+    "barcode": "2912872370711",
     "name": "Chicken Breast 12-pack",
     "category": "Meat & Poultry",
     "supplier": "Urvane Plastics",
@@ -2161,7 +2161,7 @@
   },
   {
     "id": 121,
-    "barcode": "8681000004440",
+    "barcode": "2912896508280",
     "name": "Kashkaval 12-pack",
     "category": "Dairy",
     "supplier": "Brightpine Trading",
@@ -2179,7 +2179,7 @@
   },
   {
     "id": 122,
-    "barcode": "8681000004477",
+    "barcode": "2912920645849",
     "name": "Pita 6-pack",
     "category": "Bakery",
     "supplier": "Brightpine Trading",
@@ -2197,7 +2197,7 @@
   },
   {
     "id": 123,
-    "barcode": "8681000004514",
+    "barcode": "2912944783418",
     "name": "Sparkling Water 1 kg",
     "category": "Beverages",
     "supplier": "Brightpine Trading",
@@ -2215,7 +2215,7 @@
   },
   {
     "id": 124,
-    "barcode": "8681000004551",
+    "barcode": "2912968920987",
     "name": "Cucumber 1 kg",
     "category": "Fruit & Vegetable",
     "supplier": "Brightpine Trading",
@@ -2233,7 +2233,7 @@
   },
   {
     "id": 125,
-    "barcode": "8681000004588",
+    "barcode": "2912993058556",
     "name": "Frozen Peas 6-pack",
     "category": "Frozen",
     "supplier": "Elmara Logistics",
@@ -2251,7 +2251,7 @@
   },
   {
     "id": 126,
-    "barcode": "8681000004625",
+    "barcode": "2913017196125",
     "name": "Dish Soap 6-pack",
     "category": "Cleaning",
     "supplier": "Brightpine Trading",
@@ -2269,7 +2269,7 @@
   },
   {
     "id": 127,
-    "barcode": "8681000004662",
+    "barcode": "2913041333694",
     "name": "Roasted Nuts 12-pack",
     "category": "Snacks",
     "supplier": "Urvane Plastics",
@@ -2287,7 +2287,7 @@
   },
   {
     "id": 128,
-    "barcode": "8681000004699",
+    "barcode": "2913065471263",
     "name": "Turkey Slices 250 g",
     "category": "Meat & Poultry",
     "supplier": "Solvent Works Inc.",
@@ -2305,7 +2305,7 @@
   },
   {
     "id": 129,
-    "barcode": "8681000004736",
+    "barcode": "2913089608832",
     "name": "Whole Milk 1 L",
     "category": "Dairy",
     "supplier": "Vosk Paper Mill",
@@ -2323,7 +2323,7 @@
   },
   {
     "id": 130,
-    "barcode": "8681000004773",
+    "barcode": "2913113746401",
     "name": "Sourdough Loaf 750 ml",
     "category": "Bakery",
     "supplier": "Vosk Paper Mill",
@@ -2341,7 +2341,7 @@
   },
   {
     "id": 131,
-    "barcode": "8681000004810",
+    "barcode": "2913137883970",
     "name": "Sparkling Water 750 ml",
     "category": "Beverages",
     "supplier": "Palekit Packaging",
@@ -2359,7 +2359,7 @@
   },
   {
     "id": 132,
-    "barcode": "8681000004847",
+    "barcode": "2913162021539",
     "name": "Tomato 250 g",
     "category": "Fruit & Vegetable",
     "supplier": "Vosk Paper Mill",
@@ -2377,7 +2377,7 @@
   },
   {
     "id": 133,
-    "barcode": "8681000004884",
+    "barcode": "2913186159108",
     "name": "Ice Cream 500 g",
     "category": "Frozen",
     "supplier": "Northgale Textiles",
@@ -2395,7 +2395,7 @@
   },
   {
     "id": 134,
-    "barcode": "8681000004921",
+    "barcode": "2913210296677",
     "name": "Surface Spray 6-pack",
     "category": "Cleaning",
     "supplier": "Marbeck Machinery",
@@ -2413,7 +2413,7 @@
   },
   {
     "id": 135,
-    "barcode": "8681000004958",
+    "barcode": "2913234434246",
     "name": "Crackers 1 kg",
     "category": "Snacks",
     "supplier": "Elmara Logistics",
@@ -2431,7 +2431,7 @@
   },
   {
     "id": 136,
-    "barcode": "8681000004995",
+    "barcode": "2913258571815",
     "name": "Chicken Breast 1 kg",
     "category": "Meat & Poultry",
     "supplier": "Thalberg Electric",
@@ -2449,7 +2449,7 @@
   },
   {
     "id": 137,
-    "barcode": "8681000005032",
+    "barcode": "2913282709384",
     "name": "Butter 500 g",
     "category": "Dairy",
     "supplier": "Vantia Foods Ltd.",
@@ -2467,7 +2467,7 @@
   },
   {
     "id": 138,
-    "barcode": "8681000005069",
+    "barcode": "2913306846953",
     "name": "Sesame Bagel 12-pack",
     "category": "Bakery",
     "supplier": "Marbeck Machinery",
@@ -2485,7 +2485,7 @@
   },
   {
     "id": 139,
-    "barcode": "8681000005106",
+    "barcode": "2913330984522",
     "name": "Cola 500 g",
     "category": "Beverages",
     "supplier": "Solvent Works Inc.",
@@ -2503,7 +2503,7 @@
   },
   {
     "id": 140,
-    "barcode": "8681000005143",
+    "barcode": "2913355122091",
     "name": "Lettuce 250 g",
     "category": "Fruit & Vegetable",
     "supplier": "Kordel Supply Co.",
@@ -2521,7 +2521,7 @@
   },
   {
     "id": 141,
-    "barcode": "8681000005180",
+    "barcode": "2913379259660",
     "name": "Frozen Peas 750 ml",
     "category": "Frozen",
     "supplier": "Wrendel Components",
@@ -2539,7 +2539,7 @@
   },
   {
     "id": 142,
-    "barcode": "8681000005217",
+    "barcode": "2913403397229",
     "name": "Surface Spray 1 kg",
     "category": "Cleaning",
     "supplier": "Palekit Packaging",
@@ -2557,7 +2557,7 @@
   },
   {
     "id": 143,
-    "barcode": "8681000005254",
+    "barcode": "2913427534798",
     "name": "Chocolate Bar 1 kg",
     "category": "Snacks",
     "supplier": "Solvent Works Inc.",
@@ -2575,7 +2575,7 @@
   },
   {
     "id": 144,
-    "barcode": "8681000005291",
+    "barcode": "2913451672367",
     "name": "Beef Cubes 12-pack",
     "category": "Meat & Poultry",
     "supplier": "Quarn Metals",
@@ -2593,7 +2593,7 @@
   },
   {
     "id": 145,
-    "barcode": "8681000005328",
+    "barcode": "2913475809936",
     "name": "White Cheese 12-pack",
     "category": "Dairy",
     "supplier": "Kordel Supply Co.",
@@ -2611,7 +2611,7 @@
   },
   {
     "id": 146,
-    "barcode": "8681000005365",
+    "barcode": "2913499947505",
     "name": "Sourdough Loaf 6-pack",
     "category": "Bakery",
     "supplier": "Kordel Supply Co.",
@@ -2629,7 +2629,7 @@
   },
   {
     "id": 147,
-    "barcode": "8681000005402",
+    "barcode": "2913524085074",
     "name": "Cola 6-pack",
     "category": "Beverages",
     "supplier": "Elmara Logistics",
@@ -2647,7 +2647,7 @@
   },
   {
     "id": 148,
-    "barcode": "8681000005439",
+    "barcode": "2913548222643",
     "name": "Banana 1 kg",
     "category": "Fruit & Vegetable",
     "supplier": "Urvane Plastics",
@@ -2665,7 +2665,7 @@
   },
   {
     "id": 149,
-    "barcode": "8681000005476",
+    "barcode": "2913572360212",
     "name": "Frozen Peas 12-pack",
     "category": "Frozen",
     "supplier": "Quarn Metals",
@@ -2683,7 +2683,7 @@
   },
   {
     "id": 150,
-    "barcode": "8681000005513",
+    "barcode": "2913596497781",
     "name": "Dish Soap 1 L",
     "category": "Cleaning",
     "supplier": "Elmara Logistics",
@@ -2701,7 +2701,7 @@
   },
   {
     "id": 151,
-    "barcode": "8681000005550",
+    "barcode": "2913620635350",
     "name": "Chocolate Bar 6-pack",
     "category": "Snacks",
     "supplier": "Quarn Metals",
@@ -2719,7 +2719,7 @@
   },
   {
     "id": 152,
-    "barcode": "8681000005587",
+    "barcode": "2913644772919",
     "name": "Chicken Breast 500 g",
     "category": "Meat & Poultry",
     "supplier": "Sunhollow Farms",
@@ -2737,7 +2737,7 @@
   },
   {
     "id": 153,
-    "barcode": "8681000005624",
+    "barcode": "2913668910488",
     "name": "Butter 12-pack",
     "category": "Dairy",
     "supplier": "Brightpine Trading",
@@ -2755,7 +2755,7 @@
   },
   {
     "id": 154,
-    "barcode": "8681000005661",
+    "barcode": "2913693048057",
     "name": "Croissant 1 kg",
     "category": "Bakery",
     "supplier": "Kordel Supply Co.",
@@ -2773,7 +2773,7 @@
   },
   {
     "id": 155,
-    "barcode": "8681000005698",
+    "barcode": "2913717185626",
     "name": "Orange Juice 500 g",
     "category": "Beverages",
     "supplier": "Sunhollow Farms",
@@ -2791,7 +2791,7 @@
   },
   {
     "id": 156,
-    "barcode": "8681000005735",
+    "barcode": "2913741323195",
     "name": "Pepper 6-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Brightpine Trading",
@@ -2809,7 +2809,7 @@
   },
   {
     "id": 157,
-    "barcode": "8681000005772",
+    "barcode": "2913765460764",
     "name": "Frozen Fries 750 ml",
     "category": "Frozen",
     "supplier": "Orvane Beverages",
@@ -2827,7 +2827,7 @@
   },
   {
     "id": 158,
-    "barcode": "8681000005809",
+    "barcode": "2913789598333",
     "name": "Surface Spray 750 ml",
     "category": "Cleaning",
     "supplier": "Wrendel Components",
@@ -2845,7 +2845,7 @@
   },
   {
     "id": 159,
-    "barcode": "8681000005846",
+    "barcode": "2913813735902",
     "name": "Chocolate Bar 12-pack",
     "category": "Snacks",
     "supplier": "Vantia Foods Ltd.",
@@ -2863,7 +2863,7 @@
   },
   {
     "id": 160,
-    "barcode": "8681000005883",
+    "barcode": "2913837873471",
     "name": "Chicken Breast 6-pack",
     "category": "Meat & Poultry",
     "supplier": "Solvent Works Inc.",
@@ -2881,7 +2881,7 @@
   },
   {
     "id": 161,
-    "barcode": "8681000005920",
+    "barcode": "2913862011040",
     "name": "Whole Milk 12-pack",
     "category": "Dairy",
     "supplier": "Solvent Works Inc.",
@@ -2899,7 +2899,7 @@
   },
   {
     "id": 162,
-    "barcode": "8681000005957",
+    "barcode": "2913886148609",
     "name": "Rye Bread 1 L",
     "category": "Bakery",
     "supplier": "Palekit Packaging",
@@ -2917,7 +2917,7 @@
   },
   {
     "id": 163,
-    "barcode": "8681000005994",
+    "barcode": "2913910286178",
     "name": "Sparkling Water 250 g",
     "category": "Beverages",
     "supplier": "Northgale Textiles",
@@ -2935,7 +2935,7 @@
   },
   {
     "id": 164,
-    "barcode": "8681000006031",
+    "barcode": "2913934423747",
     "name": "Cucumber 6-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Rethlin Chemicals",
@@ -2953,7 +2953,7 @@
   },
   {
     "id": 165,
-    "barcode": "8681000006068",
+    "barcode": "2913958561316",
     "name": "Pizza Base 12-pack",
     "category": "Frozen",
     "supplier": "Thalberg Electric",
@@ -2971,7 +2971,7 @@
   },
   {
     "id": 166,
-    "barcode": "8681000006105",
+    "barcode": "2913982698885",
     "name": "Dish Soap 750 ml",
     "category": "Cleaning",
     "supplier": "Kordel Supply Co.",
@@ -2989,7 +2989,7 @@
   },
   {
     "id": 167,
-    "barcode": "8681000006142",
+    "barcode": "2914006836454",
     "name": "Chocolate Bar 250 g",
     "category": "Snacks",
     "supplier": "Urvane Plastics",
@@ -3007,7 +3007,7 @@
   },
   {
     "id": 168,
-    "barcode": "8681000006179",
+    "barcode": "2914030974023",
     "name": "Turkey Slices 750 ml",
     "category": "Meat & Poultry",
     "supplier": "Sunhollow Farms",
@@ -3025,7 +3025,7 @@
   },
   {
     "id": 169,
-    "barcode": "8681000006216",
+    "barcode": "2914055111592",
     "name": "Cream 250 g",
     "category": "Dairy",
     "supplier": "Rethlin Chemicals",
@@ -3043,7 +3043,7 @@
   },
   {
     "id": 170,
-    "barcode": "8681000006253",
+    "barcode": "2914079249161",
     "name": "Pita 500 g",
     "category": "Bakery",
     "supplier": "Northgale Textiles",
@@ -3061,7 +3061,7 @@
   },
   {
     "id": 171,
-    "barcode": "8681000006290",
+    "barcode": "2914103386730",
     "name": "Orange Juice 250 g",
     "category": "Beverages",
     "supplier": "Kordel Supply Co.",
@@ -3079,7 +3079,7 @@
   },
   {
     "id": 172,
-    "barcode": "8681000006327",
+    "barcode": "2914127524299",
     "name": "Tomato 6-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Brightpine Trading",
@@ -3097,7 +3097,7 @@
   },
   {
     "id": 173,
-    "barcode": "8681000006364",
+    "barcode": "2914151661868",
     "name": "Frozen Peas 1 kg",
     "category": "Frozen",
     "supplier": "Urvane Plastics",
@@ -3115,7 +3115,7 @@
   },
   {
     "id": 174,
-    "barcode": "8681000006401",
+    "barcode": "2914175799437",
     "name": "Surface Spray 1 L",
     "category": "Cleaning",
     "supplier": "Palekit Packaging",
@@ -3133,7 +3133,7 @@
   },
   {
     "id": 175,
-    "barcode": "8681000006438",
+    "barcode": "2914199937006",
     "name": "Salted Crisps 750 ml",
     "category": "Snacks",
     "supplier": "Palekit Packaging",
@@ -3151,7 +3151,7 @@
   },
   {
     "id": 176,
-    "barcode": "8681000006475",
+    "barcode": "2914224074575",
     "name": "Chicken Breast 6-pack",
     "category": "Meat & Poultry",
     "supplier": "Vantia Foods Ltd.",
@@ -3169,7 +3169,7 @@
   },
   {
     "id": 177,
-    "barcode": "8681000006512",
+    "barcode": "2914248212144",
     "name": "Butter 750 ml",
     "category": "Dairy",
     "supplier": "Quarn Metals",
@@ -3187,7 +3187,7 @@
   },
   {
     "id": 178,
-    "barcode": "8681000006549",
+    "barcode": "2914272349713",
     "name": "Pita 1 kg",
     "category": "Bakery",
     "supplier": "Marbeck Machinery",
@@ -3205,7 +3205,7 @@
   },
   {
     "id": 179,
-    "barcode": "8681000006586",
+    "barcode": "2914296487282",
     "name": "Iced Tea 250 g",
     "category": "Beverages",
     "supplier": "Marbeck Machinery",
@@ -3223,7 +3223,7 @@
   },
   {
     "id": 180,
-    "barcode": "8681000006623",
+    "barcode": "2914320624851",
     "name": "Cucumber 750 ml",
     "category": "Fruit & Vegetable",
     "supplier": "Marbeck Machinery",
@@ -3241,7 +3241,7 @@
   },
   {
     "id": 181,
-    "barcode": "8681000006660",
+    "barcode": "2914344762420",
     "name": "Frozen Fries 500 g",
     "category": "Frozen",
     "supplier": "Palekit Packaging",
@@ -3259,7 +3259,7 @@
   },
   {
     "id": 182,
-    "barcode": "8681000006697",
+    "barcode": "2914368899989",
     "name": "Bleach 1 L",
     "category": "Cleaning",
     "supplier": "Urvane Plastics",
@@ -3277,7 +3277,7 @@
   },
   {
     "id": 183,
-    "barcode": "8681000006734",
+    "barcode": "2914393037558",
     "name": "Chocolate Bar 750 ml",
     "category": "Snacks",
     "supplier": "Orvane Beverages",
@@ -3295,7 +3295,7 @@
   },
   {
     "id": 184,
-    "barcode": "8681000006771",
+    "barcode": "2914417175127",
     "name": "Minced Beef 12-pack",
     "category": "Meat & Poultry",
     "supplier": "Sunhollow Farms",
@@ -3313,7 +3313,7 @@
   },
   {
     "id": 185,
-    "barcode": "8681000006808",
+    "barcode": "2914441312696",
     "name": "Cream 750 ml",
     "category": "Dairy",
     "supplier": "Wrendel Components",
@@ -3331,7 +3331,7 @@
   },
   {
     "id": 186,
-    "barcode": "8681000006845",
+    "barcode": "2914465450265",
     "name": "Croissant 250 g",
     "category": "Bakery",
     "supplier": "Palekit Packaging",
@@ -3349,7 +3349,7 @@
   },
   {
     "id": 187,
-    "barcode": "8681000006882",
+    "barcode": "2914489587834",
     "name": "Sparkling Water 250 g",
     "category": "Beverages",
     "supplier": "Northgale Textiles",
@@ -3367,7 +3367,7 @@
   },
   {
     "id": 188,
-    "barcode": "8681000006919",
+    "barcode": "2914513725403",
     "name": "Banana 6-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Rethlin Chemicals",
@@ -3385,7 +3385,7 @@
   },
   {
     "id": 189,
-    "barcode": "8681000006956",
+    "barcode": "2914537862972",
     "name": "Frozen Fries 750 ml",
     "category": "Frozen",
     "supplier": "Solvent Works Inc.",
@@ -3403,7 +3403,7 @@
   },
   {
     "id": 190,
-    "barcode": "8681000006993",
+    "barcode": "2914562000541",
     "name": "Bleach 250 g",
     "category": "Cleaning",
     "supplier": "Solvent Works Inc.",
@@ -3421,7 +3421,7 @@
   },
   {
     "id": 191,
-    "barcode": "8681000007030",
+    "barcode": "2914586138110",
     "name": "Crackers 250 g",
     "category": "Snacks",
     "supplier": "Sunhollow Farms",
@@ -3439,7 +3439,7 @@
   },
   {
     "id": 192,
-    "barcode": "8681000007067",
+    "barcode": "2914610275679",
     "name": "Chicken Breast 500 g",
     "category": "Meat & Poultry",
     "supplier": "Vantia Foods Ltd.",
@@ -3457,7 +3457,7 @@
   },
   {
     "id": 193,
-    "barcode": "8681000007104",
+    "barcode": "2914634413248",
     "name": "Cream 12-pack",
     "category": "Dairy",
     "supplier": "Solvent Works Inc.",
@@ -3475,7 +3475,7 @@
   },
   {
     "id": 194,
-    "barcode": "8681000007141",
+    "barcode": "2914658550817",
     "name": "Sourdough Loaf 1 L",
     "category": "Bakery",
     "supplier": "Kordel Supply Co.",
@@ -3493,7 +3493,7 @@
   },
   {
     "id": 195,
-    "barcode": "8681000007178",
+    "barcode": "2914682688386",
     "name": "Orange Juice 500 g",
     "category": "Beverages",
     "supplier": "Kordel Supply Co.",
@@ -3511,7 +3511,7 @@
   },
   {
     "id": 196,
-    "barcode": "8681000007215",
+    "barcode": "2914706825955",
     "name": "Cucumber 1 kg",
     "category": "Fruit & Vegetable",
     "supplier": "Solvent Works Inc.",
@@ -3529,7 +3529,7 @@
   },
   {
     "id": 197,
-    "barcode": "8681000007252",
+    "barcode": "2914730963524",
     "name": "Ice Cream 12-pack",
     "category": "Frozen",
     "supplier": "Urvane Plastics",
@@ -3547,7 +3547,7 @@
   },
   {
     "id": 198,
-    "barcode": "8681000007289",
+    "barcode": "2914755101093",
     "name": "Dish Soap 750 ml",
     "category": "Cleaning",
     "supplier": "Palekit Packaging",
@@ -3565,7 +3565,7 @@
   },
   {
     "id": 199,
-    "barcode": "8681000007326",
+    "barcode": "2914779238662",
     "name": "Crackers 6-pack",
     "category": "Snacks",
     "supplier": "Brightpine Trading",
@@ -3583,7 +3583,7 @@
   },
   {
     "id": 200,
-    "barcode": "8681000007363",
+    "barcode": "2914803376231",
     "name": "Chicken Breast 6-pack",
     "category": "Meat & Poultry",
     "supplier": "Palekit Packaging",
@@ -3601,7 +3601,7 @@
   },
   {
     "id": 201,
-    "barcode": "8681000007400",
+    "barcode": "2914827513800",
     "name": "Kashkaval 250 g",
     "category": "Dairy",
     "supplier": "Kordel Supply Co.",
@@ -3619,7 +3619,7 @@
   },
   {
     "id": 202,
-    "barcode": "8681000007437",
+    "barcode": "2914851651369",
     "name": "Pita 6-pack",
     "category": "Bakery",
     "supplier": "Vosk Paper Mill",
@@ -3637,7 +3637,7 @@
   },
   {
     "id": 203,
-    "barcode": "8681000007474",
+    "barcode": "2914875788938",
     "name": "Cola 12-pack",
     "category": "Beverages",
     "supplier": "Marbeck Machinery",
@@ -3655,7 +3655,7 @@
   },
   {
     "id": 204,
-    "barcode": "8681000007511",
+    "barcode": "2914899926507",
     "name": "Banana 500 g",
     "category": "Fruit & Vegetable",
     "supplier": "Urvane Plastics",
@@ -3673,7 +3673,7 @@
   },
   {
     "id": 205,
-    "barcode": "8681000007548",
+    "barcode": "2914924064076",
     "name": "Frozen Peas 12-pack",
     "category": "Frozen",
     "supplier": "Solvent Works Inc.",
@@ -3691,7 +3691,7 @@
   },
   {
     "id": 206,
-    "barcode": "8681000007585",
+    "barcode": "2914948201645",
     "name": "Dish Soap 1 L",
     "category": "Cleaning",
     "supplier": "Marbeck Machinery",
@@ -3709,7 +3709,7 @@
   },
   {
     "id": 207,
-    "barcode": "8681000007622",
+    "barcode": "2914972339214",
     "name": "Chocolate Bar 6-pack",
     "category": "Snacks",
     "supplier": "Marbeck Machinery",
@@ -3727,7 +3727,7 @@
   },
   {
     "id": 208,
-    "barcode": "8681000007659",
+    "barcode": "2914996476783",
     "name": "Chicken Breast 750 ml",
     "category": "Meat & Poultry",
     "supplier": "Sunhollow Farms",
@@ -3745,7 +3745,7 @@
   },
   {
     "id": 209,
-    "barcode": "8681000007696",
+    "barcode": "2915020614352",
     "name": "Whole Milk 12-pack",
     "category": "Dairy",
     "supplier": "Urvane Plastics",
@@ -3763,7 +3763,7 @@
   },
   {
     "id": 210,
-    "barcode": "8681000007733",
+    "barcode": "2915044751921",
     "name": "Rye Bread 12-pack",
     "category": "Bakery",
     "supplier": "Thalberg Electric",
@@ -3781,7 +3781,7 @@
   },
   {
     "id": 211,
-    "barcode": "8681000007770",
+    "barcode": "2915068889490",
     "name": "Sparkling Water 1 kg",
     "category": "Beverages",
     "supplier": "Marbeck Machinery",
@@ -3799,7 +3799,7 @@
   },
   {
     "id": 212,
-    "barcode": "8681000007807",
+    "barcode": "2915093027059",
     "name": "Banana 6-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Kordel Supply Co.",
@@ -3817,7 +3817,7 @@
   },
   {
     "id": 213,
-    "barcode": "8681000007844",
+    "barcode": "2915117164628",
     "name": "Frozen Peas 1 kg",
     "category": "Frozen",
     "supplier": "Vantia Foods Ltd.",
@@ -3835,7 +3835,7 @@
   },
   {
     "id": 214,
-    "barcode": "8681000007881",
+    "barcode": "2915141302197",
     "name": "Bleach 750 ml",
     "category": "Cleaning",
     "supplier": "Palekit Packaging",
@@ -3853,7 +3853,7 @@
   },
   {
     "id": 215,
-    "barcode": "8681000007918",
+    "barcode": "2915165439766",
     "name": "Roasted Nuts 250 g",
     "category": "Snacks",
     "supplier": "Orvane Beverages",
@@ -3871,7 +3871,7 @@
   },
   {
     "id": 216,
-    "barcode": "8681000007955",
+    "barcode": "2915189577335",
     "name": "Beef Cubes 500 g",
     "category": "Meat & Poultry",
     "supplier": "Marbeck Machinery",
@@ -3889,7 +3889,7 @@
   },
   {
     "id": 217,
-    "barcode": "8681000007992",
+    "barcode": "2915213714904",
     "name": "Yoghurt 1 L",
     "category": "Dairy",
     "supplier": "Wrendel Components",
@@ -3907,7 +3907,7 @@
   },
   {
     "id": 218,
-    "barcode": "8681000008029",
+    "barcode": "2915237852473",
     "name": "Sesame Bagel 500 g",
     "category": "Bakery",
     "supplier": "Vantia Foods Ltd.",
@@ -3925,7 +3925,7 @@
   },
   {
     "id": 219,
-    "barcode": "8681000008066",
+    "barcode": "2915261990042",
     "name": "Iced Tea 750 ml",
     "category": "Beverages",
     "supplier": "Wrendel Components",
@@ -3943,7 +3943,7 @@
   },
   {
     "id": 220,
-    "barcode": "8681000008103",
+    "barcode": "2915286127611",
     "name": "Cucumber 1 kg",
     "category": "Fruit & Vegetable",
     "supplier": "Sunhollow Farms",
@@ -3961,7 +3961,7 @@
   },
   {
     "id": 221,
-    "barcode": "8681000008140",
+    "barcode": "2915310265180",
     "name": "Ice Cream 250 g",
     "category": "Frozen",
     "supplier": "Quarn Metals",
@@ -3979,7 +3979,7 @@
   },
   {
     "id": 222,
-    "barcode": "8681000008177",
+    "barcode": "2915334402749",
     "name": "Surface Spray 6-pack",
     "category": "Cleaning",
     "supplier": "Orvane Beverages",
@@ -3997,7 +3997,7 @@
   },
   {
     "id": 223,
-    "barcode": "8681000008214",
+    "barcode": "2915358540318",
     "name": "Chocolate Bar 250 g",
     "category": "Snacks",
     "supplier": "Quarn Metals",
@@ -4015,7 +4015,7 @@
   },
   {
     "id": 224,
-    "barcode": "8681000008251",
+    "barcode": "2915382677887",
     "name": "Chicken Breast 500 g",
     "category": "Meat & Poultry",
     "supplier": "Rethlin Chemicals",
@@ -4033,7 +4033,7 @@
   },
   {
     "id": 225,
-    "barcode": "8681000008288",
+    "barcode": "2915406815456",
     "name": "White Cheese 1 L",
     "category": "Dairy",
     "supplier": "Elmara Logistics",
@@ -4051,7 +4051,7 @@
   },
   {
     "id": 226,
-    "barcode": "8681000008325",
+    "barcode": "2915430953025",
     "name": "Rye Bread 250 g",
     "category": "Bakery",
     "supplier": "Elmara Logistics",
@@ -4069,7 +4069,7 @@
   },
   {
     "id": 227,
-    "barcode": "8681000008362",
+    "barcode": "2915455090594",
     "name": "Ayran 750 ml",
     "category": "Beverages",
     "supplier": "Northgale Textiles",
@@ -4087,7 +4087,7 @@
   },
   {
     "id": 228,
-    "barcode": "8681000008399",
+    "barcode": "2915479228163",
     "name": "Cucumber 500 g",
     "category": "Fruit & Vegetable",
     "supplier": "Northgale Textiles",
@@ -4105,7 +4105,7 @@
   },
   {
     "id": 229,
-    "barcode": "8681000008436",
+    "barcode": "2915503365732",
     "name": "Frozen Peas 250 g",
     "category": "Frozen",
     "supplier": "Kordel Supply Co.",
@@ -4123,7 +4123,7 @@
   },
   {
     "id": 230,
-    "barcode": "8681000008473",
+    "barcode": "2915527503301",
     "name": "Dish Soap 500 g",
     "category": "Cleaning",
     "supplier": "Quarn Metals",
@@ -4141,7 +4141,7 @@
   },
   {
     "id": 231,
-    "barcode": "8681000008510",
+    "barcode": "2915551640870",
     "name": "Chocolate Bar 6-pack",
     "category": "Snacks",
     "supplier": "Rethlin Chemicals",
@@ -4159,7 +4159,7 @@
   },
   {
     "id": 232,
-    "barcode": "8681000008547",
+    "barcode": "2915575778439",
     "name": "Beef Cubes 750 ml",
     "category": "Meat & Poultry",
     "supplier": "Vantia Foods Ltd.",
@@ -4177,7 +4177,7 @@
   },
   {
     "id": 233,
-    "barcode": "8681000008584",
+    "barcode": "2915599916008",
     "name": "Whole Milk 1 kg",
     "category": "Dairy",
     "supplier": "Kordel Supply Co.",
@@ -4195,7 +4195,7 @@
   },
   {
     "id": 234,
-    "barcode": "8681000008621",
+    "barcode": "2915624053577",
     "name": "Pita 500 g",
     "category": "Bakery",
     "supplier": "Elmara Logistics",
@@ -4213,7 +4213,7 @@
   },
   {
     "id": 235,
-    "barcode": "8681000008658",
+    "barcode": "2915648191146",
     "name": "Ayran 1 L",
     "category": "Beverages",
     "supplier": "Northgale Textiles",
@@ -4231,7 +4231,7 @@
   },
   {
     "id": 236,
-    "barcode": "8681000008695",
+    "barcode": "2915672328715",
     "name": "Tomato 500 g",
     "category": "Fruit & Vegetable",
     "supplier": "Vantia Foods Ltd.",
@@ -4249,7 +4249,7 @@
   },
   {
     "id": 237,
-    "barcode": "8681000008732",
+    "barcode": "2915696466284",
     "name": "Pizza Base 500 g",
     "category": "Frozen",
     "supplier": "Brightpine Trading",
@@ -4267,7 +4267,7 @@
   },
   {
     "id": 238,
-    "barcode": "8681000008769",
+    "barcode": "2915720603853",
     "name": "Laundry Gel 12-pack",
     "category": "Cleaning",
     "supplier": "Thalberg Electric",
@@ -4285,7 +4285,7 @@
   },
   {
     "id": 239,
-    "barcode": "8681000008806",
+    "barcode": "2915744741422",
     "name": "Roasted Nuts 1 kg",
     "category": "Snacks",
     "supplier": "Northgale Textiles",
@@ -4303,7 +4303,7 @@
   },
   {
     "id": 240,
-    "barcode": "8681000008843",
+    "barcode": "2915768878991",
     "name": "Beef Cubes 6-pack",
     "category": "Meat & Poultry",
     "supplier": "Kordel Supply Co.",
@@ -4321,7 +4321,7 @@
   },
   {
     "id": 241,
-    "barcode": "8681000008880",
+    "barcode": "2915793016560",
     "name": "Whole Milk 500 g",
     "category": "Dairy",
     "supplier": "Marbeck Machinery",
@@ -4339,7 +4339,7 @@
   },
   {
     "id": 242,
-    "barcode": "8681000008917",
+    "barcode": "2915817154129",
     "name": "Pita 6-pack",
     "category": "Bakery",
     "supplier": "Northgale Textiles",
@@ -4357,7 +4357,7 @@
   },
   {
     "id": 243,
-    "barcode": "8681000008954",
+    "barcode": "2915841291698",
     "name": "Sparkling Water 1 kg",
     "category": "Beverages",
     "supplier": "Wrendel Components",
@@ -4375,7 +4375,7 @@
   },
   {
     "id": 244,
-    "barcode": "8681000008991",
+    "barcode": "2915865429267",
     "name": "Tomato 12-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Urvane Plastics",
@@ -4393,7 +4393,7 @@
   },
   {
     "id": 245,
-    "barcode": "8681000009028",
+    "barcode": "2915889566836",
     "name": "Pizza Base 12-pack",
     "category": "Frozen",
     "supplier": "Marbeck Machinery",
@@ -4411,7 +4411,7 @@
   },
   {
     "id": 246,
-    "barcode": "8681000009065",
+    "barcode": "2915913704405",
     "name": "Dish Soap 1 L",
     "category": "Cleaning",
     "supplier": "Brightpine Trading",
@@ -4429,7 +4429,7 @@
   },
   {
     "id": 247,
-    "barcode": "8681000009102",
+    "barcode": "2915937841974",
     "name": "Roasted Nuts 500 g",
     "category": "Snacks",
     "supplier": "Kordel Supply Co.",
@@ -4447,7 +4447,7 @@
   },
   {
     "id": 248,
-    "barcode": "8681000009139",
+    "barcode": "2915961979543",
     "name": "Turkey Slices 12-pack",
     "category": "Meat & Poultry",
     "supplier": "Thalberg Electric",
@@ -4465,7 +4465,7 @@
   },
   {
     "id": 249,
-    "barcode": "8681000009176",
+    "barcode": "2915986117112",
     "name": "Butter 1 L",
     "category": "Dairy",
     "supplier": "Rethlin Chemicals",
@@ -4483,7 +4483,7 @@
   },
   {
     "id": 250,
-    "barcode": "8681000009213",
+    "barcode": "2916010254681",
     "name": "Sesame Bagel 12-pack",
     "category": "Bakery",
     "supplier": "Vosk Paper Mill",
@@ -4501,7 +4501,7 @@
   },
   {
     "id": 251,
-    "barcode": "8681000009250",
+    "barcode": "2916034392250",
     "name": "Cola 500 g",
     "category": "Beverages",
     "supplier": "Kordel Supply Co.",
@@ -4519,7 +4519,7 @@
   },
   {
     "id": 252,
-    "barcode": "8681000009287",
+    "barcode": "2916058529819",
     "name": "Lettuce 250 g",
     "category": "Fruit & Vegetable",
     "supplier": "Solvent Works Inc.",
@@ -4537,7 +4537,7 @@
   },
   {
     "id": 253,
-    "barcode": "8681000009324",
+    "barcode": "2916082667388",
     "name": "Frozen Fries 250 g",
     "category": "Frozen",
     "supplier": "Palekit Packaging",
@@ -4555,7 +4555,7 @@
   },
   {
     "id": 254,
-    "barcode": "8681000009361",
+    "barcode": "2916106804957",
     "name": "Dish Soap 12-pack",
     "category": "Cleaning",
     "supplier": "Elmara Logistics",
@@ -4573,7 +4573,7 @@
   },
   {
     "id": 255,
-    "barcode": "8681000009398",
+    "barcode": "2916130942526",
     "name": "Crackers 1 kg",
     "category": "Snacks",
     "supplier": "Quarn Metals",
@@ -4591,7 +4591,7 @@
   },
   {
     "id": 256,
-    "barcode": "8681000009435",
+    "barcode": "2916155080095",
     "name": "Beef Cubes 12-pack",
     "category": "Meat & Poultry",
     "supplier": "Palekit Packaging",
@@ -4609,7 +4609,7 @@
   },
   {
     "id": 257,
-    "barcode": "8681000009472",
+    "barcode": "2916179217664",
     "name": "Yoghurt 1 kg",
     "category": "Dairy",
     "supplier": "Orvane Beverages",
@@ -4627,7 +4627,7 @@
   },
   {
     "id": 258,
-    "barcode": "8681000009509",
+    "barcode": "2916203355233",
     "name": "Rye Bread 1 kg",
     "category": "Bakery",
     "supplier": "Kordel Supply Co.",
@@ -4645,7 +4645,7 @@
   },
   {
     "id": 259,
-    "barcode": "8681000009546",
+    "barcode": "2916227492802",
     "name": "Ayran 500 g",
     "category": "Beverages",
     "supplier": "Northgale Textiles",
@@ -4663,7 +4663,7 @@
   },
   {
     "id": 260,
-    "barcode": "8681000009583",
+    "barcode": "2916251630371",
     "name": "Lettuce 12-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Sunhollow Farms",
@@ -4681,7 +4681,7 @@
   },
   {
     "id": 261,
-    "barcode": "8681000009620",
+    "barcode": "2916275767940",
     "name": "Frozen Fries 1 kg",
     "category": "Frozen",
     "supplier": "Thalberg Electric",
@@ -4699,7 +4699,7 @@
   },
   {
     "id": 262,
-    "barcode": "8681000009657",
+    "barcode": "2916299905509",
     "name": "Surface Spray 250 g",
     "category": "Cleaning",
     "supplier": "Quarn Metals",
@@ -4717,7 +4717,7 @@
   },
   {
     "id": 263,
-    "barcode": "8681000009694",
+    "barcode": "2916324043078",
     "name": "Chocolate Bar 12-pack",
     "category": "Snacks",
     "supplier": "Rethlin Chemicals",
@@ -4735,7 +4735,7 @@
   },
   {
     "id": 264,
-    "barcode": "8681000009731",
+    "barcode": "2916348180647",
     "name": "Chicken Breast 12-pack",
     "category": "Meat & Poultry",
     "supplier": "Sunhollow Farms",
@@ -4753,7 +4753,7 @@
   },
   {
     "id": 265,
-    "barcode": "8681000009768",
+    "barcode": "2916372318216",
     "name": "White Cheese 6-pack",
     "category": "Dairy",
     "supplier": "Vantia Foods Ltd.",
@@ -4771,7 +4771,7 @@
   },
   {
     "id": 266,
-    "barcode": "8681000009805",
+    "barcode": "2916396455785",
     "name": "Croissant 1 kg",
     "category": "Bakery",
     "supplier": "Thalberg Electric",
@@ -4789,7 +4789,7 @@
   },
   {
     "id": 267,
-    "barcode": "8681000009842",
+    "barcode": "2916420593354",
     "name": "Orange Juice 12-pack",
     "category": "Beverages",
     "supplier": "Thalberg Electric",
@@ -4807,7 +4807,7 @@
   },
   {
     "id": 268,
-    "barcode": "8681000009879",
+    "barcode": "2916444730923",
     "name": "Lettuce 12-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Brightpine Trading",
@@ -4825,7 +4825,7 @@
   },
   {
     "id": 269,
-    "barcode": "8681000009916",
+    "barcode": "2916468868492",
     "name": "Frozen Peas 750 ml",
     "category": "Frozen",
     "supplier": "Solvent Works Inc.",
@@ -4843,7 +4843,7 @@
   },
   {
     "id": 270,
-    "barcode": "8681000009953",
+    "barcode": "2916493006061",
     "name": "Surface Spray 6-pack",
     "category": "Cleaning",
     "supplier": "Vosk Paper Mill",
@@ -4861,7 +4861,7 @@
   },
   {
     "id": 271,
-    "barcode": "8681000009990",
+    "barcode": "2916517143630",
     "name": "Crackers 12-pack",
     "category": "Snacks",
     "supplier": "Rethlin Chemicals",
@@ -4879,7 +4879,7 @@
   },
   {
     "id": 272,
-    "barcode": "8681000010027",
+    "barcode": "2916541281199",
     "name": "Beef Cubes 1 L",
     "category": "Meat & Poultry",
     "supplier": "Urvane Plastics",
@@ -4897,7 +4897,7 @@
   },
   {
     "id": 273,
-    "barcode": "8681000010064",
+    "barcode": "2916565418768",
     "name": "Kashkaval 500 g",
     "category": "Dairy",
     "supplier": "Vosk Paper Mill",
@@ -4915,7 +4915,7 @@
   },
   {
     "id": 274,
-    "barcode": "8681000010101",
+    "barcode": "2916589556337",
     "name": "Croissant 250 g",
     "category": "Bakery",
     "supplier": "Vantia Foods Ltd.",
@@ -4933,7 +4933,7 @@
   },
   {
     "id": 275,
-    "barcode": "8681000010138",
+    "barcode": "2916613693906",
     "name": "Ayran 1 L",
     "category": "Beverages",
     "supplier": "Urvane Plastics",
@@ -4951,7 +4951,7 @@
   },
   {
     "id": 276,
-    "barcode": "8681000010175",
+    "barcode": "2916637831475",
     "name": "Lettuce 1 L",
     "category": "Fruit & Vegetable",
     "supplier": "Palekit Packaging",
@@ -4969,7 +4969,7 @@
   },
   {
     "id": 277,
-    "barcode": "8681000010212",
+    "barcode": "2916661969044",
     "name": "Ice Cream 12-pack",
     "category": "Frozen",
     "supplier": "Vantia Foods Ltd.",
@@ -4987,7 +4987,7 @@
   },
   {
     "id": 278,
-    "barcode": "8681000010249",
+    "barcode": "2916686106613",
     "name": "Dish Soap 250 g",
     "category": "Cleaning",
     "supplier": "Thalberg Electric",
@@ -5005,7 +5005,7 @@
   },
   {
     "id": 279,
-    "barcode": "8681000010286",
+    "barcode": "2916710244182",
     "name": "Crackers 1 L",
     "category": "Snacks",
     "supplier": "Urvane Plastics",
@@ -5023,7 +5023,7 @@
   },
   {
     "id": 280,
-    "barcode": "8681000010323",
+    "barcode": "2916734381751",
     "name": "Beef Cubes 12-pack",
     "category": "Meat & Poultry",
     "supplier": "Urvane Plastics",
@@ -5041,7 +5041,7 @@
   },
   {
     "id": 281,
-    "barcode": "8681000010360",
+    "barcode": "2916758519320",
     "name": "Yoghurt 1 L",
     "category": "Dairy",
     "supplier": "Sunhollow Farms",
@@ -5059,7 +5059,7 @@
   },
   {
     "id": 282,
-    "barcode": "8681000010397",
+    "barcode": "2916782656889",
     "name": "Sesame Bagel 6-pack",
     "category": "Bakery",
     "supplier": "Thalberg Electric",
@@ -5077,7 +5077,7 @@
   },
   {
     "id": 283,
-    "barcode": "8681000010434",
+    "barcode": "2916806794458",
     "name": "Iced Tea 12-pack",
     "category": "Beverages",
     "supplier": "Palekit Packaging",
@@ -5095,7 +5095,7 @@
   },
   {
     "id": 284,
-    "barcode": "8681000010471",
+    "barcode": "2916830932027",
     "name": "Banana 6-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Quarn Metals",
@@ -5113,7 +5113,7 @@
   },
   {
     "id": 285,
-    "barcode": "8681000010508",
+    "barcode": "2916855069596",
     "name": "Frozen Fries 250 g",
     "category": "Frozen",
     "supplier": "Wrendel Components",
@@ -5131,7 +5131,7 @@
   },
   {
     "id": 286,
-    "barcode": "8681000010545",
+    "barcode": "2916879207165",
     "name": "Laundry Gel 500 g",
     "category": "Cleaning",
     "supplier": "Sunhollow Farms",
@@ -5149,7 +5149,7 @@
   },
   {
     "id": 287,
-    "barcode": "8681000010582",
+    "barcode": "2916903344734",
     "name": "Roasted Nuts 750 ml",
     "category": "Snacks",
     "supplier": "Thalberg Electric",
@@ -5167,7 +5167,7 @@
   },
   {
     "id": 288,
-    "barcode": "8681000010619",
+    "barcode": "2916927482303",
     "name": "Beef Cubes 250 g",
     "category": "Meat & Poultry",
     "supplier": "Palekit Packaging",
@@ -5185,7 +5185,7 @@
   },
   {
     "id": 289,
-    "barcode": "8681000010656",
+    "barcode": "2916951619872",
     "name": "Yoghurt 12-pack",
     "category": "Dairy",
     "supplier": "Urvane Plastics",
@@ -5203,7 +5203,7 @@
   },
   {
     "id": 290,
-    "barcode": "8681000010693",
+    "barcode": "2916975757441",
     "name": "Rye Bread 500 g",
     "category": "Bakery",
     "supplier": "Palekit Packaging",
@@ -5221,7 +5221,7 @@
   },
   {
     "id": 291,
-    "barcode": "8681000010730",
+    "barcode": "2916999895010",
     "name": "Iced Tea 6-pack",
     "category": "Beverages",
     "supplier": "Rethlin Chemicals",
@@ -5239,7 +5239,7 @@
   },
   {
     "id": 292,
-    "barcode": "8681000010767",
+    "barcode": "2917024032579",
     "name": "Cucumber 1 L",
     "category": "Fruit & Vegetable",
     "supplier": "Kordel Supply Co.",
@@ -5257,7 +5257,7 @@
   },
   {
     "id": 293,
-    "barcode": "8681000010804",
+    "barcode": "2917048170148",
     "name": "Frozen Peas 12-pack",
     "category": "Frozen",
     "supplier": "Palekit Packaging",
@@ -5275,7 +5275,7 @@
   },
   {
     "id": 294,
-    "barcode": "8681000010841",
+    "barcode": "2917072307717",
     "name": "Bleach 1 kg",
     "category": "Cleaning",
     "supplier": "Northgale Textiles",
@@ -5293,7 +5293,7 @@
   },
   {
     "id": 295,
-    "barcode": "8681000010878",
+    "barcode": "2917096445286",
     "name": "Chocolate Bar 1 L",
     "category": "Snacks",
     "supplier": "Urvane Plastics",
@@ -5311,7 +5311,7 @@
   },
   {
     "id": 296,
-    "barcode": "8681000010915",
+    "barcode": "2917120582855",
     "name": "Chicken Breast 250 g",
     "category": "Meat & Poultry",
     "supplier": "Kordel Supply Co.",
@@ -5329,7 +5329,7 @@
   },
   {
     "id": 297,
-    "barcode": "8681000010952",
+    "barcode": "2917144720424",
     "name": "White Cheese 1 kg",
     "category": "Dairy",
     "supplier": "Vantia Foods Ltd.",
@@ -5347,7 +5347,7 @@
   },
   {
     "id": 298,
-    "barcode": "8681000010989",
+    "barcode": "2917168857993",
     "name": "Pita 6-pack",
     "category": "Bakery",
     "supplier": "Orvane Beverages",
@@ -5365,7 +5365,7 @@
   },
   {
     "id": 299,
-    "barcode": "8681000011026",
+    "barcode": "2917192995562",
     "name": "Iced Tea 12-pack",
     "category": "Beverages",
     "supplier": "Palekit Packaging",
@@ -5383,7 +5383,7 @@
   },
   {
     "id": 300,
-    "barcode": "8681000011063",
+    "barcode": "2917217133131",
     "name": "Banana 6-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Marbeck Machinery",
@@ -5401,7 +5401,7 @@
   },
   {
     "id": 301,
-    "barcode": "8681000011100",
+    "barcode": "2917241270700",
     "name": "Ice Cream 1 kg",
     "category": "Frozen",
     "supplier": "Palekit Packaging",
@@ -5419,7 +5419,7 @@
   },
   {
     "id": 302,
-    "barcode": "8681000011137",
+    "barcode": "2917265408269",
     "name": "Dish Soap 12-pack",
     "category": "Cleaning",
     "supplier": "Thalberg Electric",
@@ -5437,7 +5437,7 @@
   },
   {
     "id": 303,
-    "barcode": "8681000011174",
+    "barcode": "2917289545838",
     "name": "Chocolate Bar 1 kg",
     "category": "Snacks",
     "supplier": "Vosk Paper Mill",
@@ -5455,7 +5455,7 @@
   },
   {
     "id": 304,
-    "barcode": "8681000011211",
+    "barcode": "2917313683407",
     "name": "Turkey Slices 12-pack",
     "category": "Meat & Poultry",
     "supplier": "Kordel Supply Co.",
@@ -5473,7 +5473,7 @@
   },
   {
     "id": 305,
-    "barcode": "8681000011248",
+    "barcode": "2917337820976",
     "name": "Yoghurt 12-pack",
     "category": "Dairy",
     "supplier": "Northgale Textiles",
@@ -5491,7 +5491,7 @@
   },
   {
     "id": 306,
-    "barcode": "8681000011285",
+    "barcode": "2917361958545",
     "name": "Sourdough Loaf 1 kg",
     "category": "Bakery",
     "supplier": "Urvane Plastics",
@@ -5509,7 +5509,7 @@
   },
   {
     "id": 307,
-    "barcode": "8681000011322",
+    "barcode": "2917386096114",
     "name": "Sparkling Water 500 g",
     "category": "Beverages",
     "supplier": "Solvent Works Inc.",
@@ -5527,7 +5527,7 @@
   },
   {
     "id": 308,
-    "barcode": "8681000011359",
+    "barcode": "2917410233683",
     "name": "Pepper 12-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Sunhollow Farms",
@@ -5545,7 +5545,7 @@
   },
   {
     "id": 309,
-    "barcode": "8681000011396",
+    "barcode": "2917434371252",
     "name": "Frozen Peas 6-pack",
     "category": "Frozen",
     "supplier": "Palekit Packaging",
@@ -5563,7 +5563,7 @@
   },
   {
     "id": 310,
-    "barcode": "8681000011433",
+    "barcode": "2917458508821",
     "name": "Surface Spray 6-pack",
     "category": "Cleaning",
     "supplier": "Elmara Logistics",
@@ -5581,7 +5581,7 @@
   },
   {
     "id": 311,
-    "barcode": "8681000011470",
+    "barcode": "2917482646390",
     "name": "Chocolate Bar 1 L",
     "category": "Snacks",
     "supplier": "Kordel Supply Co.",
@@ -5599,7 +5599,7 @@
   },
   {
     "id": 312,
-    "barcode": "8681000011507",
+    "barcode": "2917506783959",
     "name": "Beef Cubes 750 ml",
     "category": "Meat & Poultry",
     "supplier": "Marbeck Machinery",
@@ -5617,7 +5617,7 @@
   },
   {
     "id": 313,
-    "barcode": "8681000011544",
+    "barcode": "2917530921528",
     "name": "Yoghurt 12-pack",
     "category": "Dairy",
     "supplier": "Quarn Metals",
@@ -5635,7 +5635,7 @@
   },
   {
     "id": 314,
-    "barcode": "8681000011581",
+    "barcode": "2917555059097",
     "name": "Sourdough Loaf 1 L",
     "category": "Bakery",
     "supplier": "Solvent Works Inc.",
@@ -5653,7 +5653,7 @@
   },
   {
     "id": 315,
-    "barcode": "8681000011618",
+    "barcode": "2917579196666",
     "name": "Cola 1 L",
     "category": "Beverages",
     "supplier": "Elmara Logistics",
@@ -5671,7 +5671,7 @@
   },
   {
     "id": 316,
-    "barcode": "8681000011655",
+    "barcode": "2917603334235",
     "name": "Lettuce 250 g",
     "category": "Fruit & Vegetable",
     "supplier": "Elmara Logistics",
@@ -5689,7 +5689,7 @@
   },
   {
     "id": 317,
-    "barcode": "8681000011692",
+    "barcode": "2917627471804",
     "name": "Pizza Base 1 L",
     "category": "Frozen",
     "supplier": "Kordel Supply Co.",
@@ -5707,7 +5707,7 @@
   },
   {
     "id": 318,
-    "barcode": "8681000011729",
+    "barcode": "2917651609373",
     "name": "Surface Spray 12-pack",
     "category": "Cleaning",
     "supplier": "Thalberg Electric",
@@ -5725,7 +5725,7 @@
   },
   {
     "id": 319,
-    "barcode": "8681000011766",
+    "barcode": "2917675746942",
     "name": "Crackers 250 g",
     "category": "Snacks",
     "supplier": "Vantia Foods Ltd.",
@@ -5743,7 +5743,7 @@
   },
   {
     "id": 320,
-    "barcode": "8681000011803",
+    "barcode": "2917699884511",
     "name": "Beef Cubes 250 g",
     "category": "Meat & Poultry",
     "supplier": "Palekit Packaging",
@@ -5761,7 +5761,7 @@
   },
   {
     "id": 321,
-    "barcode": "8681000011840",
+    "barcode": "2917724022080",
     "name": "Whole Milk 1 kg",
     "category": "Dairy",
     "supplier": "Elmara Logistics",
@@ -5779,7 +5779,7 @@
   },
   {
     "id": 322,
-    "barcode": "8681000011877",
+    "barcode": "2917748159649",
     "name": "Croissant 6-pack",
     "category": "Bakery",
     "supplier": "Rethlin Chemicals",
@@ -5797,7 +5797,7 @@
   },
   {
     "id": 323,
-    "barcode": "8681000011914",
+    "barcode": "2917772297218",
     "name": "Ayran 750 ml",
     "category": "Beverages",
     "supplier": "Thalberg Electric",
@@ -5815,7 +5815,7 @@
   },
   {
     "id": 324,
-    "barcode": "8681000011951",
+    "barcode": "2917796434787",
     "name": "Banana 12-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Brightpine Trading",
@@ -5833,7 +5833,7 @@
   },
   {
     "id": 325,
-    "barcode": "8681000011988",
+    "barcode": "2917820572356",
     "name": "Frozen Peas 6-pack",
     "category": "Frozen",
     "supplier": "Kordel Supply Co.",
@@ -5851,7 +5851,7 @@
   },
   {
     "id": 326,
-    "barcode": "8681000012025",
+    "barcode": "2917844709925",
     "name": "Surface Spray 1 kg",
     "category": "Cleaning",
     "supplier": "Rethlin Chemicals",
@@ -5869,7 +5869,7 @@
   },
   {
     "id": 327,
-    "barcode": "8681000012062",
+    "barcode": "2917868847494",
     "name": "Roasted Nuts 6-pack",
     "category": "Snacks",
     "supplier": "Quarn Metals",
@@ -5887,7 +5887,7 @@
   },
   {
     "id": 328,
-    "barcode": "8681000012099",
+    "barcode": "2917892985063",
     "name": "Turkey Slices 1 L",
     "category": "Meat & Poultry",
     "supplier": "Kordel Supply Co.",
@@ -5905,7 +5905,7 @@
   },
   {
     "id": 329,
-    "barcode": "8681000012136",
+    "barcode": "2917917122632",
     "name": "Whole Milk 750 ml",
     "category": "Dairy",
     "supplier": "Thalberg Electric",
@@ -5923,7 +5923,7 @@
   },
   {
     "id": 330,
-    "barcode": "8681000012173",
+    "barcode": "2917941260201",
     "name": "Pita 6-pack",
     "category": "Bakery",
     "supplier": "Wrendel Components",
@@ -5941,7 +5941,7 @@
   },
   {
     "id": 331,
-    "barcode": "8681000012210",
+    "barcode": "2917965397770",
     "name": "Orange Juice 1 L",
     "category": "Beverages",
     "supplier": "Wrendel Components",
@@ -5959,7 +5959,7 @@
   },
   {
     "id": 332,
-    "barcode": "8681000012247",
+    "barcode": "2917989535339",
     "name": "Cucumber 12-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Vantia Foods Ltd.",
@@ -5977,7 +5977,7 @@
   },
   {
     "id": 333,
-    "barcode": "8681000012284",
+    "barcode": "2918013672908",
     "name": "Pizza Base 12-pack",
     "category": "Frozen",
     "supplier": "Sunhollow Farms",
@@ -5995,7 +5995,7 @@
   },
   {
     "id": 334,
-    "barcode": "8681000012321",
+    "barcode": "2918037810477",
     "name": "Surface Spray 12-pack",
     "category": "Cleaning",
     "supplier": "Rethlin Chemicals",
@@ -6013,7 +6013,7 @@
   },
   {
     "id": 335,
-    "barcode": "8681000012358",
+    "barcode": "2918061948046",
     "name": "Crackers 1 L",
     "category": "Snacks",
     "supplier": "Elmara Logistics",
@@ -6031,7 +6031,7 @@
   },
   {
     "id": 336,
-    "barcode": "8681000012395",
+    "barcode": "2918086085615",
     "name": "Chicken Breast 250 g",
     "category": "Meat & Poultry",
     "supplier": "Brightpine Trading",
@@ -6049,7 +6049,7 @@
   },
   {
     "id": 337,
-    "barcode": "8681000012432",
+    "barcode": "2918110223184",
     "name": "Butter 750 ml",
     "category": "Dairy",
     "supplier": "Marbeck Machinery",
@@ -6067,7 +6067,7 @@
   },
   {
     "id": 338,
-    "barcode": "8681000012469",
+    "barcode": "2918134360753",
     "name": "Rye Bread 1 kg",
     "category": "Bakery",
     "supplier": "Brightpine Trading",
@@ -6085,7 +6085,7 @@
   },
   {
     "id": 339,
-    "barcode": "8681000012506",
+    "barcode": "2918158498322",
     "name": "Cola 1 L",
     "category": "Beverages",
     "supplier": "Rethlin Chemicals",
@@ -6103,7 +6103,7 @@
   },
   {
     "id": 340,
-    "barcode": "8681000012543",
+    "barcode": "2918182635891",
     "name": "Apple 750 ml",
     "category": "Fruit & Vegetable",
     "supplier": "Quarn Metals",
@@ -6121,7 +6121,7 @@
   },
   {
     "id": 341,
-    "barcode": "8681000012580",
+    "barcode": "2918206773460",
     "name": "Frozen Peas 250 g",
     "category": "Frozen",
     "supplier": "Sunhollow Farms",
@@ -6139,7 +6139,7 @@
   },
   {
     "id": 342,
-    "barcode": "8681000012617",
+    "barcode": "2918230911029",
     "name": "Dish Soap 500 g",
     "category": "Cleaning",
     "supplier": "Kordel Supply Co.",
@@ -6157,7 +6157,7 @@
   },
   {
     "id": 343,
-    "barcode": "8681000012654",
+    "barcode": "2918255048598",
     "name": "Roasted Nuts 250 g",
     "category": "Snacks",
     "supplier": "Northgale Textiles",
@@ -6175,7 +6175,7 @@
   },
   {
     "id": 344,
-    "barcode": "8681000012691",
+    "barcode": "2918279186167",
     "name": "Turkey Slices 1 L",
     "category": "Meat & Poultry",
     "supplier": "Urvane Plastics",
@@ -6193,7 +6193,7 @@
   },
   {
     "id": 345,
-    "barcode": "8681000012728",
+    "barcode": "2918303323736",
     "name": "Cream 1 kg",
     "category": "Dairy",
     "supplier": "Solvent Works Inc.",
@@ -6211,7 +6211,7 @@
   },
   {
     "id": 346,
-    "barcode": "8681000012765",
+    "barcode": "2918327461305",
     "name": "Pita 250 g",
     "category": "Bakery",
     "supplier": "Quarn Metals",
@@ -6229,7 +6229,7 @@
   },
   {
     "id": 347,
-    "barcode": "8681000012802",
+    "barcode": "2918351598874",
     "name": "Ayran 750 ml",
     "category": "Beverages",
     "supplier": "Marbeck Machinery",
@@ -6247,7 +6247,7 @@
   },
   {
     "id": 348,
-    "barcode": "8681000012839",
+    "barcode": "2918375736443",
     "name": "Apple 500 g",
     "category": "Fruit & Vegetable",
     "supplier": "Solvent Works Inc.",
@@ -6265,7 +6265,7 @@
   },
   {
     "id": 349,
-    "barcode": "8681000012876",
+    "barcode": "2918399874012",
     "name": "Frozen Fries 1 L",
     "category": "Frozen",
     "supplier": "Northgale Textiles",
@@ -6283,7 +6283,7 @@
   },
   {
     "id": 350,
-    "barcode": "8681000012913",
+    "barcode": "2918424011581",
     "name": "Surface Spray 1 kg",
     "category": "Cleaning",
     "supplier": "Palekit Packaging",
@@ -6301,7 +6301,7 @@
   },
   {
     "id": 351,
-    "barcode": "8681000012950",
+    "barcode": "2918448149150",
     "name": "Chocolate Bar 1 kg",
     "category": "Snacks",
     "supplier": "Rethlin Chemicals",
@@ -6319,7 +6319,7 @@
   },
   {
     "id": 352,
-    "barcode": "8681000012987",
+    "barcode": "2918472286719",
     "name": "Beef Cubes 1 kg",
     "category": "Meat & Poultry",
     "supplier": "Vantia Foods Ltd.",
@@ -6337,7 +6337,7 @@
   },
   {
     "id": 353,
-    "barcode": "8681000013024",
+    "barcode": "2918496424288",
     "name": "Whole Milk 500 g",
     "category": "Dairy",
     "supplier": "Elmara Logistics",
@@ -6355,7 +6355,7 @@
   },
   {
     "id": 354,
-    "barcode": "8681000013061",
+    "barcode": "2918520561857",
     "name": "Pita 250 g",
     "category": "Bakery",
     "supplier": "Kordel Supply Co.",
@@ -6373,7 +6373,7 @@
   },
   {
     "id": 355,
-    "barcode": "8681000013098",
+    "barcode": "2918544699426",
     "name": "Iced Tea 12-pack",
     "category": "Beverages",
     "supplier": "Thalberg Electric",
@@ -6391,7 +6391,7 @@
   },
   {
     "id": 356,
-    "barcode": "8681000013135",
+    "barcode": "2918568836995",
     "name": "Apple 6-pack",
     "category": "Fruit & Vegetable",
     "supplier": "Elmara Logistics",
@@ -6409,7 +6409,7 @@
   },
   {
     "id": 357,
-    "barcode": "8681000013172",
+    "barcode": "2918592974564",
     "name": "Frozen Peas 1 kg",
     "category": "Frozen",
     "supplier": "Northgale Textiles",
@@ -6427,7 +6427,7 @@
   },
   {
     "id": 358,
-    "barcode": "8681000013209",
+    "barcode": "2918617112133",
     "name": "Surface Spray 12-pack",
     "category": "Cleaning",
     "supplier": "Palekit Packaging",
@@ -6445,7 +6445,7 @@
   },
   {
     "id": 359,
-    "barcode": "8681000013246",
+    "barcode": "2918641249702",
     "name": "Roasted Nuts 750 ml",
     "category": "Snacks",
     "supplier": "Brightpine Trading",
@@ -6463,7 +6463,7 @@
   },
   {
     "id": 360,
-    "barcode": "8681000013283",
+    "barcode": "2918665387271",
     "name": "Turkey Slices 6-pack",
     "category": "Meat & Poultry",
     "supplier": "Elmara Logistics",
@@ -6481,7 +6481,7 @@
   },
   {
     "id": 361,
-    "barcode": "8681000013320",
+    "barcode": "2918689524840",
     "name": "Yoghurt 1 kg",
     "category": "Dairy",
     "supplier": "Palekit Packaging",
@@ -6499,7 +6499,7 @@
   },
   {
     "id": 362,
-    "barcode": "8681000013357",
+    "barcode": "2918713662409",
     "name": "Pita 1 kg",
     "category": "Bakery",
     "supplier": "Wrendel Components",
@@ -6517,7 +6517,7 @@
   },
   {
     "id": 363,
-    "barcode": "8681000013394",
+    "barcode": "2918737799978",
     "name": "Cola 250 g",
     "category": "Beverages",
     "supplier": "Brightpine Trading",
@@ -6535,7 +6535,7 @@
   },
   {
     "id": 364,
-    "barcode": "8681000013431",
+    "barcode": "2918761937547",
     "name": "Apple 500 g",
     "category": "Fruit & Vegetable",
     "supplier": "Sunhollow Farms",
@@ -6553,7 +6553,7 @@
   },
   {
     "id": 365,
-    "barcode": "8681000013468",
+    "barcode": "2918786075116",
     "name": "Frozen Fries 250 g",
     "category": "Frozen",
     "supplier": "Brightpine Trading",
@@ -6571,7 +6571,7 @@
   },
   {
     "id": 366,
-    "barcode": "8681000013505",
+    "barcode": "2918810212685",
     "name": "Surface Spray 1 kg",
     "category": "Cleaning",
     "supplier": "Brightpine Trading",
@@ -6589,7 +6589,7 @@
   },
   {
     "id": 367,
-    "barcode": "8681000013542",
+    "barcode": "2918834350254",
     "name": "Chocolate Bar 750 ml",
     "category": "Snacks",
     "supplier": "Solvent Works Inc.",
@@ -6607,7 +6607,7 @@
   },
   {
     "id": 368,
-    "barcode": "8681000013579",
+    "barcode": "2918858487823",
     "name": "Beef Cubes 6-pack",
     "category": "Meat & Poultry",
     "supplier": "Quarn Metals",
@@ -6625,7 +6625,7 @@
   },
   {
     "id": 369,
-    "barcode": "8681000013616",
+    "barcode": "2918882625392",
     "name": "Butter 500 g",
     "category": "Dairy",
     "supplier": "Palekit Packaging",
@@ -6643,7 +6643,7 @@
   },
   {
     "id": 370,
-    "barcode": "8681000013653",
+    "barcode": "2918906762961",
     "name": "Croissant 250 g",
     "category": "Bakery",
     "supplier": "Marbeck Machinery",
@@ -6661,7 +6661,7 @@
   },
   {
     "id": 371,
-    "barcode": "8681000013690",
+    "barcode": "2918930900530",
     "name": "Iced Tea 750 ml",
     "category": "Beverages",
     "supplier": "Rethlin Chemicals",
@@ -6679,7 +6679,7 @@
   },
   {
     "id": 372,
-    "barcode": "8681000013727",
+    "barcode": "2918955038099",
     "name": "Cucumber 500 g",
     "category": "Fruit & Vegetable",
     "supplier": "Marbeck Machinery",
@@ -6697,7 +6697,7 @@
   },
   {
     "id": 373,
-    "barcode": "8681000013764",
+    "barcode": "2918979175668",
     "name": "Pizza Base 750 ml",
     "category": "Frozen",
     "supplier": "Thalberg Electric",
@@ -6715,7 +6715,7 @@
   },
   {
     "id": 374,
-    "barcode": "8681000013801",
+    "barcode": "2919003313237",
     "name": "Bleach 12-pack",
     "category": "Cleaning",
     "supplier": "Thalberg Electric",
@@ -6733,7 +6733,7 @@
   },
   {
     "id": 375,
-    "barcode": "8681000013838",
+    "barcode": "2919027450806",
     "name": "Crackers 1 L",
     "category": "Snacks",
     "supplier": "Vosk Paper Mill",
@@ -6751,7 +6751,7 @@
   },
   {
     "id": 376,
-    "barcode": "8681000013875",
+    "barcode": "2919051588375",
     "name": "Minced Beef 750 ml",
     "category": "Meat & Poultry",
     "supplier": "Brightpine Trading",
@@ -6769,7 +6769,7 @@
   },
   {
     "id": 377,
-    "barcode": "8681000013912",
+    "barcode": "2919075725944",
     "name": "Butter 500 g",
     "category": "Dairy",
     "supplier": "Marbeck Machinery",
@@ -6787,7 +6787,7 @@
   },
   {
     "id": 378,
-    "barcode": "8681000013949",
+    "barcode": "2919099863513",
     "name": "Pita 1 kg",
     "category": "Bakery",
     "supplier": "Wrendel Components",
@@ -6805,7 +6805,7 @@
   },
   {
     "id": 379,
-    "barcode": "8681000013986",
+    "barcode": "2919124001082",
     "name": "Orange Juice 6-pack",
     "category": "Beverages",
     "supplier": "Northgale Textiles",
@@ -6823,7 +6823,7 @@
   },
   {
     "id": 380,
-    "barcode": "8681000014023",
+    "barcode": "2919148138651",
     "name": "Tomato 1 kg",
     "category": "Fruit & Vegetable",
     "supplier": "Elmara Logistics",
@@ -6841,7 +6841,7 @@
   },
   {
     "id": 381,
-    "barcode": "8681000014060",
+    "barcode": "2919172276220",
     "name": "Ice Cream 750 ml",
     "category": "Frozen",
     "supplier": "Orvane Beverages",
@@ -6859,7 +6859,7 @@
   },
   {
     "id": 382,
-    "barcode": "8681000014097",
+    "barcode": "2919196413789",
     "name": "Dish Soap 750 ml",
     "category": "Cleaning",
     "supplier": "Rethlin Chemicals",
@@ -6877,7 +6877,7 @@
   },
   {
     "id": 383,
-    "barcode": "8681000014134",
+    "barcode": "2919220551358",
     "name": "Crackers 750 ml",
     "category": "Snacks",
     "supplier": "Quarn Metals",
@@ -6895,7 +6895,7 @@
   },
   {
     "id": 384,
-    "barcode": "8681000014171",
+    "barcode": "2919244688927",
     "name": "Beef Cubes 250 g",
     "category": "Meat & Poultry",
     "supplier": "Vantia Foods Ltd.",
@@ -6913,7 +6913,7 @@
   },
   {
     "id": 385,
-    "barcode": "8681000014208",
+    "barcode": "2919268826496",
     "name": "Kashkaval 6-pack",
     "category": "Dairy",
     "supplier": "Solvent Works Inc.",
@@ -6931,7 +6931,7 @@
   },
   {
     "id": 386,
-    "barcode": "8681000014245",
+    "barcode": "2919292964065",
     "name": "Pita 1 L",
     "category": "Bakery",
     "supplier": "Sunhollow Farms",
@@ -6949,7 +6949,7 @@
   },
   {
     "id": 387,
-    "barcode": "8681000014282",
+    "barcode": "2919317101634",
     "name": "Sparkling Water 1 kg",
     "category": "Beverages",
     "supplier": "Brightpine Trading",
@@ -6967,7 +6967,7 @@
   },
   {
     "id": 388,
-    "barcode": "8681000014319",
+    "barcode": "2919341239203",
     "name": "Pepper 500 g",
     "category": "Fruit & Vegetable",
     "supplier": "Brightpine Trading",
@@ -6985,7 +6985,7 @@
   },
   {
     "id": 389,
-    "barcode": "8681000014356",
+    "barcode": "2919365376772",
     "name": "Ice Cream 1 kg",
     "category": "Frozen",
     "supplier": "Sunhollow Farms",
@@ -7003,7 +7003,7 @@
   },
   {
     "id": 390,
-    "barcode": "8681000014393",
+    "barcode": "2919389514341",
     "name": "Laundry Gel 1 L",
     "category": "Cleaning",
     "supplier": "Brightpine Trading",
@@ -7021,7 +7021,7 @@
   },
   {
     "id": 391,
-    "barcode": "8681000014430",
+    "barcode": "2919413651910",
     "name": "Chocolate Bar 1 L",
     "category": "Snacks",
     "supplier": "Kordel Supply Co.",
@@ -7039,7 +7039,7 @@
   },
   {
     "id": 392,
-    "barcode": "8681000014467",
+    "barcode": "2919437789479",
     "name": "Beef Cubes 6-pack",
     "category": "Meat & Poultry",
     "supplier": "Urvane Plastics",
@@ -7057,7 +7057,7 @@
   },
   {
     "id": 393,
-    "barcode": "8681000014504",
+    "barcode": "2919461927048",
     "name": "Whole Milk 6-pack",
     "category": "Dairy",
     "supplier": "Solvent Works Inc.",
@@ -7075,7 +7075,7 @@
   },
   {
     "id": 394,
-    "barcode": "8681000014541",
+    "barcode": "2919486064617",
     "name": "Pita 250 g",
     "category": "Bakery",
     "supplier": "Elmara Logistics",
@@ -7093,7 +7093,7 @@
   },
   {
     "id": 395,
-    "barcode": "8681000014578",
+    "barcode": "2919510202186",
     "name": "Ayran 1 L",
     "category": "Beverages",
     "supplier": "Northgale Textiles",
@@ -7111,7 +7111,7 @@
   },
   {
     "id": 396,
-    "barcode": "8681000014615",
+    "barcode": "2919534339755",
     "name": "Apple 750 ml",
     "category": "Fruit & Vegetable",
     "supplier": "Brightpine Trading",
@@ -7129,7 +7129,7 @@
   },
   {
     "id": 397,
-    "barcode": "8681000014652",
+    "barcode": "2919558477324",
     "name": "Ice Cream 1 L",
     "category": "Frozen",
     "supplier": "Urvane Plastics",
@@ -7147,7 +7147,7 @@
   },
   {
     "id": 398,
-    "barcode": "8681000014689",
+    "barcode": "2919582614893",
     "name": "Bleach 1 L",
     "category": "Cleaning",
     "supplier": "Orvane Beverages",
@@ -7165,7 +7165,7 @@
   },
   {
     "id": 399,
-    "barcode": "8681000014726",
+    "barcode": "2919606752462",
     "name": "Crackers 500 g",
     "category": "Snacks",
     "supplier": "Marbeck Machinery",
@@ -7183,7 +7183,7 @@
   },
   {
     "id": 400,
-    "barcode": "8681000014763",
+    "barcode": "2919630890031",
     "name": "Beef Cubes 6-pack",
     "category": "Meat & Poultry",
     "supplier": "Wrendel Components",

@@ -1,5 +1,8 @@
 # we-grid-angular
 
+[![npm version](https://img.shields.io/npm/v/we-grid-angular.svg)](https://www.npmjs.com/package/we-grid-angular)
+[![npm downloads](https://img.shields.io/npm/dm/we-grid-angular.svg)](https://www.npmjs.com/package/we-grid-angular)
+[![CI](https://github.com/emrecirik/we-grid/actions/workflows/ci.yml/badge.svg)](https://github.com/emrecirik/we-grid/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Angular 18](https://img.shields.io/badge/Angular-18.x-dd0031.svg)](https://angular.dev)
 [![No CSS framework](https://img.shields.io/badge/CSS%20framework-none-success.svg)](docs/theming.md)

@@ -223,7 +223,9 @@ function generateProducts(count) {
 
     rows.push({
       id: i + 1,
-      barcode: `868${String(1000000000 + i * 37).slice(0, 10)}`,
+      // Prefix 29 is GS1's in-store/internal range, so these 13 digits can never collide with a
+      // real product's EAN — unlike a real country prefix such as 868 (Türkiye).
+      barcode: `29${String(10000000000 + i * 24137569).slice(0, 11)}`,
       name: `${baseName} ${pick(SIZES)}`,
       category: category.name,
       supplier: pick(COMPANY_NAMES),
@@ -247,7 +249,7 @@ function generateProducts(count) {
  * 3. E-commerce — orders (JSON + XML)
  * ═══════════════════════════════════════════════════════════════════════════════════════════ */
 const ORDER_STATUS_CODES = [10, 20, 20, 30, 30, 40, 50, 60];
-const CARRIERS = ['SwiftPost', 'Kargolink', 'NovaShip', 'Bluepath Express', 'Hermes Lane'];
+const CARRIERS = ['SwiftPost', 'Kargolink', 'NovaShip', 'Bluepath Express', 'Larkway Cargo'];
 const CHANNELS_ECOM = ['Web', 'Mobile App', 'Marketplace', 'Phone Order'];
 const PAYMENT_METHODS = ['Credit Card', 'Bank Transfer', 'Cash on Delivery', 'Wallet'];
 

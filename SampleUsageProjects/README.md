@@ -79,8 +79,9 @@ node SampleUsageProjects/tools/generate-data.mjs
 | `ecommerce-dashboard/src/assets/data/orders.json` | 500 | JSON — the same rows, kept for reference/diffing |
 
 **Everything is fictional.** Person names, company names, carriers and cities are invented; account
-numbers are deliberately unusable placeholders in the shape `TR00 0000 …`. No real customer, bank
-or company data appears anywhere in this folder.
+numbers are deliberately unusable placeholders in the shape `TR00 0000 …`; product barcodes start
+with `29`, the GS1 range reserved for in-store numbering, so they can never collide with a real
+product's EAN. No real customer, bank or company data appears anywhere in this folder.
 
 ## Mock backends
 
