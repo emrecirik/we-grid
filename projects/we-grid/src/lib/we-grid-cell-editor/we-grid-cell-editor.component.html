@@ -1,0 +1,76 @@
+@switch (column.editor) {
+  @case ('checkbox') {
+    <input
+      type="checkbox"
+      class="we-grid-cell-editor__checkbox"
+      [checked]="booleanValue"
+      [disabled]="disabled"
+      [attr.aria-label]="label"
+      (change)="emitBoolean($any($event.target).checked)"
+    />
+  }
+  @case ('select') {
+    <select
+      class="we-grid-cell-editor__control"
+      [class.we-grid-cell-editor__control--invalid]="invalid"
+      [disabled]="disabled"
+      [attr.aria-label]="label"
+      [attr.aria-invalid]="invalid"
+      [ngModel]="value"
+      (ngModelChange)="emitOption($event)"
+    >
+      <option [ngValue]="null"></option>
+      @for (option of column.editorOptions ?? []; track option.value) {
+        <option [ngValue]="option.value">{{ option.label }}</option>
+      }
+    </select>
+  }
+  @case ('number') {
+    <input
+      type="number"
+      class="we-grid-cell-editor__control"
+      [class.we-grid-cell-editor__control--invalid]="invalid"
+      [disabled]="disabled"
+      [attr.aria-label]="label"
+      [attr.aria-invalid]="invalid"
+      [ngModel]="numberValue"
+      (ngModelChange)="emitNumber($event)"
+    />
+  }
+  @case ('date') {
+    <input
+      type="date"
+      class="we-grid-cell-editor__control"
+      [class.we-grid-cell-editor__control--invalid]="invalid"
+      [disabled]="disabled"
+      [attr.aria-label]="label"
+      [attr.aria-invalid]="invalid"
+      [value]="dateValue"
+      (change)="emitDate($any($event.target).value)"
+    />
+  }
+  @case ('datetime') {
+    <input
+      type="datetime-local"
+      class="we-grid-cell-editor__control"
+      [class.we-grid-cell-editor__control--invalid]="invalid"
+      [disabled]="disabled"
+      [attr.aria-label]="label"
+      [attr.aria-invalid]="invalid"
+      [value]="dateValue"
+      (change)="emitDate($any($event.target).value)"
+    />
+  }
+  @default {
+    <input
+      type="text"
+      class="we-grid-cell-editor__control"
+      [class.we-grid-cell-editor__control--invalid]="invalid"
+      [disabled]="disabled"
+      [attr.aria-label]="label"
+      [attr.aria-invalid]="invalid"
+      [ngModel]="textValue"
+      (ngModelChange)="emitText($event)"
+    />
+  }
+}

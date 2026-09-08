@@ -1,7 +1,7 @@
 {
   "name": "we-grid-angular",
-  "version": "0.1.1",
-  "description": "A themeable, framework-agnostic-styled Angular data grid — column resize/reorder/pin, filter row, grouping, subtotal row, master-detail, server-side pagination.",
+  "version": "0.2.0",
+  "description": "A themeable, dependency-free Angular data grid — column resize/reorder/pin, filter row, grouping, subtotal row, master-detail, server-side pagination, inline row editing, and Excel/CSV/PDF export plus Excel/CSV import.",
   "license": "MIT",
   "author": "Emre CIRIK",
   "homepage": "https://github.com/emrecirik/we-grid#readme",
@@ -23,13 +23,21 @@
     "server-side-pagination",
     "column-resize",
     "grouping",
-    "themeable"
+    "themeable",
+    "excel-export",
+    "excel-import",
+    "xlsx",
+    "csv",
+    "pdf-export",
+    "inline-editing",
+    "crud"
   ],
   "peerDependencies": {
-    "@angular/common": "^18.2.0",
-    "@angular/core": "^18.2.0",
-    "@angular/forms": "^18.2.0",
-    "@angular/cdk": "^18.2.0"
+    "@angular/common": "^18.2.0 || ^19.0.0 || ^20.0.0 || ^21.0.0 || ^22.0.0",
+    "@angular/core": "^18.2.0 || ^19.0.0 || ^20.0.0 || ^21.0.0 || ^22.0.0",
+    "@angular/forms": "^18.2.0 || ^19.0.0 || ^20.0.0 || ^21.0.0 || ^22.0.0",
+    "@angular/platform-browser": "^18.2.0 || ^19.0.0 || ^20.0.0 || ^21.0.0 || ^22.0.0",
+    "@angular/cdk": "^18.2.0 || ^19.0.0 || ^20.0.0 || ^21.0.0 || ^22.0.0"
   },
   "dependencies": {
     "tslib": "^2.3.0"

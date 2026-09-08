@@ -32,6 +32,17 @@ you can theme it two ways:
 | `--we-grid-chips-bg` | Active-filter chip strip background |
 | `--we-grid-detail-bg` | Master-detail row background |
 | `--we-grid-summary-bg` | Summary (subtotal) row background |
+| `--we-grid-danger-color` | Row delete button, invalid editor outline, error notices |
+| `--we-grid-editing-bg` | Background of the row currently being edited |
+| `--we-grid-print-color` / `--we-grid-print-bg` | Text/background of the PDF (print) document |
+| `--we-grid-print-border-color` | Table borders in the PDF document |
+| `--we-grid-print-header-bg` | Header and summary row background in the PDF document |
+| `--we-grid-print-muted-color` | Row count / timestamp line in the PDF document |
+
+The `--we-grid-print-*` variables are read off the live grid element and copied into the
+standalone print document, which inherits nothing from your page's stylesheet. The bundled theme
+gives them the same light values in both themes — paper is light whatever the screen is doing — so
+override them only if you actually want a differently styled export.
 
 ## Dark mode
 

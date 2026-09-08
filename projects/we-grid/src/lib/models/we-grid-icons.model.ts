@@ -35,6 +35,14 @@ export const weGridDefaultIcons: WeGridIcons = {
   listSettings: svg('<path d="M4 6h11v2H4V6Zm0 5h8v2H4v-2Zm0 5h11v2H4v-2ZM17 4l1.6 1.6L17 7.2V4Zm3 4.5-3-3v6l3-3ZM17 20l1.6-1.6L17 16.8V20Zm3-4.5-3 3v-6l3 3Z"/>'),
   restart: svg('<path d="M12 5V2L8 6l4 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7Z"/>'),
   check: svg('<path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4z"/>'),
+  // ─── Export / import / row editing ───────────────────────────────────────────────
+  download: svg('<path d="M13 10h5l-6 7-6-7h5V3h2v7ZM4 19h16v2H4v-2Z"/>'),
+  upload: svg('<path d="M11 14V7H6l6-7 6 7h-5v7h-2ZM4 19h16v2H4v-2Z"/>'),
+  fileTable: svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 2.5L17.5 8H14V4.5ZM7 12h4v2H7v-2Zm0 4h4v2H7v-2Zm6-4h4v2h-4v-2Zm0 4h4v2h-4v-2Z"/>'),
+  fileDoc: svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6Zm0 2.5L17.5 8H14V4.5ZM7 12h10v2H7v-2Zm0 4h7v2H7v-2Z"/>'),
+  plus: svg('<path d="M11 11V5h2v6h6v2h-6v6h-2v-6H5v-2h6Z"/>'),
+  trash: svg('<path d="M9 3h6l1 2h4v2H4V5h4l1-2ZM6 8h12l-1 13H7L6 8Zm4 3v7h1.5v-7H10Zm3 0v7h1.5v-7H13Z"/>'),
+  save: svg('<path d="M5 3h11l3 3v15H5V3Zm2 2v4h8V5H7Zm1 8v6h8v-6H8Z"/>'),
   sortAsc: svg('<path d="M7 20V8H4l5-6 5 6h-3v12Zm9-1v-4h-2l3-4 3 4h-2v4Zm0-8V7h-2l3-4 3 4h-2v4Z"/>'),
   sortDesc: svg('<path d="M7 4v12H4l5 6 5-6h-3V4Zm9 3v4h-2l3 4 3-4h-2V7Zm0 8v4h-2l3 4 3-4h-2v-4Z"/>')
 };

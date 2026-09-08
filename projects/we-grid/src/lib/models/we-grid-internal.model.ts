@@ -1,5 +1,6 @@
 import { TemplateRef } from '@angular/core';
 import { WeGridAlign, WeGridCellContext, WeGridColumnType, WeGridPinned, WeGridSummaryFunction } from './we-grid-column.model';
+import { WeGridEditorOption, WeGridEditorType } from './we-grid-edit.model';
 
 /**
  * The merged result of the `columns` input with a saved `WeGridLayout`.
@@ -35,6 +36,16 @@ export interface WeGridInternalColumn<T> {
   filterable: boolean;
   /** Converts the raw value into a readable label — see WeGridColumnDef.displayValue */
   displayValue: ((row: T) => string) | undefined;
+  /** Whether editable inline — see WeGridColumnDef.editable */
+  editable: boolean;
+  /** Editor control used while editing — resolved from the column type when not declared */
+  editor: WeGridEditorType;
+  /** Options of a 'select' editor — see WeGridColumnDef.editorOptions */
+  editorOptions: WeGridEditorOption[] | undefined;
+  /** May not be left empty when committing — see WeGridColumnDef.required */
+  required: boolean;
+  /** Whether the column takes part in exports — see WeGridColumnDef.exportable */
+  exportable: boolean;
 }
 
 export function weGridDisplayHeader<T>(col: WeGridInternalColumn<T>): string {

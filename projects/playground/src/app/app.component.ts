@@ -3,9 +3,15 @@ import { Component } from '@angular/core';
 import {
   WeGridCellDirective,
   WeGridColumnDef,
+  WeGridCommitFn,
   WeGridComponent,
+  WeGridExportFormat,
+  WeGridImportFormat,
+  WeGridImportResult,
   WeGridPageChange,
+  WeGridRowDeleteEvent,
   WeGridRowDetailDirective,
+  WeGridRowEditEvent,
   WeGridSortChange
 } from 'we-grid-angular';
 
@@ -143,5 +149,91 @@ export class AppComponent {
     this.serverSortDirection = e.direction;
     this.serverPage = 1;
     this.loadServerPage();
+  }
+
+  // ─── 7. Export / import ───────────────────────────────────────────
+  exportColumns: WeGridColumnDef<Product>[] = [
+    { field: 'code', header: 'Code', width: 120 },
+    { field: 'name', header: 'Name', width: 200 },
+    { field: 'category', header: 'Category', width: 160 },
+    { field: 'price', header: 'Price', type: 'currency', width: 120, summary: 'sum' },
+    { field: 'inStock', header: 'In stock', type: 'boolean', width: 110 },
+    { field: 'updatedAt', header: 'Updated', type: 'date', width: 140 }
+  ];
+  exportFormats: WeGridExportFormat[] = ['csv', 'xlsx', 'pdf'];
+  importFormats: WeGridImportFormat[] = ['csv', 'xlsx'];
+  exportData = ALL_PRODUCTS.slice(0, 25);
+  lastImport: WeGridImportResult<Product> | null = null;
+
+  onImport(result: WeGridImportResult<Product>): void {
+    // The grid hands over parsed rows and never touches `data` itself — appending them is the
+    // consumer's decision, which is where a real app would POST them instead.
+    this.lastImport = result;
+    this.exportData = [...(result.rows as Product[]), ...this.exportData];
+  }
+
+  // ─── 8. Inline editing against a simulated backend ────────────────
+  crudColumns: WeGridColumnDef<Product>[] = [
+    { field: 'code', header: 'Code', width: 130, required: true },
+    { field: 'name', header: 'Name', width: 200, required: true },
+    {
+      field: 'category',
+      header: 'Category',
+      width: 170,
+      editor: 'select',
+      editorOptions: CATEGORIES.map((c) => ({ value: c, label: c }))
+    },
+    { field: 'price', header: 'Price', type: 'currency', width: 120 },
+    { field: 'inStock', header: 'In stock', type: 'boolean', width: 110 },
+    { field: 'updatedAt', header: 'Updated', type: 'date', width: 150 }
+  ];
+  crudData = ALL_PRODUCTS.slice(0, 8).map((p) => ({ ...p }));
+  crudLog: string[] = [];
+  private nextCrudId = 1000;
+
+  get crudNewRow(): Partial<Product> {
+    return { category: CATEGORIES[0], inStock: true, price: 0 };
+  }
+
+  onCrudCreate(e: WeGridRowEditEvent<Product>): void {
+    this.saveToFakeBackend(`create ${e.row.code}`, () => {
+      this.crudData = [{ ...e.row, id: ++this.nextCrudId }, ...this.crudData];
+    }, e.done);
+  }
+
+  onCrudUpdate(e: WeGridRowEditEvent<Product>): void {
+    this.saveToFakeBackend(`update ${e.row.code} → ${JSON.stringify(e.changes)}`, () => {
+      this.crudData = this.crudData.map((row) => (row === e.original ? e.row : row));
+    }, e.done);
+  }
+
+  onCrudDelete(e: WeGridRowDeleteEvent<Product>): void {
+    this.saveToFakeBackend(`delete ${e.row.code}`, () => {
+      this.crudData = this.crudData.filter((row) => row !== e.row);
+    }, e.done);
+  }
+
+  onCrudRefresh(): void {
+    this.crudData = ALL_PRODUCTS.slice(0, 8).map((p) => ({ ...p }));
+    this.crudLog = [...this.crudLog, 'refresh'];
+  }
+
+  /**
+   * Stands in for the HTTP call a real screen would make. The point of the demo is the timing: the
+   * grid keeps the row in its saving state until `done` is called, so a rejected write leaves the
+   * editor open with the values the user typed still in it.
+   */
+  private saveToFakeBackend(label: string, apply: () => void, done: WeGridCommitFn): void {
+    setTimeout(() => {
+      // Anything priced above 500 is rejected, so the failure path is visible in the demo too.
+      if (label.includes('"price":') && /"price":\s*([5-9]\d\d|\d{4,})/.test(label)) {
+        this.crudLog = [...this.crudLog, `${label} — REJECTED`];
+        done(false, 'The backend rejected this price');
+        return;
+      }
+      apply();
+      this.crudLog = [...this.crudLog, label];
+      done(true);
+    }, 400);
   }
 }

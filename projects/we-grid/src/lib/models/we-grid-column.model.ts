@@ -1,4 +1,5 @@
 import { TemplateRef } from '@angular/core';
+import { WeGridEditorOption, WeGridEditorType } from './we-grid-edit.model';
 
 /** Column data type — cell rendering and default formatting are driven by this */
 export type WeGridColumnType = 'text' | 'number' | 'date' | 'datetime' | 'currency' | 'boolean' | 'custom';
@@ -108,4 +109,21 @@ export interface WeGridColumnDef<T> {
    * affected by this — sorting always continues to use the raw `field` value.
    */
   displayValue?: (row: T) => string;
+  /**
+   * Whether this column is editable while the row is in inline edit mode — only relevant on grids
+   * where the `editable` input is true. Defaults to true for every type except `'custom'`, whose
+   * value shape the grid cannot know (give such a column an explicit `editor` if it is editable).
+   */
+  editable?: boolean;
+  /** Editor control used while editing — inferred from `type` when omitted */
+  editor?: WeGridEditorType;
+  /** Options offered by a `'select'` editor — required for that editor, ignored by every other */
+  editorOptions?: WeGridEditorOption[];
+  /** The value may not be left empty when the row is committed — blocks Save and marks the cell */
+  required?: boolean;
+  /**
+   * Whether the column takes part in CSV/Excel/PDF exports — defaults to true. Set to `false` for
+   * columns that only exist on screen (action buttons, row selectors rendered as a column).
+   */
+  exportable?: boolean;
 }

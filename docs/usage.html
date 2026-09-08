@@ -1,0 +1,692 @@
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Using we-grid</title>
+<meta name="description" content="How to install and use we-grid-angular: column definitions, server-side mode, CSV/Excel/PDF export, Excel/CSV import and inline row editing.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
+<style>
+  /* Same palette as gallery.html — the library's own theme tokens
+     (styles/we-grid-theme.scss), so both pages read as one site. */
+  :root {
+    --ink: #212529;
+    --ink-soft: #4c525c;
+    --muted: #878a99;
+    --ground: #eef1f5;
+    --surface: #ffffff;
+    --surface-alt: #f3f6f9;
+    --line: #dee2e6;
+    --line-soft: #e7eaee;
+    --accent: #405189;
+    --accent-soft: rgba(64, 81, 137, 0.08);
+    --warning: #f7b84b;
+    --shadow: 0 1px 2px rgba(16, 20, 30, 0.05), 0 12px 28px rgba(16, 20, 30, 0.07);
+
+    --serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+    --sans: "IBM Plex Sans", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ink: #ced4da;
+      --ink-soft: #a9b1bd;
+      --muted: #878a99;
+      --ground: #171a21;
+      --surface: #1e2129;
+      --surface-alt: #262b38;
+      --line: #32394e;
+      --line-soft: #2a3044;
+      --accent: #7f97dc;
+      --accent-soft: rgba(91, 115, 184, 0.16);
+      --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 32px rgba(0, 0, 0, 0.45);
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ink: #ced4da;
+    --ink-soft: #a9b1bd;
+    --muted: #878a99;
+    --ground: #171a21;
+    --surface: #1e2129;
+    --surface-alt: #262b38;
+    --line: #32394e;
+    --line-soft: #2a3044;
+    --accent: #7f97dc;
+    --accent-soft: rgba(91, 115, 184, 0.16);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 14px 32px rgba(0, 0, 0, 0.45);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  a { color: var(--accent); }
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 28px 72px;
+  }
+
+  /* ── Masthead ─────────────────────────────────────────────────────── */
+  .masthead {
+    display: grid;
+    gap: 22px;
+    padding: 44px 0 30px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .masthead h1 {
+    margin: 0;
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(30px, 4.4vw, 46px);
+    letter-spacing: -0.015em;
+    line-height: 1.1;
+    text-wrap: balance;
+  }
+
+  .masthead h1 .dim { color: var(--muted); }
+
+  .lede {
+    margin: 0;
+    max-width: 68ch;
+    color: var(--ink-soft);
+    font-size: 17px;
+  }
+
+  .install {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    justify-self: start;
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: var(--surface);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+
+  .install .prompt { color: var(--muted); }
+
+  /* ── Contents ─────────────────────────────────────────────────────── */
+  .toc {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 10px;
+    margin: 26px 0 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .toc a {
+    display: inline-block;
+    padding: 5px 11px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--ink-soft);
+    font-size: 13px;
+    text-decoration: none;
+  }
+
+  .toc a:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Sections ─────────────────────────────────────────────────────── */
+  main { display: grid; gap: 56px; padding-top: 44px; }
+
+  section > h2 {
+    margin: 0 0 6px;
+    font-family: var(--serif);
+    font-weight: 600;
+    font-size: clamp(21px, 2.6vw, 27px);
+    letter-spacing: -0.01em;
+    scroll-margin-top: 20px;
+  }
+
+  section > h3 {
+    margin: 26px 0 6px;
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  section p { margin: 0 0 12px; max-width: 74ch; color: var(--ink-soft); }
+
+  .symbol {
+    display: inline-block;
+    margin-bottom: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.88em;
+    padding: 1px 5px;
+    border-radius: 3px;
+    background: var(--surface-alt);
+  }
+
+  pre {
+    margin: 14px 0 0;
+    padding: 16px 18px;
+    overflow-x: auto;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    font-family: var(--mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    tab-size: 2;
+  }
+
+  pre code { padding: 0; background: none; font-size: inherit; }
+  pre .c { color: var(--muted); }
+
+  table {
+    width: 100%;
+    margin-top: 14px;
+    border-collapse: collapse;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    font-size: 13.5px;
+  }
+
+  th, td {
+    padding: 9px 12px;
+    border-bottom: 1px solid var(--line-soft);
+    text-align: left;
+    vertical-align: top;
+  }
+
+  thead th { background: var(--surface-alt); font-weight: 600; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  td code { white-space: nowrap; }
+
+  .table-scroll { overflow-x: auto; }
+
+  .note {
+    margin: 16px 0 0;
+    padding: 12px 15px;
+    border-left: 3px solid var(--warning);
+    border-radius: 0 4px 4px 0;
+    background: var(--surface);
+    color: var(--ink-soft);
+    font-size: 14px;
+  }
+
+  .note b { color: var(--ink); }
+
+  figure { margin: 18px 0 0; }
+
+  figure img {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    box-shadow: var(--shadow);
+  }
+
+  figcaption {
+    margin-top: 8px;
+    color: var(--muted);
+    font-size: 12.5px;
+  }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  @media (max-width: 640px) {
+    .wrap { padding: 0 18px 56px; }
+    main { gap: 44px; }
+  }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <h1>Using we-grid, <span class="dim">end to end</span></h1>
+    <p class="lede">
+      Everything below is copy-pasteable into an Angular application. The grid is a standalone
+      component with no CSS framework and no icon font behind it: you give it columns and rows, it
+      gives you back events. Screens from the sample applications live in the
+      <a href="./gallery.html">screen gallery</a>.
+    </p>
+
+    <code class="install"><span class="prompt">$</span> npm install we-grid-angular @angular/cdk</code>
+
+    <ul class="toc">
+      <li><a href="#install">Install</a></li>
+      <li><a href="#quick-start">Quick start</a></li>
+      <li><a href="#columns">Columns</a></li>
+      <li><a href="#templates">Cell templates</a></li>
+      <li><a href="#server">Server-side</a></li>
+      <li><a href="#export">Excel / CSV / PDF export</a></li>
+      <li><a href="#import">Excel / CSV import</a></li>
+      <li><a href="#editing">Add, edit, delete rows</a></li>
+      <li><a href="#theming">Theming &amp; language</a></li>
+    </ul>
+  </header>
+
+  <main>
+    <!-- ── Install ─────────────────────────────────────────────────── -->
+    <section>
+      <span class="symbol">npm install</span>
+      <h2 id="install">Install</h2>
+      <p>
+        Angular <b>18.2 through 22</b> are supported. Peer dependencies are
+        <code>@angular/core</code>, <code>@angular/common</code>, <code>@angular/forms</code>,
+        <code>@angular/platform-browser</code> and <code>@angular/cdk</code> — all of which a
+        normal Angular app already has, except the CDK.
+      </p>
+<pre><code>npm install we-grid-angular @angular/cdk</code></pre>
+      <p>
+        Add the CDK overlay stylesheet (the header and filter menus are rendered through it) and,
+        optionally, the bundled default theme:
+      </p>
+<pre><code><span class="c">// angular.json</span>
+"styles": [
+  "node_modules/@angular/cdk/overlay-prebuilt.css",
+  "node_modules/we-grid-angular/styles/we-grid-theme.scss",
+  "src/styles.scss"
+]</code></pre>
+      <p>
+        The theme file is optional: every colour in the grid is a <code>--we-grid-*</code> custom
+        property <em>with a fallback</em>, so the grid looks finished even if you import nothing.
+      </p>
+    </section>
+
+    <!-- ── Quick start ─────────────────────────────────────────────── -->
+    <section>
+      <span class="symbol">&lt;we-grid&gt;</span>
+      <h2 id="quick-start">Quick start</h2>
+      <p>
+        Two required inputs: a <code>gridKey</code>, which is where this grid's per-user layout is
+        saved, and <code>columns</code>. Everything else is opt-in.
+      </p>
+<pre><code><span class="c">// orders.component.ts</span>
+import { Component } from '@angular/core';
+import { WeGridColumnDef, WeGridComponent } from 'we-grid-angular';
+
+interface Order {
+  id: number;
+  code: string;
+  customer: string;
+  total: number;
+  orderedAt: string;
+  paid: boolean;
+}
+
+@Component({
+  selector: 'app-orders',
+  standalone: true,
+  imports: [WeGridComponent],
+  templateUrl: './orders.component.html'
+})
+export class OrdersComponent {
+  columns: WeGridColumnDef&lt;Order&gt;[] = [
+    { field: 'code',      header: 'Order no', width: 140, pinned: 'left' },
+    { field: 'customer',  header: 'Customer', width: 220 },
+    { field: 'total',     header: 'Total',    width: 130, type: 'currency', format: 'EUR', summary: 'sum' },
+    { field: 'orderedAt', header: 'Ordered',  width: 140, type: 'date' },
+    { field: 'paid',      header: 'Paid',     width: 90,  type: 'boolean', align: 'center' }
+  ];
+
+  orders: Order[] = [];
+}</code></pre>
+<pre><code><span class="c">&lt;!-- orders.component.html --&gt;</span>
+&lt;we-grid
+  gridKey="orders"
+  [columns]="columns"
+  [data]="orders"
+  trackByField="id"
+  [filterRow]="true"
+  [grouping]="true"
+  selectable="multi"
+&gt;&lt;/we-grid&gt;</code></pre>
+      <p>
+        That is a complete grid: resizable, reorderable and pinnable columns, a header menu, a
+        filter row with chips, grouping, a subtotal row, and a layout that comes back the way the
+        user left it on their next visit.
+      </p>
+      <figure>
+        <img src="images/ecommerce-dashboard.png"
+             alt="An order operations dashboard: five KPI cards above a grid of orders with status badges and a pinned order number column.">
+        <figcaption>The <b>ecommerce-dashboard</b> sample — <code>npm run start:ecommerce</code></figcaption>
+      </figure>
+    </section>
+
+    <!-- ── Columns ─────────────────────────────────────────────────── -->
+    <section>
+      <span class="symbol">WeGridColumnDef&lt;T&gt;</span>
+      <h2 id="columns">The column definition</h2>
+      <p>
+        A column is a plain object. <code>field</code> supports nested paths
+        (<code>'customer.city'</code>), and everything else has a sensible default.
+      </p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
+          <tbody>
+            <tr><td><code>field</code>, <code>header</code></td><td>Required. Path on the row object, and the default header text.</td></tr>
+            <tr><td><code>type</code></td><td><code>text</code> · <code>number</code> · <code>currency</code> · <code>date</code> · <code>datetime</code> · <code>boolean</code> · <code>custom</code>. Drives formatting, the filter editor and which subtotals are offered.</td></tr>
+            <tr><td><code>width</code>, <code>minWidth</code>, <code>maxWidth</code></td><td>Pixels. <code>maxWidth</code> only bounds fit-to-content, never manual dragging.</td></tr>
+            <tr><td><code>align</code>, <code>wrap</code>, <code>pinned</code>, <code>format</code></td><td>Presentation. <code>format</code> is a currency code, or <code>"2-2"</code> style decimal digits.</td></tr>
+            <tr><td><code>summary</code></td><td>Default subtotal function. The user's own choice always wins over it.</td></tr>
+            <tr><td><code>displayValue</code></td><td><code>(row) =&gt; string</code>. Turns a raw code into the label the user sees — grouping, filtering and exports then all use that label.</td></tr>
+            <tr><td><code>editable</code>, <code>editor</code>, <code>editorOptions</code>, <code>required</code></td><td>Inline editing, see below.</td></tr>
+            <tr><td><code>exportable</code></td><td>Set to <code>false</code> to keep an on-screen-only column (action buttons) out of exports.</td></tr>
+            <tr><td><code>lockVisible</code>, <code>lockRename</code>, <code>filterable</code>, <code>sortable</code>, <code>stopRowClick</code></td><td>Guards for columns the user shouldn't be able to hide, rename, filter or click through.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ── Templates ───────────────────────────────────────────────── -->
+    <section>
+      <span class="symbol">*weGridCell</span>
+      <h2 id="templates">Custom cells and expandable rows</h2>
+      <p>
+        A cell can render your own markup. Bind <code>weGridCellRowsOf</code> to the same array you
+        pass to <code>data</code> and <code>let-row</code> is typed instead of <code>unknown</code>.
+      </p>
+<pre><code>&lt;we-grid gridKey="orders" [columns]="columns" [data]="orders" [expandable]="true"&gt;
+  &lt;ng-template weGridCell="paid" [weGridCellRowsOf]="orders" let-row&gt;
+    &lt;span class="badge" [class.badge--ok]="row.paid"&gt;{{ row.paid ? 'Paid' : 'Open' }}&lt;/span&gt;
+  &lt;/ng-template&gt;
+
+  &lt;ng-template weGridRowDetail [weGridRowDetailRowsOf]="orders" let-row&gt;
+    &lt;app-order-lines [orderId]="row.id"&gt;&lt;/app-order-lines&gt;
+  &lt;/ng-template&gt;
+&lt;/we-grid&gt;</code></pre>
+      <p class="note">
+        <b>Keep the real <code>type</code>.</b> A template works independently of it — setting
+        <code>type: 'custom'</code> just to render your own markup silently disables the
+        sum/average/min/max subtotals and the numeric filter for that column.
+      </p>
+    </section>
+
+    <!-- ── Server-side ─────────────────────────────────────────────── -->
+    <section>
+      <span class="symbol">[serverSide]="true"</span>
+      <h2 id="server">Server-side paging, sorting and filtering</h2>
+      <p>
+        The grid never pages by itself. It renders whatever is in <code>data</code> and reports what
+        the user asked for. Bind the events and answer them from your backend:
+      </p>
+<pre><code>&lt;we-grid
+  gridKey="orders"
+  [columns]="columns"
+  [data]="pageRows"
+  [loading]="loading"
+  [serverSide]="true"
+  [totalCount]="totalCount"
+  [page]="page"
+  [pageSize]="pageSize"
+  [sortField]="sortField"
+  [sortDirection]="sortDirection"
+  [filterRow]="true"
+  [summaryValues]="grandTotals"
+  (pageChange)="onPage($event)"
+  (sortChange)="onSort($event)"
+  (filterChange)="onFilter($event)"
+&gt;&lt;/we-grid&gt;</code></pre>
+      <p>
+        Whether the server or the grid does the work is decided per feature by
+        <code>sortMode</code> / <code>filterMode</code> / <code>exportMode</code>, all
+        <code>'auto'</code> by default: the server handles it when <code>serverSide</code> is true
+        <em>and</em> you bound the matching event; otherwise the grid does it over the loaded rows,
+        so a screen that forgets to bind one still works instead of silently doing nothing.
+      </p>
+      <p>
+        <code>summaryValues</code> is how the backend supplies grand totals over the whole result
+        set, rather than the subtotal of the visible page.
+      </p>
+    </section>
+
+    <!-- ── Export ──────────────────────────────────────────────────── -->
+    <section>
+      <span class="symbol">[exportFormats]</span>
+      <h2 id="export">Export to Excel, CSV and PDF</h2>
+      <p>
+        One input adds the toolbar buttons. Nothing else is required, and no runtime dependency is
+        pulled in — the <code>.xlsx</code> writer, the CSV writer and the PDF path are all part of
+        the library.
+      </p>
+<pre><code>&lt;we-grid
+  gridKey="orders"
+  [columns]="columns"
+  [data]="orders"
+  [exportFormats]="['csv', 'xlsx', 'pdf']"
+  exportFileName="orders-2026"
+  selectable="multi"
+&gt;&lt;/we-grid&gt;</code></pre>
+      <p>The exported file follows what is on screen:</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>What</th><th>How it is decided</th></tr></thead>
+          <tbody>
+            <tr><td>Rows</td><td>The loaded rows after the client-side filter and sort, in display order — or only the ticked rows when there is a selection.</td></tr>
+            <tr><td>Columns</td><td>Only the visible ones, in the user's current order, under their current (possibly renamed) headers. <code>exportable: false</code> columns are always skipped.</td></tr>
+            <tr><td>Values</td><td>The text the grid shows, <code>displayValue</code> labels included. Excel additionally keeps numbers numeric and dates as real dates.</td></tr>
+            <tr><td>Summary</td><td>The subtotal row, when one is shown.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <h3>How each format is produced</h3>
+      <p>
+        <b>CSV</b> — UTF-8 with a byte order mark, so Excel opens it as UTF-8 instead of the
+        machine's legacy code page. <b>Excel</b> — a genuine <code>.xlsx</code>: the workbook is
+        assembled as a ZIP of XML parts with stored (uncompressed) entries, which needs nothing but
+        a CRC-32 and opens without a warning in Excel, LibreOffice and Google Sheets. <b>PDF</b> —
+        the table is rendered as a print-styled document in an off-screen iframe and handed to the
+        browser's print dialog, where "Save as PDF" writes the file.
+      </p>
+      <p class="note">
+        <b>Why PDF goes through the print dialog.</b> A hand-rolled PDF writer is limited to the 14
+        standard PDF fonts, and none of them can encode <code>ş</code>, <code>ğ</code> or
+        <code>ı</code>. A grid that ships a Turkish locale must not have an export that mangles
+        Turkish. Going through the browser also means the document picks up your theme through the
+        <code>--we-grid-print-*</code> variables. If you need a dialog-free PDF, provide your own
+        <code>WE_GRID_EXPORTER</code> and generate it with a real PDF library.
+      </p>
+      <h3>Letting the backend export instead</h3>
+      <p>
+        On a server-side grid the local export only covers the loaded page. Bind
+        <code>(exportRequest)</code> and the grid stops generating anything — it just tells you what
+        the user asked for, including the exact columns to render:
+      </p>
+<pre><code>onExport(e: WeGridExportRequest&lt;Order&gt;): void {
+  <span class="c">// e.table.columns carries the user's current headers, order and widths,</span>
+  <span class="c">// so a server-rendered file can match what is on screen.</span>
+  this.http.post('/api/orders/export', {
+    format: e.format,
+    columns: e.table.columns.map((c) =&gt; c.field),
+    filter: this.currentFilter
+  }).subscribe(...);
+}</code></pre>
+    </section>
+
+    <!-- ── Import ──────────────────────────────────────────────────── -->
+    <section>
+      <span class="symbol">(importData)</span>
+      <h2 id="import">Import from Excel and CSV</h2>
+      <p>
+        <code>importFormats</code> adds a file picker. The picked file is parsed, its header row is
+        matched against your columns, and every cell is converted to its column's type.
+      </p>
+<pre><code>&lt;we-grid
+  gridKey="orders"
+  [columns]="columns"
+  [data]="orders"
+  [importFormats]="['csv', 'xlsx']"
+  (importData)="onImport($event)"
+&gt;&lt;/we-grid&gt;</code></pre>
+<pre><code>onImport(result: WeGridImportResult&lt;Order&gt;): void {
+  if (result.errors.length) {
+    <span class="c">// per-cell conversion problems: "Total (14): \"abc\""</span>
+    this.showErrors(result.errors);
+    return;
+  }
+  this.http.post('/api/orders/bulk', result.rows).subscribe(() =&gt; this.reload());
+}</code></pre>
+      <p>
+        Header matching ignores case, whitespace and diacritics, so <code>Ürün Adı</code>,
+        <code>urun adi</code> and <code>ÜRÜN ADI</code> all reach the same column; the raw field
+        name is accepted as a header too. Headers that match nothing are listed in
+        <code>unmappedHeaders</code> and their cells are dropped rather than guessed at.
+      </p>
+      <p>
+        Conversion handles what spreadsheets actually produce: numbers in either locale convention
+        (<code>1.234,56</code> and <code>1,234.56</code> both read as <code>1234.56</code>), dates
+        as ISO, day-first or Excel serial numbers, and booleans in both shipped languages.
+      </p>
+      <p class="note">
+        <b>The grid never writes into <code>data</code>.</b> It parses the file and emits the rows;
+        whether they are posted, previewed or merged is your decision — the same principle as
+        pagination and layout persistence. Reading <code>.xlsx</code> uses
+        <code>DecompressionStream</code> (Chrome 103+, Firefox 113+, Safari 16.4+); where it is
+        missing, the grid reports it and CSV import keeps working.
+      </p>
+    </section>
+
+    <!-- ── Editing ─────────────────────────────────────────────────── -->
+    <section>
+      <span class="symbol">(rowUpdate)</span>
+      <h2 id="editing">Adding, editing and deleting rows</h2>
+      <p>
+        The grid owns the editing UI — the draft row, the per-cell editors, the required-field
+        check and the saving state — and nothing else. Every commit leaves as an event carrying a
+        <code>done</code> callback, so the row stays in its saving state until the backend answers.
+      </p>
+<pre><code>&lt;we-grid
+  gridKey="orders"
+  [columns]="columns"
+  [data]="orders"
+  trackByField="id"
+  [editable]="true"
+  [allowAdd]="true"
+  [allowDelete]="true"
+  [showRefresh]="true"
+  [newRowTemplate]="{ paid: false, total: 0 }"
+  (rowCreate)="onCreate($event)"
+  (rowUpdate)="onUpdate($event)"
+  (rowDelete)="onDelete($event)"
+  (refresh)="reload()"
+&gt;&lt;/we-grid&gt;</code></pre>
+<pre><code>onUpdate(e: WeGridRowEditEvent&lt;Order&gt;): void {
+  <span class="c">// e.changes holds only the fields that actually changed — a ready PATCH body.</span>
+  this.http.patch(`/api/orders/${e.original!.id}`, e.changes).subscribe({
+    next: () =&gt; {
+      this.orders = this.orders.map((o) =&gt; (o === e.original ? e.row : o));
+      e.done(true);            <span class="c">// closes the editor</span>
+    },
+    error: (err) =&gt; e.done(false, err.error?.message)  <span class="c">// keeps it open, shows why</span>
+  });
+}</code></pre>
+      <p>Per-column control over the editors:</p>
+<pre><code>columns: WeGridColumnDef&lt;Order&gt;[] = [
+  { field: 'code',      header: 'Order no', required: true },
+  { field: 'customer',  header: 'Customer', editable: false },
+  { field: 'total',     header: 'Total',    type: 'currency' },
+  { field: 'orderedAt', header: 'Ordered',  type: 'date' },
+  { field: 'status',    header: 'Status',   editor: 'select', editorOptions: [
+      { value: 'draft', label: 'Draft' },
+      { value: 'sent',  label: 'Sent' }
+  ]}
+];</code></pre>
+      <p>
+        Every column is editable by default except <code>type: 'custom'</code>, whose value shape
+        the grid cannot know. Deleting asks for confirmation first unless you set
+        <code>[confirmDelete]="false"</code> and run your own dialog — the library deliberately has
+        no dialog system of its own. If an output has no subscriber at all, the grid falls back to
+        applying the change locally, so demos work without any wiring.
+      </p>
+    </section>
+
+    <!-- ── Theming ─────────────────────────────────────────────────── -->
+    <section>
+      <span class="symbol">--we-grid-*</span>
+      <h2 id="theming">Theming, icons and language</h2>
+      <p>
+        There is no theme input and no second stylesheet. Every colour is a custom property with a
+        fallback; override the ones you care about and the grid is in your brand. Dark mode is one
+        attribute on an ancestor, and with no attribute at all the bundled theme follows the
+        operating system.
+      </p>
+<pre><code>:root {
+  --we-grid-accent-color: #7c3aed;
+  --we-grid-border-color: #e5e7eb;
+  --we-grid-radius: 8px;
+}
+
+<span class="c">/* &lt;html data-theme="dark"&gt; — or leave it off and follow prefers-color-scheme */</span></code></pre>
+      <p>
+        Icons are inline SVG on the <code>WE_GRID_ICONS</code> token, never an icon font. Every
+        piece of UI text comes from <code>WE_GRID_LOCALE</code>; English and Turkish ship with the
+        package.
+      </p>
+<pre><code><span class="c">// app.config.ts</span>
+import { WE_GRID_LOCALE, weGridLocaleTr } from 'we-grid-angular';
+
+providers: [{ provide: WE_GRID_LOCALE, useValue: weGridLocaleTr }]</code></pre>
+      <figure>
+        <img src="images/dark-theme.png"
+             alt="The order dashboard in dark theme, with status badges and KPI cards adapted to the dark palette.">
+        <figcaption>The same screen with <code>data-theme="dark"</code> set on <code>&lt;html&gt;</code></figcaption>
+      </figure>
+    </section>
+
+    <!-- ── Next ────────────────────────────────────────────────────── -->
+    <section>
+      <span class="symbol">git clone</span>
+      <h2 id="run">Run it yourself</h2>
+      <p>
+        Three sample applications live in the repository. Build the library once, then serve any of
+        them; the datasets come from a seeded generator and are entirely fictional.
+      </p>
+<pre><code>git clone https://github.com/emrecirik/we-grid.git
+cd we-grid
+npm install
+npm run build:lib          <span class="c"># required before any app builds</span>
+npm start                  <span class="c"># the playground: every feature, one page</span>
+npm run start:ecommerce    <span class="c"># or start:banking / start:retail</span></code></pre>
+      <p>
+        Reference documentation lives in the repository:
+        <a href="https://github.com/emrecirik/we-grid/blob/main/docs/api.md">API reference</a> ·
+        <a href="https://github.com/emrecirik/we-grid/blob/main/docs/export-import.md">Export &amp; import</a> ·
+        <a href="https://github.com/emrecirik/we-grid/blob/main/docs/row-editing.md">Row editing</a> ·
+        <a href="https://github.com/emrecirik/we-grid/blob/main/docs/server-side.md">Server-side</a> ·
+        <a href="https://github.com/emrecirik/we-grid/blob/main/docs/theming.md">Theming</a> ·
+        <a href="https://github.com/emrecirik/we-grid/blob/main/docs/localization.md">Localization</a>
+      </p>
+    </section>
+  </main>
+
+  <footer>
+    we-grid-angular · MIT licensed · <a href="./gallery.html">Screen gallery</a> ·
+    <a href="https://www.npmjs.com/package/we-grid-angular">npm</a> ·
+    <a href="https://github.com/emrecirik/we-grid">github.com/emrecirik/we-grid</a>
+  </footer>
+</div>

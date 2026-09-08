@@ -14,6 +14,69 @@
         </button>
       </span>
     }
+    @if (showRefresh) {
+      <button
+        type="button"
+        class="we-grid__filter-toggle-btn"
+        (click)="emitRefresh()"
+        [attr.aria-label]="locale.refreshButton"
+        [title]="locale.refreshButton"
+      >
+        <span [innerHTML]="icon('restart')" aria-hidden="true"></span> {{ locale.refreshButton }}
+      </button>
+    }
+    @if (allowAdd) {
+      <button
+        type="button"
+        class="we-grid__filter-toggle-btn"
+        (click)="startCreate()"
+        [disabled]="isCreating || !!edit?.saving"
+        [attr.aria-label]="locale.addRow"
+        [title]="locale.addRow"
+      >
+        <span [innerHTML]="icon('plus')" aria-hidden="true"></span> {{ locale.addRow }}
+      </button>
+    }
+    @if (importFormats.length > 0) {
+      <button
+        type="button"
+        class="we-grid__filter-toggle-btn"
+        (click)="openImportPicker()"
+        [attr.aria-label]="locale.importButton"
+        [title]="locale.importButton"
+      >
+        <span [innerHTML]="icon('upload')" aria-hidden="true"></span> {{ locale.importButton }}
+      </button>
+      <!-- Kept out of the accessibility tree: the visible button above is the control, this input
+           only exists because a file picker cannot be opened any other way. -->
+      <input
+        #importFileInput
+        type="file"
+        class="we-grid__file-input"
+        tabindex="-1"
+        aria-hidden="true"
+        [accept]="importAccept"
+        (change)="onImportFileSelected($event)"
+      />
+    }
+    @if (exportFormats.length > 0) {
+      <span class="we-grid__export-group" role="group" [attr.aria-label]="locale.exportButton">
+        <span class="we-grid__export-label">
+          <span [innerHTML]="icon('download')" aria-hidden="true"></span> {{ locale.exportButton }}
+        </span>
+        @for (format of exportFormats; track format) {
+          <button
+            type="button"
+            class="we-grid__export-btn"
+            (click)="exportAs(format)"
+            [attr.aria-label]="exportButtonTitle(format)"
+            [title]="exportButtonTitle(format)"
+          >
+            <span [innerHTML]="icon(exportFormatIcon(format))" aria-hidden="true"></span> {{ exportFormatLabel(format) }}
+          </button>
+        }
+      </span>
+    }
     @if (filterRow) {
       <button
         type="button"
@@ -70,6 +133,16 @@
           <span [innerHTML]="icon('filterOff')" aria-hidden="true"></span> {{ locale.clearAllFilters }}
         </button>
       }
+    </div>
+  }
+
+  @if (notice) {
+    <div class="we-grid__notice" [class.we-grid__notice--error]="notice.error" role="status" aria-live="polite">
+      <span [innerHTML]="icon(notice.error ? 'warning' : 'check')" aria-hidden="true"></span>
+      <span class="we-grid__notice-text">{{ notice.text }}</span>
+      <button type="button" class="we-grid__notice-close" (click)="dismissNotice()" [attr.aria-label]="locale.close" [title]="locale.close">
+        <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+      </button>
     </div>
   }
 
@@ -150,6 +223,9 @@
               </div>
               <div class="we-grid__resize-handle" (pointerdown)="onResizeStart($event, col, thRef)"></div>
             </th>
+          }
+          @if (hasRowActions) {
+            <th class="we-grid__action-col" scope="col" [style.width.px]="actionColWidthPx">{{ locale.actionsColumn }}</th>
           }
         </tr>
         @if (filterRow && filterRowVisible) {
@@ -238,10 +314,68 @@
                 }
               </th>
             }
+            @if (hasRowActions) {
+              <th class="we-grid__action-col" scope="col"></th>
+            }
           </tr>
         }
       </thead>
       <tbody>
+        <!-- The draft row of a record being created. Rendered before every other branch so it is
+             also visible on a completely empty grid, which is exactly when "Add row" is pressed most. -->
+        @if (isCreating) {
+          <tr class="we-grid__row we-grid__row--editing" [title]="edit?.error || ''">
+            @if (expandable) {
+              <td class="we-grid__expand-col"></td>
+            }
+            @if (selectable !== 'none') {
+              <td class="we-grid__select-col" [style.left.px]="expandColWidthPx"></td>
+            }
+            @for (col of renderColumns; track col.field) {
+              <td
+                [style.width.px]="col.width"
+                [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+                [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+              >
+                @if (col.editable) {
+                  <we-grid-cell-editor
+                    [column]="$any(col)"
+                    [value]="draftValue(col)"
+                    [invalid]="hasDraftError(col)"
+                    [disabled]="!!edit?.saving"
+                    (valueChange)="setDraftValue(col, $event)"
+                  />
+                }
+              </td>
+            }
+            @if (hasRowActions) {
+              <td class="we-grid__action-col">
+                <button
+                  type="button"
+                  class="we-grid__row-action-btn we-grid__row-action-btn--primary"
+                  (click)="commitEdit()"
+                  [disabled]="!!edit?.saving"
+                  [attr.aria-label]="locale.saveRow"
+                  [title]="edit?.saving ? locale.savingRow : locale.saveRow"
+                >
+                  <span [innerHTML]="icon('save')" aria-hidden="true"></span>
+                </button>
+                <button
+                  type="button"
+                  class="we-grid__row-action-btn"
+                  (click)="cancelEdit()"
+                  [disabled]="!!edit?.saving"
+                  [attr.aria-label]="locale.cancelEdit"
+                  [title]="locale.cancelEdit"
+                >
+                  <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+                </button>
+              </td>
+            }
+          </tr>
+        }
         @if (loading && displayData.length === 0) {
           <!-- The skeleton is only shown on the very first load (when we have no rows at all) — a
                search/page change while rows already exist doesn't replace/flicker them with skeletons. -->
@@ -256,9 +390,12 @@
               @for (col of renderColumns; track col.field) {
                 <td [style.width.px]="col.width"><div class="we-grid__skeleton-bar"></div></td>
               }
+              @if (hasRowActions) {
+                <td class="we-grid__action-col"></td>
+              }
             </tr>
           }
-        } @else if (displayData.length === 0) {
+        } @else if (displayData.length === 0 && !isCreating) {
           <tr>
             <td class="we-grid__empty" [attr.colspan]="totalColSpan">
               @if (hasActiveFilters) {
@@ -301,6 +438,7 @@
                 <tr
                   class="we-grid__row"
                   [class.we-grid__row--selected]="isSelected(entry.row)"
+                  [class.we-grid__row--editing]="isEditingRow(entry.row)"
                   [ngClass]="rowClassFor(entry.row, entry.index)"
                   (click)="onRowClick(entry.row, entry.index)"
                   (dblclick)="onRowDblClick(entry.row, entry.index)"
@@ -345,10 +483,62 @@
                       (click)="col.stopRowClick && $event.stopPropagation()"
                       (contextmenu)="onCellContextMenu($event, col, entry.row)"
                     >
-                      @if (getCellTemplate(col); as tmpl) {
-                        <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(entry.row, col, entry.index)"></ng-container>
+                      @if (isCellEditing(entry.row, col)) {
+                        <we-grid-cell-editor
+                          [column]="$any(col)"
+                          [value]="draftValue(col)"
+                          [invalid]="hasDraftError(col)"
+                          [disabled]="!!edit?.saving"
+                          (valueChange)="setDraftValue(col, $event)"
+                        />
                       } @else {
-                        {{ formatCell(entry.row, col) }}
+                        @if (getCellTemplate(col); as tmpl) {
+                          <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(entry.row, col, entry.index)"></ng-container>
+                        } @else {
+                          {{ formatCell(entry.row, col) }}
+                        }
+                      }
+                    </td>
+                  }
+                  @if (hasRowActions) {
+                    <td class="we-grid__action-col" (click)="$event.stopPropagation()">
+                      @if (isEditingRow(entry.row)) {
+                        <button
+                          type="button"
+                          class="we-grid__row-action-btn we-grid__row-action-btn--primary"
+                          (click)="commitEdit()"
+                          [disabled]="!!edit?.saving"
+                          [attr.aria-label]="locale.saveRow"
+                          [title]="edit?.saving ? locale.savingRow : locale.saveRow"
+                        ><span [innerHTML]="icon('save')" aria-hidden="true"></span></button>
+                        <button
+                          type="button"
+                          class="we-grid__row-action-btn"
+                          (click)="cancelEdit()"
+                          [disabled]="!!edit?.saving"
+                          [attr.aria-label]="locale.cancelEdit"
+                          [title]="locale.cancelEdit"
+                        ><span [innerHTML]="icon('close')" aria-hidden="true"></span></button>
+                      } @else {
+                        @if (editable) {
+                          <button
+                            type="button"
+                            class="we-grid__row-action-btn"
+                            (click)="startEdit(entry.row, entry.index, $event)"
+                            [attr.aria-label]="locale.editRow"
+                            [title]="locale.editRow"
+                          ><span [innerHTML]="icon('pencil')" aria-hidden="true"></span></button>
+                        }
+                        @if (allowDelete) {
+                          <button
+                            type="button"
+                            class="we-grid__row-action-btn we-grid__row-action-btn--danger"
+                            (click)="requestDelete(entry.row, entry.index, $event)"
+                            [disabled]="isRowDeleting(entry.row)"
+                            [attr.aria-label]="locale.deleteRow"
+                            [title]="locale.deleteRow"
+                          ><span [innerHTML]="icon('trash')" aria-hidden="true"></span></button>
+                        }
                       }
                     </td>
                   }
@@ -368,6 +558,7 @@
             <tr
               class="we-grid__row"
               [class.we-grid__row--selected]="isSelected(row)"
+              [class.we-grid__row--editing]="isEditingRow(row)"
               [ngClass]="rowClassFor(row, i)"
               (click)="onRowClick(row, i)"
               (dblclick)="onRowDblClick(row, i)"
@@ -412,10 +603,62 @@
                   (click)="col.stopRowClick && $event.stopPropagation()"
                   (contextmenu)="onCellContextMenu($event, col, row)"
                 >
-                  @if (getCellTemplate(col); as tmpl) {
-                    <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(row, col, i)"></ng-container>
+                  @if (isCellEditing(row, col)) {
+                    <we-grid-cell-editor
+                      [column]="$any(col)"
+                      [value]="draftValue(col)"
+                      [invalid]="hasDraftError(col)"
+                      [disabled]="!!edit?.saving"
+                      (valueChange)="setDraftValue(col, $event)"
+                    />
                   } @else {
-                    {{ formatCell(row, col) }}
+                    @if (getCellTemplate(col); as tmpl) {
+                      <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(row, col, i)"></ng-container>
+                    } @else {
+                      {{ formatCell(row, col) }}
+                    }
+                  }
+                </td>
+              }
+              @if (hasRowActions) {
+                <td class="we-grid__action-col" (click)="$event.stopPropagation()">
+                  @if (isEditingRow(row)) {
+                    <button
+                      type="button"
+                      class="we-grid__row-action-btn we-grid__row-action-btn--primary"
+                      (click)="commitEdit()"
+                      [disabled]="!!edit?.saving"
+                      [attr.aria-label]="locale.saveRow"
+                      [title]="edit?.saving ? locale.savingRow : locale.saveRow"
+                    ><span [innerHTML]="icon('save')" aria-hidden="true"></span></button>
+                    <button
+                      type="button"
+                      class="we-grid__row-action-btn"
+                      (click)="cancelEdit()"
+                      [disabled]="!!edit?.saving"
+                      [attr.aria-label]="locale.cancelEdit"
+                      [title]="locale.cancelEdit"
+                    ><span [innerHTML]="icon('close')" aria-hidden="true"></span></button>
+                  } @else {
+                    @if (editable) {
+                      <button
+                        type="button"
+                        class="we-grid__row-action-btn"
+                        (click)="startEdit(row, i, $event)"
+                        [attr.aria-label]="locale.editRow"
+                        [title]="locale.editRow"
+                      ><span [innerHTML]="icon('pencil')" aria-hidden="true"></span></button>
+                    }
+                    @if (allowDelete) {
+                      <button
+                        type="button"
+                        class="we-grid__row-action-btn we-grid__row-action-btn--danger"
+                        (click)="requestDelete(row, i, $event)"
+                        [disabled]="isRowDeleting(row)"
+                        [attr.aria-label]="locale.deleteRow"
+                        [title]="locale.deleteRow"
+                      ><span [innerHTML]="icon('trash')" aria-hidden="true"></span></button>
+                    }
                   }
                 </td>
               }
@@ -467,6 +710,9 @@
                   <span class="we-grid__summary-value">{{ text }}</span>
                 }
               </td>
+            }
+            @if (hasRowActions) {
+              <td class="we-grid__action-col"></td>
             }
           </tr>
         </tfoot>

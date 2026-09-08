@@ -35,6 +35,17 @@
   --we-grid-chips-bg: rgba(64, 81, 137, 0.04);
   --we-grid-detail-bg: rgba(0, 0, 0, 0.015);
   --we-grid-summary-bg: #f3f6f9;
+  --we-grid-danger-color: #f06548;
+  --we-grid-editing-bg: rgba(64, 81, 137, 0.06);
+  // Print / PDF export. The exported document is rendered in its own window and never inherits
+  // this page's stylesheet, so the grid copies these values into it (see we-grid-pdf.util.ts).
+  // Paper is light whatever the screen theme is, which is why the dark blocks repeat the same
+  // values instead of inverting them.
+  --we-grid-print-color: #212529;
+  --we-grid-print-bg: #ffffff;
+  --we-grid-print-border-color: #dee2e6;
+  --we-grid-print-header-bg: #f3f6f9;
+  --we-grid-print-muted-color: #6c757d;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -57,6 +68,14 @@
     --we-grid-chips-bg: rgba(91, 115, 184, 0.12);
     --we-grid-detail-bg: rgba(255, 255, 255, 0.03);
     --we-grid-summary-bg: #262b38;
+    --we-grid-danger-color: #f06548;
+    --we-grid-editing-bg: rgba(91, 115, 184, 0.18);
+    // Print / PDF export — the same paper values as the light theme, see the :root block above
+    --we-grid-print-color: #212529;
+    --we-grid-print-bg: #ffffff;
+    --we-grid-print-border-color: #dee2e6;
+    --we-grid-print-header-bg: #f3f6f9;
+    --we-grid-print-muted-color: #6c757d;
   }
 }
 
@@ -79,6 +98,14 @@
   --we-grid-chips-bg: rgba(91, 115, 184, 0.12);
   --we-grid-detail-bg: rgba(255, 255, 255, 0.03);
   --we-grid-summary-bg: #262b38;
+  --we-grid-danger-color: #f06548;
+  --we-grid-editing-bg: rgba(91, 115, 184, 0.18);
+  // Print / PDF export — the same paper values as the light theme, see the :root block above
+  --we-grid-print-color: #212529;
+  --we-grid-print-bg: #ffffff;
+  --we-grid-print-border-color: #dee2e6;
+  --we-grid-print-header-bg: #f3f6f9;
+  --we-grid-print-muted-color: #6c757d;
 }
 
 // The grid's column/filter/summary context menus are rendered through the Angular CDK Overlay,

@@ -1,4 +1,5 @@
 import { WeGridColumnDef, WeGridDensity, WeGridSortDirection, isWeGridNumericSummaryType } from '../models/we-grid-column.model';
+import { weGridDefaultEditor } from '../models/we-grid-edit.model';
 import { WeGridInternalColumn } from '../models/we-grid-internal.model';
 import { WeGridLayout } from '../models/we-grid-layout.model';
 
@@ -71,7 +72,14 @@ export function mergeGridLayout<T>(
       stopRowClick: def.stopRowClick ?? false,
       summary,
       filterable: def.filterable ?? true,
-      displayValue: def.displayValue
+      displayValue: def.displayValue,
+      // A 'custom' column renders through a consumer template, so the grid can't know what its
+      // value looks like — it stays read-only unless the developer opts in explicitly.
+      editable: def.editable ?? type !== 'custom',
+      editor: def.editor ?? weGridDefaultEditor(type),
+      editorOptions: def.editorOptions,
+      required: def.required ?? false,
+      exportable: def.exportable ?? true
     };
   });
 

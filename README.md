@@ -4,7 +4,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/we-grid-angular.svg)](https://www.npmjs.com/package/we-grid-angular)
 [![CI](https://github.com/emrecirik/we-grid/actions/workflows/ci.yml/badge.svg)](https://github.com/emrecirik/we-grid/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Angular 18](https://img.shields.io/badge/Angular-18.x-dd0031.svg)](https://angular.dev)
+[![Angular 18-22](https://img.shields.io/badge/Angular-18%20%E2%80%93%2022-dd0031.svg)](https://angular.dev)
 [![No CSS framework](https://img.shields.io/badge/CSS%20framework-none-success.svg)](docs/theming.md)
 
 [Türkçe](README.tr.md)
@@ -26,6 +26,8 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - Server-side pagination, sorting, and filtering (opt-in, auto-detected from your event bindings)
 - Fully localizable UI text (`WE_GRID_LOCALE`) and swappable icon set (`WE_GRID_ICONS`, inline
   SVG — no icon font dependency)
+- Export to CSV, Excel (`.xlsx`) and PDF, and import from CSV/Excel — no runtime dependency added
+- Inline row create/update/delete with a `done` callback per commit, built for a real backend
 - Theming via plain CSS custom properties (`--we-grid-*`), light/dark out of the box
 
 ## Installation
@@ -34,7 +36,8 @@ Material, no icon font. Standalone components and directives on top of Angular C
 npm install we-grid-angular @angular/cdk
 ```
 
-Peer dependencies: `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/cdk` (Angular 18.x).
+Peer dependencies: `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/platform-browser`,
+`@angular/cdk` — Angular **18.2 through 22** are supported.
 
 Add the CDK overlay stylesheet (used for the header/filter context menus) to your app's global
 styles, and optionally the bundled default theme:
@@ -143,6 +146,8 @@ npm run start:ecommerce           # then any sample app
 - [Getting started](docs/getting-started.md)
 - [API reference](docs/api.md)
 - [Server-side pagination/sorting/filtering](docs/server-side.md)
+- [Export and import (CSV / Excel / PDF)](docs/export-import.md)
+- [Inline row editing](docs/row-editing.md)
 - [Theming](docs/theming.md)
 - [Localization](docs/localization.md)
 - [Can I use this from React?](docs/react.md)
@@ -155,7 +160,7 @@ This repo is an Angular CLI workspace with the library at `projects/we-grid`, a 
 ```bash
 npm install
 npm run build:lib     # build the library into dist/we-grid
-npm test              # 92 unit tests, headless Chrome
+npm test              # 140 unit tests, headless Chrome
 npm start             # run the playground app
 ```
 

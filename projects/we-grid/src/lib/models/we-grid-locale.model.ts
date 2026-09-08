@@ -32,6 +32,36 @@ export interface WeGridLocale {
   /** Label shown as the group header when the grouped field's value is null/undefined/empty */
   emptyGroupValue: string;
 
+  // ─── Export / import toolbar (shown when exportFormats / importFormats are set) ─────
+  exportButton: string;
+  exportCsv: string;
+  exportExcel: string;
+  exportPdf: string;
+  exportAllRows: string;
+  exportSelectedRows: string;
+  importButton: string;
+  importCsv: string;
+  importExcel: string;
+  /** Accepts the number of rows read out of the file, e.g. `(n) => \`${n} rows read\`` */
+  importSucceeded: (rowCount: number) => string;
+  importFailed: string;
+  /** Prefix for the list of file headers that matched no column */
+  importUnmappedColumns: string;
+  refreshButton: string;
+
+  // ─── Row editing (shown when editable / allowAdd / allowDelete are on) ──────────────
+  actionsColumn: string;
+  addRow: string;
+  editRow: string;
+  deleteRow: string;
+  saveRow: string;
+  cancelEdit: string;
+  savingRow: string;
+  confirmDeleteRow: string;
+  requiredField: string;
+  /** Fallback message when a commit is rejected without one of its own */
+  saveFailed: string;
+
   // ─── Header context menu (we-grid-header-menu) ──────────────────────────────────────
   hideColumn: string;
   columns: string;
@@ -100,6 +130,31 @@ export const weGridLocaleEn: WeGridLocale = {
   pageOf: (page, totalPages) => `Page ${page} / ${totalPages}`,
   emptyGroupValue: '(Empty)',
 
+  exportButton: 'Export',
+  exportCsv: 'CSV',
+  exportExcel: 'Excel (.xlsx)',
+  exportPdf: 'PDF',
+  exportAllRows: 'All rows',
+  exportSelectedRows: 'Selected rows',
+  importButton: 'Import',
+  importCsv: 'CSV',
+  importExcel: 'Excel (.xlsx)',
+  importSucceeded: (rowCount) => `${rowCount} rows read`,
+  importFailed: 'The file could not be read',
+  importUnmappedColumns: 'Unmatched columns:',
+  refreshButton: 'Refresh',
+
+  actionsColumn: 'Actions',
+  addRow: 'Add row',
+  editRow: 'Edit',
+  deleteRow: 'Delete',
+  saveRow: 'Save',
+  cancelEdit: 'Cancel',
+  savingRow: 'Saving…',
+  confirmDeleteRow: 'Delete this row?',
+  requiredField: 'This field is required',
+  saveFailed: 'The change could not be saved',
+
   hideColumn: 'Hide column',
   columns: 'Columns',
   showAllColumns: 'Show all columns',
@@ -165,6 +220,31 @@ export const weGridLocaleTr: WeGridLocale = {
   recordsLabel: 'kayıt',
   pageOf: (page, totalPages) => `Sayfa ${page} / ${totalPages}`,
   emptyGroupValue: '(Boş)',
+
+  exportButton: 'Dışa Aktar',
+  exportCsv: 'CSV',
+  exportExcel: 'Excel (.xlsx)',
+  exportPdf: 'PDF',
+  exportAllRows: 'Tüm satırlar',
+  exportSelectedRows: 'Seçili satırlar',
+  importButton: 'İçe Aktar',
+  importCsv: 'CSV',
+  importExcel: 'Excel (.xlsx)',
+  importSucceeded: (rowCount) => `${rowCount} satır okundu`,
+  importFailed: 'Dosya okunamadı',
+  importUnmappedColumns: 'Eşleşmeyen kolonlar:',
+  refreshButton: 'Yenile',
+
+  actionsColumn: 'İşlemler',
+  addRow: 'Satır Ekle',
+  editRow: 'Düzenle',
+  deleteRow: 'Sil',
+  saveRow: 'Kaydet',
+  cancelEdit: 'İptal',
+  savingRow: 'Kaydediliyor…',
+  confirmDeleteRow: 'Bu satır silinsin mi?',
+  requiredField: 'Bu alan zorunlu',
+  saveFailed: 'Değişiklik kaydedilemedi',
 
   hideColumn: 'Kolonu Gizle',
   columns: 'Kolonlar',

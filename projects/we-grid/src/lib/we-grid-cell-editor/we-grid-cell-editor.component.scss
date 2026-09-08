@@ -1,0 +1,36 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
+.we-grid-cell-editor__control {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 0.2rem;
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font-family: inherit;
+  font-size: inherit;
+  padding: 0.15rem 0.3rem;
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: -1px;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.we-grid-cell-editor__control--invalid {
+  border-color: var(--we-grid-danger-color, #f06548);
+  outline-color: var(--we-grid-danger-color, #f06548);
+}
+
+.we-grid-cell-editor__checkbox {
+  accent-color: var(--we-grid-accent-color, #405189);
+  cursor: pointer;
+}

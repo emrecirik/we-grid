@@ -91,4 +91,60 @@
       (sortChange)="onServerSortChange($event)"
     ></we-grid>
   </section>
+
+  <section class="demo">
+    <h2>7. Export and import</h2>
+    <p class="demo__hint">
+      CSV and Excel download straight away; PDF opens the browser's print dialog, where "Save as PDF" writes the file.
+      Tick some rows to export only those. Importing parses the file and hands the rows back through
+      <code>(importData)</code> — the grid never modifies <code>data</code> itself.
+    </p>
+    <we-grid
+      gridKey="playground-export"
+      [columns]="exportColumns"
+      [data]="exportData"
+      [exportFormats]="exportFormats"
+      [importFormats]="importFormats"
+      exportFileName="products"
+      selectable="multi"
+      [filterRow]="true"
+      trackByField="id"
+      (importData)="onImport($event)"
+    ></we-grid>
+    @if (lastImport) {
+      <p class="demo__hint">
+        Imported <strong>{{ lastImport.rows.length }}</strong> rows from <code>{{ lastImport.fileName }}</code>.
+        @if (lastImport.unmappedHeaders.length) {
+          Unmatched columns: {{ lastImport.unmappedHeaders.join(', ') }}
+        }
+      </p>
+    }
+  </section>
+
+  <section class="demo">
+    <h2>8. Inline editing against a backend</h2>
+    <p class="demo__hint">
+      Add, edit and delete rows. Every commit goes out as an event carrying a <code>done</code> callback, and the row
+      stays in its saving state until that callback answers — set a price of 500 or more to see a rejected write keep
+      the editor open.
+    </p>
+    <we-grid
+      gridKey="playground-crud"
+      [columns]="crudColumns"
+      [data]="crudData"
+      [editable]="true"
+      [allowAdd]="true"
+      [allowDelete]="true"
+      [showRefresh]="true"
+      [newRowTemplate]="crudNewRow"
+      trackByField="id"
+      (rowCreate)="onCrudCreate($event)"
+      (rowUpdate)="onCrudUpdate($event)"
+      (rowDelete)="onCrudDelete($event)"
+      (refresh)="onCrudRefresh()"
+    ></we-grid>
+    @if (crudLog.length) {
+      <pre class="demo__log">{{ crudLog.join('\n') }}</pre>
+    }
+  </section>
 </div>

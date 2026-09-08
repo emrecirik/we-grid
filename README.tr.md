@@ -4,7 +4,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/we-grid-angular.svg)](https://www.npmjs.com/package/we-grid-angular)
 [![CI](https://github.com/emrecirik/we-grid/actions/workflows/ci.yml/badge.svg)](https://github.com/emrecirik/we-grid/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Angular 18](https://img.shields.io/badge/Angular-18.x-dd0031.svg)](https://angular.dev)
+[![Angular 18-22](https://img.shields.io/badge/Angular-18%20%E2%80%93%2022-dd0031.svg)](https://angular.dev)
 [![CSS framework yok](https://img.shields.io/badge/CSS%20framework-yok-success.svg)](docs/theming.md)
 
 [English](README.md)
@@ -25,6 +25,8 @@ kurulu standalone component/direktiflerden oluşan, ücretsiz ve temalanabilir b
 - `weGridRowDetail` şablonu ile satır genişletme (master-detail)
 - Sunucu taraflı sayfalama, sıralama ve filtreleme (opt-in, event binding'lerinize göre otomatik algılanır)
 - Tamamen yerelleştirilebilir arayüz metni (`WE_GRID_LOCALE`) ve değiştirilebilir ikon seti (`WE_GRID_ICONS`, inline SVG — ikon fontuna bağımlılık yok)
+- CSV, Excel (`.xlsx`) ve PDF olarak dışa aktarma; CSV/Excel içe aktarma — ek bir runtime bağımlılığı olmadan
+- Grid üzerinden satır ekleme/güncelleme/silme; her kayıt işlemi backend yanıtını bekleyen bir `done` callback'i ile
 - Salt CSS custom property (`--we-grid-*`) ile temalama, hazır açık/koyu tema
 
 ## Kurulum
@@ -33,7 +35,8 @@ kurulu standalone component/direktiflerden oluşan, ücretsiz ve temalanabilir b
 npm install we-grid-angular @angular/cdk
 ```
 
-Peer bağımlılıklar: `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/cdk` (Angular 18.x).
+Peer bağımlılıklar: `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/platform-browser`,
+`@angular/cdk` — Angular **18.2 ile 22** arası sürümler destekleniyor.
 
 Başlık/filtre context menülerinin kullandığı CDK overlay stilini ve isteğe bağlı hazır varsayılan
 temayı uygulamanızın global stillerine ekleyin:
@@ -139,6 +142,8 @@ npm run start:ecommerce           # sonra herhangi bir örnek uygulamayı
 - [Başlarken](docs/getting-started.md)
 - [API referansı](docs/api.md)
 - [Sunucu taraflı sayfalama/sıralama/filtreleme](docs/server-side.md)
+- [Dışa/içe aktarma (CSV / Excel / PDF)](docs/export-import.md)
+- [Satır içi düzenleme](docs/row-editing.md)
 - [Temalama](docs/theming.md)
 - [Yerelleştirme](docs/localization.md)
 - [React ile kullanılabilir mi?](docs/react.md)
@@ -151,7 +156,7 @@ uygulamanın `SampleUsageProjects/` altında olduğu bir Angular CLI workspace'i
 ```bash
 npm install
 npm run build:lib     # kütüphaneyi dist/we-grid altına derler
-npm test              # 92 birim testi, headless Chrome
+npm test              # 140 birim testi, headless Chrome
 npm start             # playground uygulamasını çalıştırır
 ```
 

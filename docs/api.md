@@ -26,6 +26,16 @@
 | `expandable` | `boolean` | `false` | Enables master-detail row expansion. |
 | `filterRow` | `boolean` | `false` | Enables the per-cell filter row + toolbar toggle. |
 | `grouping` | `boolean` | `false` | Enables grouping + "filter by this value" in the header/cell context menu. |
+| `exportFormats` | `WeGridExportFormat[]` | `[]` | Formats offered by the toolbar's export buttons. Empty hides the group. |
+| `exportFileName` | `string` | `gridKey` | Export file name, without an extension. |
+| `exportMode` | `'auto' \| 'client' \| 'server'` | `'auto'` | See [export-import.md](export-import.md). |
+| `importFormats` | `WeGridImportFormat[]` | `[]` | Formats the toolbar's import button accepts. Empty hides the button. |
+| `editable` | `boolean` | `false` | Enables inline row editing (an edit button per row). |
+| `allowAdd` | `boolean` | `false` | Adds an "Add row" toolbar button and a draft row. |
+| `allowDelete` | `boolean` | `false` | Adds a delete button per row. |
+| `confirmDelete` | `boolean` | `true` | Whether deleting calls `window.confirm` first. |
+| `showRefresh` | `boolean` | `false` | Adds a toolbar button that only emits `(refresh)`. |
+| `newRowTemplate` | `Partial<T>` | — | Field values a new draft row starts from. |
 
 ### Outputs
 
@@ -38,6 +48,11 @@
 | `layoutChange` | `WeGridLayout` | Fires whenever the user's layout is persisted. |
 | `filterChange` | `WeGridColumnFilterState[]` | Debounced (400ms), only the active filters. |
 | `groupChange` | `string \| null` | Fires when the grouped field changes. |
+| `exportRequest` | `WeGridExportRequest<T>` | `{ format, scope, rows, table }` — fires on every export. |
+| `importData` | `WeGridImportResult<T>` | Parsed and column-mapped rows from a picked file. |
+| `rowCreate` / `rowUpdate` | `WeGridRowEditEvent<T>` | `{ row, original, rowIndex, changes, done }` |
+| `rowDelete` | `WeGridRowDeleteEvent<T>` | `{ row, rowIndex, done }` |
+| `refresh` | `void` | The toolbar's refresh button was pressed. |
 
 ### Notable public members
 
@@ -47,6 +62,11 @@
 - `canExpandRows`, `isRowExpanded(row)`, `toggleRowExpand(row, event?)`, `expandedKeys: Set<unknown>`
 - `hasActiveFilters`, `activeFilterChips`, `clearAllFilters()`, `clearFilterByField(field)`
 - `groupField`, `groupedSections`, `clearGrouping()`
+- `exportAs(format)`, `exportScope`, `exportColumns`, `isServerExport`
+- `openImportPicker()`, `importAccept`
+- `edit: WeGridEditState<T> | null`, `startEdit(row, index, event?)`, `startCreate()`, `commitEdit()`,
+  `cancelEdit()`, `requestDelete(row, index, event?)`, `isEditingRow(row)`, `isCreating`, `hasRowActions`
+- `notice` — the strip under the toolbar reporting the last import/commit/delete outcome, `dismissNotice()`
 
 ## Directives
 
@@ -60,7 +80,8 @@
 - `WeGridColumnDef<T>` — `field`, `header`, `type?`, `width?`, `minWidth?`, `maxWidth?`,
   `visible?`, `order?`, `wrap?`, `align?`, `sortable?`, `pinned?`, `format?`, `cellTemplate?`,
   `headerTooltip?`, `lockVisible?`, `lockRename?`, `stopRowClick?`, `summary?`, `filterable?`,
-  `displayValue?: (row: T) => string`
+  `displayValue?: (row: T) => string`, `editable?`, `editor?`, `editorOptions?`, `required?`,
+  `exportable?`
 - `WeGridColumnType` = `'text' | 'number' | 'date' | 'datetime' | 'currency' | 'boolean' | 'custom'`
 - `WeGridAlign` = `'start' | 'center' | 'end'`
 - `WeGridPinned` = `'left' | 'right' | null`
@@ -77,13 +98,29 @@
 - `WeGridGroupSection<T>`, `WeGridGroupRowEntry<T>`
 - `WeGridLocale`, `WE_GRID_LOCALE`, `weGridLocaleEn`, `weGridLocaleTr` — see [localization.md](localization.md)
 - `WeGridIcons`, `WE_GRID_ICONS`, `weGridDefaultIcons` — see [theming.md](theming.md)
+- `WeGridExportFormat`, `WeGridImportFormat`, `WeGridExportScope`, `WeGridExportColumn`,
+  `WeGridExportRow`, `WeGridExportTable`, `WeGridExportRequest<T>`, `WeGridExporter`,
+  `WE_GRID_EXPORTER`, `WeGridImportSheet`, `WeGridImportParser`, `WE_GRID_IMPORT_PARSER`,
+  `WeGridImportResult<T>` — see [export-import.md](export-import.md)
+- `WeGridEditorType`, `WeGridEditorOption`, `WeGridCommitFn`, `WeGridRowEditEvent<T>`,
+  `WeGridRowDeleteEvent<T>`, `WeGridEditState<T>`, `WE_GRID_NEW_ROW_KEY` — see
+  [row-editing.md](row-editing.md)
 
 ## Utilities / services
 
 - `LocalStorageGridLayoutStore` — default `WeGridLayoutStore` implementation
 - `mergeGridLayout(columnDefs, saved, layoutVersion)`, `toColumnLayout(columns, columnDefs)`,
   `WE_GRID_DEFAULT_COLUMN_WIDTH`
-- `formatWeGridValue(value, type, format?, options?)`, `getNestedValue(row, path)`
+- `formatWeGridValue(value, type, format?, options?)`, `getNestedValue(row, path)`,
+  `setNestedValue(row, path, value)`
+- `WeGridDefaultExporter` (default `WE_GRID_EXPORTER`), `WeGridDefaultImportParser`
+  (default `WE_GRID_IMPORT_PARSER`)
+- `weGridToCsv(table, options?)`, `weGridParseCsv(text, options?)`, `weGridDownloadBlob(blob, fileName)`
+- `weGridBuildXlsx(table)`, `weGridReadXlsx(file)`
+- `weGridBuildPrintDocument(table, options?)`, `weGridPrintTable(table, options?)`
+- `weGridMapImportedRows(sheet, columns)`
+- `WeGridCellEditorComponent` (`<we-grid-cell-editor>`), `weGridDefaultEditor(type)`,
+  `weGridSameEditValue(before, after)`
 - `isWeGridNumericSummaryType(type)`, `computeWeGridSummary(rows, field, fn)`,
   `buildWeGridSummaryText(rows, col, scope, overrideValue?, locale?)`, `weGridSummaryLabel(fn, scope, locale?)`
 - `applyWeGridFilters(rows, filters, columns)`, `weGridFilterChipLabel(col, filter, locale?)`,

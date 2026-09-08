@@ -2,6 +2,56 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.2.0 — 2026-09-08
+
+### Angular 19 – 22 support
+
+- `peerDependencies` now accept `^18.2.0 || ^19.0.0 || ^20.0.0 || ^21.0.0 || ^22.0.0` instead of
+  Angular 18 only. The package is still built in Ivy partial-compilation mode, which newer Angular
+  linkers consume, so no separate build is needed per major.
+- `@angular/platform-browser` was added to `peerDependencies`. The grid has always imported
+  `DomSanitizer` from it; it was simply missing from the declared peers.
+
+### Export and import
+
+- New `exportFormats` input adds toolbar buttons for CSV, Excel (`.xlsx`) and PDF. Off by default.
+  The export covers the visible columns in their current order and the selected rows, or every
+  loaded row when nothing is selected.
+- CSV and XLSX are written without any runtime dependency: an `.xlsx` is assembled directly as a
+  ZIP of XML parts with stored (uncompressed) entries. Numbers stay numeric and dates stay dates.
+- PDF goes through the browser's print pipeline in an off-screen iframe, so the output supports the
+  full Unicode range (a hand-rolled PDF writer would be stuck with the 14 standard fonts, none of
+  which can encode `ş`, `ğ` or `ı`) and inherits the grid's theme via new `--we-grid-print-*`
+  variables.
+- New `importFormats` input adds a file picker for CSV and Excel. Header matching ignores case,
+  whitespace and diacritics; cells are coerced to their column's type (numbers in either locale
+  convention, ISO/day-first/Excel-serial dates, booleans in both shipped languages). The parsed
+  rows are emitted through `(importData)` — the grid never writes into `data` itself.
+- `exportMode` follows the same `'auto'` rule as `sortMode`/`filterMode`: on a `serverSide` grid
+  with `(exportRequest)` bound, the backend produces the file for the full result set.
+- Both halves are swappable through the new `WE_GRID_EXPORTER` and `WE_GRID_IMPORT_PARSER` tokens.
+
+### Inline row editing
+
+- New `editable`, `allowAdd`, `allowDelete`, `confirmDelete`, `showRefresh` and `newRowTemplate`
+  inputs, with `(rowCreate)`, `(rowUpdate)`, `(rowDelete)` and `(refresh)` outputs.
+- Each commit carries a `done(success, error?)` callback: the row stays in its saving state until
+  the backend answers, and a rejected write leaves the editor open with the user's values intact.
+  `rowUpdate` also reports `changes` — only the fields that actually changed.
+- New column options `editable`, `editor`, `editorOptions`, `required` and `exportable`.
+- A row-action column is pinned to the far right when editing or deleting is on; right-pinned data
+  columns shift inward by its width.
+
+### Other
+
+- New locale keys for the export/import toolbar and row editing, filled in both `weGridLocaleEn`
+  and `weGridLocaleTr`.
+- New theme variables: `--we-grid-danger-color`, `--we-grid-editing-bg` and the five
+  `--we-grid-print-*` values.
+- New docs: `docs/export-import.md`, `docs/row-editing.md`, and a standalone usage page at
+  `docs/usage.html` published on GitHub Pages.
+- Test suite grew from 92 to 140 specs.
+
 ## 0.1.1 — 2026-09-04
 
 - Ship the MIT license text inside the npm package. `package.json` declared `"license": "MIT"`

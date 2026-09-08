@@ -57,19 +57,56 @@ import {
 import { WeGridRowDetailContext } from './models/we-grid-row-detail.model';
 import { WE_GRID_ICONS, WeGridIcons } from './models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from './models/we-grid-locale.model';
+import {
+  WE_GRID_EXPORTER,
+  WE_GRID_IMPORT_PARSER,
+  WeGridExportFormat,
+  WeGridExportRequest,
+  WeGridExportScope,
+  WeGridExportTable,
+  WeGridExporter,
+  WeGridImportFormat,
+  WeGridImportParser,
+  WeGridImportResult
+} from './models/we-grid-export.model';
+import {
+  WE_GRID_NEW_ROW_KEY,
+  WeGridEditState,
+  WeGridRowDeleteEvent,
+  WeGridRowEditEvent,
+  weGridSameEditValue
+} from './models/we-grid-edit.model';
 import { mergeGridLayout, toColumnLayout } from './services/we-grid-layout-merge';
 import { applyWeGridFilters, weGridFilterChipLabel, weGridQuickFilterValueToInputString } from './services/we-grid-filter.util';
 import { buildWeGridSummaryText } from './services/we-grid-summary.util';
-import { formatWeGridValue, getNestedValue } from './services/we-grid-value.util';
+import { formatWeGridValue, getNestedValue, setNestedValue } from './services/we-grid-value.util';
+import { weGridMapImportedRows } from './services/we-grid-import.util';
 import { WeGridHeaderMenuComponent } from './we-grid-header-menu/we-grid-header-menu.component';
+import { WeGridCellEditorComponent } from './we-grid-cell-editor/we-grid-cell-editor.component';
 import { WeGridFilterPopoverAction, WeGridFilterPopoverComponent } from './we-grid-filter-popover/we-grid-filter-popover.component';
 
 type WeGridMenuOrigin = HTMLElement | { x: number; y: number };
 
+/**
+ * Custom properties copied into the standalone print document — it is rendered in its own window
+ * and inherits nothing from the host page's stylesheet (see we-grid-pdf.util.ts).
+ */
+const WE_GRID_EXPORT_THEME_VARIABLES = [
+  '--we-grid-print-color',
+  '--we-grid-print-bg',
+  '--we-grid-print-border-color',
+  '--we-grid-print-header-bg',
+  '--we-grid-print-muted-color',
+  '--we-grid-accent-color'
+];
+
+/** Width in px of the row-action column added when `editable` or `allowDelete` is on */
+const WE_GRID_ACTION_COL_WIDTH = 92;
+
 @Component({
   selector: 'we-grid',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule],
+  imports: [CommonModule, FormsModule, DragDropModule, WeGridCellEditorComponent],
   templateUrl: './we-grid.component.html',
   styleUrls: ['./we-grid.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -139,6 +176,48 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    */
   @Input() grouping = false;
 
+  // ─── Export / import ─────────────────────────────────────────────────
+  /**
+   * Formats offered by the toolbar's export buttons — empty (the default) hides the whole group,
+   * so existing grids are unchanged. The export always covers the LOADED rows in their current
+   * order, after the client-side filter and sort, and only the columns the user currently has
+   * visible (a hidden column is not exported). When rows are selected, only those are exported.
+   */
+  @Input() exportFormats: WeGridExportFormat[] = [];
+
+  /** Export file name without an extension — defaults to `gridKey` */
+  @Input() exportFileName?: string;
+
+  /**
+   * Who produces the file — same 'auto' logic as sortMode/filterMode. 'auto': while serverSide=true
+   * AND (exportRequest) is bound, the grid does NOT generate a file, it only emits the request so
+   * the backend can export the FULL result set rather than the loaded page. 'client' always
+   * generates locally, 'server' always delegates.
+   */
+  @Input() exportMode: 'auto' | 'client' | 'server' = 'auto';
+
+  /** Formats the toolbar's import button accepts — empty (the default) hides the button */
+  @Input() importFormats: WeGridImportFormat[] = [];
+
+  // ─── Row editing (create / update / delete) ──────────────────────────
+  /** Enables inline row editing — adds an edit button to each row's action cell */
+  @Input() editable = false;
+
+  /** Adds an "Add row" toolbar button that opens an empty draft row at the top of the table */
+  @Input() allowAdd = false;
+
+  /** Adds a delete button to each row's action cell */
+  @Input() allowDelete = false;
+
+  /** Whether deleting asks for confirmation first — turn off to run your own dialog before the event */
+  @Input() confirmDelete = true;
+
+  /** Adds a toolbar button that only emits (refresh) — the consumer decides what reloading means */
+  @Input() showRefresh = false;
+
+  /** Field values a newly created draft row starts from */
+  @Input() newRowTemplate?: Partial<T>;
+
   @Output() pageChange = new EventEmitter<WeGridPageChange>();
   @Output() sortChange = new EventEmitter<WeGridSortChange>();
   @Output() rowClick = new EventEmitter<WeGridRowClickEvent<T>>();
@@ -155,9 +234,35 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** Emitted when the grouping field changes (a group was selected/cleared) — fired on click, no debounce needed */
   @Output() groupChange = new EventEmitter<string | null>();
 
+  /**
+   * Emitted for every export, carrying both the rows and the fully built table. On a serverSide
+   * grid where this is bound, the grid produces no file itself — see `exportMode`.
+   */
+  @Output() exportRequest = new EventEmitter<WeGridExportRequest<T>>();
+
+  /**
+   * Emitted after an imported file has been parsed and mapped onto the columns. The grid does NOT
+   * add the rows to `data` — the consumer owns the data and decides what to do (post them to the
+   * backend, show a preview, merge them).
+   */
+  @Output() importData = new EventEmitter<WeGridImportResult<T>>();
+
+  /** A draft row was submitted — call `event.done(true)` once the backend accepted it */
+  @Output() rowCreate = new EventEmitter<WeGridRowEditEvent<T>>();
+
+  /** An existing row was edited — call `event.done(true)` once the backend accepted it */
+  @Output() rowUpdate = new EventEmitter<WeGridRowEditEvent<T>>();
+
+  /** A row's delete button was confirmed — call `event.done(true)` once the backend accepted it */
+  @Output() rowDelete = new EventEmitter<WeGridRowDeleteEvent<T>>();
+
+  /** The toolbar's refresh button was pressed — reloading is entirely the consumer's business */
+  @Output() refresh = new EventEmitter<void>();
+
   @ContentChildren(WeGridCellDirective) cellTemplateDirectives!: QueryList<WeGridCellDirective<T>>;
   @ContentChild(WeGridRowDetailDirective) rowDetailDirective?: WeGridRowDetailDirective<T>;
   @ViewChild('gearButton') gearButtonRef?: ElementRef<HTMLElement>;
+  @ViewChild('importFileInput') importFileInputRef?: ElementRef<HTMLInputElement>;
 
   internalColumns: WeGridInternalColumn<T>[] = [];
   renderColumns: WeGridInternalColumn<T>[] = [];
@@ -209,6 +314,19 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** A warning is logged once per field — doesn't spam the console every time the menu is opened */
   private readonly warnedNumericCustomFields = new Set<string>();
 
+  // ─── Row editing state ───────────────────────────────────────────────
+  /** The row currently being edited or created — null while nothing is in edit mode */
+  edit: WeGridEditState<T> | null = null;
+  /** Row keys whose delete is waiting on the consumer's `done` callback */
+  readonly deletingKeys = new Set<unknown>();
+
+  /**
+   * The single strip under the toolbar used to report the outcome of an import, a failed commit or
+   * a failed delete. One mechanism rather than three: these are all "something the user just asked
+   * for finished this way" messages, and only the most recent one is worth showing.
+   */
+  notice: { text: string; error: boolean } | null = null;
+
   constructor(
     private readonly overlay: Overlay,
     private readonly cdr: ChangeDetectorRef,
@@ -217,7 +335,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     private readonly sanitizer: DomSanitizer,
     @Inject(WE_GRID_LAYOUT_STORE) private readonly layoutStore: WeGridLayoutStore,
     @Inject(WE_GRID_LOCALE) readonly locale: WeGridLocale,
-    @Inject(WE_GRID_ICONS) private readonly icons: WeGridIcons
+    @Inject(WE_GRID_ICONS) private readonly icons: WeGridIcons,
+    @Inject(WE_GRID_EXPORTER) private readonly exporter: WeGridExporter,
+    @Inject(WE_GRID_IMPORT_PARSER) private readonly importParser: WeGridImportParser
   ) {}
 
   icon(key: string): SafeHtml {
@@ -267,7 +387,26 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * width here and bind it directly to `<table>`.
    */
   get tableWidthPx(): number {
-    return this.expandColWidthPx + this.selectColWidthPx + this.renderColumns.reduce((sum, c) => sum + c.width, 0);
+    return (
+      this.expandColWidthPx +
+      this.selectColWidthPx +
+      this.actionColWidthPx +
+      this.renderColumns.reduce((sum, c) => sum + c.width, 0)
+    );
+  }
+
+  /** Whether the row-action column is rendered at all — it costs a column, so only when it is used */
+  get hasRowActions(): boolean {
+    return this.editable || this.allowDelete;
+  }
+
+  /**
+   * Row-action column width in px. It is pinned to the far RIGHT, so it also shifts every
+   * right-pinned data column inward (see recomputeRenderColumns) — otherwise the last pinned
+   * column would sit underneath the action buttons.
+   */
+  get actionColWidthPx(): number {
+    return this.hasRowActions ? WE_GRID_ACTION_COL_WIDTH : 0;
   }
 
   /** Selection column width in px — also used when computing pinned-left offsets (recomputeRenderColumns) */
@@ -285,7 +424,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** Total column count for the empty row's colspan and the detail row's single cell */
   get totalColSpan(): number {
-    return this.renderColumns.length + (this.selectable !== 'none' ? 1 : 0) + (this.expandable ? 1 : 0);
+    return (
+      this.renderColumns.length +
+      (this.selectable !== 'none' ? 1 : 0) +
+      (this.expandable ? 1 : 0) +
+      (this.hasRowActions ? 1 : 0)
+    );
   }
 
   /** The summary row is never rendered when no column has a summary selected — avoids an empty-looking strip */
@@ -388,6 +532,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (changes['page'] && !changes['page'].firstChange) {
       this.expandedKeys.clear();
       this.mountedDetailKeys.clear();
+      // An open editor belongs to a row of the page being left — keeping it would attach the
+      // draft to whichever row happens to land on the same key on the new page.
+      this.edit = null;
+    }
+    // The action column is pinned right, so turning it on or off changes every right-pinned
+    // column's offset — without this the pinned columns would sit underneath the buttons.
+    if ((changes['editable'] || changes['allowDelete']) && this.internalColumns.length > 0) {
+      this.recomputeRenderColumns();
     }
   }
 
@@ -451,8 +603,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
 
     // On the right side, the last-rendered (rightmost) column gets right:0, and each preceding
-    // one shifts inward by the cumulative width of the ones after it.
-    let rightOffset = 0;
+    // one shifts inward by the cumulative width of the ones after it. The row-action column is
+    // itself pinned right at right:0, so the whole stack starts after it.
+    let rightOffset = this.actionColWidthPx;
     for (let i = right.length - 1; i >= 0; i--) {
       right[i].pinnedOffset = rightOffset;
       rightOffset += right[i].width;
@@ -930,8 +1083,369 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   private emitSelectionChange(): void {
-    this.selectionChange.emit(this.displayData.filter((row) => this.isSelected(row)));
+    this.selectionChange.emit(this.selectedRows);
     this.cdr.markForCheck();
+  }
+
+  // ─── Export ──────────────────────────────────────────────────────────
+  /** The rows currently ticked, in display order — also what an export covers when non-empty */
+  get selectedRows(): T[] {
+    return this.displayData.filter((row) => this.isSelected(row));
+  }
+
+  /**
+   * An export covers the selection when there is one, otherwise every loaded row. There is
+   * deliberately no menu to choose between them: "export what I picked, or everything if I picked
+   * nothing" is what users expect, and the button's tooltip says which one will happen.
+   */
+  get exportScope(): WeGridExportScope {
+    return this.selectedRows.length > 0 ? 'selected' : 'all';
+  }
+
+  /** Hidden columns and columns marked `exportable: false` (action buttons, ...) stay out of the file */
+  get exportColumns(): WeGridInternalColumn<T>[] {
+    return this.renderColumns.filter((c) => c.exportable);
+  }
+
+  /** Whether the backend produces the file — see isServerSort for the same 'auto' reasoning */
+  get isServerExport(): boolean {
+    if (!this.serverSide || this.exportMode === 'client') return false;
+    return this.exportMode === 'server' || this.exportRequest.observed;
+  }
+
+  exportFormatLabel(format: WeGridExportFormat): string {
+    if (format === 'csv') return this.locale.exportCsv;
+    if (format === 'xlsx') return this.locale.exportExcel;
+    return this.locale.exportPdf;
+  }
+
+  exportFormatIcon(format: WeGridExportFormat): string {
+    return format === 'pdf' ? 'fileDoc' : 'fileTable';
+  }
+
+  /** "Excel (.xlsx) · Selected rows" — makes the scope visible before the click, not after */
+  exportButtonTitle(format: WeGridExportFormat): string {
+    const scope = this.exportScope === 'selected' ? this.locale.exportSelectedRows : this.locale.exportAllRows;
+    return `${this.exportFormatLabel(format)} · ${scope}`;
+  }
+
+  exportAs(format: WeGridExportFormat): void {
+    const scope = this.exportScope;
+    const rows = scope === 'selected' ? this.selectedRows : this.displayData;
+    const table = this.buildExportTable(rows);
+    this.exportRequest.emit({ format, scope, rows, table });
+    if (this.isServerExport) return;
+    void Promise.resolve(this.exporter.export(table, format)).catch((error: unknown) => {
+      this.showNotice(this.describeError(error, this.locale.saveFailed), true);
+    });
+  }
+
+  /** Flattens the current column/row state into the renderer-agnostic shape every exporter consumes */
+  private buildExportTable(rows: T[]): WeGridExportTable {
+    const columns = this.exportColumns;
+    const title = this.exportFileName || this.gridKey;
+    return {
+      fileName: title,
+      title,
+      columns: columns.map((col) => ({
+        field: col.field,
+        header: weGridDisplayHeader(col),
+        type: col.type,
+        format: col.format,
+        align: col.align,
+        width: col.width,
+        useDisplayText: !!col.displayValue
+      })),
+      rows: rows.map((row) => ({
+        values: columns.map((col) => getNestedValue(row, col.field)),
+        text: columns.map((col) => (col.displayValue ? col.displayValue(row) : this.formatCell(row, col)))
+      })),
+      summary: this.hasSummaryRow ? columns.map((col) => this.summaryCellText(col)) : null,
+      cssVariables: this.readExportThemeVariables()
+    };
+  }
+
+  private readExportThemeVariables(): Record<string, string> {
+    if (typeof window === 'undefined') return {};
+    const styles = window.getComputedStyle(this.elementRef.nativeElement);
+    const variables: Record<string, string> = {};
+    for (const name of WE_GRID_EXPORT_THEME_VARIABLES) {
+      const value = styles.getPropertyValue(name).trim();
+      if (value) variables[name] = value;
+    }
+    return variables;
+  }
+
+  // ─── Import ──────────────────────────────────────────────────────────
+  /** `accept` attribute of the hidden file input, built from `importFormats` */
+  get importAccept(): string {
+    const parts: string[] = [];
+    if (this.importFormats.includes('csv')) parts.push('.csv', 'text/csv');
+    if (this.importFormats.includes('xlsx')) {
+      parts.push('.xlsx', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    }
+    return parts.join(',');
+  }
+
+  openImportPicker(): void {
+    this.importFileInputRef?.nativeElement.click();
+  }
+
+  async onImportFileSelected(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    // Cleared straight away so picking the SAME file again still fires a change event.
+    input.value = '';
+    if (!file) return;
+
+    const format: WeGridImportFormat = /\.xlsx$/i.test(file.name) ? 'xlsx' : 'csv';
+    if (!this.importFormats.includes(format)) {
+      this.showNotice(this.locale.importFailed, true);
+      return;
+    }
+
+    try {
+      const sheet = await this.importParser.parse(file, format);
+      // Every column is offered for matching, including hidden ones — a file may legitimately
+      // carry a column the user has hidden on screen.
+      const mapped = weGridMapImportedRows(
+        sheet,
+        this.internalColumns.map((col) => ({ field: col.field, header: weGridDisplayHeader(col), type: col.type }))
+      );
+      const result: WeGridImportResult<T> = {
+        format,
+        fileName: file.name,
+        rows: mapped.rows as Partial<T>[],
+        headers: sheet.headers,
+        unmappedHeaders: mapped.unmappedHeaders,
+        errors: mapped.errors
+      };
+      const details = mapped.unmappedHeaders.length
+        ? ` · ${this.locale.importUnmappedColumns} ${mapped.unmappedHeaders.join(', ')}`
+        : '';
+      this.showNotice(this.locale.importSucceeded(result.rows.length) + details, mapped.errors.length > 0);
+      this.importData.emit(result);
+    } catch (error: unknown) {
+      this.showNotice(this.describeError(error, this.locale.importFailed), true);
+    }
+  }
+
+  private describeError(error: unknown, fallback: string): string {
+    const message = error instanceof Error ? error.message : '';
+    return message ? `${fallback} — ${message}` : fallback;
+  }
+
+  private showNotice(text: string, isError: boolean): void {
+    this.notice = { text, error: isError };
+    this.cdr.markForCheck();
+  }
+
+  dismissNotice(): void {
+    this.notice = null;
+    this.cdr.markForCheck();
+  }
+
+  // ─── Inline row editing ──────────────────────────────────────────────
+  /** True while the draft row of a NEW record is open */
+  get isCreating(): boolean {
+    return this.edit?.key === WE_GRID_NEW_ROW_KEY;
+  }
+
+  isEditingRow(row: T): boolean {
+    return !!this.edit && !this.isCreating && this.edit.key === this.rowKey(row);
+  }
+
+  isRowDeleting(row: T): boolean {
+    return this.deletingKeys.has(this.rowKey(row));
+  }
+
+  /** Whether this cell shows an editor right now — the row is in edit mode AND the column allows it */
+  isCellEditing(row: T, col: WeGridInternalColumn<T>): boolean {
+    return col.editable && this.isEditingRow(row);
+  }
+
+  draftValue(col: WeGridInternalColumn<T>): unknown {
+    return this.edit ? this.edit.draft[col.field] : null;
+  }
+
+  hasDraftError(col: WeGridInternalColumn<T>): boolean {
+    return !!this.edit?.errors[col.field];
+  }
+
+  setDraftValue(col: WeGridInternalColumn<T>, value: unknown): void {
+    if (!this.edit) return;
+    this.edit.draft[col.field] = value;
+    // Clearing the field's own error as soon as it is touched — leaving it red while the user is
+    // fixing it is the classic "the form keeps shouting at me" annoyance.
+    delete this.edit.errors[col.field];
+    this.edit.error = null;
+    this.cdr.markForCheck();
+  }
+
+  startEdit(row: T, rowIndex: number, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.editable || this.edit?.saving) return;
+    const draft: Record<string, unknown> = {};
+    for (const col of this.internalColumns) {
+      draft[col.field] = getNestedValue(row, col.field);
+    }
+    this.edit = { key: this.rowKey(row), original: row, rowIndex, draft, errors: {}, saving: false, error: null };
+    this.cdr.markForCheck();
+  }
+
+  startCreate(): void {
+    if (!this.allowAdd || this.edit?.saving) return;
+    const template = (this.newRowTemplate ?? {}) as Record<string, unknown>;
+    const draft: Record<string, unknown> = {};
+    for (const col of this.internalColumns) {
+      draft[col.field] = template[col.field] ?? null;
+    }
+    this.edit = { key: WE_GRID_NEW_ROW_KEY, original: null, rowIndex: -1, draft, errors: {}, saving: false, error: null };
+    this.cdr.markForCheck();
+  }
+
+  cancelEdit(): void {
+    if (this.edit?.saving) return;
+    this.edit = null;
+    this.cdr.markForCheck();
+  }
+
+  commitEdit(): void {
+    if (!this.edit || this.edit.saving) return;
+
+    const errors = this.validateDraft();
+    if (Object.keys(errors).length > 0) {
+      this.edit.errors = errors;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    const creating = this.isCreating;
+    const row = this.buildRowFromDraft();
+    const changes = creating ? {} : this.collectDraftChanges();
+
+    // Nothing actually changed — close the editor instead of sending an empty PUT.
+    if (!creating && Object.keys(changes).length === 0) {
+      this.edit = null;
+      this.cdr.markForCheck();
+      return;
+    }
+
+    const emitter = creating ? this.rowCreate : this.rowUpdate;
+    if (!emitter.observed) {
+      this.applyLocalCommit(row, creating);
+      return;
+    }
+
+    this.edit.saving = true;
+    emitter.emit({
+      row,
+      original: this.edit.original,
+      rowIndex: this.edit.rowIndex,
+      changes,
+      done: (success, error) => this.finishCommit(success, error)
+    });
+    this.cdr.markForCheck();
+  }
+
+  private validateDraft(): Record<string, string> {
+    const errors: Record<string, string> = {};
+    if (!this.edit) return errors;
+    for (const col of this.internalColumns) {
+      if (!col.editable || !col.required) continue;
+      const value = this.edit.draft[col.field];
+      if (value === null || value === undefined || value === '') {
+        errors[col.field] = this.locale.requiredField;
+      }
+    }
+    return errors;
+  }
+
+  /** A shallow copy of the original (or of `newRowTemplate`) with every editable field overwritten */
+  private buildRowFromDraft(): T {
+    const base = this.edit?.original
+      ? ({ ...(this.edit.original as object) } as T)
+      : ({ ...((this.newRowTemplate ?? {}) as object) } as T);
+    for (const col of this.internalColumns) {
+      if (!col.editable) continue;
+      setNestedValue(base, col.field, this.edit?.draft[col.field] ?? null);
+    }
+    return base;
+  }
+
+  private collectDraftChanges(): Record<string, unknown> {
+    const changes: Record<string, unknown> = {};
+    if (!this.edit?.original) return changes;
+    for (const col of this.internalColumns) {
+      if (!col.editable) continue;
+      const before = getNestedValue(this.edit.original, col.field);
+      const after = this.edit.draft[col.field];
+      if (!weGridSameEditValue(before, after)) changes[col.field] = after;
+    }
+    return changes;
+  }
+
+  /**
+   * Fallback for a grid whose (rowCreate)/(rowUpdate) output nobody bound — the edit is applied
+   * to the loaded rows so playgrounds, demos and purely local grids still work. It writes through
+   * to the consumer's own objects, which is exactly why binding the output is the documented way:
+   * only then does the consumer control when and whether the change lands.
+   */
+  private applyLocalCommit(row: T, creating: boolean): void {
+    if (creating) {
+      this.data = [row, ...this.data];
+    } else if (this.edit?.original) {
+      Object.assign(this.edit.original as object, row as object);
+    }
+    this.edit = null;
+    this.refreshDisplayData();
+    this.cdr.markForCheck();
+  }
+
+  private finishCommit(success: boolean, error?: string): void {
+    if (!this.edit) return;
+    if (success) {
+      this.edit = null;
+    } else {
+      this.edit.saving = false;
+      this.edit.error = error ?? this.locale.saveFailed;
+      this.showNotice(this.edit.error, true);
+    }
+    this.cdr.markForCheck();
+  }
+
+  requestDelete(row: T, rowIndex: number, event?: Event): void {
+    event?.stopPropagation();
+    if (!this.allowDelete || this.isRowDeleting(row)) return;
+    // A blocking confirm() is deliberate: the library has no dialog system of its own and must not
+    // acquire one. Turn `confirmDelete` off and run your own dialog before letting the click through.
+    if (this.confirmDelete && typeof window !== 'undefined' && !window.confirm(this.locale.confirmDeleteRow)) {
+      return;
+    }
+
+    if (!this.rowDelete.observed) {
+      this.data = this.data.filter((candidate) => candidate !== row);
+      this.refreshDisplayData();
+      this.cdr.markForCheck();
+      return;
+    }
+
+    const key = this.rowKey(row);
+    this.deletingKeys.add(key);
+    this.rowDelete.emit({
+      row,
+      rowIndex,
+      done: (success, error) => {
+        this.deletingKeys.delete(key);
+        if (!success) this.showNotice(error ?? this.locale.saveFailed, true);
+        this.cdr.markForCheck();
+      }
+    });
+    this.cdr.markForCheck();
+  }
+
+  emitRefresh(): void {
+    this.refresh.emit();
   }
 
   // ─── Column width dragging ───────────────────────────────────────────

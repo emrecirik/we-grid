@@ -6,6 +6,8 @@ import { WeGridRowDetailDirective } from './directives/we-grid-row-detail.direct
 import { WeGridColumnDef } from './models/we-grid-column.model';
 import { WeGridInternalColumn } from './models/we-grid-internal.model';
 import { WeGridSortChange } from './models/we-grid-events.model';
+import { WeGridRowDeleteEvent, WeGridRowEditEvent } from './models/we-grid-edit.model';
+import { WeGridImportResult } from './models/we-grid-export.model';
 
 interface Row {
   code: string;
@@ -799,5 +801,293 @@ describe('WeGridComponent — row expansion state (expandedKeys)', () => {
     fixture.detectChanges();
 
     expect(component.expandedKeys.has('A1')).toBeTrue();
+  });
+});
+
+// ─── Export / import / inline row editing ──────────────────────────────────────────────
+describe('WeGridComponent — export, import and row editing', () => {
+  interface EditRow {
+    code: string;
+    name: string;
+    qty: number;
+  }
+
+  let component: WeGridComponent<EditRow>;
+  let fixture: ComponentFixture<WeGridComponent<EditRow>>;
+
+  const columns: WeGridColumnDef<EditRow>[] = [
+    { field: 'code', header: 'Code', required: true },
+    { field: 'name', header: 'Name' },
+    { field: 'qty', header: 'Qty', type: 'number' }
+  ];
+
+  const rows: EditRow[] = [
+    { code: 'A1', name: 'Product A', qty: 2 },
+    { code: 'B2', name: 'Product B', qty: 5 }
+  ];
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [WeGridComponent] }).compileComponents();
+    fixture = TestBed.createComponent(WeGridComponent<EditRow>);
+    document.body.appendChild(fixture.nativeElement);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('gridKey', 'spec-edit-grid');
+    fixture.componentRef.setInput('columns', columns);
+    fixture.componentRef.setInput(
+      'data',
+      rows.map((r) => ({ ...r }))
+    );
+    fixture.componentRef.setInput('trackByField', 'code');
+  });
+
+  afterEach(() => fixture.nativeElement.remove());
+
+  it('renders no export or import controls by default', () => {
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.we-grid__export-group')).toBeNull();
+    expect(fixture.nativeElement.querySelector('.we-grid__file-input')).toBeNull();
+  });
+
+  it('renders one export button per requested format', () => {
+    fixture.componentRef.setInput('exportFormats', ['csv', 'xlsx', 'pdf']);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelectorAll('.we-grid__export-btn').length).toBe(3);
+  });
+
+  it('exports every loaded row when nothing is selected, and only the selection otherwise', () => {
+    fixture.componentRef.setInput('exportFormats', ['csv']);
+    fixture.componentRef.setInput('selectable', 'multi');
+    fixture.componentRef.setInput('exportMode', 'server');
+    fixture.detectChanges();
+
+    const requests: number[] = [];
+    component.exportRequest.subscribe((e) => requests.push(e.rows.length));
+
+    component.exportAs('csv');
+    expect(component.exportScope).toBe('all');
+
+    component.toggleRowSelection(component.displayData[0]);
+    fixture.detectChanges();
+    component.exportAs('csv');
+
+    expect(component.exportScope).toBe('selected');
+    expect(requests).toEqual([2, 1]);
+  });
+
+  it('leaves a column marked exportable:false out of the exported table', () => {
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Code' },
+      { field: 'name', header: 'Name', exportable: false }
+    ]);
+    fixture.componentRef.setInput('exportFormats', ['csv']);
+    fixture.detectChanges();
+    expect(component.exportColumns.map((c) => c.field)).toEqual(['code']);
+  });
+
+  it('does not generate a file itself when a serverSide grid handles (exportRequest)', () => {
+    fixture.componentRef.setInput('exportFormats', ['csv']);
+    fixture.componentRef.setInput('serverSide', true);
+    fixture.detectChanges();
+    expect(component.isServerExport).toBeFalse();
+
+    component.exportRequest.subscribe(() => {});
+    expect(component.isServerExport).toBeTrue();
+  });
+
+  it('adds the action column only when editing or deleting is enabled', () => {
+    fixture.detectChanges();
+    expect(component.hasRowActions).toBeFalse();
+    expect(fixture.nativeElement.querySelector('.we-grid__action-col')).toBeNull();
+
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    expect(component.hasRowActions).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.we-grid__action-col')).toBeTruthy();
+  });
+
+  it('shifts right-pinned columns inward by the action column width', () => {
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Code' },
+      { field: 'name', header: 'Name', pinned: 'right' }
+    ]);
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    const pinned = component.renderColumns.find((c) => c.field === 'name');
+    expect(pinned?.pinnedOffset).toBe(component.actionColWidthPx);
+  });
+
+  it('renders editors in the edited row only, and only for editable columns', () => {
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Code' },
+      { field: 'name', header: 'Name', editable: false }
+    ]);
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+
+    component.startEdit(component.displayData[0], 0);
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelectorAll('we-grid-cell-editor').length).toBe(1);
+  });
+
+  it('emits rowUpdate with only the changed fields and stays in edit mode until done() succeeds', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+
+    const events: WeGridRowEditEvent<EditRow>[] = [];
+    component.rowUpdate.subscribe((e) => events.push(e));
+
+    const row = component.displayData[0];
+    component.startEdit(row, 0);
+    component.setDraftValue(component.internalColumns[1], 'Renamed');
+    component.commitEdit();
+
+    expect(events.length).toBe(1);
+    expect(events[0].changes).toEqual({ name: 'Renamed' });
+    expect(events[0].row.code).toBe('A1');
+    // The row the grid renders is untouched until the consumer confirms the write.
+    expect(row.name).toBe('Product A');
+    expect(component.edit?.saving).toBeTrue();
+
+    events[0].done(true);
+    expect(component.edit).toBeNull();
+  });
+
+  it('keeps the editor open and reports the reason when done() rejects the commit', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    component.rowUpdate.subscribe((e) => e.done(false, 'Conflict'));
+
+    component.startEdit(component.displayData[0], 0);
+    component.setDraftValue(component.internalColumns[1], 'Renamed');
+    component.commitEdit();
+
+    expect(component.edit).not.toBeNull();
+    expect(component.edit?.saving).toBeFalse();
+    expect(component.notice).toEqual({ text: 'Conflict', error: true });
+  });
+
+  it('closes the editor without emitting when nothing was actually changed', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    let emitted = 0;
+    component.rowUpdate.subscribe(() => emitted++);
+
+    component.startEdit(component.displayData[0], 0);
+    component.commitEdit();
+
+    expect(emitted).toBe(0);
+    expect(component.edit).toBeNull();
+  });
+
+  it('blocks the commit and marks the cell while a required field is empty', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    let emitted = 0;
+    component.rowUpdate.subscribe(() => emitted++);
+
+    component.startEdit(component.displayData[0], 0);
+    component.setDraftValue(component.internalColumns[0], '');
+    component.commitEdit();
+
+    expect(emitted).toBe(0);
+    expect(component.hasDraftError(component.internalColumns[0])).toBeTrue();
+
+    component.setDraftValue(component.internalColumns[0], 'A9');
+    expect(component.hasDraftError(component.internalColumns[0])).toBeFalse();
+  });
+
+  it('writes the edit onto the row itself when nobody listens to rowUpdate', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+
+    const row = component.displayData[0];
+    component.startEdit(row, 0);
+    component.setDraftValue(component.internalColumns[1], 'Local edit');
+    component.commitEdit();
+
+    expect(row.name).toBe('Local edit');
+    expect(component.edit).toBeNull();
+  });
+
+  it('opens a draft row for a new record and emits it through rowCreate', () => {
+    fixture.componentRef.setInput('allowAdd', true);
+    fixture.componentRef.setInput('editable', true);
+    fixture.componentRef.setInput('newRowTemplate', { qty: 1 });
+    fixture.detectChanges();
+
+    const events: WeGridRowEditEvent<EditRow>[] = [];
+    component.rowCreate.subscribe((e) => events.push(e));
+
+    component.startCreate();
+    fixture.detectChanges();
+    expect(component.isCreating).toBeTrue();
+    expect(fixture.nativeElement.querySelector('.we-grid__row--editing')).toBeTruthy();
+
+    component.setDraftValue(component.internalColumns[0], 'C3');
+    component.commitEdit();
+
+    expect(events.length).toBe(1);
+    expect(events[0].original).toBeNull();
+    expect(events[0].row).toEqual(jasmine.objectContaining({ code: 'C3', qty: 1 }));
+  });
+
+  it('emits rowDelete and disables the button until done() answers', () => {
+    fixture.componentRef.setInput('allowDelete', true);
+    fixture.componentRef.setInput('confirmDelete', false);
+    fixture.detectChanges();
+
+    const events: WeGridRowDeleteEvent<EditRow>[] = [];
+    component.rowDelete.subscribe((e) => events.push(e));
+
+    const row = component.displayData[0];
+    component.requestDelete(row, 0);
+    expect(component.isRowDeleting(row)).toBeTrue();
+
+    events[0].done(true);
+    expect(component.isRowDeleting(row)).toBeFalse();
+  });
+
+  it('does not delete when the confirmation is declined', () => {
+    fixture.componentRef.setInput('allowDelete', true);
+    fixture.detectChanges();
+    spyOn(window, 'confirm').and.returnValue(false);
+    let emitted = 0;
+    component.rowDelete.subscribe(() => emitted++);
+
+    component.requestDelete(component.displayData[0], 0);
+
+    expect(emitted).toBe(0);
+  });
+
+  it('cancels an open editor when the page changes', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.componentRef.setInput('page', 1);
+    fixture.detectChanges();
+
+    component.startEdit(component.displayData[0], 0);
+    expect(component.edit).not.toBeNull();
+
+    fixture.componentRef.setInput('page', 2);
+    fixture.detectChanges();
+
+    expect(component.edit).toBeNull();
+  });
+
+  it('maps a picked file onto the columns and emits it without touching the data', async () => {
+    fixture.componentRef.setInput('importFormats', ['csv']);
+    fixture.detectChanges();
+
+    const results: WeGridImportResult<EditRow>[] = [];
+    component.importData.subscribe((r) => results.push(r));
+
+    const file = new File(['Code;Name;Qty\nC3;Product C;7\n'], 'rows.csv', { type: 'text/csv' });
+    await component.onImportFileSelected({ target: { files: [file], value: '' } } as unknown as Event);
+
+    expect(results.length).toBe(1);
+    expect(results[0].rows).toEqual([{ code: 'C3', name: 'Product C', qty: 7 }]);
+    expect(component.data.length).toBe(2);
+    expect(component.notice?.error).toBeFalse();
   });
 });

@@ -41,12 +41,25 @@ const myLocale: WeGridLocale = {
 { provide: WE_GRID_LOCALE, useValue: myLocale }
 ```
 
-Two fields are functions rather than plain strings, since they need to interpolate a number:
+Three fields are functions rather than plain strings, since they need to interpolate a number:
 
 ```ts
-pageAriaLabel: (page: number) => string;               // e.g. (n) => `Page ${n}`
+pageAriaLabel: (page: number) => string;                // e.g. (n) => `Page ${n}`
 pageOf: (page: number, totalPages: number) => string;   // e.g. (p, t) => `Page ${p} / ${t}`
+importSucceeded: (rowCount: number) => string;          // e.g. (n) => `${n} rows read`
 ```
+
+## Keys added in 0.2.0
+
+Export/import and inline row editing brought their own keys. They are only rendered on grids that
+turn those features on, but `WeGridLocale` is an interface — a hand-written locale object that
+doesn't spread `weGridLocaleEn` will fail to compile until they are filled in.
+
+- Export/import toolbar: `exportButton`, `exportCsv`, `exportExcel`, `exportPdf`, `exportAllRows`,
+  `exportSelectedRows`, `importButton`, `importCsv`, `importExcel`, `importSucceeded`,
+  `importFailed`, `importUnmappedColumns`, `refreshButton`
+- Row editing: `actionsColumn`, `addRow`, `editRow`, `deleteRow`, `saveRow`, `cancelEdit`,
+  `savingRow`, `confirmDeleteRow`, `requiredField`, `saveFailed`
 
 ## What locale does NOT cover
 

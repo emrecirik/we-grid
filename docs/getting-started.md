@@ -104,5 +104,6 @@ export class BackendGridLayoutStore implements WeGridLayoutStore {
 { provide: WE_GRID_LAYOUT_STORE, useClass: BackendGridLayoutStore }
 ```
 
-See [api.md](api.md), [server-side.md](server-side.md), [theming.md](theming.md), and
+See [api.md](api.md), [server-side.md](server-side.md), [export-import.md](export-import.md),
+[row-editing.md](row-editing.md), [theming.md](theming.md), and
 [localization.md](localization.md) for everything else.

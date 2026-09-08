@@ -728,3 +728,177 @@
 :host-context([data-theme='dark']) .we-grid {
   --we-grid-row-selected-bg: rgba(64, 81, 137, 0.25);
 }
+
+// ─── Export / import toolbar controls ─────────────────────────────────
+// The file input is only a mechanism — the visible "Import" button is the real control, so this
+// stays out of the layout and out of the tab order (see we-grid.component.html).
+.we-grid__file-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.we-grid__filter-toggle-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.we-grid__export-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  padding: 0.1rem 0.3rem 0.1rem 0.5rem;
+}
+
+.we-grid__export-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.75rem;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-grid__export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border: 1px solid transparent;
+  background: transparent;
+  color: inherit;
+  border-radius: var(--we-grid-radius, 0.25rem);
+  padding: 0.2rem 0.45rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.05));
+    border-color: var(--we-grid-border-color, #dee2e6);
+    outline: none;
+  }
+}
+
+// ─── Notice strip (import result, failed commit, failed delete) ───────
+.we-grid__notice {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+  background: var(--we-grid-chips-bg, rgba(64, 81, 137, 0.04));
+  font-size: 0.75rem;
+}
+
+.we-grid__notice--error {
+  color: var(--we-grid-danger-color, #f06548);
+}
+
+.we-grid__notice-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.we-grid__notice-close {
+  flex: 0 0 auto;
+  border: none;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  cursor: pointer;
+  line-height: 1;
+  padding: 0.1rem 0.25rem;
+  border-radius: 0.2rem;
+
+  &:hover,
+  &:focus-visible {
+    opacity: 1;
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.08));
+    outline: none;
+  }
+}
+
+// ─── Row action column ────────────────────────────────────────────────
+// Always the rightmost column and always pinned there — the offsets of user-pinned right columns
+// are computed on top of its width (see recomputeRenderColumns), so it must be sticky in the
+// header, the body and the summary row alike or the three would drift apart on horizontal scroll.
+.we-grid__action-col {
+  position: sticky;
+  right: 0;
+  width: 5.75rem;
+  min-width: 5.75rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.we-grid__header-row th.we-grid__action-col,
+.we-grid__filter-row th.we-grid__action-col {
+  z-index: 4;
+}
+
+.we-grid__row td.we-grid__action-col {
+  z-index: 2;
+  background: var(--we-grid-bg, #fff);
+  padding: 0 0.25rem;
+}
+
+.we-grid__summary-row td.we-grid__action-col {
+  z-index: 2;
+}
+
+.we-grid__row-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: inherit;
+  border-radius: 0.2rem;
+  padding: 0.2rem 0.3rem;
+  line-height: 1;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.08));
+    outline: none;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+}
+
+.we-grid__row-action-btn--primary {
+  color: var(--we-grid-accent-color, #405189);
+}
+
+.we-grid__row-action-btn--danger {
+  color: var(--we-grid-danger-color, #f06548);
+}
+
+// The row being edited is lifted out of the surrounding rows — the editors alone read as an
+// accident otherwise, especially in a dense grid.
+.we-grid__row--editing td {
+  background: var(--we-grid-editing-bg, rgba(64, 81, 137, 0.06));
+  overflow: visible;
+}
+
+// The sticky columns paint their own opaque background so rows don't show through them while
+// scrolling sideways, which also makes them ignore the tint above and leaves the edited row
+// visibly striped. The tint is a translucent colour, so it is layered OVER the opaque base here
+// rather than replacing it — assigning it directly would make these cells see-through again.
+.we-grid__row--editing td.we-grid__action-col,
+.we-grid__row--editing td.we-grid__expand-col,
+.we-grid__row--editing td.we-grid__select-col,
+.we-grid__row--editing td.we-grid__td--pinned-left,
+.we-grid__row--editing td.we-grid__td--pinned-right {
+  background:
+    linear-gradient(var(--we-grid-editing-bg, rgba(64, 81, 137, 0.06)), var(--we-grid-editing-bg, rgba(64, 81, 137, 0.06))),
+    var(--we-grid-bg, #fff);
+}

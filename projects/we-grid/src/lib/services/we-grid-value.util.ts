@@ -11,6 +11,32 @@ export function getNestedValue<T>(row: T, path: string): unknown {
   }, row);
 }
 
+/**
+ * Writes an `a.b.c` style nested field path onto the row object, creating the intermediate objects
+ * a missing path needs. Used when committing an inline edit: a column may address a nested field,
+ * and the draft is keyed by that same path.
+ *
+ * Every object along the path is REPLACED with a copy rather than written into. The caller starts
+ * from a shallow copy of the row, which still shares its nested objects with the original — a
+ * plain in-place write would reach through that copy and change the untouched original too, so
+ * cancelling an edit would not actually undo anything.
+ */
+export function setNestedValue<T>(row: T, path: string, value: unknown): void {
+  if (!path.includes('.')) {
+    (row as unknown as Record<string, unknown>)[path] = value;
+    return;
+  }
+  const keys = path.split('.');
+  const last = keys.pop() as string;
+  let target = row as unknown as Record<string, unknown>;
+  for (const key of keys) {
+    const next = target[key];
+    target[key] = next !== null && typeof next === 'object' ? { ...(next as Record<string, unknown>) } : {};
+    target = target[key] as Record<string, unknown>;
+  }
+  target[last] = value;
+}
+
 /** `format` can specify min-max decimal digits, e.g. "2-2" */
 function parseFractionDigits(format?: string): { minimumFractionDigits?: number; maximumFractionDigits?: number } {
   if (!format) return {};
