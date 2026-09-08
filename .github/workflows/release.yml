@@ -1,11 +1,14 @@
 name: Release
 
-# Publishes the library to npm when a v* tag is pushed.
+# Publishes the library to npm and cuts the matching GitHub release when a v* tag is pushed.
 #
 # Authentication is npm Trusted Publishing (OIDC) — there is no NPM_TOKEN secret and no
 # one-time password. It requires a one-off setup on npmjs.com: package settings →
 # Trusted Publisher → GitHub Actions, with repository `emrecirik/we-grid` and workflow
 # `release.yml`. Until that is configured, this workflow will fail at the publish step.
+#
+# Both halves are idempotent: re-running the workflow, or tagging a version that was already
+# published or already released, is a no-op rather than a red build.
 
 on:
   push:
@@ -16,7 +19,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # required to create the GitHub release
       id-token: write # required for OIDC trusted publishing
     steps:
       - uses: actions/checkout@v5
@@ -72,3 +75,36 @@ jobs:
         if: steps.published.outputs.already == 'false'
         run: npm publish
         working-directory: dist/we-grid
+
+      # ─── GitHub release ──────────────────────────────────────────────────────────────
+      # Only on a real tag: a manual run has no tag to attach a release to.
+      - name: Build the release notes from the changelog
+        if: github.ref_type == 'tag'
+        run: |
+          VERSION="${{ steps.version.outputs.value }}"
+          node .github/scripts/changelog-section.mjs "$VERSION" > "$RUNNER_TEMP/notes.md"
+          cat >> "$RUNNER_TEMP/notes.md" <<'FOOTER'
+
+          ---
+
+          Published through npm Trusted Publishing (OIDC) with a signed SLSA provenance attestation.
+
+          **Install:** `npm install we-grid-angular @angular/cdk`
+          FOOTER
+
+      - name: Create the GitHub release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TAG="$GITHUB_REF_NAME"
+          if gh release view "$TAG" > /dev/null 2>&1; then
+            echo "::notice::A GitHub release for $TAG already exists — skipping."
+            exit 0
+          fi
+          # --latest is deliberately not passed: GitHub already marks a new release latest by
+          # default, and forcing it would be wrong the day a patch is cut for an older line.
+          gh release create "$TAG" \
+            --title "$TAG" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --verify-tag
