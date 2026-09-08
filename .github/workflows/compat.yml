@@ -1,0 +1,67 @@
+name: Angular compatibility
+
+# Proves the peer range in projects/we-grid/package.json (`^18.2.0 || ^19 || ^20 || ^21 || ^22`)
+# instead of asserting it. For each supported major this builds the library from source, packs the
+# tarball that would be published, installs it into a freshly scaffolded app of that major, and
+# builds that app.
+#
+# Why the library itself stays on Angular 18: ng-packagr emits Ivy PARTIAL declarations, and the
+# Angular linker only accepts declarations whose minVersion is at or below its own. Building on the
+# OLDEST supported major is what lets one published artifact serve every newer one — upgrading this
+# workspace to 22 would silently drop 18/19/20 consumers while every check here still passed.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'projects/we-grid/**'
+      - '.github/compat/**'
+      - '.github/workflows/compat.yml'
+  workflow_dispatch:
+  # A new Angular minor can break the range without anything in this repository changing.
+  schedule:
+    - cron: '0 6 * * 1'
+
+jobs:
+  consumer-build:
+    name: Angular ${{ matrix.angular }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Node is pinned per major to whatever that Angular CLI supports — v22 requires
+          # Node 22.22.3+/24.15+, which is newer than the 20 the other workflows build on.
+          - angular: 19
+            node: 22
+          - angular: 20
+            node: 22
+          - angular: 21
+            node: 22
+          - angular: 22
+            node: 24
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Build and pack the library
+        run: |
+          npm run build:lib
+          cd dist/we-grid
+          npm pack --pack-destination "$RUNNER_TEMP"
+
+      - name: Build a consumer app on Angular ${{ matrix.angular }}
+        run: |
+          TARBALL="$(ls "$RUNNER_TEMP"/we-grid-angular-*.tgz)"
+          bash .github/compat/probe.sh \
+            "${{ matrix.angular }}" \
+            "$RUNNER_TEMP" \
+            "$GITHUB_WORKSPACE/.github/compat/probe.ts" \
+            "$GITHUB_WORKSPACE/.github/compat/probe.html" \
+            "$TARBALL"

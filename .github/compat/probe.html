@@ -1,0 +1,42 @@
+<h1>{{ title() }} — {{ localeName }}</h1>
+
+<we-grid
+  gridKey="probe"
+  [columns]="columns"
+  [data]="data"
+  trackByField="id"
+  [totalCount]="data.length"
+  [page]="page"
+  [pageSize]="pageSize"
+  [sortField]="sortField"
+  [sortDirection]="sortDirection"
+  [filterRow]="true"
+  [grouping]="true"
+  [expandable]="true"
+  selectable="multi"
+  [exportFormats]="exportFormats"
+  [importFormats]="importFormats"
+  exportFileName="probe-products"
+  [editable]="true"
+  [allowAdd]="true"
+  [allowDelete]="true"
+  [confirmDelete]="false"
+  [showRefresh]="true"
+  [newRowTemplate]="newRow"
+  (pageChange)="onPage($event)"
+  (sortChange)="onSort($event)"
+  (exportRequest)="onExport($event)"
+  (importData)="onImport($event)"
+  (rowCreate)="onCreate($event)"
+  (rowUpdate)="onUpdate($event)"
+  (rowDelete)="onDelete($event)"
+  (refresh)="onRefresh()"
+>
+  <ng-template weGridCell="actions" [weGridCellRowsOf]="data" let-row let-value="value">
+    <button type="button">{{ row.code }} · {{ value }}</button>
+  </ng-template>
+
+  <ng-template weGridRowDetail [weGridRowDetailRowsOf]="data" let-row let-i="rowIndex">
+    <div>{{ i }} — {{ row.name }} ({{ row.category }})</div>
+  </ng-template>
+</we-grid>

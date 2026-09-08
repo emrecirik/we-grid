@@ -36,7 +36,8 @@ npm install we-grid-angular @angular/cdk
 ```
 
 Peer bağımlılıklar: `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/platform-browser`,
-`@angular/cdk` — Angular **18.2 ile 22** arası sürümler destekleniyor.
+`@angular/cdk` — Angular **18.2 ile 22** arası sürümler destekleniyor. Bu aralıktaki her major,
+paketlenmiş tarball'ı o sürümde sıfırdan oluşturulmuş bir uygulamaya kurup derleyen CI işiyle doğrulanıyor.
 
 Başlık/filtre context menülerinin kullandığı CDK overlay stilini ve isteğe bağlı hazır varsayılan
 temayı uygulamanızın global stillerine ekleyin:

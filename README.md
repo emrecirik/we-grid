@@ -37,7 +37,8 @@ npm install we-grid-angular @angular/cdk
 ```
 
 Peer dependencies: `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/platform-browser`,
-`@angular/cdk` — Angular **18.2 through 22** are supported.
+`@angular/cdk` — Angular **18.2 through 22** are supported. Every major in that range is verified
+by CI, which installs the packed tarball into a freshly scaffolded app of that version and builds it.
 
 Add the CDK overlay stylesheet (used for the header/filter context menus) to your app's global
 styles, and optionally the bundled default theme:
