@@ -35,20 +35,30 @@ default theme to your global styles:
 ]
 ```
 
+![An order operations dashboard built with we-grid](https://raw.githubusercontent.com/emrecirik/we-grid/main/docs/images/ecommerce-dashboard.png)
+
 ## What it does
 
 - Column hide/show, rename, drag-to-reorder, resize, pin left/right, autofit-to-content
 - Density modes, and a per-user column layout persisted automatically (localStorage by default,
   or your own backend through the `WE_GRID_LAYOUT_STORE` token)
 - Filter row, per-column filter popover, active-filter chips
+- Excel-style checklist header filter (`headerFilterMode: 'checklist'`) — tick the distinct values
+  of the loaded page, and one `'in'` filter goes to the backend
 - Single-level grouping with collapsible sections and per-group summaries
 - Subtotal row: sum / average / min / max / count, per column
 - Master-detail rows via a `weGridRowDetail` template
 - Server-side paging, sorting and filtering (opt-in, auto-detected from your event bindings)
+- Export to CSV, Excel (`.xlsx`) and PDF, and import from CSV/Excel — no runtime dependency added
+- Inline row create/update/delete with a `done` callback per commit, built for a real backend
 - Localizable UI text (`WE_GRID_LOCALE`) and swappable inline-SVG icons (`WE_GRID_ICONS`)
 - Theming through plain CSS custom properties (`--we-grid-*`), light and dark
 
-Peer dependencies: `@angular/core`, `@angular/common`, `@angular/forms`, `@angular/cdk` (Angular 18.x).
+![The Status column opened into a checklist of order statuses, two of them ticked](https://raw.githubusercontent.com/emrecirik/we-grid/main/docs/images/checklist-filter.png)
+
+Peer dependencies: `@angular/core`, `@angular/common`, `@angular/forms`,
+`@angular/platform-browser`, `@angular/cdk` — Angular **18.2 through 22**, each major verified by CI
+against the packed tarball.
 
 ## Documentation
 
@@ -57,9 +67,14 @@ Full docs, screenshots and three runnable sample applications live in the reposi
 
 - [Getting started](https://github.com/emrecirik/we-grid/blob/main/docs/getting-started.md)
 - [API reference](https://github.com/emrecirik/we-grid/blob/main/docs/api.md)
-- [Server-side paging/sorting/filtering](https://github.com/emrecirik/we-grid/blob/main/docs/server-side.md)
+- [Server-side paging/sorting/filtering + the checklist header filter](https://github.com/emrecirik/we-grid/blob/main/docs/server-side.md)
+- [Export and import (CSV / Excel / PDF)](https://github.com/emrecirik/we-grid/blob/main/docs/export-import.md)
+- [Inline row editing](https://github.com/emrecirik/we-grid/blob/main/docs/row-editing.md)
 - [Theming](https://github.com/emrecirik/we-grid/blob/main/docs/theming.md)
 - [Localization](https://github.com/emrecirik/we-grid/blob/main/docs/localization.md)
+
+A screen gallery of the three sample apps is published at
+<https://emrecirik.github.io/we-grid/gallery.html>.
 
 ## License
 

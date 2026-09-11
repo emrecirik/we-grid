@@ -20,6 +20,7 @@ kurulu standalone component/direktiflerden oluşan, ücretsiz ve temalanabilir b
 - Yoğunluk modları (rahat / normal / sıkışık)
 - Kullanıcı bazlı düzen otomatik olarak kalıcı (varsayılan localStorage, backend store eklenebilir)
 - Filtre satırı + kolon bazlı filtre popover'ı, aktif filtre çipleriyle
+- Excel tarzı checklist başlık filtresi: sayfadaki tekil değerleri işaretleyin, dışarı tek bir `'in'` filtresi çıksın
 - Tek seviyeli gruplama, daraltılabilir bölümler ve grup bazlı özetlerle
 - Alt toplam (özet) satırı: toplam / ortalama / min / maks / sayım, kolon bazında
 - `weGridRowDetail` şablonu ile satır genişletme (master-detail)
@@ -104,6 +105,16 @@ satırı, görünen sayfayı değil filtrelenmiş kümenin tamamını temel alar
 
 ![Aktif şehir filtresi ve güncellenen KPI kartları](docs/images/filter-row.png)
 
+### Checklist başlık filtresi — operatör değil, değer işaretleyin
+
+Değerleri kapalı bir kümeden gelen kolonlara `headerFilterMode: 'checklist'` verilir: huni ikonu o
+an yüklü satırların tekil değerlerini listeler — arama kutusu, tümünü seç kutusu ve boş değerler
+için ayrı bir satırla birlikte. Seçim, ham kodları taşıyan tek bir `'in'` filtresi olarak çıkar;
+backend bunu tüm tablo üzerinde tek bir `IN (…)` sorgusuna çevirir. Etiketleri `displayValue`
+üretir, yani kullanıcı "Shipped" işaretlerken sorguya `40` gider.
+
+![Durum kolonunun checklist olarak açılmış hali, iki değer işaretli](docs/images/checklist-filter.png)
+
 ### Gruplama, grup bazlı alt toplamlar ve satır seçimi
 
 ![Kategoriye göre gruplanmış ürünler, alt toplamlar ve toplu aksiyon çubuğu](docs/images/retail-market.png)
@@ -128,7 +139,7 @@ ek bundle yok. Her renk, ezebileceğiniz bir `--we-grid-*` custom property'sidir
 |---|---|
 | [`banking`](SampleUsageProjects/banking) | Satır bazında farklı para birimleri, sabitlenmiş kolon, tarih aralığı filtresi, backend'den gelen toplamlar, master-detail satırlar |
 | [`retail-market`](SampleUsageProjects/retail-market) | Alt toplamlı gruplama, boolean kolon ve filtresi, `rowClass` ile satır vurgulama, çoklu seçim ve toplu aksiyonlar, yoğunluk değiştirme |
-| [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | Sunucu taraflı referans örnek: mock backend'e karşı sayfalama/sıralama/filtreleme, KPI kartları, `displayValue` ile durum rozetleri, özel layout store, XML veri kaynağı, koyu tema anahtarı |
+| [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | Sunucu taraflı referans örnek: mock backend'e karşı sayfalama/sıralama/filtreleme, Durum kolonunda checklist başlık filtresi, KPI kartları, `displayValue` ile durum rozetleri, özel layout store, XML veri kaynağı, koyu tema anahtarı |
 
 ```bash
 npm install

@@ -1,5 +1,5 @@
 import { WeGridColumnType } from '../models/we-grid-column.model';
-import { WeGridColumnFilterState, isWeGridFilterActive } from '../models/we-grid-filter.model';
+import { WeGridColumnFilterState, isWeGridFilterActive, weGridFilterValueKey } from '../models/we-grid-filter.model';
 import { WeGridLocale, weGridLocaleEn } from '../models/we-grid-locale.model';
 import { formatWeGridValue, getNestedValue } from './we-grid-value.util';
 
@@ -32,6 +32,10 @@ function matchesFilter<T>(row: T, filter: WeGridColumnFilterState, col: Filterab
   const type = col?.type ?? 'text';
   const raw = getNestedValue(row, filter.field);
 
+  // 'in' comes from the checklist header filter and works the same way on every column type, so it
+  // is answered before the per-type branches.
+  if (filter.operator === 'in') return matchesIn(raw, filter);
+
   switch (type) {
     case 'number':
     case 'currency':
@@ -45,6 +49,17 @@ function matchesFilter<T>(row: T, filter: WeGridColumnFilterState, col: Filterab
       // When displayValue is provided, search against the label the user sees, not the raw code
       return matchesText(col?.displayValue ? col.displayValue(row) : raw, filter);
   }
+}
+
+/**
+ * The checklist selection. Comparison goes through `weGridFilterValueKey` rather than `===` so a
+ * value that made the round trip through the backend as a string still matches the numeric/date
+ * cell it came from.
+ */
+function matchesIn(raw: unknown, filter: WeGridColumnFilterState): boolean {
+  if (!Array.isArray(filter.value) || filter.value.length === 0) return true;
+  const key = weGridFilterValueKey(raw);
+  return filter.value.some((selected) => weGridFilterValueKey(selected) === key);
 }
 
 function matchesText(raw: unknown, filter: WeGridColumnFilterState): boolean {
@@ -135,13 +150,40 @@ function matchesBoolean(raw: unknown, filter: WeGridColumnFilterState): boolean 
   return Boolean(raw) === expected;
 }
 
-/** Text shown on an active filter chip — "Column: value", displayed in the strip above the table (see WeGridComponent.activeFilterChips) */
+/**
+ * "a, b (+3)" — the value part of an 'in' filter. Shared by the chip label and the filter row's
+ * checklist button so a long selection never widens either of them beyond one line.
+ */
+export function weGridInFilterValueLabel(
+  values: unknown[],
+  valueLabel: (value: unknown) => string,
+  maxShown = 2
+): string {
+  const shown = values.slice(0, maxShown).map(valueLabel).join(', ');
+  const rest = values.length - maxShown;
+  return rest > 0 ? `${shown} (+${rest})` : shown;
+}
+
+/**
+ * Text shown on an active filter chip — "Column: value", displayed in the strip above the table
+ * (see WeGridComponent.activeFilterChips). `valueLabel` is only consulted for the 'in' operator,
+ * where the grid knows the readable label of each picked value (the column's `displayValue`).
+ */
 export function weGridFilterChipLabel(
   col: { type: WeGridColumnType; format?: string; header: string },
   filter: WeGridColumnFilterState,
-  locale: WeGridLocale = weGridLocaleEn
+  locale: WeGridLocale = weGridLocaleEn,
+  valueLabel?: (value: unknown) => string
 ): string {
   const header = col.header;
+
+  if (filter.operator === 'in') {
+    const values = Array.isArray(filter.value) ? filter.value : [];
+    const toLabel =
+      valueLabel ??
+      ((value: unknown) => (value === null || value === undefined || value === '' ? locale.emptyGroupValue : formatWeGridValue(value, col.type, col.format)));
+    return `${header}: ${weGridInFilterValueLabel(values, toLabel)}`;
+  }
 
   if (col.type === 'boolean') {
     return `${header}: ${filter.value === 'true' ? locale.yes : locale.no}`;

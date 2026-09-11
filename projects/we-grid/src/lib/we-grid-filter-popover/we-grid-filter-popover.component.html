@@ -4,7 +4,51 @@
     <button type="button" class="we-grid-filter-popover__close" (click)="close()" [attr.aria-label]="locale.close" [title]="locale.close"><span [innerHTML]="icon('close')" aria-hidden="true"></span></button>
   </div>
 
-  @if (column?.type === 'boolean') {
+  @if (isChecklist) {
+    <input
+      type="search"
+      class="we-grid-filter-popover__input"
+      [placeholder]="locale.filterSearchPlaceholder"
+      [attr.aria-label]="locale.filterSearchPlaceholder + ': ' + headerLabel"
+      [(ngModel)]="search"
+    />
+
+    @if (!isSingleSelect && visibleOptions.length > 0) {
+      <label class="we-grid-filter-popover__option we-grid-filter-popover__option--all">
+        <input
+          type="checkbox"
+          class="we-grid-filter-popover__box"
+          [checked]="allVisibleSelected"
+          [indeterminate]="someVisibleSelected"
+          (change)="toggleSelectAll()"
+        />
+        <span class="we-grid-filter-popover__option-label">{{ locale.selectAll }}</span>
+      </label>
+    }
+
+    <div
+      class="we-grid-filter-popover__list"
+      role="group"
+      [attr.aria-label]="locale.filterAriaLabel + ': ' + headerLabel"
+      (keydown)="onChecklistKeydown($event)"
+    >
+      @for (option of visibleOptions; track option.key) {
+        <label class="we-grid-filter-popover__option" [class.we-grid-filter-popover__option--blank]="option.blank">
+          <input
+            #checklistInput
+            class="we-grid-filter-popover__box"
+            [type]="isSingleSelect ? 'radio' : 'checkbox'"
+            [name]="'we-grid-checklist-' + filterState.field"
+            [checked]="isOptionSelected(option)"
+            (change)="toggleOption(option)"
+          />
+          <span class="we-grid-filter-popover__option-label" [title]="option.label">{{ option.label }}</span>
+        </label>
+      } @empty {
+        <p class="we-grid-filter-popover__empty">{{ locale.noMatchingValues }}</p>
+      }
+    </div>
+  } @else if (column?.type === 'boolean') {
     <select
       class="we-grid-filter-popover__select"
       [attr.aria-label]="locale.filterAriaLabel + ': ' + headerLabel"
@@ -58,6 +102,11 @@
 
   <div class="we-grid-filter-popover__footer">
     <button type="button" class="we-grid-filter-popover__btn we-grid-filter-popover__btn--clear" (click)="clear()">{{ locale.clear }}</button>
-    <button type="button" class="we-grid-filter-popover__btn we-grid-filter-popover__btn--apply" (click)="close()">{{ locale.apply }}</button>
+    @if (isChecklist) {
+      <button type="button" class="we-grid-filter-popover__btn" (click)="close()">{{ locale.cancel }}</button>
+      <button type="button" class="we-grid-filter-popover__btn we-grid-filter-popover__btn--apply" (click)="applyChecklist()">{{ locale.apply }}</button>
+    } @else {
+      <button type="button" class="we-grid-filter-popover__btn we-grid-filter-popover__btn--apply" (click)="close()">{{ locale.apply }}</button>
+    }
   </div>
 </div>

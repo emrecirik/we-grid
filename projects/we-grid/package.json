@@ -1,7 +1,7 @@
 {
   "name": "we-grid-angular",
-  "version": "0.2.0",
-  "description": "A themeable, dependency-free Angular data grid — column resize/reorder/pin, filter row, grouping, subtotal row, master-detail, server-side pagination, inline row editing, and Excel/CSV/PDF export plus Excel/CSV import.",
+  "version": "0.3.0",
+  "description": "A themeable, dependency-free Angular data grid — column resize/reorder/pin, filter row, Excel-style checklist header filter, grouping, subtotal row, master-detail, server-side pagination, inline row editing, and Excel/CSV/PDF export plus Excel/CSV import.",
   "license": "MIT",
   "author": "Emre CIRIK",
   "homepage": "https://github.com/emrecirik/we-grid#readme",
@@ -21,6 +21,8 @@
     "grid",
     "angular-cdk",
     "server-side-pagination",
+    "server-side-filtering",
+    "column-filter",
     "column-resize",
     "grouping",
     "themeable",

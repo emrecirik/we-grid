@@ -282,7 +282,7 @@
 
     <dl class="facts">
       <div class="fact"><dt>Sample apps</dt><dd>3</dd></div>
-      <div class="fact"><dt>Unit tests</dt><dd>140 passing</dd></div>
+      <div class="fact"><dt>Unit tests</dt><dd>158 passing</dd></div>
       <div class="fact"><dt>CSS framework deps</dt><dd>0</dd></div>
       <div class="fact"><dt>Icon font deps</dt><dd>0 — inline SVG</dd></div>
       <div class="fact"><dt>Angular</dt><dd>18 &ndash; 22</dd></div>
@@ -349,6 +349,29 @@
         <figcaption>
           <span><b>ecommerce-dashboard</b></span>
           <span>contains · startsWith · equals · between · tri-state boolean</span>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="shot">
+      <div class="shot__head">
+        <span class="symbol">headerFilterMode: 'checklist'</span>
+        <h2>Tick the values, not the operator</h2>
+        <p>
+          A column whose values come from a closed set reads better as a list of ticks. The funnel
+          icon opens the distinct values of the loaded page — searchable, with a select-all box and
+          an entry for blanks — and the selection leaves as a single <code>'in'</code> filter
+          carrying the raw codes, which the backend turns into one <code>IN (…)</code> over every
+          order. The labels come from the column's <code>displayValue</code>, so the user ticks
+          "Shipped" while the query gets <code>40</code>.
+        </p>
+      </div>
+      <figure class="frame">
+        <img src="images/checklist-filter.png"
+             alt="The Status column's funnel icon opened into a checklist of the six order statuses, with Preparing and Shipped ticked and a search box above them.">
+        <figcaption>
+          <span><b>ecommerce-dashboard</b></span>
+          <span>multi (checkbox) or single (radio) · search · select all · (Empty)</span>
         </figcaption>
       </figure>
     </section>

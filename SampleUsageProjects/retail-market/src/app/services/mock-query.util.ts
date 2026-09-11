@@ -98,8 +98,24 @@ function matchesBoolean(raw: unknown, filter: WeGridColumnFilterState): boolean 
   return Boolean(raw) === (filter.value === 'true');
 }
 
+/**
+ * The 'in' operator the checklist header filter produces — `SELECT ... WHERE field IN (...)` in a
+ * real backend. It works on every column type, so it is answered before the per-type branches, and
+ * it compares as text because the values made a JSON round trip.
+ */
+function matchesIn(raw: unknown, filter: WeGridColumnFilterState): boolean {
+  const values = Array.isArray(filter.value) ? (filter.value as unknown[]) : [];
+  if (values.length === 0) return true;
+  const isBlank = raw === null || raw === undefined || raw === '';
+  return values.some((value) => {
+    const valueIsBlank = value === null || value === undefined || value === '';
+    return valueIsBlank ? isBlank : !isBlank && String(value) === String(raw);
+  });
+}
+
 function matches(row: unknown, filter: WeGridColumnFilterState, type: MockFieldType): boolean {
   const raw = readField(row, filter.field);
+  if (filter.operator === 'in') return matchesIn(raw, filter);
   switch (type) {
     case 'number':
     case 'currency':

@@ -19,6 +19,16 @@ export type WeGridSortDirection = 'asc' | 'desc' | null;
 /** Subtotal (summary row) function — a column with 'none' does not participate in the summary row */
 export type WeGridSummaryFunction = 'sum' | 'count' | 'avg' | 'min' | 'max' | 'none';
 
+/**
+ * What the column header's funnel icon opens.
+ * 'operator' (the default) is the classic operator + single value popover; 'checklist' is the
+ * Excel/DevExpress style list of the distinct values found in the loaded rows.
+ */
+export type WeGridHeaderFilterMode = 'operator' | 'checklist';
+
+/** Whether a checklist header filter accepts several values (checkboxes) or exactly one (radios) */
+export type WeGridHeaderFilterSelection = 'multi' | 'single';
+
 /** sum/avg/min/max only make sense on numeric columns — text/date/boolean/custom only offer count */
 export function isWeGridNumericSummaryType(type: WeGridColumnType): boolean {
   return type === 'number' || type === 'currency';
@@ -99,6 +109,22 @@ export interface WeGridColumnDef<T> {
    * the filter row when it's open. Only relevant on grids where the `filterRow` input is true.
    */
   filterable?: boolean;
+  /**
+   * What the header's funnel icon opens — defaults to `'operator'`, i.e. the existing operator +
+   * single value popover, so columns that don't set it behave exactly as before. With
+   * `'checklist'` the popover instead lists the DISTINCT values of the rows currently in `data`
+   * (the loaded page — the grid never issues a request of its own to collect them) with a search
+   * box, a select-all box and an "(Empty)" entry. The selection leaves the grid as a single filter
+   * whose operator is `'in'` and whose `value` is the array of picked raw values, so a
+   * `filterMode='server'` screen can translate it into one `IN (...)` query — see
+   * docs/server-side.md.
+   */
+  headerFilterMode?: WeGridHeaderFilterMode;
+  /**
+   * Whether the checklist accepts several values (checkboxes, the default) or exactly one (radio
+   * buttons). Ignored while `headerFilterMode` is `'operator'`.
+   */
+  headerFilterSelection?: WeGridHeaderFilterSelection;
   /**
    * Converts a raw/code value on the row (e.g. `status: 1`, `supplierCode: '120'`) into the
    * human-readable text shown to the user (e.g. "Draft", "120 - ABC Supplies Inc."). When supplied,

@@ -74,7 +74,12 @@
 
   <section class="demo">
     <h2>6. Server-side mode (simulated)</h2>
-    <p class="demo__hint">Pagination and sorting are handled by an in-memory mock with a short artificial delay — no real HTTP call is made.</p>
+    <p class="demo__hint">
+      Pagination, sorting and filtering are handled by an in-memory mock with a short artificial delay — no real HTTP call
+      is made. The Category column uses <code>headerFilterMode: 'checklist'</code>: its funnel icon lists the distinct
+      values of the loaded page, and the picked ones leave as one <code>'in'</code> filter that the mock applies across
+      all {{ serverTotalCount }} records. <code>resetPage</code> on the event is what sends the query back to page 1.
+    </p>
     <we-grid
       gridKey="playground-server"
       [columns]="serverColumns"
@@ -86,10 +91,17 @@
       [pageSize]="serverPageSize"
       [sortField]="serverSortField"
       [sortDirection]="serverSortDirection"
+      [filterRow]="true"
+      filterMode="server"
+      [filterDebounceMs]="300"
       trackByField="id"
       (pageChange)="onServerPageChange($event)"
       (sortChange)="onServerSortChange($event)"
+      (filterChange)="onServerFilterChange($event)"
     ></we-grid>
+    @if (serverQueryLog.length) {
+      <pre class="demo__log">{{ serverQueryLog.join('\n') }}</pre>
+    }
   </section>
 
   <section class="demo">

@@ -351,6 +351,51 @@
   width: 100%;
 }
 
+// The filter row's stand-in for a checklist column — opens the same popover as the header funnel
+.we-grid__filter-checklist-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  width: 100%;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 0.2rem;
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font-size: 0.75rem;
+  font-family: inherit;
+  padding: 0.2rem 0.3rem;
+  min-width: 0;
+  cursor: pointer;
+  text-align: start;
+
+  &:hover,
+  &:focus-visible {
+    border-color: var(--we-grid-accent-color, #405189);
+    outline: none;
+  }
+}
+
+.we-grid__filter-checklist-btn--active {
+  border-color: var(--we-grid-accent-color, #405189);
+  color: var(--we-grid-accent-color, #405189);
+}
+
+.we-grid__filter-checklist-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-grid__filter-checklist-caret {
+  flex: 0 0 auto;
+  display: inline-flex;
+  transform: rotate(90deg);
+  opacity: 0.6;
+}
+
 // ─── Grouping (opt-in, grouping=true) ─────────────────────────────────
 .we-grid__group-row td {
   padding: 0.4rem 0.6rem;

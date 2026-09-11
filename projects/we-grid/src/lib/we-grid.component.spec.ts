@@ -1,11 +1,12 @@
 import { ChangeDetectorRef, Component, ViewChild } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { WeGridComponent } from './we-grid.component';
 import { WeGridRowDetailDirective } from './directives/we-grid-row-detail.directive';
 import { WeGridColumnDef } from './models/we-grid-column.model';
 import { WeGridInternalColumn } from './models/we-grid-internal.model';
 import { WeGridSortChange } from './models/we-grid-events.model';
+import { WeGridFilterChangeEvent } from './models/we-grid-filter.model';
 import { WeGridRowDeleteEvent, WeGridRowEditEvent } from './models/we-grid-edit.model';
 import { WeGridImportResult } from './models/we-grid-export.model';
 
@@ -1090,4 +1091,171 @@ describe('WeGridComponent — export, import and row editing', () => {
     expect(component.data.length).toBe(2);
     expect(component.notice?.error).toBeFalse();
   });
+});
+
+describe('WeGridComponent — checklist header filter and server-side filtering', () => {
+  interface OrderRow {
+    code: string;
+    status: number | null;
+  }
+
+  let component: WeGridComponent<OrderRow>;
+  let fixture: ComponentFixture<WeGridComponent<OrderRow>>;
+
+  const statusLabels: Record<string, string> = { '1': 'Draft', '2': 'Approved' };
+
+  const columns: WeGridColumnDef<OrderRow>[] = [
+    { field: 'code', header: 'Code' },
+    {
+      field: 'status',
+      header: 'Status',
+      type: 'number',
+      headerFilterMode: 'checklist',
+      displayValue: (row) => (row.status === null ? '' : statusLabels[String(row.status)])
+    }
+  ];
+
+  const firstPage: OrderRow[] = [
+    { code: 'A1', status: 1 },
+    { code: 'B2', status: 2 },
+    { code: 'C3', status: null },
+    { code: 'D4', status: 1 }
+  ];
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [WeGridComponent] }).compileComponents();
+    fixture = TestBed.createComponent(WeGridComponent<OrderRow>);
+    document.body.appendChild(fixture.nativeElement);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('gridKey', 'spec-checklist-grid');
+    fixture.componentRef.setInput('columns', columns);
+    fixture.componentRef.setInput('data', firstPage);
+    fixture.componentRef.setInput('trackByField', 'code');
+  });
+
+  afterEach(() => fixture.nativeElement.remove());
+
+  function statusColumn(): WeGridInternalColumn<OrderRow> {
+    return component.internalColumns.find((c) => c.field === 'status')!;
+  }
+
+  it('gives a checklist column a funnel icon without turning the filter row on, and leaves the others alone', () => {
+    fixture.detectChanges();
+    expect(component.showFilterIcon(statusColumn())).toBeTrue();
+    expect(component.showFilterIcon(component.internalColumns[0])).toBeFalse();
+    expect(fixture.nativeElement.querySelectorAll('.we-grid__th-filter-btn').length).toBe(1);
+  });
+
+  it('builds the distinct values of the loaded rows, labelled through displayValue, "(Empty)" first', () => {
+    fixture.detectChanges();
+    const options = component.checklistOptionsFor(statusColumn());
+    expect(options.map((o) => o.label)).toEqual([component.locale.emptyGroupValue, 'Approved', 'Draft']);
+    expect(options.map((o) => o.value)).toEqual([null, 2, 1]);
+    expect(options[0].blank).toBeTrue();
+  });
+
+  it('filters the loaded rows on the picked values in client mode', () => {
+    fixture.detectChanges();
+    component.setChecklistFilter(statusColumn(), [1]);
+    fixture.detectChanges();
+
+    expect(component.displayData.map((r) => r.code)).toEqual(['A1', 'D4']);
+    expect(component.filterState.get('status')).toEqual({ field: 'status', operator: 'in', value: [1] });
+    expect(component.isColumnFilterActive(statusColumn())).toBeTrue();
+  });
+
+  it('shows the picked labels on the chip and shortens a long selection', () => {
+    fixture.detectChanges();
+    component.checklistOptionsFor(statusColumn());
+    component.setChecklistFilter(statusColumn(), [1, 2, null]);
+    fixture.detectChanges();
+
+    // The chip lists the values in the order they were picked, not in list order
+    expect(component.activeFilterChips[0].label).toBe('Status: Draft, Approved (+1)');
+    expect(component.checklistButtonLabel(statusColumn())).toContain('Draft');
+  });
+
+  it('clears the column filter when the selection is emptied', () => {
+    fixture.detectChanges();
+    component.setChecklistFilter(statusColumn(), [1]);
+    component.setChecklistFilter(statusColumn(), []);
+    expect(component.filterState.has('status')).toBeFalse();
+    expect(component.hasActiveFilters).toBeFalse();
+  });
+
+  it('keeps a picked value in the list after a page change that no longer contains it', () => {
+    fixture.detectChanges();
+    component.checklistOptionsFor(statusColumn());
+    component.setChecklistFilter(statusColumn(), [1]);
+
+    // The next page holds no status=1 row at all
+    fixture.componentRef.setInput('data', [{ code: 'E5', status: 2 }]);
+    fixture.detectChanges();
+
+    const options = component.checklistOptionsFor(statusColumn());
+    expect(options.map((o) => o.label)).toContain('Draft');
+    expect(component.filterState.get('status')?.value).toEqual([1]);
+  });
+
+  it('emits the selection as an "in" filter with resetPage, and never pages by itself', fakeAsync(() => {
+    fixture.componentRef.setInput('serverSide', true);
+    fixture.componentRef.setInput('filterMode', 'server');
+    fixture.componentRef.setInput('totalCount', 120);
+    fixture.detectChanges();
+
+    const emitted: WeGridFilterChangeEvent[] = [];
+    const pages: number[] = [];
+    component.filterChange.subscribe((e) => emitted.push(e));
+    component.pageChange.subscribe((e) => pages.push(e.page));
+
+    component.setChecklistFilter(statusColumn(), [1, 2]);
+    tick(400);
+
+    expect(emitted.length).toBe(1);
+    // The payload still IS the plain array of active filters a pre-0.3 consumer expects
+    expect([...emitted[0]]).toEqual([{ field: 'status', operator: 'in', value: [1, 2] }]);
+    expect(emitted[0].filters[0].operator).toBe('in');
+    expect(emitted[0].resetPage).toBeTrue();
+    expect(pages).toEqual([]);
+    // The backend already returned filtered rows — the grid must not filter them a second time
+    expect(component.displayData.length).toBe(4);
+  }));
+
+  it('collapses a burst of edits into one emit and honours filterDebounceMs', fakeAsync(() => {
+    fixture.componentRef.setInput('filterRow', true);
+    fixture.componentRef.setInput('filterDebounceMs', 1000);
+    fixture.detectChanges();
+
+    const emitted: WeGridFilterChangeEvent[] = [];
+    component.filterChange.subscribe((e) => emitted.push(e));
+
+    component.setFilterValue(component.internalColumns[0], 'A');
+    tick(400);
+    expect(emitted.length).toBe(0);
+
+    component.setFilterValue(component.internalColumns[0], 'A1');
+    tick(1000);
+
+    expect(emitted.length).toBe(1);
+    expect(emitted[0][0].value).toBe('A1');
+    expect(emitted[0].resetPage).toBeTrue();
+  }));
+
+  it('reports resetPage:false when the debounce window ends on the filters that were already sent', fakeAsync(() => {
+    fixture.componentRef.setInput('filterRow', true);
+    fixture.detectChanges();
+
+    const emitted: WeGridFilterChangeEvent[] = [];
+    component.filterChange.subscribe((e) => emitted.push(e));
+
+    component.setFilterValue(component.internalColumns[0], 'A1');
+    tick(400);
+    component.setFilterValue(component.internalColumns[0], 'A1');
+    tick(400);
+
+    expect(emitted.length).toBe(2);
+    expect(emitted[0].resetPage).toBeTrue();
+    expect(emitted[1].resetPage).toBeFalse();
+  }));
 });

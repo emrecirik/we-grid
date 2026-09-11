@@ -5,6 +5,7 @@ import {
   WeGridCellDirective,
   WeGridColumnDef,
   WeGridColumnFilterState,
+  WeGridFilterChangeEvent,
   WeGridComponent,
   WeGridLayout,
   WeGridPageChange,
@@ -59,7 +60,11 @@ export class AppComponent implements OnInit, OnDestroy {
       header: 'Status',
       width: 165,
       // The user reads (and filters/groups by) the label; sorting still uses the raw code
-      displayValue: (row) => orderStatusLabel(row.statusCode)
+      displayValue: (row) => orderStatusLabel(row.statusCode),
+      // A closed set of values is exactly what a checklist is for: the funnel icon lists the
+      // statuses present on the loaded page, and the ticks leave as one 'in' filter carrying the
+      // raw codes — the mock backend turns that into an IN (...) over every order.
+      headerFilterMode: 'checklist'
     },
     { field: 'carrier', header: 'Carrier', width: 160 },
     { field: 'trackingNo', header: 'Tracking', width: 140 },
@@ -104,9 +109,13 @@ export class AppComponent implements OnInit, OnDestroy {
     this.loadOrders();
   }
 
-  onFilterChange(filters: WeGridColumnFilterState[]): void {
-    this.activeFilters = filters;
-    this.page = 1;
+  /**
+   * `resetPage` says the filter set really changed, so the current offset is meaningless. The grid
+   * emits no `(pageChange)` of its own alongside it — this is the single request that reloads.
+   */
+  onFilterChange(event: WeGridFilterChangeEvent): void {
+    this.activeFilters = [...event];
+    if (event.resetPage) this.page = 1;
     this.loadOrders();
   }
 

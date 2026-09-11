@@ -72,6 +72,8 @@ export function mergeGridLayout<T>(
       stopRowClick: def.stopRowClick ?? false,
       summary,
       filterable: def.filterable ?? true,
+      headerFilterMode: def.headerFilterMode ?? 'operator',
+      headerFilterSelection: def.headerFilterSelection ?? 'multi',
       displayValue: def.displayValue,
       // A 'custom' column renders through a consumer template, so the grid can't know what its
       // value looks like — it stays read-only unless the developer opts in explicitly.

@@ -106,6 +106,16 @@ export interface WeGridLocale {
   between: string;
   value: string;
   close: string;
+
+  // ─── Checklist header filter (columns with headerFilterMode: 'checklist') ───────────
+  /** Placeholder of the search box above the value list */
+  filterSearchPlaceholder: string;
+  /** Label of the select-all / clear-all checkbox at the top of the list */
+  selectAll: string;
+  /** Shown instead of the list when the search matches no value */
+  noMatchingValues: string;
+  /** The checklist's third button, next to Clear and Apply — discards the pending selection */
+  cancel: string;
 }
 
 export const weGridLocaleEn: WeGridLocale = {
@@ -196,7 +206,12 @@ export const weGridLocaleEn: WeGridLocale = {
   after: 'After',
   between: 'Between',
   value: 'Value',
-  close: 'Close'
+  close: 'Close',
+
+  filterSearchPlaceholder: 'Search',
+  selectAll: 'Select all',
+  noMatchingValues: 'No matching values',
+  cancel: 'Cancel'
 };
 
 export const weGridLocaleTr: WeGridLocale = {
@@ -287,7 +302,12 @@ export const weGridLocaleTr: WeGridLocale = {
   after: 'Sonrası',
   between: 'Aralık',
   value: 'Değer',
-  close: 'Kapat'
+  close: 'Kapat',
+
+  filterSearchPlaceholder: 'Ara',
+  selectAll: 'Tümünü Seç',
+  noMatchingValues: 'Eşleşen değer yok',
+  cancel: 'İptal'
 };
 
 /**

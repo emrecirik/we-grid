@@ -73,6 +73,65 @@
   opacity: 0.6;
 }
 
+// ─── Checklist header filter (headerFilterMode: 'checklist') ───────────────
+.we-grid-filter-popover__list {
+  display: flex;
+  flex-direction: column;
+  max-height: 13rem;
+  overflow-y: auto;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 0.2rem;
+  padding: 0.15rem;
+}
+
+.we-grid-filter-popover__option {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.2rem 0.3rem;
+  border-radius: 0.2rem;
+  cursor: pointer;
+  min-width: 0;
+
+  &:hover,
+  &:focus-within {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.05));
+  }
+}
+
+.we-grid-filter-popover__option--all {
+  font-weight: 600;
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 0;
+  padding-bottom: 0.3rem;
+}
+
+.we-grid-filter-popover__option--blank .we-grid-filter-popover__option-label {
+  color: var(--we-grid-muted-color, #878a99);
+  font-style: italic;
+}
+
+.we-grid-filter-popover__box {
+  flex: 0 0 auto;
+  margin: 0;
+  accent-color: var(--we-grid-accent-color, #405189);
+}
+
+.we-grid-filter-popover__option-label {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-grid-filter-popover__empty {
+  margin: 0;
+  padding: 0.5rem 0.3rem;
+  text-align: center;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
 .we-grid-filter-popover__footer {
   display: flex;
   justify-content: space-between;

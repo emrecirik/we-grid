@@ -27,7 +27,7 @@ import {
   ViewChild
 } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { Subject, fromEvent, merge, take, takeUntil, debounceTime } from 'rxjs';
+import { Subject, fromEvent, merge, take, takeUntil, debounce, debounceTime, timer } from 'rxjs';
 import { WeGridCellDirective } from './directives/we-grid-cell.directive';
 import { WeGridRowDetailDirective } from './directives/we-grid-row-detail.directive';
 import {
@@ -40,11 +40,15 @@ import { WeGridInternalColumn, weGridDisplayHeader } from './models/we-grid-inte
 import { WeGridLayout, WeGridLayoutStore, WE_GRID_LAYOUT_STORE } from './models/we-grid-layout.model';
 import { WeGridMenuAction } from './models/we-grid-menu-action.model';
 import {
+  WeGridChecklistOption,
   WeGridColumnFilterState,
+  WeGridFilterChangeEvent,
   WeGridFilterOperator,
   isWeGridFilterActive,
   weGridDefaultFilterOperator,
-  weGridEmptyFilterValue
+  weGridEmptyFilterValue,
+  weGridFilterChangeEvent,
+  weGridFilterValueKey
 } from './models/we-grid-filter.model';
 import { WeGridGroupSection } from './models/we-grid-group.model';
 import {
@@ -77,7 +81,12 @@ import {
   weGridSameEditValue
 } from './models/we-grid-edit.model';
 import { mergeGridLayout, toColumnLayout } from './services/we-grid-layout-merge';
-import { applyWeGridFilters, weGridFilterChipLabel, weGridQuickFilterValueToInputString } from './services/we-grid-filter.util';
+import {
+  applyWeGridFilters,
+  weGridFilterChipLabel,
+  weGridInFilterValueLabel,
+  weGridQuickFilterValueToInputString
+} from './services/we-grid-filter.util';
 import { buildWeGridSummaryText } from './services/we-grid-summary.util';
 import { formatWeGridValue, getNestedValue, setNestedValue } from './services/we-grid-value.util';
 import { weGridMapImportedRows } from './services/we-grid-import.util';
@@ -141,6 +150,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * isn't double-applied); otherwise a local filter runs over the loaded rows.
    */
   @Input() filterMode: 'auto' | 'client' | 'server' = 'auto';
+
+  /**
+   * How long the grid waits after the last filter edit before emitting `(filterChange)`. Only the
+   * OUTGOING event is debounced — a client-side filter is still applied on every keystroke. Raise
+   * it on a `filterMode='server'` grid where each emit costs a backend query, or set it to 0 to
+   * emit immediately (the checklist header filter only emits once, on Apply, so it barely cares).
+   */
+  @Input() filterDebounceMs = 400;
 
   @Input() selectable: WeGridSelectionMode = 'none';
   /** Message shown when there are no rows — falls back to the current locale's `emptyMessage` when omitted */
@@ -225,12 +242,17 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Output() selectionChange = new EventEmitter<T[]>();
   @Output() layoutChange = new EventEmitter<WeGridLayout>();
   /**
-   * Emits the list of active filters whenever the filter row changes (debounced — 400ms). The
-   * default behavior is ENTIRELY client-side (no request is sent to the backend); screens with
-   * serverSide=true can listen to this event and trigger their own backend query if they want —
-   * see README.
+   * Emits the list of active filters whenever the filter row, a filter popover or a checklist
+   * changes (debounced — see `filterDebounceMs`). The default behavior is ENTIRELY client-side (no
+   * request is sent to the backend); screens with serverSide=true can listen to this event and
+   * trigger their own backend query if they want — see docs/server-side.md.
+   *
+   * The payload IS the `WeGridColumnFilterState[]` it has always been; it additionally carries
+   * `resetPage`, which is true when the filter set really changed and the reload therefore belongs
+   * on page 1. The grid never emits `(pageChange)` alongside it, so a screen that sets `page = 1`
+   * on `resetPage` issues exactly one request.
    */
-  @Output() filterChange = new EventEmitter<WeGridColumnFilterState[]>();
+  @Output() filterChange = new EventEmitter<WeGridFilterChangeEvent>();
   /** Emitted when the grouping field changes (a group was selected/cleared) — fired on click, no debounce needed */
   @Output() groupChange = new EventEmitter<string | null>();
 
@@ -311,6 +333,16 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private filterPopoverComponentRef: ComponentRef<WeGridFilterPopoverComponent> | null = null;
   /** Which column's popover was opened by clicking its funnel icon, so a second click on the same icon toggles it closed */
   filterPopoverOpenField: string | null = null;
+  /** The column behind the open popover — kept so a `data` change can refresh an open checklist's values */
+  private filterPopoverColumn: WeGridInternalColumn<T> | null = null;
+  /**
+   * field → (value key → readable label) of every checklist value seen so far. A picked value that
+   * the next page no longer contains still has to render with its own label, both in the list and
+   * on the filter chip, and by then there is no row left to run `displayValue` against.
+   */
+  private readonly checklistLabels = new Map<string, Map<string, string>>();
+  /** Signature of the last emitted filter set — drives `resetPage` on the (filterChange) payload */
+  private lastEmittedFilterSignature: string | null = null;
   /** A warning is logged once per field — doesn't spam the console every time the menu is opened */
   private readonly warnedNumericCustomFields = new Set<string>();
 
@@ -453,7 +485,25 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * affect this warning's visibility any more.
    */
   get isFilteringPageOnly(): boolean {
-    return this.serverSide && !this.isServerFilter && this.filterRow && this.hasActiveFilters;
+    return this.serverSide && !this.isServerFilter && this.hasColumnFilters && this.hasActiveFilters;
+  }
+
+  /**
+   * Whether any column filtering UI exists on this grid at all — either the filter row is enabled,
+   * or a column opted into the checklist header filter. Drives the chip strip and the page-scope
+   * warning, which used to key off `filterRow` alone.
+   */
+  get hasColumnFilters(): boolean {
+    return this.filterRow || this.internalColumns.some((c) => c.headerFilterMode === 'checklist');
+  }
+
+  /**
+   * Whether this column's header shows a funnel icon. A checklist column carries its own, so
+   * `headerFilterMode: 'checklist'` works without turning the whole filter row on; every other
+   * column keeps the previous rule (visible only while `filterRow` is true).
+   */
+  showFilterIcon(col: WeGridInternalColumn<T>): boolean {
+    return col.filterable && (this.filterRow || col.headerFilterMode === 'checklist');
   }
 
   /** Active filter chips — "Column: value ×" style, shown in the strip above the table (see we-grid.component.html) */
@@ -465,7 +515,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       if (filter && isWeGridFilterActive(filter)) {
         chips.push({
           field: col.field,
-          label: weGridFilterChipLabel({ type: col.type, format: col.format, header: weGridDisplayHeader(col) }, filter, this.locale)
+          label: weGridFilterChipLabel(
+            { type: col.type, format: col.format, header: weGridDisplayHeader(col) },
+            filter,
+            this.locale,
+            (value) => this.checklistValueLabel(col, value)
+          )
         });
       }
     }
@@ -514,9 +569,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   ngOnInit(): void {
     this.layoutSave$.pipe(debounceTime(500), takeUntil(this.destroy$)).subscribe(() => this.persistLayout());
-    this.filterEmit$.pipe(debounceTime(400), takeUntil(this.destroy$)).subscribe(() => {
-      this.filterChange.emit(Array.from(this.filterState.values()).filter(isWeGridFilterActive));
-    });
+    // debounce(() => timer(...)) rather than debounceTime(400) so a consumer can change
+    // filterDebounceMs at runtime without the grid having to rebuild the subscription.
+    this.filterEmit$
+      .pipe(
+        debounce(() => timer(Math.max(0, this.filterDebounceMs))),
+        takeUntil(this.destroy$)
+      )
+      .subscribe(() => this.emitFilterChange());
     this.loadLayout();
   }
 
@@ -526,6 +586,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
     if (changes['data'] || changes['sortField'] || changes['sortDirection'] || changes['serverSide']) {
       this.refreshDisplayData();
+    }
+    // A checklist lists the values of the LOADED rows, so a new page has to be reflected in an
+    // already open popover — the selection itself lives in the popover and is left alone.
+    if (changes['data'] && this.filterPopoverColumn?.headerFilterMode === 'checklist') {
+      this.filterPopoverComponentRef?.setInput('options', this.checklistOptionsFor(this.filterPopoverColumn));
     }
     // Expanded rows reset when the page changes — prevents the wrong row from appearing open;
     // expansion is transient UI state, not a persisted layout preference.
@@ -765,13 +830,18 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** Returns the column's current filter state, producing a type-appropriate empty default if never touched (does NOT write to the Map) */
   getFilterState(col: WeGridInternalColumn<T>): WeGridColumnFilterState {
-    return (
-      this.filterState.get(col.field) ?? {
-        field: col.field,
-        operator: weGridDefaultFilterOperator(col.type),
-        value: weGridEmptyFilterValue(col.type)
-      }
-    );
+    const current = this.filterState.get(col.field);
+    if (current) return current;
+    // A checklist column starts from an empty 'in' selection rather than the type's operator
+    // default — that is what the popover reads to seed its checkboxes.
+    if (col.headerFilterMode === 'checklist') {
+      return { field: col.field, operator: 'in', value: [] };
+    }
+    return {
+      field: col.field,
+      operator: weGridDefaultFilterOperator(col.type),
+      value: weGridEmptyFilterValue(col.type)
+    };
   }
 
   setFilterOperator(col: WeGridInternalColumn<T>, operator: WeGridFilterOperator): void {
@@ -798,6 +868,81 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
     this.filterState.set(col.field, { ...current, [which]: value });
     this.applyFiltersNow();
+  }
+
+  // ─── Checklist header filter ──────────────────────────────────────────
+  /**
+   * The distinct values of the LOADED rows for a checklist popover. Deliberately computed from the
+   * `data` input only — collecting the values a column can take across every page would need a
+   * request the library has no business making, so the list is what the user can currently see.
+   *
+   * Anything the user already picked is merged in even when this page no longer contains it:
+   * otherwise paging would silently drop ticks off an active filter.
+   */
+  checklistOptionsFor(col: WeGridInternalColumn<T>): WeGridChecklistOption[] {
+    const labels = this.checklistLabelsFor(col.field);
+    const byKey = new Map<string, WeGridChecklistOption>();
+
+    for (const row of this.data) {
+      const raw = getNestedValue(row, col.field);
+      const blank = raw === null || raw === undefined || raw === '';
+      const value = blank ? null : raw;
+      const key = weGridFilterValueKey(value);
+      if (byKey.has(key)) continue;
+      const label = blank ? this.locale.emptyGroupValue : col.displayValue ? col.displayValue(row) : this.formatCell(row, col);
+      labels.set(key, label);
+      byKey.set(key, { value, key, label, blank });
+    }
+
+    const current = this.filterState.get(col.field);
+    if (current?.operator === 'in' && Array.isArray(current.value)) {
+      for (const value of current.value as unknown[]) {
+        const key = weGridFilterValueKey(value);
+        if (byKey.has(key)) continue;
+        const blank = value === null || value === undefined || value === '';
+        byKey.set(key, { value: blank ? null : value, key, label: this.checklistValueLabel(col, value), blank });
+      }
+    }
+
+    // "(Empty)" first, then alphabetically by label — the same ordering the group headers use.
+    return Array.from(byKey.values()).sort((a, b) => {
+      if (a.blank !== b.blank) return a.blank ? -1 : 1;
+      return a.label.localeCompare(b.label);
+    });
+  }
+
+  /** Applies a checklist selection — an empty selection removes the column's filter entirely */
+  setChecklistFilter(col: WeGridInternalColumn<T>, values: unknown[]): void {
+    if (values.length === 0) {
+      this.clearColumnFilter(col);
+      return;
+    }
+    this.filterState.set(col.field, { field: col.field, operator: 'in', value: values });
+    this.applyFiltersNow();
+  }
+
+  /** What the filter row's checklist cell shows — the picked labels, or "All" while nothing is picked */
+  checklistButtonLabel(col: WeGridInternalColumn<T>): string {
+    const filter = this.filterState.get(col.field);
+    if (!filter || !isWeGridFilterActive(filter) || !Array.isArray(filter.value)) return this.locale.all;
+    return weGridInFilterValueLabel(filter.value as unknown[], (value) => this.checklistValueLabel(col, value));
+  }
+
+  /** The readable label of a single picked value — the remembered one, falling back to plain formatting */
+  private checklistValueLabel(col: WeGridInternalColumn<T>, value: unknown): string {
+    if (value === null || value === undefined || value === '') return this.locale.emptyGroupValue;
+    const remembered = this.checklistLabels.get(col.field)?.get(weGridFilterValueKey(value));
+    if (remembered) return remembered;
+    return formatWeGridValue(value, col.type, col.format, { yesLabel: this.locale.yes, noLabel: this.locale.no });
+  }
+
+  private checklistLabelsFor(field: string): Map<string, string> {
+    let labels = this.checklistLabels.get(field);
+    if (!labels) {
+      labels = new Map<string, string>();
+      this.checklistLabels.set(field, labels);
+    }
+    return labels;
   }
 
   clearColumnFilter(col: WeGridInternalColumn<T>): void {
@@ -873,8 +1018,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const portal = new ComponentPortal(WeGridFilterPopoverComponent);
     const componentRef = this.filterOverlayRef.attach(portal);
     this.filterPopoverComponentRef = componentRef;
+    this.filterPopoverColumn = col;
     componentRef.setInput('column', col);
     componentRef.setInput('filterState', this.getFilterState(col));
+    componentRef.setInput('options', col.headerFilterMode === 'checklist' ? this.checklistOptionsFor(col) : []);
 
     componentRef.instance.action.pipe(takeUntil(this.destroy$)).subscribe((action) => this.handleFilterPopoverAction(col, action, origin));
 
@@ -890,6 +1037,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       case 'value':
         this.setFilterValue(col, action.value, action.which);
         break;
+      case 'checklist':
+        // Unlike the operator mode the checklist applies once, on Apply — so it closes right after,
+        // the way a dialog with an OK button does.
+        this.setChecklistFilter(col, action.values);
+        this.closeFilterPopover(returnFocusEl);
+        return;
       case 'clear':
         this.clearColumnFilter(col);
         this.closeFilterPopover(returnFocusEl);
@@ -906,6 +1059,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   private closeFilterPopover(returnFocusEl?: HTMLElement | null): void {
     this.filterPopoverOpenField = null;
+    this.filterPopoverColumn = null;
     if (!this.filterOverlayRef) return;
     this.filterOverlayRef.dispose();
     this.filterOverlayRef = null;
@@ -919,6 +1073,19 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.refreshDisplayData();
     this.filterEmit$.next();
     this.cdr.markForCheck();
+  }
+
+  /**
+   * Emits the debounced (filterChange). `resetPage` compares the filter set against the previously
+   * emitted one: a debounce window that happens to end on the same filters (typed and deleted
+   * again) is not a reason to send the screen back to page 1.
+   */
+  private emitFilterChange(): void {
+    const active = Array.from(this.filterState.values()).filter(isWeGridFilterActive);
+    const signature = JSON.stringify(active.map((f) => [f.field, f.operator, f.value ?? null, f.value2 ?? null]));
+    const resetPage = signature !== this.lastEmittedFilterSignature;
+    this.lastEmittedFilterSignature = signature;
+    this.filterChange.emit(weGridFilterChangeEvent(active, resetPage));
   }
 
   private applyQuickFilter(field: string, rawValue: unknown): void {
@@ -1737,6 +1904,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.clientSort = null;
     this.filterRowVisible = false;
     this.filterState.clear();
+    this.checklistLabels.clear();
     this.groupField = null;
     this.groupCollapsedKeys.clear();
     this.refreshDisplayData();

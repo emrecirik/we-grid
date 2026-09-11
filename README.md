@@ -20,6 +20,7 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - Density modes (comfortable / normal / compact)
 - Per-user layout persisted automatically (localStorage by default, pluggable backend store)
 - Filter row + a per-column filter popover, with active-filter chips
+- Excel-style checklist header filter: tick the distinct values of the page, one `'in'` filter leaves
 - Single-level grouping with collapsible sections and per-group summaries
 - Subtotal (summary) row: sum / average / min / max / count, per column
 - Master-detail row expansion via a `weGridRowDetail` template
@@ -106,6 +107,16 @@ sample are recomputed by the backend over the whole filtered set, not the visibl
 
 ![Filter row with an active City filter and updated KPI cards](docs/images/filter-row.png)
 
+### Checklist header filter — tick the values, not the operator
+
+A column whose values come from a closed set gets `headerFilterMode: 'checklist'`: its funnel icon
+lists the distinct values of the loaded rows — searchable, with a select-all box and an entry for
+blanks — and the selection leaves as one `'in'` filter carrying the raw codes, which the backend
+turns into a single `IN (…)` over the whole table. `displayValue` supplies the labels, so the user
+ticks "Shipped" while the query gets `40`.
+
+![The Status column opened into a checklist of order statuses, two of them ticked](docs/images/checklist-filter.png)
+
 ### Grouping with per-group subtotals, and row selection
 
 ![Products grouped by category with subtotals and a bulk action bar](docs/images/retail-market.png)
@@ -134,7 +145,7 @@ registered in this workspace and runnable with the Angular CLI:
 |---|---|
 | [`banking`](SampleUsageProjects/banking) | Currency columns with mixed per-row currencies, a pinned column, date-range filtering, backend-supplied totals, master-detail rows |
 | [`retail-market`](SampleUsageProjects/retail-market) | Grouping with subtotals, boolean column + filter, `rowClass` highlighting, multi-select with bulk actions, density switching |
-| [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | The server-side reference example: paging/sorting/filtering against a mock backend, KPI cards, `displayValue` status badges, a custom layout store, XML data source, a dark-theme switch |
+| [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | The server-side reference example: paging/sorting/filtering against a mock backend, a checklist header filter on Status, KPI cards, `displayValue` status badges, a custom layout store, XML data source, a dark-theme switch |
 
 ```bash
 npm install

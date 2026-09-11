@@ -3,9 +3,11 @@ import { Component } from '@angular/core';
 import {
   WeGridCellDirective,
   WeGridColumnDef,
+  WeGridColumnFilterState,
   WeGridCommitFn,
   WeGridComponent,
   WeGridExportFormat,
+  WeGridFilterChangeEvent,
   WeGridImportFormat,
   WeGridImportResult,
   WeGridPageChange,
@@ -102,7 +104,9 @@ export class AppComponent {
   serverColumns: WeGridColumnDef<Product>[] = [
     { field: 'code', header: 'Code', width: 120 },
     { field: 'name', header: 'Name', width: 200 },
-    { field: 'category', header: 'Category', width: 160 },
+    // The checklist offers the distinct categories of the LOADED page; the mock below applies the
+    // selection to the whole data set, which is exactly what a real backend's IN (...) would do.
+    { field: 'category', header: 'Category', width: 160, headerFilterMode: 'checklist' },
     { field: 'price', header: 'Price', type: 'currency', width: 120 }
   ];
   serverPage = 1;
@@ -112,15 +116,19 @@ export class AppComponent {
   serverLoading = false;
   serverData: Product[] = [];
   serverTotalCount = ALL_PRODUCTS.length;
+  serverFilters: WeGridColumnFilterState[] = [];
+  /** Shows what the screen would have sent to the backend for each change */
+  serverQueryLog: string[] = [];
 
   constructor() {
     this.loadServerPage();
   }
 
-  /** Simulates a backend call — sorts/paginates the in-memory array with an artificial delay, no real HTTP request */
+  /** Simulates a backend call — filters/sorts/paginates the in-memory array with an artificial delay, no real HTTP request */
   private loadServerPage(): void {
     this.serverLoading = true;
-    let rows = [...ALL_PRODUCTS];
+    let rows = ALL_PRODUCTS.filter((row) => this.matchesServerFilters(row));
+    this.serverTotalCount = rows.length;
     if (this.serverSortField) {
       const field = this.serverSortField;
       const dir = this.serverSortDirection === 'desc' ? -1 : 1;
@@ -149,6 +157,33 @@ export class AppComponent {
     this.serverSortDirection = e.direction;
     this.serverPage = 1;
     this.loadServerPage();
+  }
+
+  /**
+   * The whole server-side filtering contract in one handler: take the filters, go back to page 1
+   * when the grid says the filter set changed, and reload ONCE. The grid deliberately doesn't emit
+   * (pageChange) here, so there is no second request to coalesce.
+   */
+  onServerFilterChange(e: WeGridFilterChangeEvent): void {
+    this.serverFilters = [...e];
+    if (e.resetPage) this.serverPage = 1;
+    this.serverQueryLog = [
+      ...this.serverQueryLog,
+      `GET /products?page=${this.serverPage}&filters=${JSON.stringify(this.serverFilters)}`
+    ].slice(-5);
+    this.loadServerPage();
+  }
+
+  /** Stands in for the backend's WHERE clause — 'in' is a Contains check, everything else is a substring match */
+  private matchesServerFilters(row: Product): boolean {
+    return this.serverFilters.every((filter) => {
+      const raw = (row as unknown as Record<string, unknown>)[filter.field];
+      if (filter.operator === 'in') {
+        const values = Array.isArray(filter.value) ? (filter.value as unknown[]) : [];
+        return values.length === 0 || values.some((value) => String(value) === String(raw));
+      }
+      return String(raw ?? '').toLowerCase().includes(String(filter.value ?? '').toLowerCase());
+    });
   }
 
   // ─── 7. Export / import ───────────────────────────────────────────

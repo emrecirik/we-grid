@@ -463,6 +463,42 @@ export class OrdersComponent {
         <code>summaryValues</code> is how the backend supplies grand totals over the whole result
         set, rather than the subtotal of the visible page.
       </p>
+      <p>
+        <code>(filterChange)</code> is debounced by <code>filterDebounceMs</code> (400ms) and its
+        payload <em>is</em> the array of active filters, with a <code>resetPage</code> flag on it.
+        The grid never emits a page event alongside it, so one user action stays one request:
+      </p>
+<pre><code>onFilter(e: WeGridFilterChangeEvent): void {
+  this.activeFilters = [...e];
+  if (e.resetPage) this.page = 1;   // the filter set changed, the old offset is meaningless
+  this.load();                      // exactly one request
+}</code></pre>
+
+      <h3 id="checklist">The checklist header filter</h3>
+      <p>
+        A column whose values come from a closed set reads better as a list of ticks than as an
+        operator and a text box. One column option swaps the funnel icon's popover for it:
+      </p>
+<pre><code>{
+  field: 'statusCode',
+  header: 'Status',
+  displayValue: (row) =&gt; orderStatusLabel(row.statusCode),  // the label the user ticks
+  headerFilterMode: 'checklist',        // 'operator' (the default) keeps the old popover
+  headerFilterSelection: 'multi'        // 'single' renders radio buttons instead
+}</code></pre>
+      <figure>
+        <img src="images/checklist-filter.png"
+             alt="The Status column's funnel icon opened into a checklist of the six order statuses, with Preparing and Shipped ticked and a search box above them.">
+        <figcaption>Distinct values of the loaded page, searchable, with a select-all box and an entry for blanks.</figcaption>
+      </figure>
+      <p>
+        The list is built from the <code>data</code> input alone — the grid issues no request of its
+        own to discover what a column can contain — and anything already ticked stays ticked after
+        paging away from it. What leaves the grid is one ordinary filter,
+        <code>{ field: 'statusCode', operator: 'in', value: [10, 40] }</code>: raw values, never the
+        labels, so the backend gets the codes it stores. <code>'in'</code> is the only operator whose
+        <code>value</code> is an array, and a <code>null</code> entry in it means "blank".
+      </p>
     </section>
 
     <!-- ── Export ──────────────────────────────────────────────────── -->

@@ -102,7 +102,7 @@
     </button>
   </div>
 
-  @if ((filterRow && hasActiveFilters) || isFilteringPageOnly || isSortingPageOnly) {
+  @if ((hasColumnFilters && hasActiveFilters) || isFilteringPageOnly || isSortingPageOnly) {
     <div class="we-grid__chips-row">
       @for (chip of activeFilterChips; track chip.field) {
         <span class="we-grid__filter-chip">
@@ -199,7 +199,7 @@
                     aria-hidden="true"
                   ></span>
                 }
-                @if (filterRow && col.filterable) {
+                @if (showFilterIcon(col)) {
                   <button
                     type="button"
                     class="we-grid__th-filter-btn"
@@ -247,7 +247,20 @@
                 [class.we-grid__th--pinned-right]="col.pinned === 'right'"
               >
                 @if (col.filterable) {
-                  @if (col.type === 'boolean') {
+                  @if (col.headerFilterMode === 'checklist') {
+                    <button
+                      type="button"
+                      #checklistBtn
+                      class="we-grid__filter-checklist-btn"
+                      [class.we-grid__filter-checklist-btn--active]="isColumnFilterActive(col)"
+                      (click)="onFilterIconClick($event, col, checklistBtn)"
+                      [attr.aria-label]="locale.filterAriaLabel + ': ' + displayHeader(col)"
+                      [title]="checklistButtonLabel(col)"
+                    >
+                      <span class="we-grid__filter-checklist-text">{{ checklistButtonLabel(col) }}</span>
+                      <span class="we-grid__filter-checklist-caret" [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+                    </button>
+                  } @else if (col.type === 'boolean') {
                     <select
                       class="we-grid__filter-select"
                       [attr.aria-label]="locale.filterAriaLabel + ': ' + displayHeader(col)"

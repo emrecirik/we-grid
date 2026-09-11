@@ -1,5 +1,13 @@
 import { TemplateRef } from '@angular/core';
-import { WeGridAlign, WeGridCellContext, WeGridColumnType, WeGridPinned, WeGridSummaryFunction } from './we-grid-column.model';
+import {
+  WeGridAlign,
+  WeGridCellContext,
+  WeGridColumnType,
+  WeGridHeaderFilterMode,
+  WeGridHeaderFilterSelection,
+  WeGridPinned,
+  WeGridSummaryFunction
+} from './we-grid-column.model';
 import { WeGridEditorOption, WeGridEditorType } from './we-grid-edit.model';
 
 /**
@@ -34,6 +42,10 @@ export interface WeGridInternalColumn<T> {
   summary: WeGridSummaryFunction;
   /** Whether editable in the filter row — see WeGridColumnDef.filterable */
   filterable: boolean;
+  /** What the header funnel icon opens — see WeGridColumnDef.headerFilterMode */
+  headerFilterMode: WeGridHeaderFilterMode;
+  /** Checkboxes or radios in the checklist — see WeGridColumnDef.headerFilterSelection */
+  headerFilterSelection: WeGridHeaderFilterSelection;
   /** Converts the raw value into a readable label — see WeGridColumnDef.displayValue */
   displayValue: ((row: T) => string) | undefined;
   /** Whether editable inline — see WeGridColumnDef.editable */

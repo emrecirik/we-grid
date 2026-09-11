@@ -2,6 +2,56 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.3.0 — 2026-09-11
+
+Everything here is additive: no input, output, model field or exported signature changed meaning,
+so an existing grid behaves exactly as it did on 0.2.0 without touching a line.
+
+### Checklist header filter
+
+- New column options `headerFilterMode: 'operator' | 'checklist'` (default `'operator'`, i.e. the
+  popover that was already there) and `headerFilterSelection: 'multi' | 'single'` (checkboxes or
+  radio buttons). A `'checklist'` column's funnel icon opens the distinct values of the LOADED rows
+  with a search box, a select-all box, an "(Empty)" entry for blanks, and Clear / Cancel / Apply.
+- The values are derived from the `data` input alone — the grid issues no request of its own to
+  discover what a column can contain — but a value the user already ticked stays in the list, and
+  stays ticked, after paging to rows that no longer contain it.
+- Labels come from the column's `displayValue` when it has one; the payload always carries the raw
+  values, so the backend receives the codes it stores.
+- A checklist column shows its funnel icon without `filterRow` having to be on. Every other column
+  keeps the old rule.
+
+### The `'in'` filter operator
+
+- New `'in'` member of `WeGridFilterOperator`, the only one whose `WeGridColumnFilterState.value`
+  is an array (`unknown[]`); a `null` entry means the blank bucket. `isWeGridFilterActive`,
+  `applyWeGridFilters` and `weGridFilterChipLabel` all understand it, the chip shortening a long
+  selection to `Status: Preparing, Shipped (+3)`.
+- Comparison goes through the new `weGridFilterValueKey(value)`, so a selection still matches after
+  a round trip that turned `40` into `"40"` or rebuilt a `Date`.
+- Works the same in both modes: `filterMode='client'` applies it over the loaded rows,
+  `filterMode='server'` emits it through the existing `(filterChange)` — no new output.
+
+### Server-side filtering
+
+- New `filterDebounceMs` input (default `400`, the previous hard-coded value) for grids where every
+  emit costs a query.
+- `(filterChange)` now emits a `WeGridFilterChangeEvent`. It IS the `WeGridColumnFilterState[]` it
+  has always been — a handler typed as the array keeps compiling — and additionally carries
+  `filters` and `resetPage`. `resetPage` is true when the filter set really changed, which is the
+  screen's cue to set `page = 1`; the grid deliberately never emits `(pageChange)` alongside it, so
+  one user action stays one request.
+
+### Other
+
+- Four new locale keys for the checklist (`filterSearchPlaceholder`, `selectAll`,
+  `noMatchingValues`, `cancel`), filled in both `weGridLocaleEn` and `weGridLocaleTr`. A
+  hand-written `WeGridLocale` that doesn't spread one of them needs them added.
+- No new theme variables — the checklist is built from the existing `--we-grid-*` values.
+- `ecommerce-dashboard` uses a checklist on its Status column, and the playground's server-side
+  demo now filters through the mock backend and logs the query it would have sent.
+- Test suite grew from 140 to 158 specs, including a new `we-grid-filter.util.spec.ts`.
+
 ## 0.2.0 — 2026-09-08
 
 ### Angular 19 – 22 support

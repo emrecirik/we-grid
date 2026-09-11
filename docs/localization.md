@@ -61,6 +61,20 @@ doesn't spread `weGridLocaleEn` will fail to compile until they are filled in.
 - Row editing: `actionsColumn`, `addRow`, `editRow`, `deleteRow`, `saveRow`, `cancelEdit`,
   `savingRow`, `confirmDeleteRow`, `requiredField`, `saveFailed`
 
+## Keys added in 0.3.0
+
+The checklist header filter (`headerFilterMode: 'checklist'`) brought four more, with the same
+caveat: they only render on a grid that uses a checklist column, but a hand-written locale object
+that doesn't spread `weGridLocaleEn` will fail to compile until they are filled in.
+
+- `filterSearchPlaceholder` — the search box above the value list
+- `selectAll` — the select-all / clear-all checkbox
+- `noMatchingValues` — shown when the search matches nothing
+- `cancel` — the checklist's third button, next to Clear and Apply
+
+The "(Empty)" entry reuses the existing `emptyGroupValue` key rather than adding a fifth: it is the
+same idea the group headers already label that way.
+
 ## What locale does NOT cover
 
 `WeGridLocale` only covers grid-chrome UI text. Formatting of actual cell **values** (numbers,
