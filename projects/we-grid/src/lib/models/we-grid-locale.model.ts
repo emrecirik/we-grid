@@ -7,6 +7,20 @@ import { InjectionToken } from '@angular/core';
  * exports. See docs/localization.md.
  */
 export interface WeGridLocale {
+  // ─── Value formatting, comparison and sorting ───────────────────────────────────────
+  /**
+   * BCP 47 tag (e.g. `'en-US'`, `'tr-TR'`) the grid formats and compares cell values with:
+   * `Intl.NumberFormat` / `Intl.DateTimeFormat` for number, currency, date and datetime cells — and
+   * therefore group headers, filter chips, summaries and exports — `toLocaleLowerCase` for the text
+   * filter and the checklist's search box, and `localeCompare` for group and checklist ordering.
+   * Without it a translated grid still showed `1,234.50`, and "İSTANBUL" never matched "istanbul".
+   */
+  intlLocale: string;
+  /** ISO 4217 code a `type: 'currency'` column without its own `format` is shown in — `'USD'` when omitted */
+  intlCurrency?: string;
+  /** IANA time zone (e.g. `'Europe/Istanbul'`) date and datetime cells are shown in — the browser's own zone when omitted */
+  intlTimeZone?: string;
+
   // ─── Toolbar / footer / empty state (main grid template) ───────────────────────────
   emptyMessage: string;
   columnsButton: string;
@@ -86,6 +100,17 @@ export interface WeGridLocale {
   max: string;
   count: string;
   none: string;
+  /**
+   * Summary-row label of a genuine grand total (a `summaryValues` override), built from the
+   * function's own label: `(fn) => \`Grand ${fn.toLowerCase()}\`` turns "Sum" into "Grand sum". A
+   * function rather than a prefix string, because some languages inflect the word it joins.
+   */
+  summaryGrand: (functionLabel: string) => string;
+  /**
+   * Summary-row label of a total over the loaded page only (`serverSide` without an override) —
+   * "Page sum" in English, "Sayfa toplamı" in Turkish, where the possessive suffix depends on the word.
+   */
+  summaryPage: (functionLabel: string) => string;
   density: string;
   comfortable: string;
   normal: string;
@@ -116,9 +141,19 @@ export interface WeGridLocale {
   noMatchingValues: string;
   /** The checklist's third button, next to Clear and Apply — discards the pending selection */
   cancel: string;
+  /** Shown while a `checklistValuesProvider` request is in flight */
+  checklistValuesLoading: string;
+  /** Shown when a `checklistValuesProvider` request failed, above the retry button */
+  checklistValuesError: string;
+  /** Accepts the request limit, e.g. `(n) => \`Showing the first ${n} values — narrow your search\`` */
+  checklistValuesTruncated: (limit: number) => string;
+  /** Repeats a failed request */
+  retry: string;
 }
 
 export const weGridLocaleEn: WeGridLocale = {
+  intlLocale: 'en-US',
+
   emptyMessage: 'No records found',
   columnsButton: 'Columns',
   filterRowButton: 'Filter row',
@@ -188,6 +223,8 @@ export const weGridLocaleEn: WeGridLocale = {
   max: 'Max',
   count: 'Count',
   none: 'None',
+  summaryGrand: (functionLabel) => `Grand ${functionLabel.toLowerCase()}`,
+  summaryPage: (functionLabel) => `Page ${functionLabel.toLowerCase()}`,
   density: 'Density',
   comfortable: 'Comfortable',
   normal: 'Normal',
@@ -211,10 +248,30 @@ export const weGridLocaleEn: WeGridLocale = {
   filterSearchPlaceholder: 'Search',
   selectAll: 'Select all',
   noMatchingValues: 'No matching values',
-  cancel: 'Cancel'
+  cancel: 'Cancel',
+  checklistValuesLoading: 'Loading values…',
+  checklistValuesError: 'The values could not be loaded',
+  checklistValuesTruncated: (limit) => `Showing the first ${limit} values — narrow your search`,
+  retry: 'Retry'
+};
+
+/**
+ * "Sayfa" forms a possessive compound with the function name ("sayfanın toplamı" → "Sayfa toplamı"),
+ * and the suffix depends on how the word ends — a plain prefix would read "Sayfa toplam". Keyed by
+ * the lowercased labels `weGridLocaleTr` ships; a relabelled function falls back to the plain word.
+ */
+const TR_PAGE_SUMMARY_WORDS: Record<string, string> = {
+  toplam: 'toplamı',
+  ortalama: 'ortalaması',
+  min: 'min',
+  maks: 'maks',
+  sayım: 'sayımı'
 };
 
 export const weGridLocaleTr: WeGridLocale = {
+  intlLocale: 'tr-TR',
+  intlCurrency: 'TRY',
+
   emptyMessage: 'Kayıt bulunamadı',
   columnsButton: 'Kolonlar',
   filterRowButton: 'Filtre Satırı',
@@ -284,6 +341,12 @@ export const weGridLocaleTr: WeGridLocale = {
   max: 'Maks',
   count: 'Sayım',
   none: 'Yok',
+  // "Genel" doesn't inflect the word after it: "Genel toplam", "Genel ortalama", "Genel sayım".
+  summaryGrand: (functionLabel) => `Genel ${functionLabel.toLocaleLowerCase('tr-TR')}`,
+  summaryPage: (functionLabel) => {
+    const word = functionLabel.toLocaleLowerCase('tr-TR');
+    return `Sayfa ${TR_PAGE_SUMMARY_WORDS[word] ?? word}`;
+  },
   density: 'Yoğunluk',
   comfortable: 'Rahat',
   normal: 'Normal',
@@ -307,7 +370,11 @@ export const weGridLocaleTr: WeGridLocale = {
   filterSearchPlaceholder: 'Ara',
   selectAll: 'Tümünü Seç',
   noMatchingValues: 'Eşleşen değer yok',
-  cancel: 'İptal'
+  cancel: 'İptal',
+  checklistValuesLoading: 'Değerler yükleniyor…',
+  checklistValuesError: 'Değerler yüklenemedi',
+  checklistValuesTruncated: (limit) => `İlk ${limit} değer gösteriliyor — aramayı daraltın`,
+  retry: 'Tekrar dene'
 };
 
 /**

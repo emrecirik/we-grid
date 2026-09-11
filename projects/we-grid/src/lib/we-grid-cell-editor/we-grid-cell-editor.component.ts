@@ -96,12 +96,22 @@ export class WeGridCellEditorComponent {
 
   /**
    * The row's original value decides the shape the edit is reported in: a field that arrived from
-   * the backend as an ISO string is emitted back as an ISO string, so a round-trip through the
-   * editor doesn't silently change the payload's type.
+   * the backend as a string is emitted back as a string, so a round-trip through the editor doesn't
+   * silently change the payload's type.
+   *
+   * A `date` editor on a string field emits the picked calendar day itself (`yyyy-MM-dd`). Going
+   * through `new Date(raw).toISOString()` would pin it to UTC midnight, while `dateValue` reads the
+   * LOCAL day — so a value stored as local midnight (`…T21:00:00Z` in UTC+3) came back with its time
+   * silently moved. A `datetime` editor keeps the ISO instant: its raw value is local time, which
+   * `toISOString()` converts correctly.
    */
   emitDate(raw: string): void {
     if (raw === '') {
       this.valueChange.emit(null);
+      return;
+    }
+    if (this.column.editor === 'date' && typeof this.value === 'string') {
+      this.valueChange.emit(raw);
       return;
     }
     const date = new Date(raw);

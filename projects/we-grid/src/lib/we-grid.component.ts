@@ -27,7 +27,22 @@ import {
   ViewChild
 } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { Subject, fromEvent, merge, take, takeUntil, debounce, debounceTime, timer } from 'rxjs';
+import {
+  Observable,
+  Subject,
+  catchError,
+  debounce,
+  debounceTime,
+  defer,
+  fromEvent,
+  map,
+  merge,
+  of,
+  switchMap,
+  take,
+  takeUntil,
+  timer
+} from 'rxjs';
 import { WeGridCellDirective } from './directives/we-grid-cell.directive';
 import { WeGridRowDetailDirective } from './directives/we-grid-row-detail.directive';
 import {
@@ -41,14 +56,19 @@ import { WeGridLayout, WeGridLayoutStore, WE_GRID_LAYOUT_STORE } from './models/
 import { WeGridMenuAction } from './models/we-grid-menu-action.model';
 import {
   WeGridChecklistOption,
+  WeGridChecklistValue,
+  WeGridChecklistValuesProvider,
+  WeGridChecklistValuesRequest,
+  WeGridChecklistValuesResult,
   WeGridColumnFilterState,
   WeGridFilterChangeEvent,
   WeGridFilterOperator,
   isWeGridFilterActive,
-  weGridDefaultFilterOperator,
   weGridEmptyFilterValue,
   weGridFilterChangeEvent,
-  weGridFilterValueKey
+  weGridFilterOperatorsFor,
+  weGridFilterValueKey,
+  weGridQuickFilterOperator
 } from './models/we-grid-filter.model';
 import { WeGridGroupSection } from './models/we-grid-group.model';
 import {
@@ -84,11 +104,12 @@ import { mergeGridLayout, toColumnLayout } from './services/we-grid-layout-merge
 import {
   applyWeGridFilters,
   weGridFilterChipLabel,
+  weGridFilterOperatorLabel,
   weGridInFilterValueLabel,
   weGridQuickFilterValueToInputString
 } from './services/we-grid-filter.util';
 import { buildWeGridSummaryText } from './services/we-grid-summary.util';
-import { formatWeGridValue, getNestedValue, setNestedValue } from './services/we-grid-value.util';
+import { WeGridFormatValueOptions, formatWeGridValue, getNestedValue, setNestedValue } from './services/we-grid-value.util';
 import { weGridMapImportedRows } from './services/we-grid-import.util';
 import { WeGridHeaderMenuComponent } from './we-grid-header-menu/we-grid-header-menu.component';
 import { WeGridCellEditorComponent } from './we-grid-cell-editor/we-grid-cell-editor.component';
@@ -158,6 +179,22 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * emit immediately (the checklist header filter only emits once, on Apply, so it barely cares).
    */
   @Input() filterDebounceMs = 400;
+
+  /**
+   * Where checklist columns take their values from on a server-filtered grid. Without it a checklist
+   * lists the distinct values of the LOADED rows, exactly as before; with it the popover asks this
+   * function instead — for the whole dataset, narrowed by the other active filters — and sends its
+   * search box along too. Only consulted while filtering really runs on the server
+   * (`isServerFilter`): a client-filtered grid applies the selection to the loaded rows, where a
+   * value found anywhere else could never match. A column opts out with `headerFilterSource: 'loaded'`.
+   */
+  @Input() checklistValuesProvider?: WeGridChecklistValuesProvider;
+
+  /** The most values one provider request asks for — a column's own `checklistValuesLimit` overrides it */
+  @Input() checklistValuesLimit = 200;
+
+  /** How long a provider-backed checklist waits after the last keystroke in its search box before asking again */
+  @Input() checklistSearchDebounceMs = 300;
 
   @Input() selectable: WeGridSelectionMode = 'none';
   /** Message shown when there are no rows — falls back to the current locale's `emptyMessage` when omitted */
@@ -324,6 +361,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** The filter row applies LOCALLY on every keystroke instantly; this subject only debounces the
    * OUTGOING (filterChange) event by 400ms — if the consumer binds it to the backend, it won't fire one request per keystroke. */
   private readonly filterEmit$ = new Subject<void>();
+  /** Ends a pending `filterEmit$` debounce window right away — see resetLayout */
+  private readonly filterEmitFlush$ = new Subject<void>();
   private readonly cellTemplateMap = new Map<string, TemplateRef<WeGridCellContext<T>>>();
   private readonly measureCanvas: HTMLCanvasElement | null = typeof document !== 'undefined' ? document.createElement('canvas') : null;
   private clientSort: { field: string; direction: WeGridSortDirection } | null = null;
@@ -335,6 +374,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   filterPopoverOpenField: string | null = null;
   /** The column behind the open popover — kept so a `data` change can refresh an open checklist's values */
   private filterPopoverColumn: WeGridInternalColumn<T> | null = null;
+  /** Search requests of the open provider-backed checklist — null while no such checklist is open */
+  private checklistRequest$: Subject<{ search: string | null; debounce: boolean }> | null = null;
+  /** The term the open checklist last asked the provider for, so Retry repeats exactly that request */
+  private checklistSearch: string | null = null;
+  /** Ends the open checklist's request stream when its popover closes */
+  private readonly filterPopoverClosed$ = new Subject<void>();
   /**
    * field → (value key → readable label) of every checklist value seen so far. A picked value that
    * the next page no longer contains still has to render with its own label, both in the list and
@@ -345,6 +390,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private lastEmittedFilterSignature: string | null = null;
   /** A warning is logged once per field — doesn't spam the console every time the menu is opened */
   private readonly warnedNumericCustomFields = new Set<string>();
+  /** Same once-per-field rule for a `filterOperators` list that shares nothing with the column type */
+  private readonly warnedFilterOperatorFields = new Set<string>();
+  /** Same once-per-field rule for a checklist whose provider is missing or can't apply */
+  private readonly warnedChecklistSourceFields = new Set<string>();
 
   // ─── Row editing state ───────────────────────────────────────────────
   /** The row currently being edited or created — null while nothing is in edit mode */
@@ -573,7 +622,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     // filterDebounceMs at runtime without the grid having to rebuild the subscription.
     this.filterEmit$
       .pipe(
-        debounce(() => timer(Math.max(0, this.filterDebounceMs))),
+        debounce(() => merge(timer(Math.max(0, this.filterDebounceMs)), this.filterEmitFlush$)),
         takeUntil(this.destroy$)
       )
       .subscribe(() => this.emitFilterChange());
@@ -589,7 +638,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
     // A checklist lists the values of the LOADED rows, so a new page has to be reflected in an
     // already open popover — the selection itself lives in the popover and is left alone.
-    if (changes['data'] && this.filterPopoverColumn?.headerFilterMode === 'checklist') {
+    // A provider-backed list doesn't come from the page, so paging leaves it alone.
+    if (
+      changes['data'] &&
+      this.filterPopoverColumn?.headerFilterMode === 'checklist' &&
+      this.checklistSource(this.filterPopoverColumn) === 'loaded'
+    ) {
       this.filterPopoverComponentRef?.setInput('options', this.checklistOptionsFor(this.filterPopoverColumn));
     }
     // Expanded rows reset when the page changes — prevents the wrong row from appearing open;
@@ -720,7 +774,18 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   formatCell(row: T, col: WeGridInternalColumn<T>): string {
-    return formatWeGridValue(getNestedValue(row, col.field), col.type, col.format, { yesLabel: this.locale.yes, noLabel: this.locale.no });
+    return formatWeGridValue(getNestedValue(row, col.field), col.type, col.format, this.valueFormatOptions());
+  }
+
+  /** What every rendering of a cell value shares — the locale's Intl settings and its yes/no words */
+  private valueFormatOptions(): WeGridFormatValueOptions {
+    return {
+      locale: this.locale.intlLocale,
+      currency: this.locale.intlCurrency,
+      timeZone: this.locale.intlTimeZone,
+      yesLabel: this.locale.yes,
+      noLabel: this.locale.no
+    };
   }
 
   displayHeader(col: WeGridInternalColumn<T>): string {
@@ -764,7 +829,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     // local comparison rules can differ, causing rows to be lost).
     const source =
       this.hasActiveFilters && !this.isServerFilter
-        ? applyWeGridFilters(this.data, this.filterState, this.internalColumns)
+        ? applyWeGridFilters(this.data, this.filterState, this.internalColumns, this.locale)
         : this.data;
 
     if (this.isServerSort || !this.clientSort) {
@@ -839,12 +904,40 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
     return {
       field: col.field,
-      operator: weGridDefaultFilterOperator(col.type),
+      operator: this.filterOperatorsFor(col)[0],
       value: weGridEmptyFilterValue(col.type)
     };
   }
 
+  /**
+   * The operators a column's filter row cell and popover offer — the type's list narrowed by the
+   * column's `filterOperators`. A list that shares nothing with the type falls back to the full list
+   * and says so once per field in dev mode, rather than silently leaving the restriction off.
+   */
+  filterOperatorsFor(col: WeGridInternalColumn<T>): WeGridFilterOperator[] {
+    const operators = weGridFilterOperatorsFor(col.type, col.filterOperators);
+    if (
+      col.filterOperators &&
+      isDevMode() &&
+      !this.warnedFilterOperatorFields.has(col.field) &&
+      !col.filterOperators.some((op) => operators.includes(op))
+    ) {
+      this.warnedFilterOperatorFields.add(col.field);
+      // eslint-disable-next-line no-console
+      console.warn(
+        `[we-grid] Column '${col.field}' declares filterOperators [${col.filterOperators.join(', ')}], none of which ` +
+          `apply to type: '${col.type}' — the full operator list (${operators.join(', ')}) is offered instead.`
+      );
+    }
+    return operators;
+  }
+
+  filterOperatorLabel(col: WeGridInternalColumn<T>, operator: WeGridFilterOperator): string {
+    return weGridFilterOperatorLabel(operator, col.type, this.locale);
+  }
+
   setFilterOperator(col: WeGridInternalColumn<T>, operator: WeGridFilterOperator): void {
+    if (!this.filterOperatorsFor(col).includes(operator)) return;
     const current = this.getFilterState(col);
     this.filterState.set(col.field, { ...current, operator, value2: operator === 'between' ? current.value2 : undefined });
     this.applyFiltersNow();
@@ -894,21 +987,90 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       byKey.set(key, { value, key, label, blank });
     }
 
-    const current = this.filterState.get(col.field);
-    if (current?.operator === 'in' && Array.isArray(current.value)) {
-      for (const value of current.value as unknown[]) {
-        const key = weGridFilterValueKey(value);
-        if (byKey.has(key)) continue;
-        const blank = value === null || value === undefined || value === '';
-        byKey.set(key, { value: blank ? null : value, key, label: this.checklistValueLabel(col, value), blank });
-      }
+    this.mergeTickedChecklistValues(col, byKey);
+    return this.sortChecklistOptions(byKey);
+  }
+
+  /**
+   * The provider counterpart of `checklistOptionsFor`: the same option shape, labelled by the
+   * provider's `label`, then the column's `checklistValueLabel`, then plain formatting. Only the
+   * unsearched list keeps ticked values the provider didn't return — a search result that listed
+   * every tick regardless of the term would no longer be a search result.
+   */
+  private checklistOptionsFromValues(col: WeGridInternalColumn<T>, values: WeGridChecklistValue[], keepTicked: boolean): WeGridChecklistOption[] {
+    const labels = this.checklistLabelsFor(col.field);
+    const byKey = new Map<string, WeGridChecklistOption>();
+
+    for (const entry of values) {
+      const blank = entry.value === null || entry.value === undefined || entry.value === '';
+      const value = blank ? null : entry.value;
+      const key = weGridFilterValueKey(value);
+      if (byKey.has(key)) continue;
+      const label = blank
+        ? this.locale.emptyGroupValue
+        : (entry.label ?? col.checklistValueLabel?.(value) ?? formatWeGridValue(value, col.type, col.format, this.valueFormatOptions()));
+      labels.set(key, label);
+      byKey.set(key, { value, key, label, blank });
     }
 
-    // "(Empty)" first, then alphabetically by label — the same ordering the group headers use.
+    if (keepTicked) this.mergeTickedChecklistValues(col, byKey);
+    return this.sortChecklistOptions(byKey);
+  }
+
+  /** Adds every ticked value the list doesn't already contain — otherwise paging or a narrower result would silently drop ticks */
+  private mergeTickedChecklistValues(col: WeGridInternalColumn<T>, byKey: Map<string, WeGridChecklistOption>): void {
+    const current = this.filterState.get(col.field);
+    if (current?.operator !== 'in' || !Array.isArray(current.value)) return;
+    for (const value of current.value as unknown[]) {
+      const key = weGridFilterValueKey(value);
+      if (byKey.has(key)) continue;
+      const blank = value === null || value === undefined || value === '';
+      byKey.set(key, { value: blank ? null : value, key, label: this.checklistValueLabel(col, value), blank });
+    }
+  }
+
+  /** "(Empty)" first, then alphabetically by label in the locale's collation — the same ordering the group headers use */
+  private sortChecklistOptions(byKey: Map<string, WeGridChecklistOption>): WeGridChecklistOption[] {
     return Array.from(byKey.values()).sort((a, b) => {
       if (a.blank !== b.blank) return a.blank ? -1 : 1;
-      return a.label.localeCompare(b.label);
+      return a.label.localeCompare(b.label, this.locale.intlLocale);
     });
+  }
+
+  /**
+   * Where a checklist column's values come from right now. The provider applies only while the grid
+   * filters on the server; a column can pin itself to the loaded rows. Both misconfigurations — a
+   * server-filtered checklist without a provider, a provider on a client-filtered grid — fall back
+   * to the loaded rows and say so once per field in dev mode.
+   */
+  private checklistSource(col: WeGridInternalColumn<T>): 'loaded' | 'provider' {
+    if (col.headerFilterSource === 'loaded') return 'loaded';
+    if (!this.checklistValuesProvider) {
+      if (this.isServerFilter) {
+        this.warnChecklistSourceOnce(
+          col,
+          `lists only the loaded page's values although filtering runs on the server — pass checklistValuesProvider ` +
+            `to list the whole dataset, or set headerFilterSource: 'loaded' on the column if the page is enough.`
+        );
+      }
+      return 'loaded';
+    }
+    if (!this.isServerFilter) {
+      this.warnChecklistSourceOnce(
+        col,
+        `ignores checklistValuesProvider because filtering runs client-side (filterMode / serverSide), where a ` +
+          `value the loaded rows don't contain could never match — it lists the loaded rows' values instead.`
+      );
+      return 'loaded';
+    }
+    return 'provider';
+  }
+
+  private warnChecklistSourceOnce(col: WeGridInternalColumn<T>, message: string): void {
+    if (!isDevMode() || this.warnedChecklistSourceFields.has(col.field)) return;
+    this.warnedChecklistSourceFields.add(col.field);
+    // eslint-disable-next-line no-console
+    console.warn(`[we-grid] The checklist of column '${col.field}' ${message}`);
   }
 
   /** Applies a checklist selection — an empty selection removes the column's filter entirely */
@@ -928,12 +1090,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return weGridInFilterValueLabel(filter.value as unknown[], (value) => this.checklistValueLabel(col, value));
   }
 
-  /** The readable label of a single picked value — the remembered one, falling back to plain formatting */
+  /** The readable label of a single picked value — the remembered one, then the column's `checklistValueLabel`, then plain formatting */
   private checklistValueLabel(col: WeGridInternalColumn<T>, value: unknown): string {
     if (value === null || value === undefined || value === '') return this.locale.emptyGroupValue;
     const remembered = this.checklistLabels.get(col.field)?.get(weGridFilterValueKey(value));
     if (remembered) return remembered;
-    return formatWeGridValue(value, col.type, col.format, { yesLabel: this.locale.yes, noLabel: this.locale.no });
+    return col.checklistValueLabel?.(value) ?? formatWeGridValue(value, col.type, col.format, this.valueFormatOptions());
   }
 
   private checklistLabelsFor(field: string): Map<string, string> {
@@ -1021,16 +1183,95 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.filterPopoverColumn = col;
     componentRef.setInput('column', col);
     componentRef.setInput('filterState', this.getFilterState(col));
-    componentRef.setInput('options', col.headerFilterMode === 'checklist' ? this.checklistOptionsFor(col) : []);
+    const source = col.headerFilterMode === 'checklist' ? this.checklistSource(col) : null;
+    componentRef.setInput('options', source === 'loaded' ? this.checklistOptionsFor(col) : []);
+    if (source === 'provider') {
+      componentRef.setInput('remoteSearch', true);
+      componentRef.setInput('valuesLimit', col.checklistValuesLimit ?? this.checklistValuesLimit);
+    }
+    componentRef.setInput('pageOnlyHint', source === 'loaded' && this.isServerFilter);
 
     componentRef.instance.action.pipe(takeUntil(this.destroy$)).subscribe((action) => this.handleFilterPopoverAction(col, action, origin));
+    if (source === 'provider') this.startChecklistRequests(col);
 
     componentRef.changeDetectorRef.detectChanges();
     componentRef.instance.focusFirstControl();
   }
 
+  /**
+   * Wires the open popover to `checklistValuesProvider`: the unsearched list right away, then one
+   * request per search term once `checklistSearchDebounceMs` has passed. `switchMap` unsubscribes an
+   * outdated request as soon as a newer term arrives — a slow answer for "ist" can never overwrite
+   * the list for "istanbul" — and the stream ends with the popover.
+   */
+  private startChecklistRequests(col: WeGridInternalColumn<T>): void {
+    const provider = this.checklistValuesProvider;
+    if (!provider) return;
+    const requests$ = new Subject<{ search: string | null; debounce: boolean }>();
+    this.checklistRequest$ = requests$;
+
+    requests$
+      .pipe(
+        switchMap(({ search, debounce: debounced }) => {
+          const wait$: Observable<unknown> = debounced ? timer(Math.max(0, this.checklistSearchDebounceMs)) : of(null);
+          return wait$.pipe(
+            switchMap(() => {
+              this.checklistSearch = search;
+              const request = this.buildChecklistValuesRequest(col, search);
+              this.updateChecklistPopover({ loading: true, loadError: false });
+              return defer(() => provider(request)).pipe(
+                map((result): { request: WeGridChecklistValuesRequest; result: WeGridChecklistValuesResult | null } => ({ request, result })),
+                catchError(() => of({ request, result: null }))
+              );
+            })
+          );
+        }),
+        takeUntil(merge(this.filterPopoverClosed$, this.destroy$))
+      )
+      .subscribe(({ request, result }) => {
+        if (!result) {
+          this.updateChecklistPopover({ loading: false, loadError: true, hasMore: false, options: [] });
+          return;
+        }
+        this.updateChecklistPopover({
+          loading: false,
+          loadError: false,
+          hasMore: result.hasMore,
+          options: this.checklistOptionsFromValues(col, result.values ?? [], request.search === null)
+        });
+      });
+
+    requests$.next({ search: null, debounce: false });
+  }
+
+  private buildChecklistValuesRequest(col: WeGridInternalColumn<T>, search: string | null): WeGridChecklistValuesRequest {
+    const term = search?.trim() ?? '';
+    return {
+      field: col.field,
+      search: term === '' ? null : term,
+      // The column's own filter stays out — see WeGridChecklistValuesRequest.filters
+      filters: Array.from(this.filterState.values()).filter((filter) => filter.field !== col.field && isWeGridFilterActive(filter)),
+      limit: col.checklistValuesLimit ?? this.checklistValuesLimit
+    };
+  }
+
+  /** The popover is OnPush and owns no state of its own here — every change is fed in through setInput */
+  private updateChecklistPopover(state: { loading?: boolean; loadError?: boolean; hasMore?: boolean; options?: WeGridChecklistOption[] }): void {
+    const ref = this.filterPopoverComponentRef;
+    if (!ref) return;
+    for (const [name, value] of Object.entries(state)) {
+      ref.setInput(name, value);
+    }
+  }
+
   private handleFilterPopoverAction(col: WeGridInternalColumn<T>, action: WeGridFilterPopoverAction, returnFocusEl: HTMLElement): void {
     switch (action.type) {
+      case 'search':
+        this.checklistRequest$?.next({ search: action.term, debounce: true });
+        return;
+      case 'retry':
+        this.checklistRequest$?.next({ search: this.checklistSearch, debounce: false });
+        return;
       case 'operator':
         this.setFilterOperator(col, action.operator);
         break;
@@ -1058,6 +1299,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   private closeFilterPopover(returnFocusEl?: HTMLElement | null): void {
+    // Ended before the overlay goes: a response arriving after this has no popover to write into
+    this.filterPopoverClosed$.next();
+    this.checklistRequest$ = null;
+    this.checklistSearch = null;
     this.filterPopoverOpenField = null;
     this.filterPopoverColumn = null;
     if (!this.filterOverlayRef) return;
@@ -1090,10 +1335,18 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   private applyQuickFilter(field: string, rawValue: unknown): void {
     const col = this.internalColumns.find((c) => c.field === field);
-    if (!col) return;
-    const value = weGridQuickFilterValueToInputString(rawValue, col.type);
-    const operator: WeGridFilterOperator = col.type === 'text' || col.type === 'custom' ? 'equals' : 'eq';
-    this.filterState.set(field, { field, operator, value });
+    // The header menu already hides the item on a non-filterable column and on one whose
+    // filterOperators rule out an exact match — this guards every other way the action can arrive.
+    const operator = col?.filterable ? weGridQuickFilterOperator(col) : null;
+    if (!col || !operator) return;
+    if (operator === 'in') {
+      // A checklist column's filter is always 'in' over raw values: the shape its popover reads the
+      // ticks back from, and the only operator the server-side contract gives an array.
+      const blank = rawValue === null || rawValue === undefined || rawValue === '';
+      this.filterState.set(field, { field, operator, value: [blank ? null : rawValue] });
+    } else {
+      this.filterState.set(field, { field, operator, value: weGridQuickFilterValueToInputString(rawValue, col.type) });
+    }
     this.filterRowVisible = true;
     this.applyFiltersNow();
     this.scheduleLayoutSave();
@@ -1121,7 +1374,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       else buckets.set(key, [row]);
     }
     this.groupedSections = Array.from(buckets.entries())
-      .sort((a, b) => a[0].localeCompare(b[0]))
+      .sort((a, b) => a[0].localeCompare(b[0], this.locale.intlLocale))
       .map(([key, rows]) => {
         const isEmpty = key === ' EMPTY';
         const label = isEmpty
@@ -1129,7 +1382,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
           : col?.displayValue
             ? col.displayValue(rows[0])
             : col
-              ? formatWeGridValue(getNestedValue(rows[0], field), col.type, col.format, { yesLabel: this.locale.yes, noLabel: this.locale.no })
+              ? formatWeGridValue(getNestedValue(rows[0], field), col.type, col.format, this.valueFormatOptions())
               : key;
         return {
           key,
@@ -1716,8 +1969,18 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   onCellContextMenu(event: MouseEvent, col: WeGridInternalColumn<T>, row: T): void {
     if (!this.grouping) return;
     event.preventDefault();
+    const raw = getNestedValue(row, col.field);
+    if (col.headerFilterMode === 'checklist') {
+      // A checklist filters on raw codes, so the raw value travels and its label is remembered for
+      // the chip — the row it came from is gone by the time the chip renders.
+      if (col.displayValue && raw !== null && raw !== undefined && raw !== '') {
+        this.checklistLabelsFor(col.field).set(weGridFilterValueKey(raw), col.displayValue(row));
+      }
+      this.openHeaderMenu({ x: event.clientX, y: event.clientY }, col, { value: raw });
+      return;
+    }
     // When displayValue is given, "filter by this value" uses the label the user sees instead of the raw code
-    const value = col.displayValue ? col.displayValue(row) : getNestedValue(row, col.field);
+    const value = col.displayValue ? col.displayValue(row) : raw;
     this.openHeaderMenu({ x: event.clientX, y: event.clientY }, col, { value });
   }
 
@@ -1903,11 +2166,23 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.density = 'normal';
     this.clientSort = null;
     this.filterRowVisible = false;
+    const hadActiveFilter = this.hasActiveFilters;
     this.filterState.clear();
     this.checklistLabels.clear();
     this.groupField = null;
     this.groupCollapsedKeys.clear();
     this.refreshDisplayData();
+
+    // persistLayout() is deliberately unreachable from here (it would PUT back the record the reset
+    // just deleted), so the snapshot is emitted directly — a pure read, no store call.
+    this.layoutChange.emit(this.buildLayoutSnapshot());
+    // A server-side screen would otherwise keep querying with filters the user no longer sees. The
+    // pending debounce window is flushed rather than waited out: the reset is one deliberate click,
+    // and an unsent keystroke emit has to collapse into this one instead of trailing it.
+    if (hadActiveFilter) {
+      this.filterEmit$.next();
+      this.filterEmitFlush$.next();
+    }
   }
 
   private autofitColumn(col: WeGridInternalColumn<T>): void {

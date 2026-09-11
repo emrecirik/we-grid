@@ -16,6 +16,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { WeGridDensity, WeGridSortDirection, WeGridSummaryFunction, isWeGridNumericSummaryType } from '../models/we-grid-column.model';
 import { WeGridInternalColumn, weGridDisplayHeader } from '../models/we-grid-internal.model';
 import { WeGridMenuAction } from '../models/we-grid-menu-action.model';
+import { weGridQuickFilterOperator } from '../models/we-grid-filter.model';
 import { WE_GRID_ICONS, WeGridIcons } from '../models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 
@@ -75,6 +76,15 @@ export class WeGridHeaderMenuComponent implements OnInit {
 
   displayHeader(col: WeGridInternalColumn<unknown>): string {
     return weGridDisplayHeader(col);
+  }
+
+  /**
+   * "Filter by this value" is left out on a column the user can't filter (`filterable: false`) and
+   * on one whose `filterOperators` rule out the exact match it stands for — the grid ignores the
+   * action there anyway, so offering it would be a button that does nothing.
+   */
+  get canQuickFilter(): boolean {
+    return !!this.column && this.column.filterable && weGridQuickFilterOperator(this.column) !== null;
   }
 
   /** sum/avg/min/max options are only offered on numeric columns — text/date/boolean only get Count/None */

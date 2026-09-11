@@ -20,7 +20,11 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - Density modes (comfortable / normal / compact)
 - Per-user layout persisted automatically (localStorage by default, pluggable backend store)
 - Filter row + a per-column filter popover, with active-filter chips
-- Excel-style checklist header filter: tick the distinct values of the page, one `'in'` filter leaves
+- Excel-style checklist header filter: tick the distinct values, one `'in'` filter leaves — from the
+  loaded page, or from the whole dataset through `checklistValuesProvider`
+- Per-column operator restriction (`filterOperators`) for fields the backend can only match one way
+- Locale-aware values: `weGridLocaleTr` formats `1.234,50` / `11.09.2026`, matches "İSTANBUL" for
+  "istanbul" and sorts Ç/Ş/İ where the Turkish alphabet puts them
 - Single-level grouping with collapsible sections and per-group summaries
 - Subtotal (summary) row: sum / average / min / max / count, per column
 - Master-detail row expansion via a `weGridRowDetail` template

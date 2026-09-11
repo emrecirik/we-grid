@@ -35,6 +35,32 @@ describe('formatWeGridValue', () => {
   });
 });
 
+// NOTE: the locale-specific cases use 'tr-TR' or an explicit timeZone, so they populate formatter
+// cache keys of their own and never pre-warm the 'en-US' entries the cache tests below count.
+describe('formatWeGridValue — locale, currency and time zone options', () => {
+  it('formats numbers with the Turkish separators', () => {
+    expect(formatWeGridValue(1234.5, 'number', '2-2', { locale: 'tr-TR' })).toBe('1.234,50');
+  });
+
+  it('formats a date as dd.MM.yyyy in Turkish', () => {
+    expect(formatWeGridValue(new Date(2026, 8, 11), 'date', undefined, { locale: 'tr-TR' })).toBe('11.09.2026');
+  });
+
+  it('uses the currency option only when the column names no currency of its own', () => {
+    const lira = formatWeGridValue(1234.5, 'currency', undefined, { locale: 'tr-TR', currency: 'TRY' });
+    expect(lira).toContain('₺');
+    expect(lira).toContain('1.234,50');
+    expect(formatWeGridValue(1234.5, 'currency', 'EUR', { locale: 'tr-TR', currency: 'TRY' })).toContain('€');
+    expect(formatWeGridValue(1234.5, 'currency', undefined, { locale: 'tr-TR' })).toContain('$');
+  });
+
+  it('shows a date in the requested time zone', () => {
+    const instant = new Date('2026-09-10T21:30:00.000Z');
+    expect(formatWeGridValue(instant, 'date', undefined, { locale: 'tr-TR', timeZone: 'Europe/Istanbul' })).toBe('11.09.2026');
+    expect(formatWeGridValue(instant, 'date', undefined, { locale: 'tr-TR', timeZone: 'UTC' })).toBe('10.09.2026');
+  });
+});
+
 // On large grids (200 rows x 15 columns), constructing a fresh Intl.NumberFormat/DateTimeFormat on
 // every cell/every CD cycle would be wasteful — cached at module scope instead. Here we confirm the
 // constructor is NOT called again for the same locale+options combination.

@@ -10,8 +10,26 @@
       class="we-grid-filter-popover__input"
       [placeholder]="locale.filterSearchPlaceholder"
       [attr.aria-label]="locale.filterSearchPlaceholder + ': ' + headerLabel"
-      [(ngModel)]="search"
+      [ngModel]="search"
+      (ngModelChange)="onSearchChange($event)"
     />
+
+    <!-- The live region exists before its first message, so loading/error/limit notes are announced -->
+    @if (remoteSearch || pageOnlyHint) {
+      <div class="we-grid-filter-popover__status" aria-live="polite">
+        @if (loading) {
+          <p class="we-grid-filter-popover__note">{{ locale.checklistValuesLoading }}</p>
+        } @else if (loadError) {
+          <p class="we-grid-filter-popover__note we-grid-filter-popover__note--error">{{ locale.checklistValuesError }}</p>
+          <button type="button" class="we-grid-filter-popover__btn we-grid-filter-popover__retry" (click)="retry()">{{ locale.retry }}</button>
+        } @else if (hasMore) {
+          <p class="we-grid-filter-popover__note">{{ locale.checklistValuesTruncated(valuesLimit) }}</p>
+        }
+        @if (pageOnlyHint) {
+          <p class="we-grid-filter-popover__note">{{ locale.onlyThisPageSearched }}</p>
+        }
+      </div>
+    }
 
     @if (!isSingleSelect && visibleOptions.length > 0) {
       <label class="we-grid-filter-popover__option we-grid-filter-popover__option--all">
@@ -30,6 +48,7 @@
       class="we-grid-filter-popover__list"
       role="group"
       [attr.aria-label]="locale.filterAriaLabel + ': ' + headerLabel"
+      [attr.aria-busy]="loading || null"
       (keydown)="onChecklistKeydown($event)"
     >
       @for (option of visibleOptions; track option.key) {
@@ -45,7 +64,9 @@
           <span class="we-grid-filter-popover__option-label" [title]="option.label">{{ option.label }}</span>
         </label>
       } @empty {
-        <p class="we-grid-filter-popover__empty">{{ locale.noMatchingValues }}</p>
+        @if (!loading && !loadError) {
+          <p class="we-grid-filter-popover__empty">{{ locale.noMatchingValues }}</p>
+        }
       }
     </div>
   } @else if (column?.type === 'boolean') {
@@ -61,10 +82,9 @@
     </select>
   } @else if (column?.type === 'number' || column?.type === 'currency') {
     <select class="we-grid-filter-popover__select" [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + headerLabel" [ngModel]="filterState.operator" (ngModelChange)="emitOperator($event)">
-      <option value="eq">=</option>
-      <option value="gt">&gt;</option>
-      <option value="lt">&lt;</option>
-      <option value="between">{{ locale.between }}</option>
+      @for (op of operators; track op) {
+        <option [value]="op">{{ operatorLabel(op) }}</option>
+      }
     </select>
     @if (filterState.operator === 'between') {
       <div class="we-grid-filter-popover__range">
@@ -77,10 +97,9 @@
     }
   } @else if (column?.type === 'date' || column?.type === 'datetime') {
     <select class="we-grid-filter-popover__select" [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + headerLabel" [ngModel]="filterState.operator" (ngModelChange)="emitOperator($event)">
-      <option value="eq">{{ locale.equals }}</option>
-      <option value="before">{{ locale.before }}</option>
-      <option value="after">{{ locale.after }}</option>
-      <option value="between">{{ locale.between }}</option>
+      @for (op of operators; track op) {
+        <option [value]="op">{{ operatorLabel(op) }}</option>
+      }
     </select>
     @if (filterState.operator === 'between') {
       <div class="we-grid-filter-popover__range">
@@ -93,9 +112,9 @@
     }
   } @else {
     <select class="we-grid-filter-popover__select" [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + headerLabel" [ngModel]="filterState.operator" (ngModelChange)="emitOperator($event)">
-      <option value="contains">{{ locale.contains }}</option>
-      <option value="startsWith">{{ locale.startsWith }}</option>
-      <option value="equals">{{ locale.equals }}</option>
+      @for (op of operators; track op) {
+        <option [value]="op">{{ operatorLabel(op) }}</option>
+      }
     </select>
     <input type="text" class="we-grid-filter-popover__input" [placeholder]="locale.value" [ngModel]="filterState.value" (ngModelChange)="emitValue($event, 'value')" />
   }

@@ -280,10 +280,9 @@
                           [ngModel]="getFilterState(col).operator"
                           (ngModelChange)="setFilterOperator(col, $event)"
                         >
-                          <option value="eq">=</option>
-                          <option value="gt">&gt;</option>
-                          <option value="lt">&lt;</option>
-                          <option value="between">{{ locale.between }}</option>
+                          @for (op of filterOperatorsFor(col); track op) {
+                            <option [value]="op">{{ filterOperatorLabel(col, op) }}</option>
+                          }
                         </select>
                         @if (getFilterState(col).operator === 'between') {
                           <input type="number" class="we-grid__filter-input we-grid__filter-input--sm" placeholder="min" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
@@ -298,10 +297,9 @@
                           [ngModel]="getFilterState(col).operator"
                           (ngModelChange)="setFilterOperator(col, $event)"
                         >
-                          <option value="eq">{{ locale.equals }}</option>
-                          <option value="before">{{ locale.before }}</option>
-                          <option value="after">{{ locale.after }}</option>
-                          <option value="between">{{ locale.between }}</option>
+                          @for (op of filterOperatorsFor(col); track op) {
+                            <option [value]="op">{{ filterOperatorLabel(col, op) }}</option>
+                          }
                         </select>
                         @if (getFilterState(col).operator === 'between') {
                           <input type="date" class="we-grid__filter-input we-grid__filter-input--sm" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
@@ -316,9 +314,9 @@
                           [ngModel]="getFilterState(col).operator"
                           (ngModelChange)="setFilterOperator(col, $event)"
                         >
-                          <option value="contains">{{ locale.contains }}</option>
-                          <option value="startsWith">{{ locale.startsWith }}</option>
-                          <option value="equals">{{ locale.equals }}</option>
+                          @for (op of filterOperatorsFor(col); track op) {
+                            <option [value]="op">{{ filterOperatorLabel(col, op) }}</option>
+                          }
                         </select>
                         <input type="text" class="we-grid__filter-input" [placeholder]="locale.value" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
                       }

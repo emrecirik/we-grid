@@ -13,7 +13,13 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, delay, map, shareReplay } from 'rxjs';
-import { WeGridColumnFilterState, WeGridSortDirection } from 'we-grid-angular';
+import {
+  WeGridChecklistValue,
+  WeGridChecklistValuesRequest,
+  WeGridChecklistValuesResult,
+  WeGridColumnFilterState,
+  WeGridSortDirection
+} from 'we-grid-angular';
 
 import { Order, orderStatusLabel } from '../models/ecommerce.models';
 import { OrderKpis } from '../models/ecommerce.models';
@@ -79,6 +85,33 @@ export class OrderApiService {
           kpis: this.computeKpis(filtered),
           totals: { totalAmount: filtered.reduce((sum, order) => sum + order.totalAmount, 0) }
         };
+      }),
+      delay(NETWORK_DELAY_MS)
+    );
+  }
+
+  /**
+   * The checklist's values over the WHOLE order table — `SELECT DISTINCT status_code … WHERE <every
+   * other filter>` in SQL. The grid already leaves the requested column's own filter out of
+   * `request.filters`; adding it back here would hide every status that isn't ticked yet. The
+   * search box matches the label the user reads, and the label travels with the raw code.
+   */
+  getChecklistValues(request: WeGridChecklistValuesRequest): Observable<WeGridChecklistValuesResult> {
+    return this.orders$.pipe(
+      map((all) => {
+        const filtered = applyMockFilters(all, this.translateFilters(request.filters), ORDER_FIELD_TYPES);
+        const search = request.search?.toLowerCase();
+        const distinct = new Map<string, WeGridChecklistValue>();
+        for (const order of filtered) {
+          const value = (order as unknown as Record<string, unknown>)[request.field];
+          const key = String(value ?? '');
+          if (distinct.has(key)) continue;
+          const label = request.field === 'statusCode' ? order.statusLabel : key;
+          if (search && !label.toLowerCase().includes(search)) continue;
+          distinct.set(key, { value, label });
+        }
+        const values = Array.from(distinct.values());
+        return { values: values.slice(0, request.limit), hasMore: values.length > request.limit };
       }),
       delay(NETWORK_DELAY_MS)
     );

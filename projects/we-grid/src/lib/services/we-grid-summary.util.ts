@@ -13,25 +13,27 @@ interface SummaryColumnLike {
 }
 
 function summaryLabels(locale: WeGridLocale): Record<WeGridSummaryScope, Record<Exclude<WeGridSummaryFunction, 'none'>, string>> {
+  // serverSide=false — all the data is already loaded, a genuine total
+  const client = { sum: locale.sum, avg: locale.average, min: locale.min, max: locale.max, count: locale.count };
   return {
-    // override coming from the server's summaryValues — a genuine grand total
+    // override coming from the server's summaryValues — a genuine grand total. The locale builds the
+    // whole label: a fixed "Grand " prefix can't produce languages that inflect the word it joins.
     override: {
-      sum: `Grand ${locale.sum.toLowerCase()}`,
-      avg: `Grand ${locale.average.toLowerCase()}`,
-      min: `Grand ${locale.min.toLowerCase()}`,
-      max: `Grand ${locale.max.toLowerCase()}`,
-      count: `Grand ${locale.count.toLowerCase()}`
+      sum: locale.summaryGrand(client.sum),
+      avg: locale.summaryGrand(client.avg),
+      min: locale.summaryGrand(client.min),
+      max: locale.summaryGrand(client.max),
+      count: locale.summaryGrand(client.count)
     },
     // serverSide=true but no override — only the totals of the LOADED PAGE, labeled separately so the user isn't misled
     server: {
-      sum: `Page ${locale.sum.toLowerCase()}`,
-      avg: `Page ${locale.average.toLowerCase()}`,
-      min: `Page ${locale.min.toLowerCase()}`,
-      max: `Page ${locale.max.toLowerCase()}`,
-      count: `Page ${locale.count.toLowerCase()}`
+      sum: locale.summaryPage(client.sum),
+      avg: locale.summaryPage(client.avg),
+      min: locale.summaryPage(client.min),
+      max: locale.summaryPage(client.max),
+      count: locale.summaryPage(client.count)
     },
-    // serverSide=false — all the data is already loaded, a genuine total
-    client: { sum: locale.sum, avg: locale.average, min: locale.min, max: locale.max, count: locale.count }
+    client
   };
 }
 
@@ -72,11 +74,12 @@ export function computeWeGridSummary<T>(rows: T[], field: string, fn: WeGridSumm
 }
 
 /** count is always a whole number — even if the column is currency/formatted, it never gets decimals or a currency symbol */
-function formatSummaryNumber(value: number, col: SummaryColumnLike, fn: Exclude<WeGridSummaryFunction, 'none'>): string {
+function formatSummaryNumber(value: number, col: SummaryColumnLike, fn: Exclude<WeGridSummaryFunction, 'none'>, locale: WeGridLocale): string {
+  const options = { locale: locale.intlLocale, currency: locale.intlCurrency };
   if (fn === 'count') {
-    return formatWeGridValue(value, 'number', '0-0');
+    return formatWeGridValue(value, 'number', '0-0', options);
   }
-  return formatWeGridValue(value, col.type, col.format);
+  return formatWeGridValue(value, col.type, col.format, options);
 }
 
 /**
@@ -96,11 +99,11 @@ export function buildWeGridSummaryText<T>(
   const fn = col.summary;
 
   if (overrideValue !== undefined) {
-    return `${weGridSummaryLabel(fn, 'override', locale)}: ${formatSummaryNumber(overrideValue, col, fn)}`;
+    return `${weGridSummaryLabel(fn, 'override', locale)}: ${formatSummaryNumber(overrideValue, col, fn, locale)}`;
   }
 
   const computed = computeWeGridSummary(rows, col.field, fn);
   const label = weGridSummaryLabel(fn, scope, locale);
   if (computed === null) return `${label}: -`;
-  return `${label}: ${formatSummaryNumber(computed, col, fn)}`;
+  return `${label}: ${formatSummaryNumber(computed, col, fn, locale)}`;
 }

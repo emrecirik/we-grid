@@ -116,6 +116,35 @@ The grid deliberately never emits `(pageChange)` alongside `(filterChange)`: set
 in the handler and reloading once is the whole protocol, so there is no page event racing a filter
 event and no way to end up issuing two queries for one user action.
 
+### Every way a filter changes is emitted
+
+`(filterChange)` is the only thing a server-side screen knows the filters from, so every path that
+changes them reports it — including two that used to stay silent before 0.4.0:
+
+- **Reset layout** (header menu) clears every filter. When one was active it emits a single empty
+  `(filterChange)` with `resetPage: true` straight away, without waiting out `filterDebounceMs`;
+  when none was, it emits nothing. It also emits `(layoutChange)` with the default layout — without
+  saving it, since the reset has just deleted the stored record.
+- **Filter by this value** (cell context menu) is not offered on a `filterable: false` column, and
+  does nothing there if the action arrives anyway. On a checklist column it produces the same
+  `{ operator: 'in', value: [rawValue] }` a tick in the checklist would, so the backend receives one
+  shape per column and the checklist shows the value as ticked.
+
+### Restricting operators per column (`filterOperators`)
+
+When the backend can only run some operators on a field — an exact match on a column without a
+`LIKE`-friendly index, say — declare them, and the filter row and popover offer nothing else:
+
+```ts
+{ field: 'taxNumber', header: 'Tax no.', filterOperators: ['equals'] },
+{ field: 'amount', header: 'Amount', type: 'currency', filterOperators: ['gt', 'lt', 'between'] }
+```
+
+The first operator is the column's default. Operators that don't belong to the column's type are
+ignored, and a list with nothing usable left falls back to the full list with a dev-mode warning.
+"Filter by this value" is hidden on a column whose list doesn't contain the exact match it stands for
+(`equals` for text, `eq` otherwise) rather than sending an operator the backend doesn't accept.
+
 ## The checklist header filter (`headerFilterMode: 'checklist'`)
 
 A column whose values come from a closed set reads better as a list of ticks than as an operator
@@ -136,8 +165,14 @@ columns: WeGridColumnDef<Order>[] = [
 The funnel icon then opens a list of the **distinct values of the loaded rows** — with a search
 box, a select-all box and an "(Empty)" entry for null/blank cells. The list is built from the `data`
 input alone: the grid issues no request of its own to discover what values a column can take, which
-is why it shows what the current page contains. Anything already ticked stays in the list and stays
-ticked even after paging to rows that no longer contain it.
+is why it shows what the current page contains — unless you give it a
+[`checklistValuesProvider`](#populating-the-checklist-from-the-whole-dataset-checklistvaluesprovider).
+Anything already ticked stays in the list and stays ticked even after paging to rows that no longer
+contain it.
+
+On a grid that filters on the server, a checklist without a provider says "Only this page is
+searched" in its popover and logs a one-time warning in dev mode — a user looking for a value that
+lives on page 7 would otherwise never find out why it isn't there.
 
 What leaves the grid is one ordinary filter:
 
@@ -170,6 +205,83 @@ were collected from — that is the point of sending it to the backend at all.
 
 With `filterMode='client'` the same `'in'` filter is applied by `applyWeGridFilters` over the
 loaded rows, so a grid can switch between the two without changing a column definition.
+
+### Populating the checklist from the whole dataset (`checklistValuesProvider`)
+
+On page 1 of 25 a list built from the loaded rows is missing most of what a column can contain.
+Give the grid a provider and every checklist column asks it instead — for the whole table, narrowed
+by the other active filters:
+
+```ts
+import { map } from 'rxjs';
+import { WeGridChecklistValuesProvider } from 'we-grid-angular';
+
+checklistValues: WeGridChecklistValuesProvider = (request) =>
+  this.http
+    .post<{ values: { value: number; label: string }[]; hasMore: boolean }>('/api/orders/distinct-values', {
+      ...this.screenCriteria(),          // whatever the screen filters on outside the grid
+      field: request.field,
+      search: request.search,
+      filters: request.filters,
+      limit: request.limit
+    });
+```
+
+```html
+<we-grid ... [serverSide]="true" filterMode="server" (filterChange)="onFilterChange($event)"
+         [checklistValuesProvider]="checklistValues"></we-grid>
+```
+
+What the grid sends and expects:
+
+| `WeGridChecklistValuesRequest` | |
+|---|---|
+| `field` | The column being filtered. |
+| `search` | The popover's search box, trimmed — `null` while it is empty. |
+| `filters` | Every active filter **except this column's own**. |
+| `limit` | `checklistValuesLimit` of the column, else of the grid (200). |
+
+| `WeGridChecklistValuesResult` | |
+|---|---|
+| `values` | `{ value, label? }[]` — raw values; `null` is the "(Empty)" entry. |
+| `hasMore` | More values exist beyond `limit`; the popover says only the first ones are listed. |
+
+**Why the column's own filter is left out.** Opening "Status" while "Status in (Draft)" is active
+must still list Approved and Shipped — otherwise the user could only ever see what is already
+ticked. The backend has to mirror this: apply `filters` as given, and don't add the column's own
+selection back in. The other filters *do* apply, so with "Supplier: ABC" active the Status list
+only holds statuses ABC's orders actually have.
+
+A few rules the grid follows:
+
+- **Search** is debounced (`checklistSearchDebounceMs`, 300ms) and each new term cancels the request
+  before it — return a cold Observable such as `HttpClient`'s and the HTTP call is really aborted.
+  The search goes to the backend as typed, for number and enum columns too; ignore it where it
+  makes no sense.
+- **Labels** come from the value's `label`, then the column's `checklistValueLabel(value)`, then
+  plain formatting. `displayValue` can't be used here — it needs a row, and the value may come from
+  a page that was never loaded.
+- **Ticks survive**: a ticked value missing from the unsearched result stays listed and ticked. A
+  search result is shown as returned.
+- **Failure** shows an error line and a Retry button instead of an empty list.
+- **Keep `limit` at or below what your backend accepts** in one `IN (...)`, so a select-all over the
+  listed values can always be applied.
+- **No caching**: every open asks again, since other users may have changed the data meanwhile.
+  Wrap your provider in `shareReplay` if a screen really needs it.
+- The provider is **only used while filtering runs on the server** (`isServerFilter`). A
+  client-filtered grid applies the selection to the loaded rows, where a value found elsewhere could
+  never match, so it keeps listing the loaded rows and warns once in dev mode.
+- A column that holds something the backend has no column for — a flag computed on the client —
+  opts out with `headerFilterSource: 'loaded'`.
+
+```ts
+{ field: 'statusCode', header: 'Status', headerFilterMode: 'checklist',
+  checklistValueLabel: (code) => ORDER_STATUS_LABELS[code as number] ?? String(code),
+  checklistValuesLimit: 50 }
+```
+
+Like every other filter source, the endpoint must only reveal values from rows the user is allowed
+to see — apply the same authorization and scoping as the list query itself.
 
 ## Summary row and `summaryValues`
 

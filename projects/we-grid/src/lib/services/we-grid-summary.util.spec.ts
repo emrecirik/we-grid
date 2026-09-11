@@ -1,3 +1,4 @@
+import { weGridLocaleTr } from '../models/we-grid-locale.model';
 import { computeWeGridSummary, buildWeGridSummaryText, weGridSummaryLabel } from './we-grid-summary.util';
 
 interface Row {
@@ -103,5 +104,34 @@ describe('weGridSummaryLabel', () => {
     expect(weGridSummaryLabel('sum', 'server')).toBe('Page sum');
     expect(weGridSummaryLabel('sum', 'override')).toBe('Grand sum');
     expect(weGridSummaryLabel('count', 'client')).toBe('Count');
+  });
+});
+
+describe('Summary labels and numbers with the Turkish locale', () => {
+  const rows: Row[] = [
+    { qty: 1000, code: 'A' },
+    { qty: 234.5, code: 'B' }
+  ];
+  const col = { field: 'qty', type: 'number' as const, format: '2-2', summary: 'sum' as const };
+
+  it('labels a loaded-page total "Sayfa toplamı" and formats it with Turkish separators', () => {
+    expect(buildWeGridSummaryText(rows, col, 'server', undefined, weGridLocaleTr)).toBe('Sayfa toplamı: 1.234,50');
+  });
+
+  it('labels a server override "Genel toplam"', () => {
+    expect(buildWeGridSummaryText(rows, col, 'server', 999999, weGridLocaleTr)).toBe('Genel toplam: 999.999,00');
+  });
+
+  it('builds the possessive form for every shipped function label', () => {
+    expect(weGridSummaryLabel('avg', 'server', weGridLocaleTr)).toBe('Sayfa ortalaması');
+    expect(weGridSummaryLabel('count', 'server', weGridLocaleTr)).toBe('Sayfa sayımı');
+    expect(weGridSummaryLabel('min', 'server', weGridLocaleTr)).toBe('Sayfa min');
+    expect(weGridSummaryLabel('max', 'server', weGridLocaleTr)).toBe('Sayfa maks');
+    expect(weGridSummaryLabel('avg', 'override', weGridLocaleTr)).toBe('Genel ortalama');
+    expect(weGridSummaryLabel('sum', 'client', weGridLocaleTr)).toBe('Toplam');
+  });
+
+  it('falls back to the plain lowercase word for a relabelled function', () => {
+    expect(weGridSummaryLabel('sum', 'server', { ...weGridLocaleTr, sum: 'Tutar' })).toBe('Sayfa tutar');
   });
 });

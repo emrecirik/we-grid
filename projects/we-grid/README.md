@@ -44,7 +44,10 @@ default theme to your global styles:
   or your own backend through the `WE_GRID_LAYOUT_STORE` token)
 - Filter row, per-column filter popover, active-filter chips
 - Excel-style checklist header filter (`headerFilterMode: 'checklist'`) — tick the distinct values
-  of the loaded page, and one `'in'` filter goes to the backend
+  of the loaded page, or of the whole dataset through `checklistValuesProvider`, and one `'in'`
+  filter goes to the backend
+- Per-column operator restriction (`filterOperators`)
+- Locale-aware number/date formatting, text matching and sorting (`intlLocale` on `WeGridLocale`)
 - Single-level grouping with collapsible sections and per-group summaries
 - Subtotal row: sum / average / min / max / count, per column
 - Master-detail rows via a `weGridRowDetail` template

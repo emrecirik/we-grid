@@ -1,6 +1,12 @@
 import { WeGridColumnFilterState, isWeGridFilterActive, weGridFilterValueKey } from '../models/we-grid-filter.model';
-import { weGridLocaleTr } from '../models/we-grid-locale.model';
-import { applyWeGridFilters, weGridFilterChipLabel, weGridInFilterValueLabel } from './we-grid-filter.util';
+import { weGridLocaleEn, weGridLocaleTr } from '../models/we-grid-locale.model';
+import {
+  applyWeGridFilters,
+  weGridFilterChipLabel,
+  weGridFilterOperatorLabel,
+  weGridInFilterValueLabel,
+  weGridQuickFilterValueToInputString
+} from './we-grid-filter.util';
 
 interface Row {
   code: string;
@@ -88,5 +94,76 @@ describe('we-grid-filter.util — "in" labels', () => {
       weGridLocaleTr
     );
     expect(label).toBe(`Kod: ${weGridLocaleTr.emptyGroupValue}`);
+  });
+});
+
+describe('we-grid-filter.util — text matching', () => {
+  const cities = [
+    { code: 'IST', city: 'İSTANBUL' },
+    { code: 'IZM', city: 'İzmir' },
+    { code: 'ANK', city: 'Ankara' }
+  ];
+  const cityColumns = [{ field: 'city', type: 'text' as const }];
+
+  function matching(operator: 'contains' | 'startsWith' | 'equals', value: string, locale?: typeof weGridLocaleEn): string[] {
+    return applyWeGridFilters(cities, filters({ field: 'city', operator, value }), cityColumns, locale).map((r) => r.code);
+  }
+
+  it('should match contains / startsWith / equals case-insensitively with the English default', () => {
+    expect(matching('contains', 'KAR')).toEqual(['ANK']);
+    expect(matching('startsWith', 'ank')).toEqual(['ANK']);
+    expect(matching('equals', 'ankara')).toEqual(['ANK']);
+    expect(matching('equals', 'ankar')).toEqual([]);
+  });
+
+  it('should match "İSTANBUL" against "istanbul" with the Turkish locale', () => {
+    expect(matching('contains', 'istanbul', weGridLocaleTr)).toEqual(['IST']);
+    expect(matching('startsWith', 'iz', weGridLocaleTr)).toEqual(['IZM']);
+    expect(matching('equals', 'İZMİR', weGridLocaleTr)).toEqual(['IZM']);
+  });
+
+  it('should leave the English default as it was — its lowercasing keeps a combining dot on "İ"', () => {
+    expect(matching('contains', 'istanbul')).toEqual([]);
+    expect(matching('contains', 'istanbul', weGridLocaleEn)).toEqual([]);
+  });
+});
+
+describe('we-grid-filter.util — locale-aware chip labels', () => {
+  it('should format number bounds with the locale\'s separators and currency', () => {
+    const label = weGridFilterChipLabel({ type: 'currency', header: 'Tutar' }, { field: 'amount', operator: 'gt', value: 1234.5 }, weGridLocaleTr);
+    expect(label).toContain('Tutar > ');
+    expect(label).toContain('1.234,50');
+    expect(label).toContain('₺');
+  });
+
+  it('should lowercase the before/after word with the locale\'s rules', () => {
+    const label = weGridFilterChipLabel({ type: 'date', header: 'Tarih' }, { field: 'at', operator: 'before', value: '2026-09-11' }, weGridLocaleTr);
+    expect(label).toContain('(öncesi)');
+  });
+
+  it('should keep the English chip text as it was', () => {
+    expect(weGridFilterChipLabel({ type: 'number', header: 'Qty' }, { field: 'qty', operator: 'lt', value: 1234.5 })).toBe('Qty < 1,234.5');
+  });
+});
+
+describe('weGridFilterOperatorLabel', () => {
+  it('should read number comparisons as symbols and the rest as locale words', () => {
+    expect(weGridFilterOperatorLabel('eq', 'number')).toBe('=');
+    expect(weGridFilterOperatorLabel('eq', 'date')).toBe('Equals');
+    expect(weGridFilterOperatorLabel('between', 'currency', weGridLocaleTr)).toBe('Aralık');
+    expect(weGridFilterOperatorLabel('startsWith', 'text', weGridLocaleTr)).toBe('İle Başlar');
+  });
+});
+
+describe('weGridQuickFilterValueToInputString', () => {
+  it('should use the local calendar day of a date value, not the UTC day', () => {
+    // 00:30 local is the previous UTC day anywhere east of UTC, 23:30 local the next one anywhere
+    // west of it — 0.3.0 used the UTC day and got one of the two wrong outside UTC.
+    expect(weGridQuickFilterValueToInputString(new Date(2026, 8, 11, 0, 30), 'datetime')).toBe('2026-09-11');
+    expect(weGridQuickFilterValueToInputString(new Date(2026, 8, 11, 23, 30).toISOString(), 'date')).toBe('2026-09-11');
+  });
+
+  it('should return null for a value that is not a date', () => {
+    expect(weGridQuickFilterValueToInputString('not a date', 'date')).toBeNull();
   });
 });

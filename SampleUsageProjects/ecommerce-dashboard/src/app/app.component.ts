@@ -3,6 +3,7 @@ import { Component, OnDestroy, OnInit, inject } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
 import {
   WeGridCellDirective,
+  WeGridChecklistValuesProvider,
   WeGridColumnDef,
   WeGridColumnFilterState,
   WeGridFilterChangeEvent,
@@ -62,8 +63,9 @@ export class AppComponent implements OnInit, OnDestroy {
       // The user reads (and filters/groups by) the label; sorting still uses the raw code
       displayValue: (row) => orderStatusLabel(row.statusCode),
       // A closed set of values is exactly what a checklist is for: the funnel icon lists the
-      // statuses present on the loaded page, and the ticks leave as one 'in' filter carrying the
-      // raw codes — the mock backend turns that into an IN (...) over every order.
+      // statuses of every order matching the other filters (see checklistValues below), and the
+      // ticks leave as one 'in' filter carrying the raw codes — the mock backend turns that into an
+      // IN (...) over every order.
       headerFilterMode: 'checklist'
     },
     { field: 'carrier', header: 'Carrier', width: 160 },
@@ -75,6 +77,9 @@ export class AppComponent implements OnInit, OnDestroy {
     { field: 'shippingCost', header: 'Shipping', type: 'currency', format: 'TRY', width: 130, align: 'end' },
     { field: 'totalAmount', header: 'Total', type: 'currency', format: 'TRY', width: 150, align: 'end', summary: 'sum' }
   ];
+
+  /** Checklist values come from the backend, so a status that isn't on the current page can still be picked */
+  readonly checklistValues: WeGridChecklistValuesProvider = (request) => this.api.getChecklistValues(request);
 
   ngOnInit(): void {
     this.layoutSaved = this.layoutStore.hasSavedLayout(GRID_KEY);

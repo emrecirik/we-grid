@@ -1,5 +1,6 @@
 import { TemplateRef } from '@angular/core';
 import { WeGridEditorOption, WeGridEditorType } from './we-grid-edit.model';
+import { WeGridFilterOperator } from './we-grid-filter.model';
 
 /** Column data type — cell rendering and default formatting are driven by this */
 export type WeGridColumnType = 'text' | 'number' | 'date' | 'datetime' | 'currency' | 'boolean' | 'custom';
@@ -28,6 +29,9 @@ export type WeGridHeaderFilterMode = 'operator' | 'checklist';
 
 /** Whether a checklist header filter accepts several values (checkboxes) or exactly one (radios) */
 export type WeGridHeaderFilterSelection = 'multi' | 'single';
+
+/** Where a checklist column's values come from — the loaded rows, or the grid's `checklistValuesProvider` */
+export type WeGridHeaderFilterSource = 'loaded' | 'provider';
 
 /** sum/avg/min/max only make sense on numeric columns — text/date/boolean/custom only offer count */
 export function isWeGridNumericSummaryType(type: WeGridColumnType): boolean {
@@ -110,6 +114,15 @@ export interface WeGridColumnDef<T> {
    */
   filterable?: boolean;
   /**
+   * Restricts the operators the filter row and the filter popover offer for this column — e.g.
+   * `['equals']` on a field the backend can't run a `LIKE` against. Omitted, the type's full list is
+   * offered, exactly as before. The select renders them in the order given and the first one is the
+   * default. Operators that don't fit the column's `type` are ignored; a list with nothing left
+   * falls back to the full list (with a dev-mode console warning). "Filter by this value" is hidden
+   * on a column whose list rules out the exact match it stands for. Ignored by checklist columns.
+   */
+  filterOperators?: WeGridFilterOperator[];
+  /**
    * What the header's funnel icon opens — defaults to `'operator'`, i.e. the existing operator +
    * single value popover, so columns that don't set it behave exactly as before. With
    * `'checklist'` the popover instead lists the DISTINCT values of the rows currently in `data`
@@ -125,6 +138,22 @@ export interface WeGridColumnDef<T> {
    * buttons). Ignored while `headerFilterMode` is `'operator'`.
    */
   headerFilterSelection?: WeGridHeaderFilterSelection;
+  /**
+   * Pins where this checklist column's values come from. Left out, the column uses the grid's
+   * `checklistValuesProvider` when one is set and the loaded rows otherwise; `'loaded'` keeps it on
+   * the loaded rows even then — for a value computed on the client that the backend has no column
+   * for. Ignored unless `headerFilterMode` is `'checklist'`.
+   */
+  headerFilterSource?: WeGridHeaderFilterSource;
+  /**
+   * Labels a raw checklist value without a row to hand (e.g. status `1` → "Draft"). A value the
+   * `checklistValuesProvider` returned may belong to a page that was never loaded, where
+   * `displayValue` — which needs the row — can't help. Not called for values the provider already
+   * labelled; it also labels a ticked value on the filter chip when no label was seen for it.
+   */
+  checklistValueLabel?: (value: unknown) => string;
+  /** Overrides the grid's `checklistValuesLimit` for this column's provider requests */
+  checklistValuesLimit?: number;
   /**
    * Converts a raw/code value on the row (e.g. `status: 1`, `supplierCode: '120'`) into the
    * human-readable text shown to the user (e.g. "Draft", "120 - ABC Supplies Inc."). When supplied,

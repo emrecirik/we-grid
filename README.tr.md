@@ -20,7 +20,9 @@ kurulu standalone component/direktiflerden oluşan, ücretsiz ve temalanabilir b
 - Yoğunluk modları (rahat / normal / sıkışık)
 - Kullanıcı bazlı düzen otomatik olarak kalıcı (varsayılan localStorage, backend store eklenebilir)
 - Filtre satırı + kolon bazlı filtre popover'ı, aktif filtre çipleriyle
-- Excel tarzı checklist başlık filtresi: sayfadaki tekil değerleri işaretleyin, dışarı tek bir `'in'` filtresi çıksın
+- Excel tarzı checklist başlık filtresi: tekil değerleri işaretleyin, dışarı tek bir `'in'` filtresi çıksın — değerler yüklü sayfadan ya da `checklistValuesProvider` ile tüm veri kümesinden gelir
+- Kolon bazında operatör kısıtlama (`filterOperators`): backend'in yalnızca belirli şekilde eşleştirebildiği alanlar için
+- Locale'e duyarlı değerler: `weGridLocaleTr` ile `1.234,50` / `11.09.2026` biçimi, "istanbul" aramasında "İSTANBUL" eşleşmesi ve Ç/Ş/İ harflerinin Türk alfabesindeki yerine göre sıralama
 - Tek seviyeli gruplama, daraltılabilir bölümler ve grup bazlı özetlerle
 - Alt toplam (özet) satırı: toplam / ortalama / min / maks / sayım, kolon bazında
 - `weGridRowDetail` şablonu ile satır genişletme (master-detail)

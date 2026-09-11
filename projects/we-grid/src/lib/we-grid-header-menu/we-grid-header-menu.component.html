@@ -50,7 +50,7 @@
         <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('close')"></span> {{ locale.removeGrouping }}
       </button>
     }
-    @if (hasCellValue) {
+    @if (hasCellValue && canQuickFilter) {
       <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'quick-filter', field: column.field, value: cellValue })">
         <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('filter')"></span> {{ locale.filterByThisValue }}
       </button>

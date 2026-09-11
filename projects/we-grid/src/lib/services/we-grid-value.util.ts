@@ -71,18 +71,24 @@ function getDateTimeFormat(locale: string, options: Intl.DateTimeFormatOptions):
   return formatter;
 }
 
-function formatDateValue(value: unknown, withTime: boolean, locale: string): string {
+function formatDateValue(value: unknown, withTime: boolean, locale: string, timeZone: string | undefined): string {
   const date = value instanceof Date ? value : new Date(value as string);
   if (isNaN(date.getTime())) return String(value);
   const options: Intl.DateTimeFormatOptions = withTime
     ? { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }
     : { day: '2-digit', month: '2-digit', year: 'numeric' };
+  // Only set when asked for: an explicit timeZone would override the runtime's own zone
+  if (timeZone) options.timeZone = timeZone;
   return getDateTimeFormat(locale, options).format(date);
 }
 
 export interface WeGridFormatValueOptions {
   /** BCP 47 tag used for `Intl.NumberFormat`/`Intl.DateTimeFormat` — defaults to 'en-US' */
   locale?: string;
+  /** ISO 4217 code used by a currency column whose own `format` doesn't name one — defaults to 'USD' */
+  currency?: string;
+  /** IANA time zone date/datetime values are shown in — defaults to the runtime's local zone */
+  timeZone?: string;
   /** Text shown for `true` on boolean columns — defaults to 'Yes' */
   yesLabel?: string;
   /** Text shown for `false` on boolean columns — defaults to 'No' */
@@ -99,11 +105,11 @@ export function formatWeGridValue(value: unknown, type: WeGridColumnType, format
     case 'number':
       return getNumberFormat(locale, parseFractionDigits(format)).format(Number(value));
     case 'currency':
-      return getNumberFormat(locale, { style: 'currency', currency: format || 'USD' }).format(Number(value));
+      return getNumberFormat(locale, { style: 'currency', currency: format || options?.currency || 'USD' }).format(Number(value));
     case 'date':
-      return formatDateValue(value, false, locale);
+      return formatDateValue(value, false, locale, options?.timeZone);
     case 'datetime':
-      return formatDateValue(value, true, locale);
+      return formatDateValue(value, true, locale, options?.timeZone);
     case 'boolean':
       return value ? (options?.yesLabel ?? 'Yes') : (options?.noLabel ?? 'No');
     default:

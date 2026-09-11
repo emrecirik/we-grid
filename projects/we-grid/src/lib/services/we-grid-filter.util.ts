@@ -1,5 +1,5 @@
 import { WeGridColumnType } from '../models/we-grid-column.model';
-import { WeGridColumnFilterState, isWeGridFilterActive, weGridFilterValueKey } from '../models/we-grid-filter.model';
+import { WeGridColumnFilterState, WeGridFilterOperator, isWeGridFilterActive, weGridFilterValueKey } from '../models/we-grid-filter.model';
 import { WeGridLocale, weGridLocaleEn } from '../models/we-grid-locale.model';
 import { formatWeGridValue, getNestedValue } from './we-grid-value.util';
 
@@ -19,16 +19,17 @@ interface FilterableColumnLike<T> {
 export function applyWeGridFilters<T>(
   rows: T[],
   filters: Map<string, WeGridColumnFilterState>,
-  columns: FilterableColumnLike<T>[]
+  columns: FilterableColumnLike<T>[],
+  locale: WeGridLocale = weGridLocaleEn
 ): T[] {
   const active = Array.from(filters.values()).filter((f) => isWeGridFilterActive(f));
   if (active.length === 0) return rows;
 
   const colByField = new Map(columns.map((c) => [c.field, c]));
-  return rows.filter((row) => active.every((filter) => matchesFilter(row, filter, colByField.get(filter.field))));
+  return rows.filter((row) => active.every((filter) => matchesFilter(row, filter, colByField.get(filter.field), locale)));
 }
 
-function matchesFilter<T>(row: T, filter: WeGridColumnFilterState, col: FilterableColumnLike<T> | undefined): boolean {
+function matchesFilter<T>(row: T, filter: WeGridColumnFilterState, col: FilterableColumnLike<T> | undefined, locale: WeGridLocale): boolean {
   const type = col?.type ?? 'text';
   const raw = getNestedValue(row, filter.field);
 
@@ -47,7 +48,7 @@ function matchesFilter<T>(row: T, filter: WeGridColumnFilterState, col: Filterab
       return matchesBoolean(raw, filter);
     default:
       // When displayValue is provided, search against the label the user sees, not the raw code
-      return matchesText(col?.displayValue ? col.displayValue(row) : raw, filter);
+      return matchesText(col?.displayValue ? col.displayValue(row) : raw, filter, locale);
   }
 }
 
@@ -62,9 +63,13 @@ function matchesIn(raw: unknown, filter: WeGridColumnFilterState): boolean {
   return filter.value.some((selected) => weGridFilterValueKey(selected) === key);
 }
 
-function matchesText(raw: unknown, filter: WeGridColumnFilterState): boolean {
-  const haystack = (raw === null || raw === undefined ? '' : String(raw)).toLowerCase();
-  const needle = String(filter.value ?? '').toLowerCase();
+/**
+ * Case-insensitive through the locale's own lowercasing: the locale-free `toLowerCase()` turns
+ * "İSTANBUL" into "i̇stanbul" (an i plus a combining dot), which never equals "istanbul".
+ */
+function matchesText(raw: unknown, filter: WeGridColumnFilterState, locale: WeGridLocale): boolean {
+  const haystack = (raw === null || raw === undefined ? '' : String(raw)).toLocaleLowerCase(locale.intlLocale);
+  const needle = String(filter.value ?? '').toLocaleLowerCase(locale.intlLocale);
   if (needle === '') return true;
   switch (filter.operator) {
     case 'startsWith':
@@ -150,6 +155,37 @@ function matchesBoolean(raw: unknown, filter: WeGridColumnFilterState): boolean 
   return Boolean(raw) === expected;
 }
 
+/** The text of an operator in the filter row / popover select — number comparisons read as symbols, the rest as words */
+export function weGridFilterOperatorLabel(
+  operator: WeGridFilterOperator,
+  type: WeGridColumnType,
+  locale: WeGridLocale = weGridLocaleEn
+): string {
+  switch (operator) {
+    case 'eq':
+      return type === 'number' || type === 'currency' ? '=' : locale.equals;
+    case 'gt':
+      return '>';
+    case 'lt':
+      return '<';
+    case 'between':
+      return locale.between;
+    case 'before':
+      return locale.before;
+    case 'after':
+      return locale.after;
+    case 'contains':
+      return locale.contains;
+    case 'startsWith':
+      return locale.startsWith;
+    case 'equals':
+      return locale.equals;
+    default:
+      // 'in' belongs to the checklist, which never renders an operator select
+      return operator;
+  }
+}
+
 /**
  * "a, b (+3)" — the value part of an 'in' filter. Shared by the chip label and the filter row's
  * checklist button so a long selection never widens either of them beyond one line.
@@ -176,12 +212,18 @@ export function weGridFilterChipLabel(
   valueLabel?: (value: unknown) => string
 ): string {
   const header = col.header;
+  // The typed-in bounds of a number/date filter are not instants, so no timeZone: a yyyy-MM-dd bound
+  // is the day the user picked, and shifting it into another zone could show the day before.
+  const formatOptions = { locale: locale.intlLocale, currency: locale.intlCurrency };
 
   if (filter.operator === 'in') {
     const values = Array.isArray(filter.value) ? filter.value : [];
     const toLabel =
       valueLabel ??
-      ((value: unknown) => (value === null || value === undefined || value === '' ? locale.emptyGroupValue : formatWeGridValue(value, col.type, col.format)));
+      ((value: unknown) =>
+        value === null || value === undefined || value === ''
+          ? locale.emptyGroupValue
+          : formatWeGridValue(value, col.type, col.format, { ...formatOptions, timeZone: locale.intlTimeZone }));
     return `${header}: ${weGridInFilterValueLabel(values, toLabel)}`;
   }
 
@@ -191,19 +233,19 @@ export function weGridFilterChipLabel(
 
   if (col.type === 'number' || col.type === 'currency') {
     if (filter.operator === 'between') {
-      return `${header}: ${betweenRangeLabel(filter, (v) => formatWeGridValue(v, col.type, col.format))}`;
+      return `${header}: ${betweenRangeLabel(filter, (v) => formatWeGridValue(v, col.type, col.format, formatOptions))}`;
     }
     const symbol = filter.operator === 'gt' ? '>' : filter.operator === 'lt' ? '<' : '=';
-    return `${header} ${symbol} ${formatWeGridValue(filter.value, col.type, col.format)}`;
+    return `${header} ${symbol} ${formatWeGridValue(filter.value, col.type, col.format, formatOptions)}`;
   }
 
   if (col.type === 'date' || col.type === 'datetime') {
     if (filter.operator === 'between') {
-      return `${header}: ${betweenRangeLabel(filter, (v) => formatWeGridValue(v, col.type))}`;
+      return `${header}: ${betweenRangeLabel(filter, (v) => formatWeGridValue(v, col.type, undefined, formatOptions))}`;
     }
-    const value = formatWeGridValue(filter.value, col.type);
-    if (filter.operator === 'before') return `${header}: ${value} (${locale.before.toLowerCase()})`;
-    if (filter.operator === 'after') return `${header}: ${value} (${locale.after.toLowerCase()})`;
+    const value = formatWeGridValue(filter.value, col.type, undefined, formatOptions);
+    if (filter.operator === 'before') return `${header}: ${value} (${locale.before.toLocaleLowerCase(locale.intlLocale)})`;
+    if (filter.operator === 'after') return `${header}: ${value} (${locale.after.toLocaleLowerCase(locale.intlLocale)})`;
     return `${header}: ${value}`;
   }
 
@@ -221,11 +263,18 @@ function betweenRangeLabel(filter: WeGridColumnFilterState, format: (v: unknown)
   return '';
 }
 
-/** Converts a single cell's value to a string for "Filter by this value" (quick-filter) — date values match the input[type=date] format */
+/**
+ * Converts a single cell's value to a string for "Filter by this value" (quick-filter) — date values
+ * match the input[type=date] format. The LOCAL calendar day, like the date input and matchesDate's
+ * day comparison: `toISOString()` gave the UTC day, so a row stamped 00:30 in UTC+3 filtered on the
+ * day before.
+ */
 export function weGridQuickFilterValueToInputString(value: unknown, type: WeGridColumnType): unknown {
   if (type === 'date' || type === 'datetime') {
     const d = value instanceof Date ? value : new Date(value as string);
-    return isNaN(d.getTime()) ? null : d.toISOString().slice(0, 10);
+    if (isNaN(d.getTime())) return null;
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
   if (type === 'number' || type === 'currency') {
     const n = Number(value);

@@ -1,4 +1,5 @@
-import { ChangeDetectorRef, Component, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ComponentRef, ViewChild } from '@angular/core';
+import { Observable, Subject, of, throwError } from 'rxjs';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { WeGridComponent } from './we-grid.component';
@@ -6,9 +7,18 @@ import { WeGridRowDetailDirective } from './directives/we-grid-row-detail.direct
 import { WeGridColumnDef } from './models/we-grid-column.model';
 import { WeGridInternalColumn } from './models/we-grid-internal.model';
 import { WeGridSortChange } from './models/we-grid-events.model';
-import { WeGridFilterChangeEvent } from './models/we-grid-filter.model';
+import {
+  WeGridChecklistValue,
+  WeGridChecklistValuesRequest,
+  WeGridChecklistValuesResult,
+  WeGridFilterChangeEvent
+} from './models/we-grid-filter.model';
 import { WeGridRowDeleteEvent, WeGridRowEditEvent } from './models/we-grid-edit.model';
 import { WeGridImportResult } from './models/we-grid-export.model';
+import { WE_GRID_LAYOUT_STORE, WeGridLayout } from './models/we-grid-layout.model';
+import { WE_GRID_LOCALE, WeGridLocale, weGridLocaleTr } from './models/we-grid-locale.model';
+import { WeGridMenuAction } from './models/we-grid-menu-action.model';
+import { WeGridFilterPopoverComponent } from './we-grid-filter-popover/we-grid-filter-popover.component';
 
 interface Row {
   code: string;
@@ -1258,4 +1268,698 @@ describe('WeGridComponent — checklist header filter and server-side filtering'
     expect(emitted[0].resetPage).toBeTrue();
     expect(emitted[1].resetPage).toBeFalse();
   }));
+});
+
+/** Private members reached the way the rest of this file does — through a narrow cast */
+type WithMenuAction = { handleMenuAction: (action: WeGridMenuAction) => void };
+type WithFilterPopover = { filterPopoverComponentRef: ComponentRef<WeGridFilterPopoverComponent> | null };
+
+// ─── Reset layout ──────────────────────────────────────────────────────
+describe('WeGridComponent — reset layout', () => {
+  let component: WeGridComponent<Row>;
+  let fixture: ComponentFixture<WeGridComponent<Row>>;
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [WeGridComponent] }).compileComponents();
+    fixture = TestBed.createComponent(WeGridComponent<Row>);
+    document.body.appendChild(fixture.nativeElement);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('gridKey', 'spec-reset-grid');
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Code' },
+      { field: 'name', header: 'Name', headerFilterMode: 'checklist' }
+    ] as WeGridColumnDef<Row>[]);
+    fixture.componentRef.setInput('filterRow', true);
+    fixture.componentRef.setInput('data', [
+      { code: 'A1', name: 'Product A' },
+      { code: 'B1', name: 'Product B' }
+    ]);
+  });
+
+  afterEach(() => fixture.nativeElement.remove());
+
+  function column(field: string): WeGridInternalColumn<Row> {
+    return component.internalColumns.find((c) => c.field === field)!;
+  }
+
+  /** The header menu's action output lands in handleMenuAction — the same path a real click takes */
+  function resetLayout(): void {
+    (component as unknown as WithMenuAction).handleMenuAction({ type: 'reset-layout' });
+  }
+
+  it('emits one empty (filterChange) with resetPage after clearing an operator filter', fakeAsync(() => {
+    fixture.detectChanges();
+    const emitted: WeGridFilterChangeEvent[] = [];
+    component.filterChange.subscribe((e) => emitted.push(e));
+    component.setFilterValue(column('code'), 'A1');
+    tick(400);
+    expect(emitted.length).toBe(1);
+
+    resetLayout();
+    tick(1000);
+
+    expect(emitted.length).toBe(2);
+    expect([...emitted[1]]).toEqual([]);
+    expect(emitted[1].resetPage).toBeTrue();
+  }));
+
+  it('does the same for a checklist selection, which no longer shows as picked afterwards', fakeAsync(() => {
+    fixture.detectChanges();
+    const emitted: WeGridFilterChangeEvent[] = [];
+    component.filterChange.subscribe((e) => emitted.push(e));
+    component.setChecklistFilter(column('name'), ['Product A']);
+    tick(400);
+
+    resetLayout();
+    tick(1000);
+
+    expect(emitted.length).toBe(2);
+    expect([...emitted[1]]).toEqual([]);
+    expect(emitted[1].resetPage).toBeTrue();
+    expect(component.filterState.has('name')).toBeFalse();
+    expect(component.getFilterState(column('name')).value).toEqual([]);
+  }));
+
+  it('emits no (filterChange) when no filter was active', fakeAsync(() => {
+    fixture.detectChanges();
+    const emitted: WeGridFilterChangeEvent[] = [];
+    component.filterChange.subscribe((e) => emitted.push(e));
+
+    resetLayout();
+    tick(1000);
+
+    expect(emitted.length).toBe(0);
+  }));
+
+  it('emits (layoutChange) exactly once per reset, with or without an active filter', fakeAsync(() => {
+    fixture.detectChanges();
+    const layouts: WeGridLayout[] = [];
+    component.layoutChange.subscribe((layout) => layouts.push(layout));
+
+    resetLayout();
+    tick(1000);
+    expect(layouts.length).toBe(1);
+    expect(layouts[0].density).toBe('normal');
+    expect(layouts[0].filterRowVisible).toBeFalse();
+
+    component.setFilterValue(column('code'), 'A1');
+    resetLayout();
+    tick(1000);
+    expect(layouts.length).toBe(2);
+  }));
+
+  it('deletes the saved layout without writing it back', fakeAsync(() => {
+    const store = TestBed.inject(WE_GRID_LAYOUT_STORE);
+    const save = spyOn(store, 'save').and.callThrough();
+    const reset = spyOn(store, 'reset').and.callThrough();
+    fixture.detectChanges();
+
+    component.setFilterValue(column('code'), 'A1');
+    resetLayout();
+    tick(1000);
+
+    expect(reset).toHaveBeenCalledTimes(1);
+    expect(save).not.toHaveBeenCalled();
+  }));
+
+  it('emits straight away instead of waiting out filterDebounceMs', fakeAsync(() => {
+    fixture.componentRef.setInput('filterDebounceMs', 5000);
+    fixture.detectChanges();
+    const emitted: WeGridFilterChangeEvent[] = [];
+    component.filterChange.subscribe((e) => emitted.push(e));
+
+    component.setFilterValue(column('code'), 'A1');
+    resetLayout();
+
+    // No tick: the reset's emit is already out, and the keystroke's pending one collapsed into it
+    expect(emitted.length).toBe(1);
+    expect([...emitted[0]]).toEqual([]);
+    expect(emitted[0].resetPage).toBeTrue();
+    tick(6000);
+    expect(emitted.length).toBe(1);
+  }));
+});
+
+// ─── "Filter by this value" on non-filterable, checklist and restricted columns ─────────
+describe('WeGridComponent — quick filter on a non-filterable column', () => {
+  interface StatusRow {
+    code: string;
+    name: string;
+    status: number | null;
+    qty: number;
+  }
+
+  let component: WeGridComponent<StatusRow>;
+  let fixture: ComponentFixture<WeGridComponent<StatusRow>>;
+
+  const statusLabels: Record<string, string> = { '1': 'Draft', '2': 'Approved' };
+  const columns: WeGridColumnDef<StatusRow>[] = [
+    { field: 'code', header: 'Code', filterable: false },
+    { field: 'name', header: 'Name' },
+    {
+      field: 'status',
+      header: 'Status',
+      type: 'number',
+      headerFilterMode: 'checklist',
+      displayValue: (row) => (row.status === null ? '' : statusLabels[String(row.status)])
+    },
+    { field: 'qty', header: 'Qty', type: 'number', filterOperators: ['gt', 'lt'] }
+  ];
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [WeGridComponent] }).compileComponents();
+    fixture = TestBed.createComponent(WeGridComponent<StatusRow>);
+    document.body.appendChild(fixture.nativeElement);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('gridKey', 'spec-quick-filter-grid');
+    fixture.componentRef.setInput('columns', columns);
+    fixture.componentRef.setInput('grouping', true);
+    fixture.componentRef.setInput('filterRow', true);
+    fixture.componentRef.setInput('data', [
+      { code: 'A1', name: 'Product A', status: 1, qty: 5 },
+      { code: 'B2', name: 'Product B', status: 2, qty: 9 }
+    ]);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => fixture.nativeElement.remove());
+
+  function column(field: string): WeGridInternalColumn<StatusRow> {
+    return component.internalColumns.find((c) => c.field === field)!;
+  }
+
+  function quickFilter(field: string, value: unknown): void {
+    (component as unknown as WithMenuAction).handleMenuAction({ type: 'quick-filter', field, value });
+  }
+
+  /** Right-clicks the first row's cell and returns the menu's "Filter by this value" item, if any */
+  function quickFilterItemFor(field: string): HTMLButtonElement | undefined {
+    component.onCellContextMenu(new MouseEvent('contextmenu', { clientX: 10, clientY: 10 }), column(field), component.displayData[0]);
+    const items = Array.from(document.querySelectorAll<HTMLButtonElement>('we-grid-header-menu .we-grid-menu__item'));
+    return items.find((item) => item.textContent?.includes(component.locale.filterByThisValue));
+  }
+
+  it('ignores the action on a filterable:false column — no filter, no emit, no chip', fakeAsync(() => {
+    const emitted: WeGridFilterChangeEvent[] = [];
+    component.filterChange.subscribe((e) => emitted.push(e));
+
+    quickFilter('code', 'A1');
+    tick(400);
+
+    expect(component.filterState.has('code')).toBeFalse();
+    expect(emitted.length).toBe(0);
+    expect(component.activeFilterChips.length).toBe(0);
+  }));
+
+  it('does not offer the menu item on a filterable:false column', () => {
+    expect(quickFilterItemFor('code')).toBeUndefined();
+  });
+
+  it('keeps filtering a default column exactly as before', fakeAsync(() => {
+    const emitted: WeGridFilterChangeEvent[] = [];
+    component.filterChange.subscribe((e) => emitted.push(e));
+
+    quickFilter('name', 'Product A');
+    // Past both the filter debounce and the layout save the quick filter schedules
+    tick(600);
+
+    expect(component.filterState.get('name')).toEqual({ field: 'name', operator: 'equals', value: 'Product A' });
+    expect(emitted.length).toBe(1);
+    expect(component.displayData.map((r) => r.code)).toEqual(['A1']);
+  }));
+
+  it("writes an 'in' filter over the raw value on a checklist column, which the popover shows as ticked", () => {
+    quickFilter('status', 1);
+    expect(component.filterState.get('status')).toEqual({ field: 'status', operator: 'in', value: [1] });
+
+    const anchor = document.createElement('button');
+    fixture.nativeElement.appendChild(anchor);
+    component.onFilterIconClick(new MouseEvent('click'), column('status'), anchor);
+    const popover = (component as unknown as WithFilterPopover).filterPopoverComponentRef!.instance;
+    expect(popover.options.filter((option) => popover.isOptionSelected(option)).map((option) => option.label)).toEqual(['Draft']);
+  });
+
+  it('sends the raw code, not the displayValue label, when a checklist cell is right-clicked', () => {
+    quickFilterItemFor('status')!.click();
+
+    expect(component.filterState.get('status')).toEqual({ field: 'status', operator: 'in', value: [1] });
+    expect(component.activeFilterChips[0].label).toBe('Status: Draft');
+  });
+
+  it('neither offers nor applies an exact match that filterOperators rule out', () => {
+    expect(quickFilterItemFor('qty')).toBeUndefined();
+    quickFilter('qty', 5);
+    expect(component.filterState.has('qty')).toBeFalse();
+  });
+});
+
+// ─── Per-column operator restriction ──────────────────────────────────
+describe('WeGridComponent — restricted filter operators (filterOperators)', () => {
+  interface QtyRow {
+    code: string;
+    qty: number;
+  }
+
+  let component: WeGridComponent<QtyRow>;
+  let fixture: ComponentFixture<WeGridComponent<QtyRow>>;
+  let warn: jasmine.Spy;
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [WeGridComponent] }).compileComponents();
+    fixture = TestBed.createComponent(WeGridComponent<QtyRow>);
+    document.body.appendChild(fixture.nativeElement);
+    component = fixture.componentInstance;
+    warn = spyOn(console, 'warn');
+    fixture.componentRef.setInput('gridKey', 'spec-operators-grid');
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Code', filterOperators: ['gt'] },
+      { field: 'qty', header: 'Qty', type: 'number', filterOperators: ['lt', 'gt'] }
+    ] as WeGridColumnDef<QtyRow>[]);
+    fixture.componentRef.setInput('filterRow', true);
+    fixture.componentRef.setInput('data', [
+      { code: 'A1', qty: 5 },
+      { code: 'B2', qty: 9 }
+    ]);
+    fixture.detectChanges();
+  });
+
+  afterEach(() => fixture.nativeElement.remove());
+
+  function column(field: string): WeGridInternalColumn<QtyRow> {
+    return component.internalColumns.find((c) => c.field === field)!;
+  }
+
+  it('offers only the listed operators in the filter row, in their order, and defaults to the first', () => {
+    expect(component.filterOperatorsFor(column('qty'))).toEqual(['lt', 'gt']);
+    expect(component.getFilterState(column('qty')).operator).toBe('lt');
+
+    component.toggleFilterRowVisible();
+    fixture.debugElement.injector.get(ChangeDetectorRef).detectChanges();
+
+    const selects = fixture.nativeElement.querySelectorAll('.we-grid__filter-op') as NodeListOf<HTMLSelectElement>;
+    const qtySelect = selects[1];
+    expect(Array.from(qtySelect.options).map((o) => o.value)).toEqual(['lt', 'gt']);
+    expect(Array.from(qtySelect.options).map((o) => o.textContent?.trim())).toEqual(['<', '>']);
+  });
+
+  it('falls back to the full list with a single dev-mode warning when nothing in the list fits the type', () => {
+    expect(component.filterOperatorsFor(column('code'))).toEqual(['contains', 'startsWith', 'equals']);
+    component.filterOperatorsFor(column('code'));
+
+    const codeWarnings = warn.calls.allArgs().filter((args) => String(args[0]).includes("'code'"));
+    expect(codeWarnings.length).toBe(1);
+  });
+
+  it('refuses an operator outside the list', () => {
+    component.setFilterOperator(column('qty'), 'eq');
+    expect(component.filterState.has('qty')).toBeFalse();
+
+    component.setFilterOperator(column('qty'), 'gt');
+    expect(component.filterState.get('qty')?.operator).toBe('gt');
+  });
+
+  it('keeps the full list and the old default on a column without filterOperators', () => {
+    fixture.componentRef.setInput('columns', [{ field: 'qty', header: 'Qty', type: 'number' }] as WeGridColumnDef<QtyRow>[]);
+    fixture.detectChanges();
+
+    expect(component.filterOperatorsFor(column('qty'))).toEqual(['eq', 'gt', 'lt', 'between']);
+    expect(component.getFilterState(column('qty')).operator).toBe('eq');
+  });
+});
+
+// ─── Locale-aware formatting, comparison and sorting ──────────────────
+describe('WeGridComponent — Turkish formatting, comparison and sorting', () => {
+  interface CityRow {
+    code: string;
+    city: string;
+    amount: number;
+  }
+
+  let component: WeGridComponent<CityRow>;
+  let fixture: ComponentFixture<WeGridComponent<CityRow>>;
+
+  // Corum/Çanakkale and İSTANBUL are where Turkish and English collation disagree
+  const rows: CityRow[] = [
+    { code: 'R1', city: 'Şanlıurfa', amount: 1234.5 },
+    { code: 'R2', city: 'Çanakkale', amount: 10 },
+    { code: 'R3', city: 'Corum', amount: 20 },
+    { code: 'R4', city: 'Sakarya', amount: 30 },
+    { code: 'R5', city: 'Ankara', amount: 40 },
+    { code: 'R6', city: 'İSTANBUL', amount: 50 }
+  ];
+
+  async function createGrid(locale?: WeGridLocale): Promise<void> {
+    localStorage.clear();
+    await TestBed.configureTestingModule({
+      imports: [WeGridComponent],
+      providers: locale ? [{ provide: WE_GRID_LOCALE, useValue: locale }] : []
+    }).compileComponents();
+    fixture = TestBed.createComponent(WeGridComponent<CityRow>);
+    document.body.appendChild(fixture.nativeElement);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('gridKey', 'spec-turkish-grid');
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Kod' },
+      { field: 'city', header: 'Şehir' },
+      { field: 'amount', header: 'Tutar', type: 'currency' }
+    ] as WeGridColumnDef<CityRow>[]);
+    fixture.componentRef.setInput('filterRow', true);
+    fixture.componentRef.setInput('grouping', true);
+    fixture.componentRef.setInput('data', rows);
+    fixture.detectChanges();
+  }
+
+  afterEach(() => fixture.nativeElement.remove());
+
+  function column(field: string): WeGridInternalColumn<CityRow> {
+    return component.internalColumns.find((c) => c.field === field)!;
+  }
+
+  function groupBy(field: string): void {
+    (component as unknown as WithMenuAction).handleMenuAction({ type: 'group-by', field });
+  }
+
+  it('sorts group headers in Turkish alphabetical order', async () => {
+    await createGrid(weGridLocaleTr);
+    groupBy('city');
+    expect(component.groupedSections!.map((s) => s.label)).toEqual(['Ankara', 'Corum', 'Çanakkale', 'İSTANBUL', 'Sakarya', 'Şanlıurfa']);
+  });
+
+  it('keeps the English default ordering unchanged', async () => {
+    await createGrid();
+    groupBy('city');
+    expect(component.groupedSections!.map((s) => s.label)).toEqual(['Ankara', 'Çanakkale', 'Corum', 'İSTANBUL', 'Sakarya', 'Şanlıurfa']);
+  });
+
+  it('orders checklist values in Turkish alphabetical order', async () => {
+    await createGrid(weGridLocaleTr);
+    expect(component.checklistOptionsFor(column('city')).map((o) => o.label)).toEqual([
+      'Ankara',
+      'Corum',
+      'Çanakkale',
+      'İSTANBUL',
+      'Sakarya',
+      'Şanlıurfa'
+    ]);
+  });
+
+  it('matches "İSTANBUL" when the text filter says "istanbul"', async () => {
+    await createGrid(weGridLocaleTr);
+    component.setFilterValue(column('city'), 'istanbul');
+    expect(component.displayData.map((r) => r.code)).toEqual(['R6']);
+  });
+
+  it('formats currency cells with Turkish separators, in lira when the column names no currency', async () => {
+    await createGrid(weGridLocaleTr);
+    const text = component.formatCell(rows[0], column('amount'));
+    expect(text).toContain('1.234,50');
+    expect(text).toContain('₺');
+  });
+
+  it('still formats in en-US dollars without a locale provider', async () => {
+    await createGrid();
+    expect(component.formatCell(rows[0], column('amount'))).toBe('$1,234.50');
+  });
+});
+
+// ─── Checklist values from a provider ─────────────────────────────────
+// The 0.3.0 behaviour this builds on — distinct loaded values, the "(Empty)" bucket, ticks surviving
+// a page change, the debounced 'in' emit — stays locked by the "checklist header filter" suite above.
+describe('WeGridComponent — checklist values from a provider (checklistValuesProvider)', () => {
+  interface OrderRow {
+    code: string;
+    status: number | null;
+    amount: number;
+  }
+
+  let component: WeGridComponent<OrderRow>;
+  let fixture: ComponentFixture<WeGridComponent<OrderRow>>;
+  let warn: jasmine.Spy;
+
+  const columns: WeGridColumnDef<OrderRow>[] = [
+    { field: 'code', header: 'Code', headerFilterMode: 'checklist', headerFilterSource: 'loaded' },
+    { field: 'status', header: 'Status', type: 'number', headerFilterMode: 'checklist', checklistValueLabel: (value) => `Status ${value}` },
+    { field: 'amount', header: 'Amount', type: 'number', headerFilterMode: 'checklist', checklistValuesLimit: 5 }
+  ];
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [WeGridComponent] }).compileComponents();
+    fixture = TestBed.createComponent(WeGridComponent<OrderRow>);
+    document.body.appendChild(fixture.nativeElement);
+    component = fixture.componentInstance;
+    warn = spyOn(console, 'warn');
+    fixture.componentRef.setInput('gridKey', 'spec-checklist-provider-grid');
+    fixture.componentRef.setInput('columns', columns);
+    fixture.componentRef.setInput('data', [{ code: 'A1', status: 1, amount: 10 }]);
+    fixture.componentRef.setInput('serverSide', true);
+    fixture.componentRef.setInput('filterMode', 'server');
+  });
+
+  afterEach(() => fixture.nativeElement.remove());
+
+  function column(field: string): WeGridInternalColumn<OrderRow> {
+    return component.internalColumns.find((c) => c.field === field)!;
+  }
+
+  function result(values: WeGridChecklistValue[], hasMore = false): WeGridChecklistValuesResult {
+    return { values, hasMore };
+  }
+
+  /** Clicks the column's funnel — a second call for the same column closes the popover again */
+  function open(field: string, provider?: (request: WeGridChecklistValuesRequest) => Observable<WeGridChecklistValuesResult>): WeGridFilterPopoverComponent {
+    if (provider) fixture.componentRef.setInput('checklistValuesProvider', provider);
+    fixture.detectChanges();
+    const anchor = document.createElement('button');
+    fixture.nativeElement.appendChild(anchor);
+    component.onFilterIconClick(new MouseEvent('click'), column(field), anchor);
+    return popoverRef().instance;
+  }
+
+  function popoverRef(): ComponentRef<WeGridFilterPopoverComponent> {
+    return (component as unknown as WithFilterPopover).filterPopoverComponentRef!;
+  }
+
+  function popoverText(): string {
+    popoverRef().changeDetectorRef.detectChanges();
+    return (popoverRef().location.nativeElement as HTMLElement).textContent ?? '';
+  }
+
+  /** A second click on the funnel of the column whose popover is open — closes it */
+  function clickFunnelAgain(field: string): void {
+    component.onFilterIconClick(new MouseEvent('click'), column(field), document.createElement('button'));
+  }
+
+  it('asks for the unsearched list with every other active filter — never the column\'s own — and the limit', () => {
+    const provider = jasmine.createSpy('provider').and.returnValue(of(result([{ value: 1 }])));
+    fixture.detectChanges();
+    component.setChecklistFilter(column('code'), ['A1']);
+    component.setChecklistFilter(column('status'), [1]);
+
+    open('status', provider);
+
+    expect(provider).toHaveBeenCalledTimes(1);
+    expect(provider.calls.mostRecent().args[0]).toEqual({
+      field: 'status',
+      search: null,
+      filters: [{ field: 'code', operator: 'in', value: ['A1'] }],
+      limit: 200
+    });
+  });
+
+  it('labels values by the provider label, then checklistValueLabel, then plain formatting', () => {
+    const provider = jasmine
+      .createSpy('provider')
+      .and.callFake((request: WeGridChecklistValuesRequest) =>
+        of(request.field === 'status' ? result([{ value: 2 }, { value: 1, label: 'From the server' }, { value: null }]) : result([{ value: 1234.5 }]))
+      );
+
+    let popover = open('status', provider);
+    expect(popover.options.map((o) => o.label)).toEqual([component.locale.emptyGroupValue, 'From the server', 'Status 2']);
+    expect(popover.options[0].blank).toBeTrue();
+    expect(popover.remoteSearch).toBeTrue();
+
+    popover = open('amount');
+    expect(provider.calls.mostRecent().args[0].limit).toBe(5);
+    expect(popover.options.map((o) => o.label)).toEqual(['1,234.5']);
+  });
+
+  it('shows the loading state until the provider answers', () => {
+    const response = new Subject<WeGridChecklistValuesResult>();
+    const popover = open('status', () => response);
+
+    expect(popover.loading).toBeTrue();
+    expect(popover.options).toEqual([]);
+    expect(popoverText()).toContain(component.locale.checklistValuesLoading);
+
+    response.next(result([{ value: 1 }]));
+
+    expect(popover.loading).toBeFalse();
+    expect(popover.options.map((o) => o.label)).toEqual(['Status 1']);
+  });
+
+  it('debounces the search box into one request and cancels the requests it replaced', fakeAsync(() => {
+    let cancelled = 0;
+    const provider = jasmine
+      .createSpy('provider')
+      .and.callFake(() => new Observable<WeGridChecklistValuesResult>(() => () => cancelled++));
+    const popover = open('status', provider);
+    expect(provider).toHaveBeenCalledTimes(1);
+
+    popover.onSearchChange('i');
+    tick(100);
+    popover.onSearchChange('is');
+    tick(100);
+    popover.onSearchChange(' ist ');
+    tick(299);
+    expect(provider).toHaveBeenCalledTimes(1);
+    tick(1);
+
+    expect(provider).toHaveBeenCalledTimes(2);
+    expect(provider.calls.mostRecent().args[0].search).toBe('ist');
+    // The unsearched request was still in flight when typing began — dropped, not left to land late
+    expect(cancelled).toBe(1);
+  }));
+
+  it('notes a truncated list only when the provider reports more values', () => {
+    open('status', () => of(result([{ value: 1 }], true)));
+    expect(popoverText()).toContain(component.locale.checklistValuesTruncated(200));
+
+    clickFunnelAgain('status');
+    open('status', () => of(result([{ value: 1 }], false)));
+    expect(popoverText()).not.toContain(component.locale.checklistValuesTruncated(200));
+  });
+
+  it('reports a failed request with a retry button that repeats it', () => {
+    let calls = 0;
+    const provider = jasmine
+      .createSpy('provider')
+      .and.callFake(() => (++calls === 1 ? throwError(() => new Error('backend down')) : of(result([{ value: 1 }]))));
+    const popover = open('status', provider);
+
+    expect(popover.loadError).toBeTrue();
+    expect(popoverText()).toContain(component.locale.checklistValuesError);
+
+    (popoverRef().location.nativeElement.querySelector('.we-grid-filter-popover__retry') as HTMLButtonElement).click();
+
+    expect(provider).toHaveBeenCalledTimes(2);
+    expect(provider.calls.mostRecent().args[0].search).toBeNull();
+    expect(popover.loadError).toBeFalse();
+    expect(popover.options.map((o) => o.label)).toEqual(['Status 1']);
+  });
+
+  it('keeps a ticked value the provider no longer returns, listed and ticked', () => {
+    fixture.detectChanges();
+    component.setChecklistFilter(column('status'), [9]);
+
+    const popover = open('status', () => of(result([{ value: 1 }])));
+
+    expect(popover.options.map((o) => o.label)).toEqual(['Status 1', 'Status 9']);
+    expect(popover.options.filter((o) => popover.isOptionSelected(o)).map((o) => o.label)).toEqual(['Status 9']);
+  });
+
+  it('does not pad a search result with ticked values that don\'t match it', fakeAsync(() => {
+    fixture.detectChanges();
+    component.setChecklistFilter(column('status'), [9]);
+    const popover = open('status', (request) => of(result(request.search ? [{ value: 1 }] : [])));
+
+    popover.onSearchChange('1');
+    tick(300);
+
+    expect(popover.options.map((o) => o.label)).toEqual(['Status 1']);
+    tick(100); // the checklist's own filter emit
+  }));
+
+  it('turns the "(Empty)" entry into null in the applied filter', () => {
+    const popover = open('status', () => of(result([{ value: null }, { value: 1 }])));
+    popover.toggleOption(popover.options[0]);
+    popover.applyChecklist();
+    expect(component.filterState.get('status')).toEqual({ field: 'status', operator: 'in', value: [null] });
+  });
+
+  it('keeps radio behaviour — one value at a time — with a provider', () => {
+    fixture.componentRef.setInput(
+      'columns',
+      columns.map((c) => (c.field === 'status' ? { ...c, headerFilterSelection: 'single' as const } : c))
+    );
+    const popover = open('status', () => of(result([{ value: 1 }, { value: 2 }])));
+
+    popover.toggleOption(popover.options[0]);
+    popover.toggleOption(popover.options[1]);
+    popover.applyChecklist();
+
+    expect(component.filterState.get('status')?.value).toEqual([2]);
+  });
+
+  it('never calls the provider on a client-filtered grid, and says why once in dev mode', () => {
+    fixture.componentRef.setInput('filterMode', 'client');
+    const provider = jasmine.createSpy('provider').and.returnValue(of(result([{ value: 7 }])));
+
+    const popover = open('status', provider);
+
+    expect(provider).not.toHaveBeenCalled();
+    expect(popover.remoteSearch).toBeFalse();
+    expect(popover.options.map((o) => o.label)).toEqual(['1']);
+    expect(warn.calls.allArgs().filter((args) => String(args[0]).includes('ignores checklistValuesProvider')).length).toBe(1);
+  });
+
+  it("leaves a column declared headerFilterSource: 'loaded' on the loaded rows while the others use the provider", () => {
+    const provider = jasmine.createSpy('provider').and.returnValue(of(result([{ value: 1 }])));
+
+    let popover = open('code', provider);
+    expect(provider).not.toHaveBeenCalled();
+    expect(popover.options.map((o) => o.label)).toEqual(['A1']);
+
+    popover = open('status');
+    expect(provider).toHaveBeenCalledTimes(1);
+    expect(popover.remoteSearch).toBeTrue();
+  });
+
+  it('without a provider on a server-filtered grid, warns once and says the list is the loaded page only', () => {
+    const popover = open('status');
+
+    expect(popover.remoteSearch).toBeFalse();
+    expect(popover.pageOnlyHint).toBeTrue();
+    expect(popoverText()).toContain(component.locale.onlyThisPageSearched);
+
+    clickFunnelAgain('status');
+    open('status');
+    expect(warn.calls.allArgs().filter((args) => String(args[0]).includes("'status'")).length).toBe(1);
+  });
+
+  it('keeps a client-side checklist without a provider as it was — same options, no hint, no warning, no extra markup', () => {
+    fixture.componentRef.setInput('serverSide', false);
+    fixture.componentRef.setInput('filterMode', 'auto');
+
+    const popover = open('status');
+
+    expect(popover.options).toEqual(component.checklistOptionsFor(column('status')));
+    expect(popover.remoteSearch).toBeFalse();
+    expect(popover.pageOnlyHint).toBeFalse();
+    expect(warn).not.toHaveBeenCalled();
+    popoverRef().changeDetectorRef.detectChanges();
+    expect(popoverRef().location.nativeElement.querySelector('.we-grid-filter-popover__status')).toBeNull();
+  });
+
+  it('leaves a provider-backed list alone when the page changes', () => {
+    const popover = open('status', () => of(result([{ value: 7 }])));
+
+    fixture.componentRef.setInput('data', [{ code: 'Z9', status: 3, amount: 1 }]);
+    fixture.detectChanges();
+
+    expect(popover.options.map((o) => o.label)).toEqual(['Status 7']);
+  });
+
+  it('drops a pending request when the popover closes', () => {
+    const response = new Subject<WeGridChecklistValuesResult>();
+    open('status', () => response);
+    expect(response.observed).toBeTrue();
+
+    clickFunnelAgain('status');
+
+    expect(response.observed).toBeFalse();
+  });
 });

@@ -1,7 +1,9 @@
 import { CommonModule } from '@angular/common';
 import { Component } from '@angular/core';
+import { delay, of } from 'rxjs';
 import {
   WeGridCellDirective,
+  WeGridChecklistValuesProvider,
   WeGridColumnDef,
   WeGridColumnFilterState,
   WeGridCommitFn,
@@ -103,9 +105,9 @@ export class AppComponent {
   // ─── 6. Server-side mode (simulated with an in-memory mock, no real HTTP call) ───────
   serverColumns: WeGridColumnDef<Product>[] = [
     { field: 'code', header: 'Code', width: 120 },
-    { field: 'name', header: 'Name', width: 200 },
-    // The checklist offers the distinct categories of the LOADED page; the mock below applies the
-    // selection to the whole data set, which is exactly what a real backend's IN (...) would do.
+    // Both checklists list values of the WHOLE table through serverChecklistValues below, not just the
+    // loaded page. Name has 83 distinct values against a limit of 50, so its list notes the cut-off.
+    { field: 'name', header: 'Name', width: 200, headerFilterMode: 'checklist', checklistValuesLimit: 50 },
     { field: 'category', header: 'Category', width: 160, headerFilterMode: 'checklist' },
     { field: 'price', header: 'Price', type: 'currency', width: 120 }
   ];
@@ -127,7 +129,7 @@ export class AppComponent {
   /** Simulates a backend call — filters/sorts/paginates the in-memory array with an artificial delay, no real HTTP request */
   private loadServerPage(): void {
     this.serverLoading = true;
-    let rows = ALL_PRODUCTS.filter((row) => this.matchesServerFilters(row));
+    let rows = ALL_PRODUCTS.filter((row) => this.matchesFilters(row, this.serverFilters));
     this.serverTotalCount = rows.length;
     if (this.serverSortField) {
       const field = this.serverSortField;
@@ -174,9 +176,31 @@ export class AppComponent {
     this.loadServerPage();
   }
 
+  /**
+   * Stands in for a `POST /products/distinct-values` endpoint: one column's distinct values over the
+   * whole table, narrowed by the other active filters (the grid already leaves the column's own
+   * filter out of `request.filters`) and by the search box, capped at the requested limit.
+   */
+  serverChecklistValues: WeGridChecklistValuesProvider = (request) => {
+    this.serverQueryLog = [...this.serverQueryLog, `POST /products/distinct-values ${JSON.stringify(request)}`].slice(-5);
+    const search = request.search?.toLowerCase();
+    const distinct = new Set<string>();
+    for (const row of ALL_PRODUCTS) {
+      if (!this.matchesFilters(row, request.filters)) continue;
+      const value = String((row as unknown as Record<string, unknown>)[request.field] ?? '');
+      if (search && !value.toLowerCase().includes(search)) continue;
+      distinct.add(value);
+    }
+    const values = Array.from(distinct).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    return of({
+      values: values.slice(0, request.limit).map((value) => ({ value })),
+      hasMore: values.length > request.limit
+    }).pipe(delay(300));
+  };
+
   /** Stands in for the backend's WHERE clause — 'in' is a Contains check, everything else is a substring match */
-  private matchesServerFilters(row: Product): boolean {
-    return this.serverFilters.every((filter) => {
+  private matchesFilters(row: Product, filters: WeGridColumnFilterState[]): boolean {
+    return filters.every((filter) => {
       const raw = (row as unknown as Record<string, unknown>)[filter.field];
       if (filter.operator === 'in') {
         const values = Array.isArray(filter.value) ? (filter.value as unknown[]) : [];

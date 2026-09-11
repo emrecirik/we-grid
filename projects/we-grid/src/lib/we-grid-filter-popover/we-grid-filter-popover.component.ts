@@ -14,9 +14,16 @@ import {
 } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { WeGridInternalColumn, weGridDisplayHeader } from '../models/we-grid-internal.model';
-import { WeGridChecklistOption, WeGridColumnFilterState, WeGridFilterOperator, weGridFilterValueKey } from '../models/we-grid-filter.model';
+import {
+  WeGridChecklistOption,
+  WeGridColumnFilterState,
+  WeGridFilterOperator,
+  weGridFilterOperatorsFor,
+  weGridFilterValueKey
+} from '../models/we-grid-filter.model';
 import { WE_GRID_ICONS, WeGridIcons } from '../models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
+import { weGridFilterOperatorLabel } from '../services/we-grid-filter.util';
 
 /**
  * A single change made in the popover, reported to `WeGridComponent`. Operator-mode changes are
@@ -27,6 +34,10 @@ export type WeGridFilterPopoverAction =
   | { type: 'operator'; operator: WeGridFilterOperator }
   | { type: 'value'; which: 'value' | 'value2'; value: string | number | null }
   | { type: 'checklist'; values: unknown[] }
+  /** The checklist's search box changed while its values come from a provider — the grid debounces it */
+  | { type: 'search'; term: string }
+  /** Repeat the provider request that failed */
+  | { type: 'retry' }
   | { type: 'clear' }
   | { type: 'close' };
 
@@ -54,8 +65,24 @@ export type WeGridFilterPopoverAction =
 export class WeGridFilterPopoverComponent implements OnInit {
   @Input() column: WeGridInternalColumn<unknown> | null = null;
   @Input() filterState: WeGridColumnFilterState = { field: '', operator: 'contains', value: null };
-  /** Distinct values offered by the checklist — built by WeGridComponent from the loaded rows */
+  /** Distinct values offered by the checklist — built by WeGridComponent from the loaded rows or its provider */
   @Input() options: WeGridChecklistOption[] = [];
+  /**
+   * True while WeGridComponent feeds `options` from its `checklistValuesProvider`. The search box is
+   * then reported outward as a `search` action and the list shows exactly what came back, instead
+   * of being narrowed locally — the popover itself still makes no request.
+   */
+  @Input() remoteSearch = false;
+  /** A provider request is in flight */
+  @Input() loading = false;
+  /** The last provider request failed */
+  @Input() loadError = false;
+  /** The provider holds more values than it returned */
+  @Input() hasMore = false;
+  /** The limit the provider was asked for — interpolated into the truncation note */
+  @Input() valuesLimit = 0;
+  /** The list is the loaded page's values on a grid that filters on the server — says so */
+  @Input() pageOnlyHint = false;
 
   @Output() action = new EventEmitter<WeGridFilterPopoverAction>();
 
@@ -108,11 +135,13 @@ export class WeGridFilterPopoverComponent implements OnInit {
     return this.column?.headerFilterSelection === 'single';
   }
 
-  /** The options left after the search box — everything while the box is empty */
+  /** The options left after the search box — everything while the box is empty, or when the provider already searched */
   get visibleOptions(): WeGridChecklistOption[] {
-    const needle = this.search.trim().toLowerCase();
+    if (this.remoteSearch) return this.options;
+    const locale = this.locale.intlLocale;
+    const needle = this.search.trim().toLocaleLowerCase(locale);
     if (!needle) return this.options;
-    return this.options.filter((option) => option.label.toLowerCase().includes(needle));
+    return this.options.filter((option) => option.label.toLocaleLowerCase(locale).includes(needle));
   }
 
   isOptionSelected(option: WeGridChecklistOption): boolean {
@@ -154,7 +183,25 @@ export class WeGridFilterPopoverComponent implements OnInit {
     this.action.emit({ type: 'checklist', values: Array.from(this.selection.values()) });
   }
 
+  onSearchChange(term: string): void {
+    this.search = term;
+    if (this.remoteSearch) this.action.emit({ type: 'search', term });
+  }
+
+  retry(): void {
+    this.action.emit({ type: 'retry' });
+  }
+
   // ─── Operator mode ─────────────────────────────────────────────────────
+  /** Same list as the filter row's cell — the column's `filterOperators` narrow the type's operators */
+  get operators(): WeGridFilterOperator[] {
+    return this.column ? weGridFilterOperatorsFor(this.column.type, this.column.filterOperators) : [];
+  }
+
+  operatorLabel(operator: WeGridFilterOperator): string {
+    return weGridFilterOperatorLabel(operator, this.column?.type ?? 'text', this.locale);
+  }
+
   emitOperator(operator: WeGridFilterOperator): void {
     this.action.emit({ type: 'operator', operator });
   }

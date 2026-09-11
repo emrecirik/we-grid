@@ -1,6 +1,8 @@
 import { Component, signal } from '@angular/core';
+import { of } from 'rxjs';
 import {
   WeGridCellDirective,
+  WeGridChecklistValuesProvider,
   WeGridColumnDef,
   WeGridComponent,
   WeGridExportFormat,
@@ -13,6 +15,7 @@ import {
   WeGridRowEditEvent,
   WeGridSortChange,
   weGridBuildXlsx,
+  weGridFilterOperatorsFor,
   weGridLocaleTr,
   weGridParseCsv,
   weGridToCsv
@@ -41,12 +44,16 @@ export class ProbeApp {
   protected readonly title = signal('we-grid compatibility probe');
 
   columns: WeGridColumnDef<Product>[] = [
-    { field: 'code', header: 'Code', width: 130, pinned: 'left', required: true },
+    { field: 'code', header: 'Code', width: 130, pinned: 'left', required: true, filterOperators: ['equals', 'startsWith'] },
     { field: 'name', header: 'Name', width: 200 },
     {
       field: 'category',
       header: 'Category',
       width: 170,
+      headerFilterMode: 'checklist',
+      headerFilterSource: 'provider',
+      checklistValueLabel: (value) => String(value).toUpperCase(),
+      checklistValuesLimit: 50,
       editor: 'select',
       editorOptions: [
         { value: 'Bikes', label: 'Bikes' },
@@ -115,5 +122,10 @@ export class ProbeApp {
     this.data = this.data.slice();
   }
 
-  readonly localeName = weGridLocaleTr.exportButton;
+  checklistValues: WeGridChecklistValuesProvider = (request) =>
+    of({ values: this.data.map((row) => ({ value: row.category })).slice(0, request.limit), hasMore: false });
+
+  readonly codeOperators = weGridFilterOperatorsFor('text', ['equals', 'startsWith']);
+
+  readonly localeName = `${weGridLocaleTr.exportButton} · ${weGridLocaleTr.intlLocale} · ${weGridLocaleTr.summaryPage(weGridLocaleTr.sum)}`;
 }

@@ -19,6 +19,9 @@
 | `sortMode` | `'auto' \| 'client' \| 'server'` | `'auto'` | See [server-side.md](server-side.md). |
 | `filterMode` | `'auto' \| 'client' \| 'server'` | `'auto'` | See [server-side.md](server-side.md). |
 | `filterDebounceMs` | `number` | `400` | How long the grid waits after the last filter edit before emitting `(filterChange)`. Only the outgoing event is debounced. |
+| `checklistValuesProvider` | `WeGridChecklistValuesProvider` | — | Lists checklist values from the whole dataset instead of the loaded rows, while filtering runs on the server. See [server-side.md](server-side.md#populating-the-checklist-from-the-whole-dataset-checklistvaluesprovider). |
+| `checklistValuesLimit` | `number` | `200` | The most values one provider request asks for. A column's own `checklistValuesLimit` overrides it. |
+| `checklistSearchDebounceMs` | `number` | `300` | How long a provider-backed checklist waits after the last keystroke in its search box before asking again. |
 | `selectable` | `'none' \| 'single' \| 'multi'` | `'none'` | Row selection mode. |
 | `emptyMessage` | `string` | locale's `emptyMessage` | Message shown when there are no rows. |
 | `rowClass` | `WeGridRowClassFn<T>` | — | `(row, index) => string \| string[] \| Record<string, boolean>`, applied via `[ngClass]`. |
@@ -46,8 +49,8 @@
 | `sortChange` | `WeGridSortChange` | `{ field, direction }` |
 | `rowClick` / `rowDblClick` | `WeGridRowClickEvent<T>` | `{ row, rowIndex }` |
 | `selectionChange` | `T[]` | Currently selected rows. |
-| `layoutChange` | `WeGridLayout` | Fires whenever the user's layout is persisted. |
-| `filterChange` | `WeGridFilterChangeEvent` | Debounced (`filterDebounceMs`), only the active filters. The payload **is** the `WeGridColumnFilterState[]` it has always been, plus `filters` and `resetPage` — see [server-side.md](server-side.md). |
+| `layoutChange` | `WeGridLayout` | Fires whenever the user's layout is persisted, and on "Reset layout" (with the default layout). |
+| `filterChange` | `WeGridFilterChangeEvent` | Debounced (`filterDebounceMs`), only the active filters. The payload **is** the `WeGridColumnFilterState[]` it has always been, plus `filters` and `resetPage` — see [server-side.md](server-side.md). "Reset layout" emits it at once when it cleared an active filter. |
 | `groupChange` | `string \| null` | Fires when the grouped field changes. |
 | `exportRequest` | `WeGridExportRequest<T>` | `{ format, scope, rows, table }` — fires on every export. |
 | `importData` | `WeGridImportResult<T>` | Parsed and column-mapped rows from a picked file. |
@@ -64,6 +67,8 @@
 - `hasActiveFilters`, `activeFilterChips`, `clearAllFilters()`, `clearFilterByField(field)`
 - `hasColumnFilters`, `showFilterIcon(col)`, `checklistOptionsFor(col)`, `setChecklistFilter(col, values)`,
   `checklistButtonLabel(col)` — the checklist header filter
+- `filterOperatorsFor(col)`, `filterOperatorLabel(col, operator)` — the operators a column's filter
+  row cell and popover offer
 - `groupField`, `groupedSections`, `clearGrouping()`
 - `exportAs(format)`, `exportScope`, `exportColumns`, `isServerExport`
 - `openImportPicker()`, `importAccept`
@@ -83,8 +88,16 @@
 - `WeGridColumnDef<T>` — `field`, `header`, `type?`, `width?`, `minWidth?`, `maxWidth?`,
   `visible?`, `order?`, `wrap?`, `align?`, `sortable?`, `pinned?`, `format?`, `cellTemplate?`,
   `headerTooltip?`, `lockVisible?`, `lockRename?`, `stopRowClick?`, `summary?`, `filterable?`,
-  `headerFilterMode?`, `headerFilterSelection?`, `displayValue?: (row: T) => string`, `editable?`,
-  `editor?`, `editorOptions?`, `required?`, `exportable?`
+  `filterOperators?: WeGridFilterOperator[]`, `headerFilterMode?`, `headerFilterSelection?`,
+  `headerFilterSource?`, `checklistValueLabel?: (value: unknown) => string`, `checklistValuesLimit?`,
+  `displayValue?: (row: T) => string`, `editable?`, `editor?`, `editorOptions?`, `required?`, `exportable?`
+
+  | Column option (0.4.0) | Effect |
+  |---|---|
+  | `filterOperators` | Restricts the filter row / popover operators, in the order given; the first is the default. See [server-side.md](server-side.md#restricting-operators-per-column-filteroperators). |
+  | `headerFilterSource` | `'loaded' \| 'provider'` — `'loaded'` keeps a checklist on the loaded rows even when the grid has a `checklistValuesProvider`. |
+  | `checklistValueLabel` | Labels a raw checklist value without its row — for values a provider returned. |
+  | `checklistValuesLimit` | Per-column override of the grid's `checklistValuesLimit`. |
 - `WeGridColumnType` = `'text' | 'number' | 'date' | 'datetime' | 'currency' | 'boolean' | 'custom'`
 - `WeGridAlign` = `'start' | 'center' | 'end'`
 - `WeGridPinned` = `'left' | 'right' | null`
@@ -93,6 +106,10 @@
 - `WeGridSummaryFunction` = `'sum' | 'count' | 'avg' | 'min' | 'max' | 'none'`
 - `WeGridHeaderFilterMode` = `'operator' | 'checklist'` — what the header funnel icon opens
 - `WeGridHeaderFilterSelection` = `'multi' | 'single'` — checkboxes or radios in the checklist
+- `WeGridHeaderFilterSource` = `'loaded' | 'provider'` — where a checklist's values come from
+- `WeGridChecklistValuesProvider` = `(request: WeGridChecklistValuesRequest) => Observable<WeGridChecklistValuesResult>`,
+  `WeGridChecklistValuesRequest` (`field`, `search`, `filters`, `limit`), `WeGridChecklistValuesResult`
+  (`values`, `hasMore`), `WeGridChecklistValue` (`value`, `label?`) — see [server-side.md](server-side.md)
 - `WeGridCellContext<T>` — `$implicit`, `row`, `value`, `rowIndex`, `column`
 - `WeGridRowDetailContext<T>` — `$implicit`, `row`, `rowIndex`
 - `WeGridInternalColumn<T>` — merged runtime column state
@@ -102,7 +119,8 @@
 - `WeGridColumnFilterState`, `WeGridFilterOperator` (including `'in'`), `WeGridChecklistOption`,
   `WeGridFilterChangeEvent`, `weGridFilterValueKey(value)`, `WE_GRID_BLANK_FILTER_KEY` and friends
 - `WeGridGroupSection<T>`, `WeGridGroupRowEntry<T>`
-- `WeGridLocale`, `WE_GRID_LOCALE`, `weGridLocaleEn`, `weGridLocaleTr` — see [localization.md](localization.md)
+- `WeGridLocale`, `WE_GRID_LOCALE`, `weGridLocaleEn`, `weGridLocaleTr` — see [localization.md](localization.md);
+  `intlLocale` / `intlCurrency` / `intlTimeZone` also drive value formatting, text matching and sorting
 - `WeGridIcons`, `WE_GRID_ICONS`, `weGridDefaultIcons` — see [theming.md](theming.md)
 - `WeGridExportFormat`, `WeGridImportFormat`, `WeGridExportScope`, `WeGridExportColumn`,
   `WeGridExportRow`, `WeGridExportTable`, `WeGridExportRequest<T>`, `WeGridExporter`,
@@ -117,19 +135,20 @@
 - `LocalStorageGridLayoutStore` — default `WeGridLayoutStore` implementation
 - `mergeGridLayout(columnDefs, saved, layoutVersion)`, `toColumnLayout(columns, columnDefs)`,
   `WE_GRID_DEFAULT_COLUMN_WIDTH`
-- `formatWeGridValue(value, type, format?, options?)`, `getNestedValue(row, path)`,
-  `setNestedValue(row, path, value)`
+- `formatWeGridValue(value, type, format?, options?)` — `options`: `locale`, `currency`, `timeZone`,
+  `yesLabel`, `noLabel` — `getNestedValue(row, path)`, `setNestedValue(row, path, value)`
 - `WeGridDefaultExporter` (default `WE_GRID_EXPORTER`), `WeGridDefaultImportParser`
   (default `WE_GRID_IMPORT_PARSER`)
 - `weGridToCsv(table, options?)`, `weGridParseCsv(text, options?)`, `weGridDownloadBlob(blob, fileName)`
 - `weGridBuildXlsx(table)`, `weGridReadXlsx(file)`
 - `weGridBuildPrintDocument(table, options?)`, `weGridPrintTable(table, options?)`
 - `weGridMapImportedRows(sheet, columns)`
-- `applyWeGridFilters(rows, filters, columns)`, `isWeGridFilterActive(filter)`,
+- `applyWeGridFilters(rows, filters, columns, locale?)`, `isWeGridFilterActive(filter)`,
   `weGridFilterChipLabel(col, filter, locale?, valueLabel?)`, `weGridInFilterValueLabel(values, valueLabel, maxShown?)`
+- `weGridFilterOperatorsFor(type, filterOperators?)`, `weGridQuickFilterOperator(col)`,
+  `weGridFilterOperatorLabel(operator, type, locale?)`
 - `WeGridCellEditorComponent` (`<we-grid-cell-editor>`), `weGridDefaultEditor(type)`,
   `weGridSameEditValue(before, after)`
 - `isWeGridNumericSummaryType(type)`, `computeWeGridSummary(rows, field, fn)`,
   `buildWeGridSummaryText(rows, col, scope, overrideValue?, locale?)`, `weGridSummaryLabel(fn, scope, locale?)`
-- `applyWeGridFilters(rows, filters, columns)`, `weGridFilterChipLabel(col, filter, locale?)`,
-  `weGridQuickFilterValueToInputString(value, type)`
+- `weGridQuickFilterValueToInputString(value, type)` — a date's local calendar day as `yyyy-MM-dd`

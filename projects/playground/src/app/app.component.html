@@ -76,9 +76,11 @@
     <h2>6. Server-side mode (simulated)</h2>
     <p class="demo__hint">
       Pagination, sorting and filtering are handled by an in-memory mock with a short artificial delay — no real HTTP call
-      is made. The Category column uses <code>headerFilterMode: 'checklist'</code>: its funnel icon lists the distinct
-      values of the loaded page, and the picked ones leave as one <code>'in'</code> filter that the mock applies across
-      all {{ serverTotalCount }} records. <code>resetPage</code> on the event is what sends the query back to page 1.
+      is made. Name and Category use <code>headerFilterMode: 'checklist'</code>, fed by a
+      <code>checklistValuesProvider</code>: the lists hold the distinct values of the whole table — narrowed by the
+      other active filters and the search box — rather than the loaded page, and Name notes that only its first 50
+      values are listed. The picked values leave as one <code>'in'</code> filter the mock applies across all
+      {{ serverTotalCount }} records. <code>resetPage</code> on the event is what sends the query back to page 1.
     </p>
     <we-grid
       gridKey="playground-server"
@@ -94,6 +96,7 @@
       [filterRow]="true"
       filterMode="server"
       [filterDebounceMs]="300"
+      [checklistValuesProvider]="serverChecklistValues"
       trackByField="id"
       (pageChange)="onServerPageChange($event)"
       (sortChange)="onServerSortChange($event)"

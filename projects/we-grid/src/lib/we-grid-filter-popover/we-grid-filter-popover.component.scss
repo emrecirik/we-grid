@@ -132,6 +132,27 @@
   color: var(--we-grid-muted-color, #878a99);
 }
 
+// ─── Provider-backed checklist: loading / error / truncation notes ─────────
+.we-grid-filter-popover__status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.we-grid-filter-popover__note {
+  margin: 0;
+  font-size: 0.92em;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-grid-filter-popover__note--error {
+  color: var(--we-grid-danger-color, #f06548);
+}
+
 .we-grid-filter-popover__footer {
   display: flex;
   justify-content: space-between;

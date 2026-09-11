@@ -51,8 +51,18 @@ columns: WeGridColumnDef<Order>[] = [
 | `editorOptions` | `{ value, label }[]` for a `select` editor. |
 | `required` | The value may not be left empty. Blocks Save and outlines the cell. |
 
-A `date` editor reports its value back in the shape the row already used: a field that arrived as
-an ISO string is emitted as an ISO string, one that was a `Date` stays a `Date`.
+A date editor reports its value back in the shape the row already used: a field that arrived as a
+string is emitted as a string, one that was a `Date` stays a `Date`. The two editors deliberately
+send different strings:
+
+| Editor | Field arrived as a string | Field arrived as a `Date` |
+|---|---|---|
+| `date` | The picked calendar day, `"2026-09-11"` — no time, no zone | A `Date` |
+| `datetime` | The UTC instant of the picked local time, `"2026-09-11T14:30:00.000Z"` | A `Date` |
+
+A `date` column holds a day, not an instant, so it is sent as one. Before 0.4.0 it was sent as UTC
+midnight: a row the backend had stored as local midnight (`"2026-09-10T21:00:00.000Z"` in UTC+3)
+showed the right day in the editor but came back with a different timestamp after saving.
 
 ## Committing
 
