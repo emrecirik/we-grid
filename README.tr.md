@@ -19,14 +19,15 @@ kurulu standalone component/direktiflerden oluşan, ücretsiz ve temalanabilir b
 - Kolon gizle/göster, yeniden adlandır, sürükle-bırak ile sıralama, yeniden boyutlandırma, sabitleme (sol/sağ), içeriğe göre otomatik genişlik
 - Yoğunluk modları (rahat / normal / sıkışık)
 - Kullanıcı bazlı düzen otomatik olarak kalıcı (varsayılan localStorage, backend store eklenebilir)
-- Filtre satırı + kolon bazlı filtre popover'ı, aktif filtre çipleriyle
-- Excel tarzı checklist başlık filtresi: tekil değerleri işaretleyin, dışarı tek bir `'in'` filtresi çıksın — değerler yüklü sayfadan ya da `checklistValuesProvider` ile tüm veri kümesinden gelir
+- Excel/DevExpress tarzı checklist başlık filtresi, **varsayılan olarak her kolonda**: tekil değerleri işaretleyin, dışarı tek bir `'in'` filtresi çıksın — değerler yüklü satırlardan ya da `checklistValuesProvider` ile tüm veri kümesinden gelir
+- Filtre satırı + kolon bazlı operatör popover'ı (içerir, =, >, <, arasında, tarih aralığı), aktif filtre çipleriyle
+- Verinin gerçekte sakladığı şeye uygun kolon tipleri: `number`, `integer`, `currency` — **kuruş / cent** olarak saklanan tutarlar dahil (`minorUnits: true`) — `percent`, `date`, `datetime`, `time`, `boolean` ve `email` / `url` / `phone` bağlantıları, ayrıca kolon bazında `formatter`
 - Kolon bazında operatör kısıtlama (`filterOperators`): backend'in yalnızca belirli şekilde eşleştirebildiği alanlar için
 - Locale'e duyarlı değerler: `weGridLocaleTr` ile `1.234,50` / `11.09.2026` biçimi, "istanbul" aramasında "İSTANBUL" eşleşmesi ve Ç/Ş/İ harflerinin Türk alfabesindeki yerine göre sıralama
 - Tek seviyeli gruplama, daraltılabilir bölümler ve grup bazlı özetlerle
 - Alt toplam (özet) satırı: toplam / ortalama / min / maks / sayım, kolon bazında
 - `weGridRowDetail` şablonu ile satır genişletme (master-detail)
-- Sunucu taraflı sayfalama, sıralama ve filtreleme (opt-in, event binding'lerinize göre otomatik algılanır)
+- Sunucu taraflı sayfalama, sıralama ve filtreleme — filtreler backend'inize gider ve yalnızca yüklü sayfayı değil **tüm tabloyu** arar ([nasıl](docs/server-side.md))
 - Tamamen yerelleştirilebilir arayüz metni (`WE_GRID_LOCALE`) ve değiştirilebilir ikon seti (`WE_GRID_ICONS`, inline SVG — ikon fontuna bağımlılık yok)
 - CSV, Excel (`.xlsx`) ve PDF olarak dışa aktarma; CSV/Excel içe aktarma — ek bir runtime bağımlılığı olmadan
 - Grid üzerinden satır ekleme/güncelleme/silme; her kayıt işlemi backend yanıtını bekleyen bir `done` callback'i ile
@@ -86,6 +87,59 @@ export class ProductListComponent {
 
 `gridKey` zorunludur — kullanıcının kolon düzeni bu anahtarla saklanır, her grid örneği için benzersiz olmalıdır.
 
+## Kolon tipleri ve biçimlendiriciler
+
+```ts
+columns: WeGridColumnDef<Urun>[] = [
+  { field: 'stok', header: 'Stok', type: 'integer', summary: 'sum' },
+  { field: 'fiyatKurus', header: 'Fiyat', type: 'currency', format: 'TRY', minorUnits: true }, // 12345 → ₺123,45
+  { field: 'indirim', header: 'İndirim', type: 'percent' },                                    // 0.25 → %25
+  { field: 'agirlik', header: 'Ağırlık', type: 'number', formatter: (v) => `${v} kg` },
+  { field: 'acilis', header: 'Açılış', type: 'time' },
+  { field: 'eposta', header: 'E-posta', type: 'email' },                                       // mailto: bağlantısı
+  { field: 'web', header: 'Web', type: 'url' }
+];
+```
+
+`minorUnits` kolonu ekranda ve filtre/düzenleme kutularında **lira** ile gösterilir ve yazılır;
+satırlarda, sıralamada, toplamda ve **backend'e giden filtrede kuruş** kalır. Kullanıcı "Fiyat > 500"
+yazdığında backend `50000` alır, yani `WHERE fiyat_kurus > @deger` doğrudan çalışır. Tüm tipler:
+[column-types.md](docs/column-types.md).
+
+## 3.000 kayıtta filtreleme — ekranda yalnızca 20'si varken
+
+Grid, `data` içinde ne varsa onu gösterir. Backend'den sayfa sayfa yüklüyorsanız, grid'in kendi
+çalıştırdığı bir filtre yalnızca o sayfayı görebilir. Tüm tabloda aramak için filtreleri backend'e
+gönderin — gereken dört şey:
+
+1. `[serverSide]="true"` + `[totalCount]`, `[page]`, `[pageSize]`, `(pageChange)`
+2. `filterMode="server"` + `(filterChange)` — grid yerelde filtrelemeyi bırakır, filtreleri size verir
+3. Backend önce filtreler, sonra sayar, en son sayfalar: `WHERE` → `COUNT(*)` → `ORDER BY` → `OFFSET/FETCH`
+4. Checklist kolonları için `[checklistValuesProvider]` — yoksa liste yalnızca yüklü sayfanın değerlerini gösterir
+
+```html
+<we-grid gridKey="urunler" [columns]="columns" [data]="rows" [loading]="loading"
+         [serverSide]="true" [totalCount]="totalCount" [page]="page" [pageSize]="20"
+         (pageChange)="onPageChange($event)"
+         filterMode="server" (filterChange)="onFilterChange($event)"
+         [checklistValuesProvider]="checklistValues"></we-grid>
+```
+
+```ts
+onFilterChange(e: WeGridFilterChangeEvent): void {
+  this.filters = [...e];            // [{ field: 'ad', operator: 'contains', value: 'cıvata' }, …]
+  if (e.resetPage) this.page = 1;   // filtre değişti → 1. sayfa, TEK istekte
+  this.load();                      // POST /api/urunler/ara { page, pageSize, filters }
+}
+
+// checklist'ler yalnızca bu sayfanın değil, tüm tablonun değerlerini listeler
+checklistValues: WeGridChecklistValuesProvider = (req) => this.http.post('/api/urunler/distinct-values', req);
+```
+
+Bileşenden SQL'e tam anlatım — istek gövdesi, tüm operatörler, EF Core ve SQL örnekleri, "yalnızca
+bu sayfada aranıyor" uyarısının nedenleri — [server-side.md](docs/server-side.md) dosyasında.
+[`retail-market`](SampleUsageProjects/retail-market) örneği bu kurulumun çalışan hâlidir.
+
 ## Ekran görüntüleri
 
 Aşağıdaki görsellerin tamamı bu depodaki örnek uygulamalardan alınmış gerçek ekranlardır; hepsini
@@ -109,8 +163,9 @@ satırı, görünen sayfayı değil filtrelenmiş kümenin tamamını temel alar
 
 ### Checklist başlık filtresi — operatör değil, değer işaretleyin
 
-Değerleri kapalı bir kümeden gelen kolonlara `headerFilterMode: 'checklist'` verilir: huni ikonu o
-an yüklü satırların tekil değerlerini listeler — arama kutusu, tümünü seç kutusu ve boş değerler
+Filtrelenebilir her kolonda varsayılan olarak açıktır (grid'e `headerFilterMode="operator"` vererek
+ya da kolon bazında operatör popover'ına dönebilirsiniz): huni ikonu yüklü satırların — ya da
+`checklistValuesProvider` ile tüm tablonun — tekil değerlerini listeler — arama kutusu, tümünü seç kutusu ve boş değerler
 için ayrı bir satırla birlikte. Seçim, ham kodları taşıyan tek bir `'in'` filtresi olarak çıkar;
 backend bunu tüm tablo üzerinde tek bir `IN (…)` sorgusuna çevirir. Etiketleri `displayValue`
 üretir, yani kullanıcı "Shipped" işaretlerken sorguya `40` gider.
@@ -139,9 +194,9 @@ ek bundle yok. Her renk, ezebileceğiniz bir `--we-grid-*` custom property'sidir
 
 | Uygulama | Gösterdiği |
 |---|---|
-| [`banking`](SampleUsageProjects/banking) | Satır bazında farklı para birimleri, sabitlenmiş kolon, tarih aralığı filtresi, backend'den gelen toplamlar, master-detail satırlar |
-| [`retail-market`](SampleUsageProjects/retail-market) | Alt toplamlı gruplama, boolean kolon ve filtresi, `rowClass` ile satır vurgulama, çoklu seçim ve toplu aksiyonlar, yoğunluk değiştirme |
-| [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | Sunucu taraflı referans örnek: mock backend'e karşı sayfalama/sıralama/filtreleme, Durum kolonunda checklist başlık filtresi, KPI kartları, `displayValue` ile durum rozetleri, özel layout store, XML veri kaynağı, koyu tema anahtarı |
+| [`banking`](SampleUsageProjects/banking) | Satır bazında farklı para birimleri, **kuruş** olarak saklanan kredi tutarları (`minorUnits`) ve `percent` faiz oranları, sabitlenmiş kolon, tarih aralığı filtresi, backend'den gelen toplamlar, master-detail satırlar |
+| [`retail-market`](SampleUsageProjects/retail-market) | **Yüklü 50 satırda değil, tüm ürün tablosunda sunucu taraflı filtreleme**, checklist değerleri `checklistValuesProvider`'dan; alt toplamlı gruplama, `integer` kolonlar, `rowClass` ile satır vurgulama, çoklu seçim ve toplu aksiyonlar, yoğunluk değiştirme |
+| [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | Sunucu taraflı referans örnek: mock backend'e karşı sayfalama/sıralama/filtreleme, tüm veri kümesinden beslenen checklist başlık filtreleri, KPI kartları, `displayValue` ile durum rozetleri, özel layout store, XML veri kaynağı, koyu tema anahtarı |
 
 ```bash
 npm install
@@ -154,8 +209,9 @@ npm run start:ecommerce           # sonra herhangi bir örnek uygulamayı
 İngilizce dokümanlar birincil kaynaktır:
 
 - [Başlarken](docs/getting-started.md)
+- [Kolon tipleri ve biçimlendiriciler](docs/column-types.md) — `integer`, `percent`, kuruş/cent `currency`, `time`, bağlantılar, `formatter`
 - [API referansı](docs/api.md)
-- [Sunucu taraflı sayfalama/sıralama/filtreleme](docs/server-side.md)
+- [Sunucu taraflı sayfalama/sıralama/filtreleme](docs/server-side.md) — **yüklü sayfa değil, tüm tabloda filtreleme**
 - [Dışa/içe aktarma (CSV / Excel / PDF)](docs/export-import.md)
 - [Satır içi düzenleme](docs/row-editing.md)
 - [Temalama](docs/theming.md)
@@ -170,7 +226,7 @@ uygulamanın `SampleUsageProjects/` altında olduğu bir Angular CLI workspace'i
 ```bash
 npm install
 npm run build:lib     # kütüphaneyi dist/we-grid altına derler
-npm test              # 140 birim testi, headless Chrome
+npm test              # 282 birim testi, headless Chrome
 npm start             # playground uygulamasını çalıştırır
 ```
 

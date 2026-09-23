@@ -7,7 +7,7 @@ import { mergeGridLayout } from '../services/we-grid-layout-merge';
 import { WeGridFilterPopoverAction, WeGridFilterPopoverComponent } from './we-grid-filter-popover.component';
 
 function internalColumn(def: WeGridColumnDef<unknown>): WeGridInternalColumn<unknown> {
-  return mergeGridLayout<unknown>([def], null, 1).columns[0];
+  return mergeGridLayout<unknown>([def], null, 1, 'operator').columns[0];
 }
 
 describe('WeGridFilterPopoverComponent — operator select', () => {

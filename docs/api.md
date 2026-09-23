@@ -18,6 +18,7 @@
 | `sortField` / `sortDirection` | `string \| null` / `'asc' \| 'desc' \| null` | `null` | Current sort, used when sorting on the server. |
 | `sortMode` | `'auto' \| 'client' \| 'server'` | `'auto'` | See [server-side.md](server-side.md). |
 | `filterMode` | `'auto' \| 'client' \| 'server'` | `'auto'` | See [server-side.md](server-side.md). |
+| `headerFilterMode` | `'checklist' \| 'operator'` | `'checklist'` | What the header funnel of a column without its own `headerFilterMode` opens. `'checklist'` (default since 0.5.0) gives every filterable column the distinct-values list, with the funnel shown even while `filterRow` is off; `'operator'` restores the pre-0.5.0 operator popover. `'custom'` columns always default to `'operator'`. |
 | `filterDebounceMs` | `number` | `400` | How long the grid waits after the last filter edit before emitting `(filterChange)`. Only the outgoing event is debounced. |
 | `checklistValuesProvider` | `WeGridChecklistValuesProvider` | — | Lists checklist values from the whole dataset instead of the loaded rows, while filtering runs on the server. See [server-side.md](server-side.md#populating-the-checklist-from-the-whole-dataset-checklistvaluesprovider). |
 | `checklistValuesLimit` | `number` | `200` | The most values one provider request asks for. A column's own `checklistValuesLimit` overrides it. |
@@ -28,7 +29,7 @@
 | `layoutVersion` | `number` | `1` | Bump to discard an incompatible saved layout. |
 | `summaryValues` | `Record<string, number>` | — | Server-computed grand totals per column field. |
 | `expandable` | `boolean` | `false` | Enables master-detail row expansion. |
-| `filterRow` | `boolean` | `false` | Enables the per-cell filter row + toolbar toggle. A column with `headerFilterMode: 'checklist'` gets its funnel icon without this. |
+| `filterRow` | `boolean` | `false` | Enables the per-cell filter row + toolbar toggle. A checklist column gets its funnel icon without this, and shows a checklist button in the filter row. |
 | `grouping` | `boolean` | `false` | Enables grouping + "filter by this value" in the header/cell context menu. |
 | `exportFormats` | `WeGridExportFormat[]` | `[]` | Formats offered by the toolbar's export buttons. Empty hides the group. |
 | `exportFileName` | `string` | `gridKey` | Export file name, without an extension. |
@@ -86,19 +87,27 @@
 ## Models
 
 - `WeGridColumnDef<T>` — `field`, `header`, `type?`, `width?`, `minWidth?`, `maxWidth?`,
-  `visible?`, `order?`, `wrap?`, `align?`, `sortable?`, `pinned?`, `format?`, `cellTemplate?`,
+  `visible?`, `order?`, `wrap?`, `align?`, `sortable?`, `pinned?`, `format?`, `minorUnits?`,
+  `formatter?: (value, row) => string`, `cellTemplate?`,
   `headerTooltip?`, `lockVisible?`, `lockRename?`, `stopRowClick?`, `summary?`, `filterable?`,
   `filterOperators?: WeGridFilterOperator[]`, `headerFilterMode?`, `headerFilterSelection?`,
   `headerFilterSource?`, `checklistValueLabel?: (value: unknown) => string`, `checklistValuesLimit?`,
   `displayValue?: (row: T) => string`, `editable?`, `editor?`, `editorOptions?`, `required?`, `exportable?`
 
-  | Column option (0.4.0) | Effect |
+  | Column option | Effect |
   |---|---|
+  | `type` | See [column-types.md](column-types.md) for every type — `integer`, `percent`, `time`, `email`, `url`, `phone` are new in 0.5.0. |
+  | `format` | `'min-max'` fraction digits (number/integer/percent), an ISO 4217 code (currency), `'HH:mm:ss'` (time). |
+  | `minorUnits` *(0.5.0)* | Currency stored in kuruş/cents: shown and typed in lira, stored and emitted in kuruş. See [column-types.md](column-types.md#money-stored-in-kuruş--cents-minorunits). |
+  | `formatter` *(0.5.0)* | `(value, row) => string` — the column's display text everywhere (cell, summary, chips, checklist, groups, CSV/PDF). Presentation only; `row` is `null` where no row exists. |
+  | `headerFilterMode` | `'checklist' \| 'operator'` — left out, the grid's `headerFilterMode` input decides. |
   | `filterOperators` | Restricts the filter row / popover operators, in the order given; the first is the default. See [server-side.md](server-side.md#restricting-operators-per-column-filteroperators). |
   | `headerFilterSource` | `'loaded' \| 'provider'` — `'loaded'` keeps a checklist on the loaded rows even when the grid has a `checklistValuesProvider`. |
   | `checklistValueLabel` | Labels a raw checklist value without its row — for values a provider returned. |
   | `checklistValuesLimit` | Per-column override of the grid's `checklistValuesLimit`. |
-- `WeGridColumnType` = `'text' | 'number' | 'date' | 'datetime' | 'currency' | 'boolean' | 'custom'`
+- `WeGridColumnType` = `'text' | 'number' | 'integer' | 'date' | 'datetime' | 'time' | 'currency' | 'percent' | 'boolean' | 'email' | 'url' | 'phone' | 'custom'` — see [column-types.md](column-types.md)
+- `WeGridValueKind` = `'text' | 'number' | 'date' | 'boolean'` and `weGridValueKind(type)` — the family a type filters, sums and edits like
+- `WeGridValueFormatter<T>` = `(value: unknown, row: T | null) => string`
 - `WeGridAlign` = `'start' | 'center' | 'end'`
 - `WeGridPinned` = `'left' | 'right' | null`
 - `WeGridDensity` = `'comfortable' | 'normal' | 'compact'`
@@ -133,10 +142,16 @@
 ## Utilities / services
 
 - `LocalStorageGridLayoutStore` — default `WeGridLayoutStore` implementation
-- `mergeGridLayout(columnDefs, saved, layoutVersion)`, `toColumnLayout(columns, columnDefs)`,
+- `mergeGridLayout(columnDefs, saved, layoutVersion, defaultHeaderFilterMode?)`, `toColumnLayout(columns, columnDefs)`,
   `WE_GRID_DEFAULT_COLUMN_WIDTH`
 - `formatWeGridValue(value, type, format?, options?)` — `options`: `locale`, `currency`, `timeZone`,
-  `yesLabel`, `noLabel` — `getNestedValue(row, path)`, `setNestedValue(row, path, value)`
+  `yesLabel`, `noLabel`, `minorUnits` — `getNestedValue(row, path)`, `setNestedValue(row, path, value)`
+- `formatWeGridColumnValue(value, col, options?, row?)` — a column's display text, `formatter` and
+  `minorUnits` included
+- `weGridInputScale(col, currency?)`, `weGridToInputNumber(value, scale)`, `weGridFromInputNumber(input, scale)`
+  — stored value ⇄ the number a user types (percent ×100, kuruş ÷100)
+- `weGridCurrencyFractionDigits(currency)`, `weGridResolveCurrency(format, fallback?)`,
+  `weGridLinkHref(value, type)`, `isWeGridLinkType(type)`
 - `WeGridDefaultExporter` (default `WE_GRID_EXPORTER`), `WeGridDefaultImportParser`
   (default `WE_GRID_IMPORT_PARSER`)
 - `weGridToCsv(table, options?)`, `weGridParseCsv(text, options?)`, `weGridDownloadBlob(blob, fileName)`

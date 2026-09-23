@@ -167,3 +167,46 @@ describe('weGridQuickFilterValueToInputString', () => {
     expect(weGridQuickFilterValueToInputString('not a date', 'date')).toBeNull();
   });
 });
+
+describe('we-grid-filter.util — the newer column types', () => {
+  const typed = [
+    { field: 'qty', type: 'integer' as const },
+    { field: 'rate', type: 'percent' as const },
+    { field: 'price', type: 'currency' as const, minorUnits: true },
+    { field: 'mail', type: 'email' as const }
+  ];
+  const data = [
+    { qty: 3, rate: 0.1, price: 1999, mail: 'ada@example.com' },
+    { qty: 8, rate: 0.35, price: 45000, mail: 'bob@example.org' }
+  ];
+
+  it('compares integer, percent and minor-unit columns numerically, in stored units', () => {
+    expect(applyWeGridFilters(data, filters({ field: 'qty', operator: 'gt', value: 5 }), typed).length).toBe(1);
+    expect(applyWeGridFilters(data, filters({ field: 'rate', operator: 'lt', value: 0.2 }), typed).length).toBe(1);
+    expect(applyWeGridFilters(data, filters({ field: 'price', operator: 'between', value: 1000, value2: 5000 }), typed)).toEqual([data[0]]);
+  });
+
+  it('searches an email column as text', () => {
+    expect(applyWeGridFilters(data, filters({ field: 'mail', operator: 'contains', value: '.org' }), typed)).toEqual([data[1]]);
+  });
+
+  it('labels a minor-unit chip in major units and a percent chip as a percentage', () => {
+    expect(weGridFilterChipLabel({ type: 'currency', minorUnits: true, header: 'Price' }, { field: 'price', operator: 'gt', value: 1999 })).toBe(
+      'Price > $19.99'
+    );
+    expect(weGridFilterChipLabel({ type: 'percent', header: 'Rate' }, { field: 'rate', operator: 'lt', value: 0.2 })).toBe('Rate < 20%');
+  });
+
+  it('labels a chip through the column formatter', () => {
+    const label = weGridFilterChipLabel(
+      { type: 'number', header: 'Weight', formatter: (v) => `${v} kg` },
+      { field: 'w', operator: 'eq', value: 5 }
+    );
+    expect(label).toBe('Weight = 5 kg');
+  });
+
+  it('shows the = symbol for every numeric type', () => {
+    expect(weGridFilterOperatorLabel('eq', 'integer')).toBe('=');
+    expect(weGridFilterOperatorLabel('eq', 'percent')).toBe('=');
+  });
+});

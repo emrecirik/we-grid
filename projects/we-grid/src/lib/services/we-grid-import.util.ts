@@ -10,6 +10,11 @@ export interface WeGridImportColumn {
   /** The header the user sees — imported files are matched against this first, then against `field` */
   header: string;
   type: WeGridColumnType;
+  /**
+   * How many stored units one unit in the file is worth — 100 for a `minorUnits` currency column,
+   * whose file shows 123,45 while the row stores 12345. Defaults to 1.
+   */
+  minorUnitFactor?: number;
 }
 
 export interface WeGridMappedImport {
@@ -106,15 +111,26 @@ function parseLooseDate(raw: string): Date | null {
 const TRUE_WORDS = new Set(['true', '1', 'yes', 'y', 'evet', 'e', 'x', 'on']);
 const FALSE_WORDS = new Set(['false', '0', 'no', 'n', 'hayir', 'h', 'off']);
 
-function coerce(raw: string, type: WeGridColumnType): { value: unknown; ok: boolean } {
+function coerce(raw: string, col: WeGridImportColumn): { value: unknown; ok: boolean } {
   const text = raw.trim();
   if (text === '') return { value: null, ok: true };
 
-  switch (type) {
+  switch (col.type) {
     case 'number':
     case 'currency': {
       const value = parseLooseNumber(text);
-      return { value, ok: value !== null };
+      const factor = col.minorUnitFactor ?? 1;
+      return { value: value !== null && factor !== 1 ? Math.round(value * factor) : value, ok: value !== null };
+    }
+    case 'integer': {
+      const value = parseLooseNumber(text);
+      return { value: value === null ? null : Math.round(value), ok: value !== null };
+    }
+    case 'percent': {
+      // "25%" is a quarter; a bare 0.25 (what Excel stores behind a percent cell) already is one
+      const value = parseLooseNumber(text);
+      if (value === null) return { value: null, ok: false };
+      return { value: text.endsWith('%') ? Number((value / 100).toPrecision(12)) : value, ok: true };
     }
     case 'date':
     case 'datetime': {
@@ -155,7 +171,7 @@ export function weGridMapImportedRows(sheet: WeGridImportSheet, columns: WeGridI
     mapping.forEach((col, colIndex) => {
       if (!col) return;
       const raw = cells[colIndex] ?? '';
-      const { value, ok } = coerce(raw, col.type);
+      const { value, ok } = coerce(raw, col);
       if (!ok) {
         if (errors.length < MAX_REPORTED_ERRORS) {
           errors.push(`${col.header} (${rowIndex + 2}): "${raw}"`);

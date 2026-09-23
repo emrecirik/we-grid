@@ -28,6 +28,12 @@ export interface WeGridExportColumn {
    * behind "Draft" or "120 - ABC Supplies" would produce a file nobody can read back.
    */
   useDisplayText: boolean;
+  /**
+   * Multiply a raw numeric value by this before writing it as a number — 0.01 for a `minorUnits`
+   * currency column (the row holds 12345 kuruş, the spreadsheet should hold 123.45). 1 otherwise;
+   * optional so a table built by hand keeps working.
+   */
+  numberScale?: number;
 }
 
 /** One exported row: the raw values (used by xlsx to keep numbers numeric) alongside the display text */

@@ -8,7 +8,13 @@
 import { HttpClient } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { Observable, delay, map, shareReplay } from 'rxjs';
-import { WeGridColumnFilterState, WeGridSortDirection } from 'we-grid-angular';
+import {
+  WeGridChecklistValue,
+  WeGridChecklistValuesRequest,
+  WeGridChecklistValuesResult,
+  WeGridColumnFilterState,
+  WeGridSortDirection
+} from 'we-grid-angular';
 
 import { Product } from '../models/retail.models';
 import { MockFieldTypes, MockPagedResult, applyMockFilters, applyMockSort, paginateMock } from './mock-query.util';
@@ -55,6 +61,31 @@ export class RetailApiService {
         const filtered = applyMockFilters(all, query.filters, PRODUCT_FIELD_TYPES);
         const sorted = applyMockSort(filtered, query.sortField, query.sortDirection, PRODUCT_FIELD_TYPES);
         return paginateMock(sorted, query.page, query.pageSize);
+      }),
+      delay(NETWORK_DELAY_MS)
+    );
+  }
+
+  /**
+   * The checklist's values over the WHOLE product table, not the 50 rows on screen —
+   * `SELECT DISTINCT <field> FROM products WHERE <every other filter> AND <field> LIKE :search`
+   * in SQL. The grid already leaves the requested column's own filter out of `request.filters`.
+   */
+  getChecklistValues(request: WeGridChecklistValuesRequest): Observable<WeGridChecklistValuesResult> {
+    return this.products$.pipe(
+      map((all) => {
+        const filtered = applyMockFilters(all, request.filters, PRODUCT_FIELD_TYPES);
+        const search = request.search?.toLocaleLowerCase('tr-TR');
+        const distinct = new Map<string, WeGridChecklistValue>();
+        for (const product of filtered) {
+          const value = (product as unknown as Record<string, unknown>)[request.field];
+          const key = String(value ?? '');
+          if (distinct.has(key)) continue;
+          if (search && !key.toLocaleLowerCase('tr-TR').includes(search)) continue;
+          distinct.set(key, { value });
+        }
+        const values = Array.from(distinct.values()).sort((a, b) => String(a.value).localeCompare(String(b.value), 'tr-TR'));
+        return { values: values.slice(0, request.limit), hasMore: values.length > request.limit };
       }),
       delay(NETWORK_DELAY_MS)
     );

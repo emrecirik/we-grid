@@ -50,10 +50,15 @@ export class AppComponent implements OnInit, OnDestroy {
   layoutSaved = false;
   theme: 'light' | 'dark' = 'light';
 
+  /**
+   * Every column gets the grid's default checklist header filter — fed by `checklistValues`, so City,
+   * Channel, Carrier and Payment list the values of ALL orders — except the free-text, date and
+   * amount columns below, which opt into the operator filter (contains, between, > <).
+   */
   readonly columns: WeGridColumnDef<Order>[] = [
-    { field: 'orderNo', header: 'Order No', width: 155, pinned: 'left' },
-    { field: 'orderDate', header: 'Order Date', type: 'datetime', width: 165 },
-    { field: 'customerName', header: 'Customer', width: 190 },
+    { field: 'orderNo', header: 'Order No', width: 155, pinned: 'left', headerFilterMode: 'operator' },
+    { field: 'orderDate', header: 'Order Date', type: 'datetime', width: 165, headerFilterMode: 'operator' },
+    { field: 'customerName', header: 'Customer', width: 190, headerFilterMode: 'operator' },
     { field: 'customerCity', header: 'City', width: 140 },
     { field: 'channel', header: 'Channel', width: 140 },
     {
@@ -62,20 +67,19 @@ export class AppComponent implements OnInit, OnDestroy {
       width: 165,
       // The user reads (and filters/groups by) the label; sorting still uses the raw code
       displayValue: (row) => orderStatusLabel(row.statusCode),
-      // A closed set of values is exactly what a checklist is for: the funnel icon lists the
-      // statuses of every order matching the other filters (see checklistValues below), and the
-      // ticks leave as one 'in' filter carrying the raw codes — the mock backend turns that into an
-      // IN (...) over every order.
+      // The checklist lists the statuses of every order matching the other filters (see
+      // checklistValues below), and the ticks leave as one 'in' filter carrying the raw codes — the
+      // mock backend turns that into an IN (...) over every order.
       headerFilterMode: 'checklist'
     },
     { field: 'carrier', header: 'Carrier', width: 160 },
-    { field: 'trackingNo', header: 'Tracking', width: 140 },
+    { field: 'trackingNo', header: 'Tracking', width: 140, headerFilterMode: 'operator' },
     { field: 'paymentMethod', header: 'Payment', width: 155 },
     { field: 'isPaid', header: 'Paid', type: 'boolean', width: 90, align: 'center' },
-    { field: 'itemCount', header: 'Items', type: 'number', width: 90, align: 'end', summary: 'sum' },
-    { field: 'subtotal', header: 'Subtotal', type: 'currency', format: 'TRY', width: 140, align: 'end' },
-    { field: 'shippingCost', header: 'Shipping', type: 'currency', format: 'TRY', width: 130, align: 'end' },
-    { field: 'totalAmount', header: 'Total', type: 'currency', format: 'TRY', width: 150, align: 'end', summary: 'sum' }
+    { field: 'itemCount', header: 'Items', type: 'integer', width: 90, align: 'end', summary: 'sum', headerFilterMode: 'operator' },
+    { field: 'subtotal', header: 'Subtotal', type: 'currency', format: 'TRY', width: 140, align: 'end', headerFilterMode: 'operator' },
+    { field: 'shippingCost', header: 'Shipping', type: 'currency', format: 'TRY', width: 130, align: 'end', headerFilterMode: 'operator' },
+    { field: 'totalAmount', header: 'Total', type: 'currency', format: 'TRY', width: 150, align: 'end', summary: 'sum', headerFilterMode: 'operator' }
   ];
 
   /** Checklist values come from the backend, so a status that isn't on the current page can still be picked */

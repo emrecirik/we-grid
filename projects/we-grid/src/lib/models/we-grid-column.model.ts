@@ -2,8 +2,71 @@ import { TemplateRef } from '@angular/core';
 import { WeGridEditorOption, WeGridEditorType } from './we-grid-edit.model';
 import { WeGridFilterOperator } from './we-grid-filter.model';
 
-/** Column data type — cell rendering and default formatting are driven by this */
-export type WeGridColumnType = 'text' | 'number' | 'date' | 'datetime' | 'currency' | 'boolean' | 'custom';
+/**
+ * Column data type — cell rendering, default formatting, filtering, editing, export and import are
+ * driven by this.
+ *
+ * - `'text'` — plain text
+ * - `'number'` — a number; `format: '2-2'` sets the min-max fraction digits
+ * - `'integer'` — a whole number, shown without fraction digits
+ * - `'currency'` — money in the locale's (or `format`'s) currency; add `minorUnits: true` when the
+ *   value is stored in the minor unit (kuruş, cents — `12345` → ₺123,45)
+ * - `'percent'` — a FRACTION shown as a percentage (`0.255` → %25,5); `format` sets fraction digits
+ * - `'date'` / `'datetime'` — a `Date` or anything `new Date()` accepts
+ * - `'time'` — a time of day, either `'HH:mm'` / `'HH:mm:ss'` text or a `Date`
+ * - `'boolean'` — shown as the locale's Yes / No
+ * - `'email'` / `'url'` / `'phone'` — text rendered as a `mailto:` / web / `tel:` link
+ * - `'custom'` — rendered by a cell template only
+ */
+export type WeGridColumnType =
+  | 'text'
+  | 'number'
+  | 'integer'
+  | 'date'
+  | 'datetime'
+  | 'time'
+  | 'currency'
+  | 'percent'
+  | 'boolean'
+  | 'email'
+  | 'url'
+  | 'phone'
+  | 'custom';
+
+/**
+ * The family a column type behaves like when filtering, sorting and summarising: every numeric type
+ * filters with = > < between, every date type with a calendar picker, and so on.
+ */
+export type WeGridValueKind = 'text' | 'number' | 'date' | 'boolean';
+
+/** Maps a column type onto the family it filters, sums and edits like — see WeGridValueKind */
+export function weGridValueKind(type: WeGridColumnType | undefined): WeGridValueKind {
+  switch (type) {
+    case 'number':
+    case 'integer':
+    case 'currency':
+    case 'percent':
+      return 'number';
+    case 'date':
+    case 'datetime':
+      return 'date';
+    case 'boolean':
+      return 'boolean';
+    default:
+      return 'text';
+  }
+}
+
+/** Column types whose cells render as a link — see WeGridColumnType */
+export function isWeGridLinkType(type: WeGridColumnType): boolean {
+  return type === 'email' || type === 'url' || type === 'phone';
+}
+
+/**
+ * Turns a cell value into its own display text — see WeGridColumnDef.formatter. `row` is `null`
+ * where there is no row to hand: the summary row, a filter chip, a checklist value, a group header.
+ */
+export type WeGridValueFormatter<T = unknown> = (value: unknown, row: T | null) => string;
 
 /** Cell / header alignment */
 export type WeGridAlign = 'start' | 'center' | 'end';
@@ -22,8 +85,8 @@ export type WeGridSummaryFunction = 'sum' | 'count' | 'avg' | 'min' | 'max' | 'n
 
 /**
  * What the column header's funnel icon opens.
- * 'operator' (the default) is the classic operator + single value popover; 'checklist' is the
- * Excel/DevExpress style list of the distinct values found in the loaded rows.
+ * 'checklist' (the grid default since 0.5.0) is the Excel/DevExpress style list of the distinct
+ * values in the data; 'operator' is the classic operator + single value popover.
  */
 export type WeGridHeaderFilterMode = 'operator' | 'checklist';
 
@@ -33,9 +96,9 @@ export type WeGridHeaderFilterSelection = 'multi' | 'single';
 /** Where a checklist column's values come from — the loaded rows, or the grid's `checklistValuesProvider` */
 export type WeGridHeaderFilterSource = 'loaded' | 'provider';
 
-/** sum/avg/min/max only make sense on numeric columns — text/date/boolean/custom only offer count */
+/** sum/avg/min/max only make sense on numeric columns (number/integer/currency/percent) — the rest only offer count */
 export function isWeGridNumericSummaryType(type: WeGridColumnType): boolean {
-  return type === 'number' || type === 'currency';
+  return weGridValueKind(type) === 'number';
 }
 
 /** Context passed to a `weGridCell` template — used as `let-row`, `let-value="value"` */
@@ -83,8 +146,31 @@ export interface WeGridColumnDef<T> {
   sortable?: boolean;
   /** Default pin direction */
   pinned?: WeGridPinned;
-  /** date/datetime/number/currency format (same convention as Angular's DatePipe/DecimalPipe) */
+  /**
+   * Type-specific format: `'min-max'` fraction digits for number/integer/percent (e.g. `'2-2'`), an
+   * ISO 4217 code for currency (e.g. `'EUR'` — the locale's currency otherwise), `'HH:mm:ss'` for a
+   * time column that should show seconds.
+   */
   format?: string;
+  /**
+   * Currency columns only: the value is stored in the currency's MINOR unit — kuruş, cents — as
+   * most payment and accounting backends do. `12345` then shows as ₺123,45 (the divisor comes from
+   * the currency: 100 for TRY/USD/EUR, 1 for JPY). Everything the user sees or types is in major
+   * units — the filter inputs, the inline editor, CSV/Excel import and export — while the rows,
+   * sorting, the summary row and every filter value the grid EMITS stay in minor units, so a
+   * server-side filter can be put straight into `WHERE amount_kurus >= :value`.
+   */
+  minorUnits?: boolean;
+  /**
+   * Custom display text for this column's values — `(value, row) => string`. Replaces the built-in
+   * formatting wherever the value is shown as text: the cell, its tooltip, the summary row, group
+   * headers, checklist entries, filter chips and the CSV/PDF export (Excel keeps numbers numeric).
+   * `row` is `null` where no row exists (summary, chips, checklist, group headers), so a formatter
+   * that needs the row should fall back gracefully. Unlike `displayValue` it changes presentation
+   * only — filtering and grouping still work on the raw value. Also called for empty values, so it
+   * can print a placeholder such as "—".
+   */
+  formatter?: WeGridValueFormatter<T>;
   /**
    * Custom cell template (can also be supplied via the `weGridCell` directive) — works
    * INDEPENDENTLY of `type`. If the field holds numeric/currency data, keep `type: 'number'` /
@@ -123,9 +209,10 @@ export interface WeGridColumnDef<T> {
    */
   filterOperators?: WeGridFilterOperator[];
   /**
-   * What the header's funnel icon opens — defaults to `'operator'`, i.e. the existing operator +
-   * single value popover, so columns that don't set it behave exactly as before. With
-   * `'checklist'` the popover instead lists the DISTINCT values of the rows currently in `data`
+   * What the header's funnel icon opens. Left out, the grid's `headerFilterMode` input decides —
+   * `'checklist'` by default since 0.5.0 (`'custom'` columns always default to `'operator'`). With
+   * `'operator'` it is the operator + single value popover (and the filter row shows the operator
+   * controls). With `'checklist'` the popover instead lists the DISTINCT values of the rows currently in `data`
    * (the loaded page — the grid never issues a request of its own to collect them) with a search
    * box, a select-all box and an "(Empty)" entry. The selection leaves the grid as a single filter
    * whose operator is `'in'` and whose `value` is the array of picked raw values, so a

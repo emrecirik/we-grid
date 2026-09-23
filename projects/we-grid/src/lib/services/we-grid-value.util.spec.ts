@@ -1,4 +1,12 @@
-import { formatWeGridValue, getNestedValue } from './we-grid-value.util';
+import {
+  formatWeGridColumnValue,
+  formatWeGridValue,
+  getNestedValue,
+  weGridFromInputNumber,
+  weGridInputScale,
+  weGridLinkHref,
+  weGridToInputNumber
+} from './we-grid-value.util';
 
 describe('getNestedValue', () => {
   it('reads a flat field', () => {
@@ -109,5 +117,97 @@ describe('formatWeGridValue formatter cache', () => {
     // 3 'date' calls share a single constructor call, 'datetime' constructs a second one for its
     // different option set — 2 in total.
     expect(ctorSpy).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('formatWeGridValue — integer, percent, time and minor-unit currency', () => {
+  it('shows an integer without fraction digits', () => {
+    expect(formatWeGridValue(1234.6, 'integer')).toBe('1,235');
+  });
+
+  it('shows a percent column as the fraction times 100', () => {
+    expect(formatWeGridValue(0.255, 'percent')).toBe('25.5%');
+    expect(formatWeGridValue(0.2, 'percent', '1-1')).toBe('20.0%');
+  });
+
+  it('divides a minorUnits currency value by the currency\'s own minor unit', () => {
+    expect(formatWeGridValue(12345, 'currency', 'USD', { minorUnits: true })).toBe('$123.45');
+    // JPY has no minor unit — nothing is divided
+    expect(formatWeGridValue(500, 'currency', 'JPY', { minorUnits: true })).toBe('¥500');
+    expect(formatWeGridValue(12345, 'currency', undefined, { locale: 'tr-TR', currency: 'TRY', minorUnits: true })).toBe('₺123,45');
+  });
+
+  it('formats a time of day without shifting it and a Date by its clock time', () => {
+    expect(formatWeGridValue('14:05', 'time', undefined, { locale: 'tr-TR' })).toBe('14:05');
+    expect(formatWeGridValue('14:05:09', 'time', 'HH:mm:ss', { locale: 'tr-TR' })).toBe('14:05:09');
+    expect(formatWeGridValue(new Date(2026, 0, 1, 9, 30), 'time', undefined, { locale: 'tr-TR' })).toBe('09:30');
+  });
+
+  it('shows an unparseable number as it is rather than NaN', () => {
+    expect(formatWeGridValue('n/a', 'number')).toBe('n/a');
+  });
+});
+
+describe('formatWeGridColumnValue', () => {
+  it('prefers the column formatter and hands it the row', () => {
+    const row = { unit: 'kg' };
+    const text = formatWeGridColumnValue(12, { type: 'number', formatter: (v, r) => `${v} ${(r as typeof row).unit}` }, undefined, row);
+    expect(text).toBe('12 kg');
+  });
+
+  it('calls the formatter for empty values too, with a null row where none exists', () => {
+    const seen: unknown[] = [];
+    const text = formatWeGridColumnValue(null, {
+      type: 'text',
+      formatter: (v, r) => {
+        seen.push(r);
+        return v === null ? '—' : String(v);
+      }
+    });
+    expect(text).toBe('—');
+    expect(seen).toEqual([null]);
+  });
+
+  it('applies minorUnits from the column', () => {
+    expect(formatWeGridColumnValue(199, { type: 'currency', format: 'EUR', minorUnits: true })).toBe('€1.99');
+  });
+});
+
+describe('input scale helpers', () => {
+  it('scales percent and minor-unit currency columns and leaves the rest alone', () => {
+    expect(weGridInputScale({ type: 'percent' })).toBe(100);
+    expect(weGridInputScale({ type: 'currency', minorUnits: true }, 'TRY')).toBe(0.01);
+    expect(weGridInputScale({ type: 'currency', format: 'JPY', minorUnits: true })).toBe(1);
+    expect(weGridInputScale({ type: 'currency' }, 'TRY')).toBe(1);
+    expect(weGridInputScale({ type: 'number' })).toBe(1);
+  });
+
+  it('round-trips without floating point residue', () => {
+    expect(weGridToInputNumber(0.07, 100)).toBe(7);
+    expect(weGridFromInputNumber(7, 100)).toBe(0.07);
+    expect(weGridToInputNumber(12345, 0.01)).toBe(123.45);
+    expect(weGridFromInputNumber(123.45, 0.01)).toBe(12345);
+    expect(weGridFromInputNumber(1.005, 0.01)).toBe(101);
+    expect(weGridFromInputNumber('', 0.01)).toBeNull();
+    expect(weGridToInputNumber(null, 100)).toBeNull();
+  });
+});
+
+describe('weGridLinkHref', () => {
+  it('builds mailto, tel and web links', () => {
+    expect(weGridLinkHref('ada@example.com', 'email')).toBe('mailto:ada@example.com');
+    expect(weGridLinkHref('+90 (212) 555 01 01', 'phone')).toBe('tel:+902125550101');
+    expect(weGridLinkHref('example.com/a', 'url')).toBe('https://example.com/a');
+    expect(weGridLinkHref('http://example.com', 'url')).toBe('http://example.com');
+  });
+
+  it('never turns a script scheme into a live link', () => {
+    expect(weGridLinkHref('javascript:alert(1)', 'url')).toBe('https://javascript:alert(1)');
+  });
+
+  it('returns null for empty values and non-link types', () => {
+    expect(weGridLinkHref('', 'email')).toBeNull();
+    expect(weGridLinkHref('  ', 'url')).toBeNull();
+    expect(weGridLinkHref('abc', 'text')).toBeNull();
   });
 });

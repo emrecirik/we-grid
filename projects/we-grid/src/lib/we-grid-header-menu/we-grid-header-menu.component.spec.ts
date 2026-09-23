@@ -14,7 +14,7 @@ describe('WeGridHeaderMenuComponent — "Filter by this value"', () => {
 
   /** Opens the menu the way a right-click on a cell does and returns the quick-filter item, if rendered */
   function quickFilterItemFor(def: WeGridColumnDef<unknown>): HTMLButtonElement | undefined {
-    const column = mergeGridLayout<unknown>([def], null, 1).columns[0];
+    const column = mergeGridLayout<unknown>([def], null, 1, 'operator').columns[0];
     fixture.componentRef.setInput('column', column);
     fixture.componentRef.setInput('allColumns', [column]);
     fixture.componentRef.setInput('enableGrouping', true);

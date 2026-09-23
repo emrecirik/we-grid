@@ -45,6 +45,38 @@ function makeProducts(count: number): Product[] {
 
 const ALL_PRODUCTS = makeProducts(83);
 
+/** A row carrying one field of every column type — section 9 */
+interface TypedRow {
+  id: number;
+  sku: string;
+  qty: number;
+  /** Stored in kuruş, the way payment and accounting backends usually keep money */
+  priceKurus: number;
+  discount: number;
+  weightKg: number;
+  opensAt: string;
+  contactEmail: string;
+  website: string;
+  phone: string;
+  active: boolean;
+  shippedAt: string;
+}
+
+const TYPED_ROWS: TypedRow[] = Array.from({ length: 12 }, (_, i) => ({
+  id: i + 1,
+  sku: `SKU-${(200 + i * 7).toString()}`,
+  qty: (i * 37) % 250,
+  priceKurus: 1999 + i * 12345,
+  discount: [0, 0.05, 0.1, 0.125, 0.2, 0.33][i % 6],
+  weightKg: Math.round((0.25 + i * 1.7) * 100) / 100,
+  opensAt: `${String(8 + (i % 4)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`,
+  contactEmail: `supplier${i + 1}@example.com`,
+  website: `example.com/suppliers/${i + 1}`,
+  phone: `+90 212 555 ${String(1000 + i * 11).slice(-4)}`,
+  active: i % 3 !== 0,
+  shippedAt: new Date(2026, 8, 1 + i, 9 + (i % 8), 15).toISOString()
+}));
+
 @Component({
   selector: 'app-root',
   standalone: true,
@@ -208,6 +240,30 @@ export class AppComponent {
       }
       return String(raw ?? '').toLowerCase().includes(String(filter.value ?? '').toLowerCase());
     });
+  }
+
+  // ─── 9. Column types and formatters ─────────────────────────────
+  typedColumns: WeGridColumnDef<TypedRow>[] = [
+    { field: 'sku', header: 'SKU (text)', width: 120 },
+    { field: 'qty', header: 'Qty (integer)', type: 'integer', width: 120, align: 'end', summary: 'sum' },
+    // The row holds 1999; the cell shows ₺19,99, the filter and the editor take 19.99, and the
+    // (filterChange) event carries 1999 again — see the log under the grid.
+    { field: 'priceKurus', header: 'Price (kuruş)', type: 'currency', format: 'TRY', minorUnits: true, width: 140, align: 'end', summary: 'sum' },
+    { field: 'discount', header: 'Discount (percent)', type: 'percent', format: '0-1', width: 150, align: 'end' },
+    // A formatter changes the text only — sorting, filtering and the summary still use the number
+    { field: 'weightKg', header: 'Weight (formatter)', type: 'number', width: 150, align: 'end', formatter: (value) => (value == null ? '—' : `${value} kg`) },
+    { field: 'opensAt', header: 'Opens (time)', type: 'time', width: 120 },
+    { field: 'shippedAt', header: 'Shipped (datetime)', type: 'datetime', width: 170 },
+    { field: 'contactEmail', header: 'E-mail (email)', type: 'email', width: 210 },
+    { field: 'website', header: 'Website (url)', type: 'url', width: 230 },
+    { field: 'phone', header: 'Phone (phone)', type: 'phone', width: 160 },
+    { field: 'active', header: 'Active (boolean)', type: 'boolean', width: 130, align: 'center' }
+  ];
+  typedData = TYPED_ROWS.map((row) => ({ ...row }));
+  typedFilterLog: string[] = [];
+
+  onTypedFilterChange(e: WeGridFilterChangeEvent): void {
+    this.typedFilterLog = [...this.typedFilterLog, `(filterChange) ${JSON.stringify([...e])}`].slice(-4);
   }
 
   // ─── 7. Export / import ───────────────────────────────────────────

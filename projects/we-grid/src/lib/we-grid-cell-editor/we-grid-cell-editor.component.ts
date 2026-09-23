@@ -2,6 +2,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ChangeDetectionStrategy, Component, ElementRef, EventEmitter, Input, Output } from '@angular/core';
 import { WeGridInternalColumn, weGridDisplayHeader } from '../models/we-grid-internal.model';
+import { weGridFromInputNumber, weGridToInputNumber } from '../services/we-grid-value.util';
 
 /**
  * The control rendered in place of a cell's text while its row is in inline edit mode.
@@ -28,6 +29,12 @@ export class WeGridCellEditorComponent {
   @Input() invalid = false;
   /** True while the row's commit is in flight, so the user cannot keep typing into a saving row */
   @Input() disabled = false;
+  /**
+   * Stored value × this = the number in the input — 100 on a percent column (0.25 is edited as 25),
+   * 0.01 on a `minorUnits` currency column (12345 kuruş is edited as 123.45). The grid resolves it
+   * from the column and its locale's currency, see `weGridInputScale`.
+   */
+  @Input() scale = 1;
 
   @Output() valueChange = new EventEmitter<unknown>();
 
@@ -42,9 +49,30 @@ export class WeGridCellEditorComponent {
   }
 
   get numberValue(): number | null {
-    if (this.value === null || this.value === undefined || this.value === '') return null;
-    const num = Number(this.value);
-    return isNaN(num) ? null : num;
+    return weGridToInputNumber(this.value, this.scale);
+  }
+
+  /** An integer column steps by whole numbers; every other number editor accepts any decimal */
+  get numberStep(): string {
+    return this.column.type === 'integer' ? '1' : 'any';
+  }
+
+  /** `<input type="time">` wants `HH:mm` — a stored `HH:mm:ss` is cut, a `Date` gives its local time */
+  get timeValue(): string {
+    if (typeof this.value === 'string') {
+      const match = /^(\d{1,2}):(\d{2})/.exec(this.value.trim());
+      if (match) return `${match[1].padStart(2, '0')}:${match[2]}`;
+    }
+    const date = this.toDate(this.value);
+    if (!date) return '';
+    const pad = (n: number): string => String(n).padStart(2, '0');
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  }
+
+  /** The plain `<input>`'s type — email/url/tel get the matching mobile keyboard and browser checks */
+  get textInputType(): string {
+    const editor = this.column.editor;
+    return editor === 'email' || editor === 'url' || editor === 'tel' ? editor : 'text';
   }
 
   get booleanValue(): boolean {
@@ -82,8 +110,27 @@ export class WeGridCellEditorComponent {
       this.valueChange.emit(null);
       return;
     }
-    const num = Number(raw);
-    this.valueChange.emit(isNaN(num) ? null : num);
+    const stored = weGridFromInputNumber(raw, this.scale);
+    this.valueChange.emit(stored !== null && this.column.type === 'integer' ? Math.round(stored) : stored);
+  }
+
+  /**
+   * A time-of-day field stays a `HH:mm` string; a field that held a `Date` gets the same day back
+   * with the picked time, so editing the time never moves the date part.
+   */
+  emitTime(raw: string): void {
+    if (raw === '') {
+      this.valueChange.emit(null);
+      return;
+    }
+    if (this.value instanceof Date) {
+      const [hours, minutes] = raw.split(':').map(Number);
+      const next = new Date(this.value.getTime());
+      next.setHours(hours, minutes, 0, 0);
+      this.valueChange.emit(next);
+      return;
+    }
+    this.valueChange.emit(raw);
   }
 
   emitBoolean(checked: boolean): void {

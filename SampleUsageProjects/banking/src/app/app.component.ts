@@ -73,13 +73,15 @@ export class AppComponent implements OnInit, OnDestroy {
     { field: 'product', header: 'Product', width: 160 },
     { field: 'currency', header: 'Cur.', width: 80, align: 'center' },
     { field: 'outstanding', header: 'Outstanding', type: 'currency', width: 150, align: 'end' },
-    { field: 'outstandingTry', header: 'Outstanding (TRY)', type: 'currency', format: 'TRY', width: 175, align: 'end', summary: 'sum' },
+    // Stored in kuruş: the cell shows ₺, the filter row and the summary work in lira, the data stays in kuruş
+    { field: 'outstandingTry', header: 'Outstanding (TRY)', type: 'currency', format: 'TRY', minorUnits: true, width: 175, align: 'end', summary: 'sum' },
     { field: 'installmentAmount', header: 'Installment', type: 'currency', width: 150, align: 'end', summary: 'avg' },
-    { field: 'interestRate', header: 'Rate %', type: 'number', format: '2-2', width: 100, align: 'end' },
+    // A fraction shown as a percentage — type 25 in the filter row to find rates above 25%
+    { field: 'interestRate', header: 'Rate', type: 'percent', format: '2-2', width: 100, align: 'end' },
     { field: 'startDate', header: 'Start', type: 'date', width: 120 },
     { field: 'maturityDate', header: 'Maturity', type: 'date', width: 120 },
     { field: 'status', header: 'Status', width: 130 },
-    { field: 'overdueDays', header: 'Overdue Days', type: 'number', width: 130, align: 'end' },
+    { field: 'overdueDays', header: 'Overdue Days', type: 'integer', width: 130, align: 'end' },
     { field: 'riskGrade', header: 'Risk', width: 90, align: 'center' }
   ];
 

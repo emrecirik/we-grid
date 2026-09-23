@@ -260,7 +260,7 @@
                       <span class="we-grid__filter-checklist-text">{{ checklistButtonLabel(col) }}</span>
                       <span class="we-grid__filter-checklist-caret" [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
                     </button>
-                  } @else if (col.type === 'boolean') {
+                  } @else if (valueKind(col) === 'boolean') {
                     <select
                       class="we-grid__filter-select"
                       [attr.aria-label]="locale.filterAriaLabel + ': ' + displayHeader(col)"
@@ -273,7 +273,7 @@
                     </select>
                   } @else {
                     <div class="we-grid__filter-controls">
-                      @if (col.type === 'number' || col.type === 'currency') {
+                      @if (valueKind(col) === 'number') {
                         <select
                           class="we-grid__filter-op"
                           [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + displayHeader(col)"
@@ -285,12 +285,12 @@
                           }
                         </select>
                         @if (getFilterState(col).operator === 'between') {
-                          <input type="number" class="we-grid__filter-input we-grid__filter-input--sm" placeholder="min" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
-                          <input type="number" class="we-grid__filter-input we-grid__filter-input--sm" placeholder="max" [ngModel]="getFilterState(col).value2" (ngModelChange)="setFilterValue(col, $event, 'value2')" />
+                          <input type="number" step="any" class="we-grid__filter-input we-grid__filter-input--sm" placeholder="min" [ngModel]="filterInputNumber(col, 'value')" (ngModelChange)="setFilterValue(col, $event, 'value')" />
+                          <input type="number" step="any" class="we-grid__filter-input we-grid__filter-input--sm" placeholder="max" [ngModel]="filterInputNumber(col, 'value2')" (ngModelChange)="setFilterValue(col, $event, 'value2')" />
                         } @else {
-                          <input type="number" class="we-grid__filter-input" [placeholder]="locale.value" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
+                          <input type="number" step="any" class="we-grid__filter-input" [placeholder]="locale.value" [ngModel]="filterInputNumber(col, 'value')" (ngModelChange)="setFilterValue(col, $event, 'value')" />
                         }
-                      } @else if (col.type === 'date' || col.type === 'datetime') {
+                      } @else if (valueKind(col) === 'date') {
                         <select
                           class="we-grid__filter-op"
                           [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + displayHeader(col)"
@@ -353,6 +353,7 @@
                 @if (col.editable) {
                   <we-grid-cell-editor
                     [column]="$any(col)"
+                  [scale]="inputScale(col)"
                     [value]="draftValue(col)"
                     [invalid]="hasDraftError(col)"
                     [disabled]="!!edit?.saving"
@@ -497,6 +498,7 @@
                       @if (isCellEditing(entry.row, col)) {
                         <we-grid-cell-editor
                           [column]="$any(col)"
+                  [scale]="inputScale(col)"
                           [value]="draftValue(col)"
                           [invalid]="hasDraftError(col)"
                           [disabled]="!!edit?.saving"
@@ -506,7 +508,18 @@
                         @if (getCellTemplate(col); as tmpl) {
                           <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(entry.row, col, entry.index)"></ng-container>
                         } @else {
+                          @if (cellLink(entry.row, col); as href) {
+                          <a
+                            class="we-grid__cell-link"
+                            [href]="href"
+                            [attr.target]="col.type === 'url' ? '_blank' : null"
+                            [attr.rel]="col.type === 'url' ? 'noopener noreferrer' : null"
+                            (click)="$event.stopPropagation()"
+                            >{{ formatCell(entry.row, col) }}</a
+                          >
+                        } @else {
                           {{ formatCell(entry.row, col) }}
+                        }
                         }
                       }
                     </td>
@@ -617,6 +630,7 @@
                   @if (isCellEditing(row, col)) {
                     <we-grid-cell-editor
                       [column]="$any(col)"
+                  [scale]="inputScale(col)"
                       [value]="draftValue(col)"
                       [invalid]="hasDraftError(col)"
                       [disabled]="!!edit?.saving"
@@ -626,7 +640,18 @@
                     @if (getCellTemplate(col); as tmpl) {
                       <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(row, col, i)"></ng-container>
                     } @else {
-                      {{ formatCell(row, col) }}
+                      @if (cellLink(row, col); as href) {
+                          <a
+                            class="we-grid__cell-link"
+                            [href]="href"
+                            [attr.target]="col.type === 'url' ? '_blank' : null"
+                            [attr.rel]="col.type === 'url' ? 'noopener noreferrer' : null"
+                            (click)="$event.stopPropagation()"
+                            >{{ formatCell(row, col) }}</a
+                          >
+                        } @else {
+                          {{ formatCell(row, col) }}
+                        }
                     }
                   }
                 </td>

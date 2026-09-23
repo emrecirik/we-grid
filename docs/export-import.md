@@ -23,7 +23,7 @@ or `importFormats` renders exactly the toolbar it rendered before.
 |---|---|
 | **Rows** | The loaded rows, after the client-side filter and sort, in the order shown. When rows are selected, only those. |
 | **Columns** | Only the columns the user currently has visible, in their current order, under their current (possibly renamed) headers. A column with `exportable: false` is always skipped. |
-| **Values** | The formatted text the grid shows, including `displayValue` labels. Excel additionally keeps numbers numeric and dates as real dates. |
+| **Values** | The formatted text the grid shows, including `displayValue` labels and `formatter` output. Excel additionally keeps numbers numeric and dates as real dates: a `minorUnits` currency column is written in lira (`12345` kuruş → `123.45`), a `percent` column as its fraction with Excel's `0.00%` format. |
 | **Summary** | The subtotal row, when one is shown. |
 
 The button's tooltip says which scope will be used before it is pressed — "Excel (.xlsx) ·
@@ -63,8 +63,10 @@ never guessed at.
 
 Type conversion handles what spreadsheets actually produce: numbers in either locale convention
 (`1.234,56` and `1,234.56` both read as `1234.56`), dates as ISO, day-first (`05.03.2024`) or
-Excel serial numbers, and booleans as `true/1/yes/evet` and `false/0/no/hayır`. A cell that cannot
-be converted is left out of the row and listed in `errors`.
+Excel serial numbers, and booleans as `true/1/yes/evet` and `false/0/no/hayır`. An `integer` column
+rounds, a `percent` column reads `25%` as `0.25` (a bare `0.25` stays as it is), and a `minorUnits`
+currency column turns `123,45` into `12345` kuruş. A cell that cannot be converted is left out of the
+row and listed in `errors`.
 
 **The grid never adds the rows to `data`.** It emits them and stops:
 

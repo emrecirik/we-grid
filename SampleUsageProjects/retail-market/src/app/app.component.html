@@ -9,6 +9,13 @@
 
 <main class="app-main">
   <section class="card">
+    <div class="callout">
+      <strong>Filters run on the server, across the whole product table — not just the {{ pageSize }} rows on this page. {{ totalCount | number }} products match right now.</strong>
+      The grid runs with <code>filterMode="server"</code>: every filter leaves through <code>(filterChange)</code> and the
+      backend applies it to the whole table before paging. The Category, Supplier and Location checklists take their
+      values from <code>checklistValuesProvider</code>, so they list every value in the table.
+    </div>
+
     <div class="toolbar">
       <div class="toolbar__group">
         <span class="toolbar__label">Density</span>
@@ -60,6 +67,8 @@
       [sortField]="sortField"
       [sortDirection]="sortDirection"
       [filterRow]="true"
+      filterMode="server"
+      [checklistValuesProvider]="checklistValues"
       [grouping]="true"
       selectable="multi"
       [rowClass]="rowClass"

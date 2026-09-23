@@ -281,3 +281,26 @@ describe('toColumnLayout', () => {
     expect(remerged.columns.find((c) => c.field === 'qty')?.summary).toBe('avg');
   });
 });
+
+describe('mergeGridLayout — header filter mode', () => {
+  it('defaults every column to the checklist, except a custom column', () => {
+    const columns = mergeGridLayout<Row>(
+      [...baseColumns, { field: 'actions', header: '', type: 'custom' }, { field: 'status2', header: 'S', headerFilterMode: 'operator' }],
+      null,
+      1
+    ).columns;
+    expect(columns.map((c) => c.headerFilterMode)).toEqual(['checklist', 'checklist', 'checklist', 'operator', 'operator']);
+  });
+
+  it('uses the grid-wide default passed in, while a column\'s own choice still wins', () => {
+    const columns = mergeGridLayout<Row>([baseColumns[0], { ...baseColumns[1], headerFilterMode: 'checklist' }], null, 1, 'operator').columns;
+    expect(columns.map((c) => c.headerFilterMode)).toEqual(['operator', 'checklist']);
+  });
+
+  it('carries minorUnits and formatter over', () => {
+    const formatter = (v: unknown): string => String(v);
+    const [col] = mergeGridLayout<Row>([{ field: 'code', header: 'C', type: 'currency', minorUnits: true, formatter }], null, 1).columns;
+    expect(col.minorUnits).toBeTrue();
+    expect(col.formatter).toBe(formatter);
+  });
+});

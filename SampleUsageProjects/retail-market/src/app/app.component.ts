@@ -3,10 +3,12 @@ import { Component, OnDestroy, OnInit, ViewChild, inject } from '@angular/core';
 import { Subject, takeUntil } from 'rxjs';
 import {
   WeGridCellDirective,
+  WeGridChecklistValuesProvider,
   WeGridColumnDef,
   WeGridColumnFilterState,
   WeGridComponent,
   WeGridDensity,
+  WeGridFilterChangeEvent,
   WeGridPageChange,
   WeGridRowClassFn,
   WeGridSortChange,
@@ -44,22 +46,31 @@ export class AppComponent implements OnInit, OnDestroy {
   density: WeGridDensity = 'normal';
   readonly densities: WeGridDensity[] = ['comfortable', 'normal', 'compact'];
 
+  /**
+   * Category, supplier and location keep the grid's default checklist header filter, and their lists
+   * come from `checklistValues` below — every value in the product table, not the page on screen.
+   * The other columns opt into the operator filter (contains, > < between), which suits free text
+   * and continuous ranges better than ticking hundreds of distinct values.
+   */
   readonly columns: WeGridColumnDef<Product>[] = [
-    { field: 'barcode', header: 'Barcode', width: 150, pinned: 'left' },
-    { field: 'name', header: 'Product', width: 230 },
+    { field: 'barcode', header: 'Barcode', width: 150, pinned: 'left', headerFilterMode: 'operator' },
+    { field: 'name', header: 'Product', width: 230, headerFilterMode: 'operator' },
     { field: 'category', header: 'Category', width: 165 },
     { field: 'supplier', header: 'Supplier', width: 200 },
     { field: 'warehouse', header: 'Location', width: 150 },
-    { field: 'costPrice', header: 'Cost', type: 'currency', format: 'TRY', width: 120, align: 'end' },
-    { field: 'salePrice', header: 'Sale Price', type: 'currency', format: 'TRY', width: 130, align: 'end', summary: 'avg' },
-    { field: 'stockQty', header: 'Stock', type: 'number', width: 110, align: 'end', summary: 'sum' },
-    { field: 'minStockQty', header: 'Min. Stock', type: 'number', width: 120, align: 'end' },
-    { field: 'reservedQty', header: 'Reserved', type: 'number', width: 110, align: 'end' },
+    { field: 'costPrice', header: 'Cost', type: 'currency', format: 'TRY', width: 120, align: 'end', headerFilterMode: 'operator' },
+    { field: 'salePrice', header: 'Sale Price', type: 'currency', format: 'TRY', width: 130, align: 'end', summary: 'avg', headerFilterMode: 'operator' },
+    { field: 'stockQty', header: 'Stock', type: 'integer', width: 110, align: 'end', summary: 'sum', headerFilterMode: 'operator' },
+    { field: 'minStockQty', header: 'Min. Stock', type: 'integer', width: 120, align: 'end', headerFilterMode: 'operator' },
+    { field: 'reservedQty', header: 'Reserved', type: 'integer', width: 110, align: 'end', headerFilterMode: 'operator' },
     { field: 'onShelf', header: 'On Shelf', type: 'boolean', width: 110, align: 'center' },
-    { field: 'shelfLifeDays', header: 'Shelf Life (days)', type: 'number', width: 150, align: 'end' },
-    { field: 'expiryDate', header: 'Expires', type: 'date', width: 125 },
-    { field: 'lastCountedAt', header: 'Last Counted', type: 'date', width: 140 }
+    { field: 'shelfLifeDays', header: 'Shelf Life (days)', type: 'integer', width: 150, align: 'end', headerFilterMode: 'operator' },
+    { field: 'expiryDate', header: 'Expires', type: 'date', width: 125, headerFilterMode: 'operator' },
+    { field: 'lastCountedAt', header: 'Last Counted', type: 'date', width: 140, headerFilterMode: 'operator' }
   ];
+
+  /** Checklist values from the backend — every category/supplier/location in the table, not only this page's */
+  readonly checklistValues: WeGridChecklistValuesProvider = (request) => this.api.getChecklistValues(request);
 
   /**
    * Critical/out-of-stock highlighting. The classes land on the grid's own <tr>, which lives inside
@@ -93,9 +104,14 @@ export class AppComponent implements OnInit, OnDestroy {
     this.loadProducts();
   }
 
-  onFilterChange(filters: WeGridColumnFilterState[]): void {
-    this.activeFilters = filters;
-    this.page = 1;
+  /**
+   * Filtering runs on the server, over ALL products: the filters go into the query, and the grid's
+   * `resetPage` flag says when the result belongs on page 1. The grid never filters just the 50
+   * loaded rows here — that is what `filterMode="server"` guarantees.
+   */
+  onFilterChange(event: WeGridFilterChangeEvent): void {
+    this.activeFilters = [...event];
+    if (event.resetPage) this.page = 1;
     this.loadProducts();
   }
 

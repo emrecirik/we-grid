@@ -47,9 +47,15 @@ columns: WeGridColumnDef<Order>[] = [
 | Column option | Effect |
 |---|---|
 | `editable` | Whether the cell becomes an editor. Default `true`, except `type: 'custom'`. |
-| `editor` | `'text' \| 'number' \| 'date' \| 'datetime' \| 'checkbox' \| 'select'`. Inferred from `type` when omitted. |
+| `editor` | `'text' \| 'number' \| 'date' \| 'datetime' \| 'time' \| 'email' \| 'url' \| 'tel' \| 'checkbox' \| 'select'`. Inferred from `type` when omitted: number/integer/currency/percent → `number`, time → `time`, email → `email`, url → `url`, phone → `tel`, boolean → `checkbox`. |
 | `editorOptions` | `{ value, label }[]` for a `select` editor. |
 | `required` | The value may not be left empty. Blocks Save and outlines the cell. |
+
+A number editor works in the units the user reads: a `percent` column is edited as `25` and saved
+as `0.25`, a `currency` column with `minorUnits: true` is edited as `123.45` and saved as `12345`
+kuruş, and an `integer` column rounds to a whole number. `(rowUpdate)` / `(rowCreate)` always carry
+the stored units — see [column-types.md](column-types.md). A `time` editor keeps a `'HH:mm'` string a
+string, and on a `Date` field changes only the time of day.
 
 A date editor reports its value back in the shape the row already used: a field that arrived as a
 string is emitted as a string, one that was a `Date` stays a `Date`. The two editors deliberately

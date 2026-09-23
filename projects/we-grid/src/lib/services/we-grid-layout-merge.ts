@@ -1,4 +1,10 @@
-import { WeGridColumnDef, WeGridDensity, WeGridSortDirection, isWeGridNumericSummaryType } from '../models/we-grid-column.model';
+import {
+  WeGridColumnDef,
+  WeGridDensity,
+  WeGridHeaderFilterMode,
+  WeGridSortDirection,
+  isWeGridNumericSummaryType
+} from '../models/we-grid-column.model';
 import { weGridDefaultEditor } from '../models/we-grid-edit.model';
 import { WeGridInternalColumn } from '../models/we-grid-internal.model';
 import { WeGridLayout } from '../models/we-grid-layout.model';
@@ -23,11 +29,15 @@ export interface WeGridMergedLayout<T> {
  * - A column no longer present in `columns` is silently dropped (even if still present in `saved`)
  * - `summary`: the user's saved choice wins if present (including a deliberate 'none'); otherwise
  *   the developer's `WeGridColumnDef.summary` default is used
+ * - `headerFilterMode`: the column's own choice, otherwise `defaultHeaderFilterMode` (the grid's
+ *   `headerFilterMode` input) — except a `'custom'` column, whose value the grid cannot list, which
+ *   falls back to `'operator'`
  */
 export function mergeGridLayout<T>(
   columnDefs: WeGridColumnDef<T>[],
   saved: WeGridLayout | null,
-  layoutVersion: number
+  layoutVersion: number,
+  defaultHeaderFilterMode: WeGridHeaderFilterMode = 'checklist'
 ): WeGridMergedLayout<T> {
   const useSaved = !!saved && saved.version === layoutVersion;
   const savedByField = new Map(useSaved && saved ? saved.columns.map((c) => [c.field, c]) : []);
@@ -65,6 +75,8 @@ export function mergeGridLayout<T>(
       // the real value is computed in recomputeRenderColumns() — this is just a valid starting point
       pinnedOffset: 0,
       format: def.format,
+      minorUnits: def.minorUnits ?? false,
+      formatter: def.formatter,
       cellTemplate: def.cellTemplate,
       headerTooltip: def.headerTooltip,
       lockVisible: def.lockVisible ?? false,
@@ -73,7 +85,7 @@ export function mergeGridLayout<T>(
       summary,
       filterable: def.filterable ?? true,
       filterOperators: def.filterOperators,
-      headerFilterMode: def.headerFilterMode ?? 'operator',
+      headerFilterMode: def.headerFilterMode ?? (type === 'custom' ? 'operator' : defaultHeaderFilterMode),
       headerFilterSelection: def.headerFilterSelection ?? 'multi',
       // Left unresolved: whether a provider applies depends on grid inputs this merge can't see
       headerFilterSource: def.headerFilterSource,

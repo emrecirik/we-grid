@@ -42,16 +42,20 @@ default theme to your global styles:
 - Column hide/show, rename, drag-to-reorder, resize, pin left/right, autofit-to-content
 - Density modes, and a per-user column layout persisted automatically (localStorage by default,
   or your own backend through the `WE_GRID_LAYOUT_STORE` token)
-- Filter row, per-column filter popover, active-filter chips
-- Excel-style checklist header filter (`headerFilterMode: 'checklist'`) — tick the distinct values
-  of the loaded page, or of the whole dataset through `checklistValuesProvider`, and one `'in'`
-  filter goes to the backend
+- Excel/DevExpress-style checklist header filter on every column by default — tick the distinct
+  values of the loaded rows, or of the whole dataset through `checklistValuesProvider`, and one
+  `'in'` filter goes to the backend (`headerFilterMode="operator"` for operator popovers instead)
+- Filter row, per-column operator popover, active-filter chips
+- Column types: `number`, `integer`, `currency` (with `minorUnits: true` for amounts stored in
+  kuruş / cents), `percent`, `date`, `datetime`, `time`, `boolean`, `email` / `url` / `phone` links,
+  and a per-column `formatter`
 - Per-column operator restriction (`filterOperators`)
 - Locale-aware number/date formatting, text matching and sorting (`intlLocale` on `WeGridLocale`)
 - Single-level grouping with collapsible sections and per-group summaries
 - Subtotal row: sum / average / min / max / count, per column
 - Master-detail rows via a `weGridRowDetail` template
-- Server-side paging, sorting and filtering (opt-in, auto-detected from your event bindings)
+- Server-side paging, sorting and filtering — `filterMode="server"` sends every filter to your
+  backend, so it searches the whole table rather than the loaded page
 - Export to CSV, Excel (`.xlsx`) and PDF, and import from CSV/Excel — no runtime dependency added
 - Inline row create/update/delete with a `done` callback per commit, built for a real backend
 - Localizable UI text (`WE_GRID_LOCALE`) and swappable inline-SVG icons (`WE_GRID_ICONS`)
@@ -69,8 +73,9 @@ Full docs, screenshots and three runnable sample applications live in the reposi
 <https://github.com/emrecirik/we-grid>
 
 - [Getting started](https://github.com/emrecirik/we-grid/blob/main/docs/getting-started.md)
+- [Column types and formatters](https://github.com/emrecirik/we-grid/blob/main/docs/column-types.md)
 - [API reference](https://github.com/emrecirik/we-grid/blob/main/docs/api.md)
-- [Server-side paging/sorting/filtering + the checklist header filter](https://github.com/emrecirik/we-grid/blob/main/docs/server-side.md)
+- [Server-side paging/sorting/filtering — filtering 3,000 rows when 20 are loaded](https://github.com/emrecirik/we-grid/blob/main/docs/server-side.md)
 - [Export and import (CSV / Excel / PDF)](https://github.com/emrecirik/we-grid/blob/main/docs/export-import.md)
 - [Inline row editing](https://github.com/emrecirik/we-grid/blob/main/docs/row-editing.md)
 - [Theming](https://github.com/emrecirik/we-grid/blob/main/docs/theming.md)

@@ -81,3 +81,30 @@ describe('weGridMapImportedRows', () => {
     expect(rows[0]).toEqual({ code: 'A1', total: null });
   });
 });
+
+describe('weGridMapImportedRows — the newer column types', () => {
+  const typed: WeGridImportColumn[] = [
+    { field: 'price', header: 'Price', type: 'currency', minorUnitFactor: 100 },
+    { field: 'qty', header: 'Qty', type: 'integer' },
+    { field: 'rate', header: 'Rate', type: 'percent' },
+    { field: 'at', header: 'At', type: 'time' }
+  ];
+
+  it('stores a minor-unit currency cell in minor units', () => {
+    const { rows } = weGridMapImportedRows({ headers: ['Price'], rows: [['₺1.234,56'], ['0,1']] }, typed);
+    expect(rows.map((r) => r['price'])).toEqual([123456, 10]);
+  });
+
+  it('rounds an integer cell and reads "25%" as a quarter but 0.25 as it is', () => {
+    const { rows } = weGridMapImportedRows({ headers: ['Qty', 'Rate'], rows: [['4,0', '25%'], ['7', '0.25']] }, typed);
+    expect(rows).toEqual([
+      { qty: 4, rate: 0.25 },
+      { qty: 7, rate: 0.25 }
+    ]);
+  });
+
+  it('keeps a time cell as its text', () => {
+    const { rows } = weGridMapImportedRows({ headers: ['At'], rows: [['09:30']] }, typed);
+    expect(rows[0]).toEqual({ at: '09:30' });
+  });
+});

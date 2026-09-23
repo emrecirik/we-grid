@@ -69,7 +69,7 @@
         }
       }
     </div>
-  } @else if (column?.type === 'boolean') {
+  } @else if (kind === 'boolean') {
     <select
       class="we-grid-filter-popover__select"
       [attr.aria-label]="locale.filterAriaLabel + ': ' + headerLabel"
@@ -80,7 +80,7 @@
       <option value="true">{{ locale.yes }}</option>
       <option value="false">{{ locale.no }}</option>
     </select>
-  } @else if (column?.type === 'number' || column?.type === 'currency') {
+  } @else if (kind === 'number') {
     <select class="we-grid-filter-popover__select" [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + headerLabel" [ngModel]="filterState.operator" (ngModelChange)="emitOperator($event)">
       @for (op of operators; track op) {
         <option [value]="op">{{ operatorLabel(op) }}</option>
@@ -88,14 +88,14 @@
     </select>
     @if (filterState.operator === 'between') {
       <div class="we-grid-filter-popover__range">
-        <input type="number" class="we-grid-filter-popover__input" placeholder="min" [ngModel]="filterState.value" (ngModelChange)="emitValue($event, 'value')" />
+        <input type="number" step="any" class="we-grid-filter-popover__input" placeholder="min" [ngModel]="numberInput('value')" (ngModelChange)="emitValue($event, 'value')" />
         <span class="we-grid-filter-popover__range-sep">—</span>
-        <input type="number" class="we-grid-filter-popover__input" placeholder="max" [ngModel]="filterState.value2" (ngModelChange)="emitValue($event, 'value2')" />
+        <input type="number" step="any" class="we-grid-filter-popover__input" placeholder="max" [ngModel]="numberInput('value2')" (ngModelChange)="emitValue($event, 'value2')" />
       </div>
     } @else {
-      <input type="number" class="we-grid-filter-popover__input" [placeholder]="locale.value" [ngModel]="filterState.value" (ngModelChange)="emitValue($event, 'value')" />
+      <input type="number" step="any" class="we-grid-filter-popover__input" [placeholder]="locale.value" [ngModel]="numberInput('value')" (ngModelChange)="emitValue($event, 'value')" />
     }
-  } @else if (column?.type === 'date' || column?.type === 'datetime') {
+  } @else if (kind === 'date') {
     <select class="we-grid-filter-popover__select" [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + headerLabel" [ngModel]="filterState.operator" (ngModelChange)="emitOperator($event)">
       @for (op of operators; track op) {
         <option [value]="op">{{ operatorLabel(op) }}</option>

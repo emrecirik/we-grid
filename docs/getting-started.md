@@ -56,6 +56,20 @@ columns: WeGridColumnDef<Product>[] = [
 <we-grid gridKey="products" [columns]="columns" [data]="products" trackByField="id"></we-grid>
 ```
 
+Pick the `type` that matches what the field stores — `text` (default), `number`, `integer`,
+`currency` (add `minorUnits: true` for amounts kept in kuruş/cents), `percent`, `date`, `datetime`,
+`time`, `boolean`, `email`, `url`, `phone` or `custom` — and give a column a `formatter` when it
+needs text of its own. Every type is described in [column-types.md](column-types.md).
+
+Every column's header gets a funnel icon that opens an Excel-style checklist of its distinct values.
+Use `headerFilterMode="operator"` on `<we-grid>` (or `headerFilterMode: 'operator'` on a column) for
+the contains / = / > / between popover instead, and `[filterRow]="true"` for an always-visible
+filter row.
+
+> **Loading one page at a time from a backend?** Then the grid only ever sees that page, and so
+> does any filter the grid runs itself. To filter the whole table, send the filters to your backend
+> — [server-side.md](server-side.md) walks through it from the component to the SQL.
+
 `gridKey` is required — it's the storage key for the user's column layout (visibility, order,
 width, pin, rename, summary choice). Make it unique per grid instance in your app.
 

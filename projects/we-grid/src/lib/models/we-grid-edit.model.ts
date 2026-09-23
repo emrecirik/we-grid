@@ -13,7 +13,7 @@
  */
 
 /** Editor control used for a cell while its row is in edit mode — inferred from the column type when omitted */
-export type WeGridEditorType = 'text' | 'number' | 'date' | 'datetime' | 'checkbox' | 'select';
+export type WeGridEditorType = 'text' | 'number' | 'date' | 'datetime' | 'time' | 'email' | 'url' | 'tel' | 'checkbox' | 'select';
 
 /** One option of a `select` editor */
 export interface WeGridEditorOption {
@@ -98,12 +98,22 @@ export function weGridSameEditValue(before: unknown, after: unknown): boolean {
 export function weGridDefaultEditor(type: string): WeGridEditorType {
   switch (type) {
     case 'number':
+    case 'integer':
     case 'currency':
+    case 'percent':
       return 'number';
     case 'date':
       return 'date';
     case 'datetime':
       return 'datetime';
+    case 'time':
+      return 'time';
+    case 'email':
+      return 'email';
+    case 'url':
+      return 'url';
+    case 'phone':
+      return 'tel';
     case 'boolean':
       return 'checkbox';
     default:

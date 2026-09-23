@@ -24,6 +24,8 @@ import {
 import { WE_GRID_ICONS, WeGridIcons } from '../models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 import { weGridFilterOperatorLabel } from '../services/we-grid-filter.util';
+import { weGridToInputNumber } from '../services/we-grid-value.util';
+import { WeGridValueKind, weGridValueKind } from '../models/we-grid-column.model';
 
 /**
  * A single change made in the popover, reported to `WeGridComponent`. Operator-mode changes are
@@ -83,8 +85,24 @@ export class WeGridFilterPopoverComponent implements OnInit {
   @Input() valuesLimit = 0;
   /** The list is the loaded page's values on a grid that filters on the server — says so */
   @Input() pageOnlyHint = false;
+  /**
+   * Stored value × this = the number shown in a number input — 100 on a percent column, 0.01 on a
+   * `minorUnits` currency column. Only the display is scaled here: the typed number is reported as
+   * typed and WeGridComponent converts it back, exactly as it does for the filter row.
+   */
+  @Input() valueScale = 1;
 
   @Output() action = new EventEmitter<WeGridFilterPopoverAction>();
+
+  /** Which operator/value controls the popover renders — every numeric type shares one layout, and so on */
+  get kind(): WeGridValueKind {
+    return weGridValueKind(this.column?.type);
+  }
+
+  /** A number input's displayed value, in the units the user types — see `valueScale` */
+  numberInput(which: 'value' | 'value2'): number | null {
+    return weGridToInputNumber(this.filterState[which], this.valueScale);
+  }
 
   @ViewChildren('checklistInput') checklistInputs!: QueryList<ElementRef<HTMLElement>>;
 

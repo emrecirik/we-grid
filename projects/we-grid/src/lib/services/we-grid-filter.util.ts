@@ -1,7 +1,7 @@
-import { WeGridColumnType } from '../models/we-grid-column.model';
+import { WeGridColumnType, weGridValueKind } from '../models/we-grid-column.model';
 import { WeGridColumnFilterState, WeGridFilterOperator, isWeGridFilterActive, weGridFilterValueKey } from '../models/we-grid-filter.model';
 import { WeGridLocale, weGridLocaleEn } from '../models/we-grid-locale.model';
-import { formatWeGridValue, getNestedValue } from './we-grid-value.util';
+import { WeGridFormattableColumn, formatWeGridColumnValue, formatWeGridValue, getNestedValue } from './we-grid-value.util';
 
 interface FilterableColumnLike<T> {
   field: string;
@@ -37,12 +37,10 @@ function matchesFilter<T>(row: T, filter: WeGridColumnFilterState, col: Filterab
   // is answered before the per-type branches.
   if (filter.operator === 'in') return matchesIn(raw, filter);
 
-  switch (type) {
+  switch (weGridValueKind(type)) {
     case 'number':
-    case 'currency':
       return matchesNumber(raw, filter);
     case 'date':
-    case 'datetime':
       return matchesDate(raw, filter);
     case 'boolean':
       return matchesBoolean(raw, filter);
@@ -163,7 +161,7 @@ export function weGridFilterOperatorLabel(
 ): string {
   switch (operator) {
     case 'eq':
-      return type === 'number' || type === 'currency' ? '=' : locale.equals;
+      return weGridValueKind(type) === 'number' ? '=' : locale.equals;
     case 'gt':
       return '>';
     case 'lt':
@@ -206,7 +204,7 @@ export function weGridInFilterValueLabel(
  * where the grid knows the readable label of each picked value (the column's `displayValue`).
  */
 export function weGridFilterChipLabel(
-  col: { type: WeGridColumnType; format?: string; header: string },
+  col: WeGridFormattableColumn & { header: string },
   filter: WeGridColumnFilterState,
   locale: WeGridLocale = weGridLocaleEn,
   valueLabel?: (value: unknown) => string
@@ -223,23 +221,24 @@ export function weGridFilterChipLabel(
       ((value: unknown) =>
         value === null || value === undefined || value === ''
           ? locale.emptyGroupValue
-          : formatWeGridValue(value, col.type, col.format, { ...formatOptions, timeZone: locale.intlTimeZone }));
+          : formatWeGridColumnValue(value, col, { ...formatOptions, timeZone: locale.intlTimeZone }));
     return `${header}: ${weGridInFilterValueLabel(values, toLabel)}`;
   }
 
-  if (col.type === 'boolean') {
+  const kind = weGridValueKind(col.type);
+  if (kind === 'boolean') {
     return `${header}: ${filter.value === 'true' ? locale.yes : locale.no}`;
   }
 
-  if (col.type === 'number' || col.type === 'currency') {
+  if (kind === 'number') {
     if (filter.operator === 'between') {
-      return `${header}: ${betweenRangeLabel(filter, (v) => formatWeGridValue(v, col.type, col.format, formatOptions))}`;
+      return `${header}: ${betweenRangeLabel(filter, (v) => formatWeGridColumnValue(v, col, formatOptions))}`;
     }
     const symbol = filter.operator === 'gt' ? '>' : filter.operator === 'lt' ? '<' : '=';
-    return `${header} ${symbol} ${formatWeGridValue(filter.value, col.type, col.format, formatOptions)}`;
+    return `${header} ${symbol} ${formatWeGridColumnValue(filter.value, col, formatOptions)}`;
   }
 
-  if (col.type === 'date' || col.type === 'datetime') {
+  if (kind === 'date') {
     if (filter.operator === 'between') {
       return `${header}: ${betweenRangeLabel(filter, (v) => formatWeGridValue(v, col.type, undefined, formatOptions))}`;
     }
@@ -270,17 +269,18 @@ function betweenRangeLabel(filter: WeGridColumnFilterState, format: (v: unknown)
  * day before.
  */
 export function weGridQuickFilterValueToInputString(value: unknown, type: WeGridColumnType): unknown {
-  if (type === 'date' || type === 'datetime') {
+  const kind = weGridValueKind(type);
+  if (kind === 'date') {
     const d = value instanceof Date ? value : new Date(value as string);
     if (isNaN(d.getTime())) return null;
     const pad = (n: number): string => String(n).padStart(2, '0');
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
   }
-  if (type === 'number' || type === 'currency') {
+  if (kind === 'number') {
     const n = Number(value);
     return isNaN(n) ? null : n;
   }
-  if (type === 'boolean') {
+  if (kind === 'boolean') {
     return Boolean(value) ? 'true' : 'false';
   }
   return formatWeGridValue(value, type);

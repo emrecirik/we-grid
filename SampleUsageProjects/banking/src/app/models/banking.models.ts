@@ -40,7 +40,9 @@ export interface LoanRecord {
   currency: string;
   principal: number;
   outstanding: number;
+  /** In KURUŞ — the loan service returns TRY amounts in minor units, the way core banking systems do */
   outstandingTry: number;
+  /** Annual rate as a FRACTION — 0.2114 is 21.14% */
   interestRate: number;
   installmentAmount: number;
   termMonths: number;

@@ -563,6 +563,17 @@
   background: var(--we-grid-row-selected-bg, rgba(64, 81, 137, 0.1));
 }
 
+// email / url / phone cells (see WeGridColumnType) — keeps the cell's ellipsis, underlines on hover only
+.we-grid__cell-link {
+  color: var(--we-grid-link-color, #405189);
+  text-decoration: none;
+
+  &:hover,
+  &:focus-visible {
+    text-decoration: underline;
+  }
+}
+
 .we-grid__td--wrap {
   white-space: normal !important;
   word-break: break-word;

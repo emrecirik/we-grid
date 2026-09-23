@@ -44,11 +44,30 @@
 
   <section class="demo">
     <h2>4. Filter row</h2>
+    <p class="demo__hint">
+      Every column gets the checklist header filter by default. This grid sets <code>headerFilterMode="operator"</code>
+      to show the classic operator row instead: contains / starts with, = &gt; &lt; between, date ranges.
+    </p>
     <we-grid
       gridKey="playground-filter"
       [columns]="filterColumns"
       [data]="filterData"
       [filterRow]="true"
+      headerFilterMode="operator"
+      trackByField="id"
+    ></we-grid>
+  </section>
+
+  <section class="demo">
+    <h2>4b. Checklist header filter (the default)</h2>
+    <p class="demo__hint">
+      No filter setting at all: every column's funnel opens the Excel/DevExpress style list of its distinct values,
+      with search, select-all and "(Empty)".
+    </p>
+    <we-grid
+      gridKey="playground-checklist"
+      [columns]="filterColumns"
+      [data]="filterData"
       trackByField="id"
     ></we-grid>
   </section>
@@ -160,6 +179,33 @@
     ></we-grid>
     @if (crudLog.length) {
       <pre class="demo__log">{{ crudLog.join('\n') }}</pre>
+    }
+  </section>
+
+  <section class="demo">
+    <h2>9. Column types and formatters</h2>
+    <p class="demo__hint">
+      One column per type. <em>Price</em> is stored in kuruş (<code>minorUnits: true</code>): type 100 in its filter
+      or editor and the grid works with 10000 — the log below shows what a backend would receive. <em>Discount</em>
+      is a fraction shown as a percentage, <em>Weight</em> uses a <code>formatter</code>, and the e-mail, url and
+      phone cells are links. Use the pencil button of a row to edit it.
+    </p>
+    <we-grid
+      gridKey="playground-types"
+      [columns]="typedColumns"
+      [data]="typedData"
+      [filterRow]="true"
+      headerFilterMode="operator"
+      [editable]="true"
+      [exportFormats]="exportFormats"
+      exportFileName="column-types"
+      filterMode="client"
+      [filterDebounceMs]="0"
+      trackByField="id"
+      (filterChange)="onTypedFilterChange($event)"
+    ></we-grid>
+    @if (typedFilterLog.length) {
+      <pre class="demo__log">{{ typedFilterLog.join('\n') }}</pre>
     }
   </section>
 </div>

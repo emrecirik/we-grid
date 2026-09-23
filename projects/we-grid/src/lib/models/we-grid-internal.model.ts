@@ -7,7 +7,8 @@ import {
   WeGridHeaderFilterSelection,
   WeGridHeaderFilterSource,
   WeGridPinned,
-  WeGridSummaryFunction
+  WeGridSummaryFunction,
+  WeGridValueFormatter
 } from './we-grid-column.model';
 import { WeGridEditorOption, WeGridEditorType } from './we-grid-edit.model';
 import { WeGridFilterOperator } from './we-grid-filter.model';
@@ -35,6 +36,10 @@ export interface WeGridInternalColumn<T> {
   /** Cumulative px offset while pinned 'left'/'right' — computed by recomputeRenderColumns(), prevents overlap */
   pinnedOffset: number;
   format: string | undefined;
+  /** Currency value stored in minor units — see WeGridColumnDef.minorUnits */
+  minorUnits: boolean;
+  /** Custom display text — see WeGridColumnDef.formatter */
+  formatter: WeGridValueFormatter<T> | undefined;
   cellTemplate: TemplateRef<WeGridCellContext<T>> | undefined;
   headerTooltip: string | undefined;
   lockVisible: boolean;
@@ -46,7 +51,7 @@ export interface WeGridInternalColumn<T> {
   filterable: boolean;
   /** Operators offered in the filter row/popover — see WeGridColumnDef.filterOperators */
   filterOperators: WeGridFilterOperator[] | undefined;
-  /** What the header funnel icon opens — see WeGridColumnDef.headerFilterMode */
+  /** What the header funnel icon opens, resolved against the grid's default — see WeGridColumnDef.headerFilterMode */
   headerFilterMode: WeGridHeaderFilterMode;
   /** Checkboxes or radios in the checklist — see WeGridColumnDef.headerFilterSelection */
   headerFilterSelection: WeGridHeaderFilterSelection;

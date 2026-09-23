@@ -1,7 +1,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Using we-grid</title>
-<meta name="description" content="How to install and use we-grid-angular: column definitions, server-side mode, CSV/Excel/PDF export, Excel/CSV import and inline row editing.">
+<meta name="description" content="How to install and use we-grid-angular: column definitions and types (kuruş/cents currency, percent, time, links, formatters), filtering the whole table on the server, CSV/Excel/PDF export, Excel/CSV import and inline row editing.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&display=swap">
@@ -280,8 +280,9 @@
       <li><a href="#install">Install</a></li>
       <li><a href="#quick-start">Quick start</a></li>
       <li><a href="#columns">Columns</a></li>
+      <li><a href="#types">Column types</a></li>
       <li><a href="#templates">Cell templates</a></li>
-      <li><a href="#server">Server-side</a></li>
+      <li><a href="#server">Filtering the whole table</a></li>
       <li><a href="#export">Excel / CSV / PDF export</a></li>
       <li><a href="#import">Excel / CSV import</a></li>
       <li><a href="#editing">Add, edit, delete rows</a></li>
@@ -390,9 +391,12 @@ export class OrdersComponent {
           <thead><tr><th>Option</th><th>Meaning</th></tr></thead>
           <tbody>
             <tr><td><code>field</code>, <code>header</code></td><td>Required. Path on the row object, and the default header text.</td></tr>
-            <tr><td><code>type</code></td><td><code>text</code> · <code>number</code> · <code>currency</code> · <code>date</code> · <code>datetime</code> · <code>boolean</code> · <code>custom</code>. Drives formatting, the filter editor and which subtotals are offered.</td></tr>
+            <tr><td><code>type</code></td><td><code>text</code> · <code>number</code> · <code>integer</code> · <code>currency</code> · <code>percent</code> · <code>date</code> · <code>datetime</code> · <code>time</code> · <code>boolean</code> · <code>email</code> · <code>url</code> · <code>phone</code> · <code>custom</code>. Drives formatting, the filter editor, the inline editor, export/import and which subtotals are offered — <a href="#types">see below</a>.</td></tr>
+            <tr><td><code>minorUnits</code></td><td>Currency columns: the value is stored in kuruş / cents. Shown and typed in lira, stored and emitted in kuruş.</td></tr>
+            <tr><td><code>formatter</code></td><td><code>(value, row) =&gt; string</code>. The column's own display text — cell, summary, chips, checklist, group headers, CSV and PDF.</td></tr>
+            <tr><td><code>headerFilterMode</code></td><td><code>'checklist'</code> (the default) or <code>'operator'</code> — what the header funnel opens.</td></tr>
             <tr><td><code>width</code>, <code>minWidth</code>, <code>maxWidth</code></td><td>Pixels. <code>maxWidth</code> only bounds fit-to-content, never manual dragging.</td></tr>
-            <tr><td><code>align</code>, <code>wrap</code>, <code>pinned</code>, <code>format</code></td><td>Presentation. <code>format</code> is a currency code, or <code>"2-2"</code> style decimal digits.</td></tr>
+            <tr><td><code>align</code>, <code>wrap</code>, <code>pinned</code>, <code>format</code></td><td>Presentation. <code>format</code> is a currency code, <code>"2-2"</code> style decimal digits, or <code>"HH:mm:ss"</code> on a time column.</td></tr>
             <tr><td><code>summary</code></td><td>Default subtotal function. The user's own choice always wins over it.</td></tr>
             <tr><td><code>displayValue</code></td><td><code>(row) =&gt; string</code>. Turns a raw code into the label the user sees — grouping, filtering and exports then all use that label.</td></tr>
             <tr><td><code>editable</code>, <code>editor</code>, <code>editorOptions</code>, <code>required</code></td><td>Inline editing, see below.</td></tr>
@@ -401,6 +405,50 @@ export class OrdersComponent {
           </tbody>
         </table>
       </div>
+    </section>
+
+    <!-- ── Column types ────────────────────────────────────────────── -->
+    <section>
+      <span class="symbol">type · minorUnits · formatter</span>
+      <h2 id="types">Column types, kuruş and formatters</h2>
+      <p>
+        Pick the type that matches what the field <em>stores</em>; the grid turns it into what the
+        user reads and types.
+      </p>
+<pre><code>columns: WeGridColumnDef&lt;Product&gt;[] = [
+  { field: 'stock', header: 'Stock', type: 'integer', summary: 'sum' },
+  { field: 'priceKurus', header: 'Price', type: 'currency', format: 'TRY', minorUnits: true }, // 12345 → ₺123,45
+  { field: 'discount', header: 'Discount', type: 'percent' },                                  // 0.25 → %25
+  { field: 'weight', header: 'Weight', type: 'number', formatter: (v) =&gt; `${v} kg` },
+  { field: 'opensAt', header: 'Opens', type: 'time' },                                         // '09:30'
+  { field: 'email', header: 'E-mail', type: 'email' },                                         // mailto: link
+  { field: 'website', header: 'Website', type: 'url' },                                        // new tab
+  { field: 'phone', header: 'Phone', type: 'phone' }                                           // tel: link
+];</code></pre>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Type</th><th>Stores</th><th>User sees and types</th><th>Filter</th></tr></thead>
+          <tbody>
+            <tr><td><code>integer</code></td><td><code>1234</code></td><td><code>1,234</code> — no decimals, editor rounds</td><td>= &gt; &lt; between</td></tr>
+            <tr><td><code>currency</code> + <code>minorUnits</code></td><td><code>12345</code> kuruş</td><td><code>₺123,45</code>; types <code>123.45</code></td><td>= &gt; &lt; between — <b>emitted in kuruş</b></td></tr>
+            <tr><td><code>percent</code></td><td><code>0.25</code></td><td><code>%25</code>; types <code>25</code></td><td>= &gt; &lt; between — emitted as <code>0.25</code></td></tr>
+            <tr><td><code>time</code></td><td><code>'14:30'</code> or a <code>Date</code></td><td><code>14:30</code>, time picker</td><td>contains / starts with / equals</td></tr>
+            <tr><td><code>email</code> · <code>url</code> · <code>phone</code></td><td>text</td><td>a <code>mailto:</code> / web / <code>tel:</code> link</td><td>contains / starts with / equals</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p>
+        With <code>minorUnits: true</code> the rows, sorting, the summary arithmetic and every value
+        in <code>(filterChange)</code> and <code>(rowUpdate)</code> stay in kuruş, so a user's
+        "Price &gt; 500" reaches the backend as <code>{ operator: 'gt', value: 50000 }</code> — straight
+        into <code>WHERE price_kurus &gt; @value</code>. Only what the user sees and types is in lira.
+      </p>
+      <p class="note">
+        <b><code>formatter</code> vs <code>displayValue</code>.</b> A formatter changes the text only;
+        sorting, filtering and sums keep using the raw value. <code>displayValue</code> maps a code to
+        a label the user also filters and groups by. Its <code>row</code> argument is
+        <code>null</code> where there's no single row (summary, chips, checklist, group headers).
+      </p>
     </section>
 
     <!-- ── Templates ───────────────────────────────────────────────── -->
@@ -430,7 +478,16 @@ export class OrdersComponent {
     <!-- ── Server-side ─────────────────────────────────────────────── -->
     <section>
       <span class="symbol">[serverSide]="true"</span>
-      <h2 id="server">Server-side paging, sorting and filtering</h2>
+      <h2 id="server">Filtering the whole table, not just the loaded page</h2>
+      <p class="note">
+        <b>3,000 products, 20 on screen.</b> The grid renders exactly what is in <code>data</code>.
+        When you load one page at a time, a filter the grid runs itself can only look at those 20
+        rows. To search all 3,000, the filters must reach your backend: set
+        <code>filterMode="server"</code>, handle <code>(filterChange)</code>, and have the backend
+        apply the filters <em>before</em> paging — <code>WHERE</code>, then <code>COUNT(*)</code> for
+        <code>totalCount</code>, then <code>OFFSET … FETCH</code>. Checklist columns additionally need
+        <code>[checklistValuesProvider]</code> to list every value of the table.
+      </p>
       <p>
         The grid never pages by itself. It renders whatever is in <code>data</code> and reports what
         the user asked for. Bind the events and answer them from your backend:
@@ -447,6 +504,8 @@ export class OrdersComponent {
   [sortField]="sortField"
   [sortDirection]="sortDirection"
   [filterRow]="true"
+  filterMode="server"
+  [checklistValuesProvider]="checklistValues"
   [summaryValues]="grandTotals"
   (pageChange)="onPage($event)"
   (sortChange)="onSort($event)"
@@ -472,29 +531,52 @@ export class OrdersComponent {
   this.activeFilters = [...e];
   if (e.resetPage) this.page = 1;   // the filter set changed, the old offset is meaningless
   this.load();                      // exactly one request
-}</code></pre>
+}
+
+// POST /api/orders/search — what the backend receives
+{
+  "page": 1, "pageSize": 20,
+  "filters": [
+    { "field": "customer",    "operator": "contains", "value": "yıldız" },
+    { "field": "statusCode",  "operator": "in",       "value": [10, 40] },
+    { "field": "totalKurus",  "operator": "between",  "value": 10000, "value2": 50000 }
+  ]
+}
+
+// Checklist values of the WHOLE table, narrowed by the other filters
+checklistValues: WeGridChecklistValuesProvider = (request) =&gt;
+  this.http.post&lt;WeGridChecklistValuesResult&gt;('/api/orders/distinct-values', request);</code></pre>
+      <p>
+        If a yellow <em>"Only this page is searched"</em> hint appears next to the filter chips, the
+        grid is still filtering the loaded rows: <code>filterMode="server"</code> or the
+        <code>(filterChange)</code> binding is missing. The
+        <a href="https://github.com/emrecirik/we-grid/blob/main/docs/server-side.md">server-side guide</a>
+        has the full walkthrough with EF Core and SQL, every operator, and a troubleshooting table.
+      </p>
 
       <h3 id="checklist">The checklist header filter</h3>
       <p>
-        A column whose values come from a closed set reads better as a list of ticks than as an
-        operator and a text box. One column option swaps the funnel icon's popover for it:
+        Every filterable column's funnel opens this list of its distinct values by default — no
+        setting needed. Put <code>headerFilterMode="operator"</code> on <code>&lt;we-grid&gt;</code>
+        for the operator popover everywhere, or <code>headerFilterMode: 'operator'</code> on the
+        columns where free text or a range reads better than ticks:
       </p>
 <pre><code>{
   field: 'statusCode',
   header: 'Status',
   displayValue: (row) =&gt; orderStatusLabel(row.statusCode),  // the label the user ticks
-  headerFilterMode: 'checklist',        // 'operator' (the default) keeps the old popover
+  headerFilterMode: 'checklist',        // the default; 'operator' gives the operator popover
   headerFilterSelection: 'multi'        // 'single' renders radio buttons instead
 }</code></pre>
       <figure>
         <img src="images/checklist-filter.png"
              alt="The Status column's funnel icon opened into a checklist of the six order statuses, with Preparing and Shipped ticked and a search box above them.">
-        <figcaption>Distinct values of the loaded page, searchable, with a select-all box and an entry for blanks.</figcaption>
+        <figcaption>Distinct values — of the loaded rows, or of the whole table through <code>checklistValuesProvider</code> — searchable, with a select-all box and an entry for blanks.</figcaption>
       </figure>
       <p>
-        The list is built from the <code>data</code> input alone — the grid issues no request of its
-        own to discover what a column can contain — and anything already ticked stays ticked after
-        paging away from it. What leaves the grid is one ordinary filter,
+        Without a provider the list is built from the <code>data</code> input alone — the grid issues
+        no request of its own to discover what a column can contain — and anything already ticked
+        stays ticked after paging away from it. What leaves the grid is one ordinary filter,
         <code>{ field: 'statusCode', operator: 'in', value: [10, 40] }</code>: raw values, never the
         labels, so the backend gets the codes it stores. <code>'in'</code> is the only operator whose
         <code>value</code> is an array, and a <code>null</code> entry in it means "blank".

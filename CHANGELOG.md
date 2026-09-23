@@ -2,6 +2,102 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.5.0 — 2026-09-23
+
+Column types for what a backend actually stores — money in kuruş/cents, percentages, whole numbers,
+times of day, links — a per-column formatter, and the Excel/DevExpress-style checklist header filter
+switched on for every column by default. The default switch is a visible behaviour change; read the
+upgrade notes before upgrading.
+
+### Added
+
+#### Money stored in kuruş / cents (`minorUnits`)
+
+- New column option `minorUnits: true` for `type: 'currency'`: the row holds the amount in the
+  currency's minor unit (`12345`) and the cell shows `₺123,45`. The divisor comes from the currency
+  through `Intl` — 100 for TRY/USD/EUR, 1 for JPY, 1000 for KWD.
+- Everything the user sees or types is in major units: cells, summary text, chips, checklist
+  entries, the filter row, the filter popover, the inline editor, CSV/PDF export, and Excel export
+  (written as the number `123.45`). CSV/Excel import turns `123,45` back into `12345`.
+- Everything that leaves the grid stays in minor units: sorting, the summary arithmetic,
+  `(filterChange)` values and `(rowCreate)`/`(rowUpdate)` rows — a user's "Price > 500" reaches the
+  backend as `{ operator: 'gt', value: 50000 }`.
+
+#### New column types
+
+- `'integer'` — no fraction digits; the editor steps by 1 and rounds; import rounds.
+- `'percent'` — stores a fraction, shows `25%`; the filter and the editor take `25` and store `0.25`;
+  Excel export keeps the fraction with Excel's `0.00%` format; import reads `25%` as `0.25`.
+- `'time'` — a time of day (`'14:30'`, `'14:30:15'`) or a `Date`, shown in the locale's clock
+  (`02:30 PM` / `14:30`); a time of day is never shifted into `intlTimeZone`. `format: 'HH:mm:ss'`
+  shows seconds. New `'time'` editor (`<input type="time">`) keeps a string a string and changes only
+  the clock of a `Date`.
+- `'email'`, `'url'`, `'phone'` — rendered as `mailto:`, web (new tab, `rel="noopener noreferrer"`,
+  `https://` added when no http(s) scheme is present — a `javascript:` value never becomes a live
+  link) and `tel:` links. Clicking one doesn't fire `(rowClick)`. New editors `'email'`, `'url'`,
+  `'tel'` render the matching input type. Link colour: new theme variable `--we-grid-link-color`.
+- Every numeric type filters with = > < between and offers sum/avg/min/max; `time` and the link
+  types filter as text. `WeGridValueKind` / `weGridValueKind(type)` expose that grouping.
+
+#### `formatter`
+
+- New column option `formatter: (value, row) => string` replaces the built-in text wherever a value
+  is shown as text — the cell and its tooltip, the summary row, group headers, checklist entries,
+  filter chips, CSV and PDF export. It changes presentation only: sorting, filtering, the summary's
+  arithmetic and Excel's numeric cells use the raw value. `row` is `null` where no single row exists.
+  It is also called for empty values, so it can print a placeholder.
+
+#### Checklist header filter on by default
+
+- New grid input `headerFilterMode: 'checklist' | 'operator'`, default `'checklist'`. A column that
+  doesn't declare its own `headerFilterMode` follows it — except `type: 'custom'`, which stays on
+  `'operator'`. Changing the input at runtime rebuilds the columns.
+
+#### Utilities
+
+- `formatWeGridColumnValue(value, col, options?, row?)`, `weGridInputScale(col, currency?)`,
+  `weGridToInputNumber`, `weGridFromInputNumber`, `weGridCurrencyFractionDigits`,
+  `weGridResolveCurrency`, `weGridLinkHref`, `isWeGridLinkType`; `formatWeGridValue` accepts a
+  `minorUnits` option; `mergeGridLayout` takes an optional fourth argument, the default header filter
+  mode; `WeGridExportColumn.numberScale` and `WeGridImportColumn.minorUnitFactor` (both optional).
+
+### Upgrade notes
+
+- **Every filterable column now shows a funnel that opens the checklist**, even with `filterRow`
+  off, and a grid with the filter row shows checklist buttons instead of operator inputs for those
+  columns. To keep 0.4.0's behaviour, add one attribute: `<we-grid headerFilterMode="operator" …>`.
+  To mix, keep the default and set `headerFilterMode: 'operator'` on the columns where free text or
+  a range reads better (names, amounts, dates).
+- **On a server-filtered grid without a `checklistValuesProvider`**, the new default checklists list
+  only the loaded page (and say so). Bind a provider — see docs/server-side.md — or switch those
+  columns to `'operator'`.
+- `WeGridColumnType` and `WeGridEditorType` gained members. Code that `switch`es over them
+  exhaustively needs the new cases.
+- A number/integer/percent/currency cell whose value doesn't parse as a number now shows the raw
+  value instead of `NaN`.
+
+### Documentation
+
+- New docs/column-types.md: every type, `format` per type, kuruş/cents, percentages, `formatter` vs
+  `displayValue` vs a cell template, links.
+- docs/server-side.md opens with an end-to-end walkthrough of filtering 3,000 products when 20 are
+  loaded — component, request body, every operator's SQL meaning, EF Core and SQL backends, and a
+  table of "only this page is searched" causes. README, README.tr, the npm README, docs/usage.html,
+  getting-started, api, row-editing, export-import and theming are updated to match.
+
+### Samples
+
+- `retail-market` filters the whole product table on the server with `filterMode="server"`, feeds
+  its Category/Supplier/Location checklists from a `checklistValuesProvider`, and says so above the
+  grid; stock columns are `integer`.
+- `banking`'s loan portfolio receives TRY amounts in kuruş and rates as fractions, shown through
+  `minorUnits` and `percent`.
+- `ecommerce-dashboard` keeps the default checklist on its closed-set columns (all fed from the
+  whole dataset) and opts its free-text, date and amount columns into `'operator'`.
+- The playground gained a checklist-by-default section and a column-types section whose log shows
+  the kuruş values a backend would receive.
+- Test suite grew from 243 to 282 specs.
+
 ## 0.4.0 — 2026-09-11
 
 Locale-aware formatting and comparison, checklist values from the whole dataset, per-column

@@ -70,3 +70,24 @@ describe('weGridBuildXlsx', () => {
     expect(text).toContain(`<sheet name="${'a'.repeat(31)}"`);
   });
 });
+
+describe('weGridBuildXlsx — scaled numeric columns', () => {
+  it('writes a minor-unit currency value in major units', async () => {
+    const source = table({
+      columns: [{ field: 'price', header: 'Price', type: 'currency', format: undefined, align: 'end', width: 100, useDisplayText: false, numberScale: 0.01 }],
+      rows: [{ values: [12345], text: ['$123.45'] }]
+    });
+    const sheet = await roundTrip(source);
+    expect(sheet.rows[0]).toEqual(['123.45']);
+  });
+
+  it('keeps a percent value as its fraction with a percent number format', async () => {
+    const source = table({
+      columns: [{ field: 'rate', header: 'Rate', type: 'percent', format: undefined, align: 'end', width: 100, useDisplayText: false }],
+      rows: [{ values: [0.25], text: ['25%'] }]
+    });
+    const text = await weGridBuildXlsx(source).text();
+    expect(text).toContain('s="4"><v>0.25</v>');
+    expect(text).toContain('numFmtId="10"');
+  });
+});

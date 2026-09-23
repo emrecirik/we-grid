@@ -33,6 +33,20 @@
   padding: 16px;
 }
 
+.callout {
+  margin-bottom: 12px;
+  padding: 10px 14px;
+  border-left: 4px solid var(--app-accent);
+  background: color-mix(in srgb, var(--app-accent) 7%, #fff);
+  border-radius: 4px;
+  line-height: 1.5;
+
+  strong {
+    display: block;
+    margin-bottom: 2px;
+  }
+}
+
 .toolbar {
   display: flex;
   flex-wrap: wrap;

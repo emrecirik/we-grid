@@ -49,7 +49,10 @@ import {
   WeGridCellContext,
   WeGridColumnDef,
   WeGridDensity,
-  WeGridSortDirection
+  WeGridHeaderFilterMode,
+  WeGridSortDirection,
+  WeGridValueKind,
+  weGridValueKind
 } from './models/we-grid-column.model';
 import { WeGridInternalColumn, weGridDisplayHeader } from './models/we-grid-internal.model';
 import { WeGridLayout, WeGridLayoutStore, WE_GRID_LAYOUT_STORE } from './models/we-grid-layout.model';
@@ -109,7 +112,18 @@ import {
   weGridQuickFilterValueToInputString
 } from './services/we-grid-filter.util';
 import { buildWeGridSummaryText } from './services/we-grid-summary.util';
-import { WeGridFormatValueOptions, formatWeGridValue, getNestedValue, setNestedValue } from './services/we-grid-value.util';
+import {
+  WeGridFormatValueOptions,
+  formatWeGridColumnValue,
+  getNestedValue,
+  setNestedValue,
+  weGridCurrencyFractionDigits,
+  weGridFromInputNumber,
+  weGridInputScale,
+  weGridLinkHref,
+  weGridResolveCurrency,
+  weGridToInputNumber
+} from './services/we-grid-value.util';
 import { weGridMapImportedRows } from './services/we-grid-import.util';
 import { WeGridHeaderMenuComponent } from './we-grid-header-menu/we-grid-header-menu.component';
 import { WeGridCellEditorComponent } from './we-grid-cell-editor/we-grid-cell-editor.component';
@@ -179,6 +193,16 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * emit immediately (the checklist header filter only emits once, on Apply, so it barely cares).
    */
   @Input() filterDebounceMs = 400;
+
+  /**
+   * What the header funnel of a column that doesn't declare its own `headerFilterMode` opens.
+   * `'checklist'` (the default since 0.5.0) gives every filterable column the Excel/DevExpress style
+   * list of its distinct values — the funnel shows even with `filterRow` off, and the filter row
+   * shows a checklist button for those columns. `'operator'` restores the pre-0.5.0 behaviour: the
+   * operator + value popover, with the funnel only while `filterRow` is on. `'custom'` columns
+   * always default to `'operator'`.
+   */
+  @Input() headerFilterMode: WeGridHeaderFilterMode = 'checklist';
 
   /**
    * Where checklist columns take their values from on a server-filtered grid. Without it a checklist
@@ -565,7 +589,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         chips.push({
           field: col.field,
           label: weGridFilterChipLabel(
-            { type: col.type, format: col.format, header: weGridDisplayHeader(col) },
+            { type: col.type, format: col.format, minorUnits: col.minorUnits, formatter: col.formatter, header: weGridDisplayHeader(col) },
             filter,
             this.locale,
             (value) => this.checklistValueLabel(col, value)
@@ -630,7 +654,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (changes['columns'] && !changes['columns'].firstChange) {
+    if (
+      (changes['columns'] && !changes['columns'].firstChange) ||
+      (changes['headerFilterMode'] && !changes['headerFilterMode'].firstChange)
+    ) {
       this.rebuildColumnsFromDefs();
     }
     if (changes['data'] || changes['sortField'] || changes['sortDirection'] || changes['serverSide']) {
@@ -685,7 +712,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       .load(this.gridKey)
       .pipe(takeUntil(this.destroy$))
       .subscribe((saved) => {
-        const merged = mergeGridLayout(this.columns, saved, this.layoutVersion);
+        const merged = mergeGridLayout(this.columns, saved, this.layoutVersion, this.headerFilterMode);
         this.internalColumns = merged.columns;
         if (merged.density) this.density = merged.density;
         this.filterRowVisible = merged.filterRowVisible ?? false;
@@ -702,7 +729,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       density: this.density,
       columns: toColumnLayout(this.internalColumns, this.columns)
     };
-    const merged = mergeGridLayout(this.columns, synthetic, this.layoutVersion);
+    const merged = mergeGridLayout(this.columns, synthetic, this.layoutVersion, this.headerFilterMode);
     this.internalColumns = merged.columns;
     this.recomputeRenderColumns();
   }
@@ -774,7 +801,35 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   formatCell(row: T, col: WeGridInternalColumn<T>): string {
-    return formatWeGridValue(getNestedValue(row, col.field), col.type, col.format, this.valueFormatOptions());
+    return formatWeGridColumnValue(getNestedValue(row, col.field), col, this.valueFormatOptions(), row);
+  }
+
+  /** A value's display text without its row — the column's formatter or the built-in formatting */
+  private formatColumnValue(col: WeGridInternalColumn<T>, value: unknown): string {
+    return formatWeGridColumnValue(value, col, this.valueFormatOptions());
+  }
+
+  /** The `href` of an email/url/phone cell — null renders plain text (other types, empty values) */
+  cellLink(row: T, col: WeGridInternalColumn<T>): string | null {
+    return weGridLinkHref(getNestedValue(row, col.field), col.type);
+  }
+
+  /** The family the column filters and edits like — the templates branch on this, not on `type` */
+  valueKind(col: WeGridInternalColumn<T>): WeGridValueKind {
+    return weGridValueKind(col.type);
+  }
+
+  /**
+   * Stored value × this = the number the user types in a filter input or the inline editor — 100 on
+   * a percent column, 0.01 on a `minorUnits` currency column, 1 otherwise.
+   */
+  inputScale(col: WeGridInternalColumn<T>): number {
+    return weGridInputScale(col, this.locale.intlCurrency);
+  }
+
+  /** A filter row number input's value, in the units the user types — the filter state keeps stored units */
+  filterInputNumber(col: WeGridInternalColumn<T>, which: 'value' | 'value2'): number | null {
+    return weGridToInputNumber(this.getFilterState(col)[which], this.inputScale(col));
   }
 
   /** What every rendering of a cell value shares — the locale's Intl settings and its yes/no words */
@@ -952,8 +1007,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const current = this.getFilterState(col);
     const isEmpty = rawValue === '' || rawValue === null || rawValue === undefined;
     let value: unknown;
-    if (col.type === 'number' || col.type === 'currency') {
-      value = isEmpty ? null : Number(rawValue);
+    if (weGridValueKind(col.type) === 'number') {
+      // Typed in display units (25 for 25%, 123.45 for 12345 kuruş) — kept and emitted in the units
+      // the rows hold, so a server-side filter compares like with like.
+      value = isEmpty ? null : weGridFromInputNumber(rawValue, this.inputScale(col));
     } else if (isEmpty) {
       value = col.type === 'boolean' ? 'all' : null;
     } else {
@@ -1008,7 +1065,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       if (byKey.has(key)) continue;
       const label = blank
         ? this.locale.emptyGroupValue
-        : (entry.label ?? col.checklistValueLabel?.(value) ?? formatWeGridValue(value, col.type, col.format, this.valueFormatOptions()));
+        : (entry.label ?? col.checklistValueLabel?.(value) ?? this.formatColumnValue(col, value));
       labels.set(key, label);
       byKey.set(key, { value, key, label, blank });
     }
@@ -1095,7 +1152,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (value === null || value === undefined || value === '') return this.locale.emptyGroupValue;
     const remembered = this.checklistLabels.get(col.field)?.get(weGridFilterValueKey(value));
     if (remembered) return remembered;
-    return col.checklistValueLabel?.(value) ?? formatWeGridValue(value, col.type, col.format, this.valueFormatOptions());
+    return col.checklistValueLabel?.(value) ?? this.formatColumnValue(col, value);
   }
 
   private checklistLabelsFor(field: string): Map<string, string> {
@@ -1190,6 +1247,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       componentRef.setInput('valuesLimit', col.checklistValuesLimit ?? this.checklistValuesLimit);
     }
     componentRef.setInput('pageOnlyHint', source === 'loaded' && this.isServerFilter);
+    componentRef.setInput('valueScale', this.inputScale(col));
 
     componentRef.instance.action.pipe(takeUntil(this.destroy$)).subscribe((action) => this.handleFilterPopoverAction(col, action, origin));
     if (source === 'provider') this.startChecklistRequests(col);
@@ -1382,7 +1440,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
           : col?.displayValue
             ? col.displayValue(rows[0])
             : col
-              ? formatWeGridValue(getNestedValue(rows[0], field), col.type, col.format, this.valueFormatOptions())
+              ? this.formatColumnValue(col, getNestedValue(rows[0], field))
               : key;
         return {
           key,
@@ -1574,7 +1632,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         format: col.format,
         align: col.align,
         width: col.width,
-        useDisplayText: !!col.displayValue
+        useDisplayText: !!col.displayValue,
+        numberScale: col.type === 'currency' && col.minorUnits ? this.inputScale(col) : 1
       })),
       rows: rows.map((row) => ({
         values: columns.map((col) => getNestedValue(row, col.field)),
@@ -1630,7 +1689,15 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       // carry a column the user has hidden on screen.
       const mapped = weGridMapImportedRows(
         sheet,
-        this.internalColumns.map((col) => ({ field: col.field, header: weGridDisplayHeader(col), type: col.type }))
+        this.internalColumns.map((col) => ({
+          field: col.field,
+          header: weGridDisplayHeader(col),
+          type: col.type,
+          minorUnitFactor:
+            col.type === 'currency' && col.minorUnits
+              ? 10 ** weGridCurrencyFractionDigits(weGridResolveCurrency(col.format, this.locale.intlCurrency))
+              : 1
+        }))
       );
       const result: WeGridImportResult<T> = {
         format,
@@ -2161,7 +2228,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   private resetLayout(): void {
     this.layoutStore.reset(this.gridKey).pipe(takeUntil(this.destroy$)).subscribe();
-    const merged = mergeGridLayout(this.columns, null, this.layoutVersion);
+    const merged = mergeGridLayout(this.columns, null, this.layoutVersion, this.headerFilterMode);
     this.internalColumns = merged.columns;
     this.density = 'normal';
     this.clientSort = null;

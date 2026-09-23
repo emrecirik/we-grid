@@ -10,8 +10,8 @@ Bootstrap, Material or any other CSS framework.
 
 | App | Domain | What it is there to show |
 |---|---|---|
-| `banking` | Account activity + loan portfolio | Currency columns with mixed per-row currencies, negative amounts coloured through a custom cell template, a pinned account column, a date-range (`between`) filter, backend-supplied summary totals, master-detail row expansion |
-| `retail-market` | Products and stock | Grouping with per-group subtotals, a boolean column and its boolean filter, `rowClass` row highlighting, multi-row selection with a bulk action bar, a density switch |
+| `banking` | Account activity + loan portfolio | Currency columns with mixed per-row currencies, loan amounts in kuruş (`minorUnits`) and rates as `percent`, negative amounts coloured through a custom cell template, a pinned account column, a date-range (`between`) filter, backend-supplied summary totals, master-detail row expansion |
+| `retail-market` | Products and stock | Filtering and checklist values over the whole product table on the server (not the loaded page), grouping with per-group subtotals, a boolean column and its boolean filter, `rowClass` row highlighting, multi-row selection with a bulk action bar, a density switch |
 | `ecommerce-dashboard` | Order operations | **The server-side reference example**: paging + sorting + filtering against a mock backend, KPI cards computed over the filtered set, a status badge column driven by `displayValue`, layout persistence through a custom `WeGridLayoutStore` |
 
 ## Running them
@@ -45,6 +45,11 @@ npx ng build ecommerce-dashboard
 | Server-side filtering (`filterChange`) | ✔ | ✔ | ✔ |
 | Fully client-side grid (no `serverSide`) | ✔ (loan portfolio) | | |
 | `currency` columns | ✔ | ✔ | ✔ |
+| `currency` in kuruş (`minorUnits`), `percent` | ✔ (loan portfolio) | | |
+| `integer` columns | ✔ | ✔ | ✔ |
+| Checklist header filter (the default) | | ✔ | ✔ |
+| Checklist values of the whole table (`checklistValuesProvider`) | | ✔ | ✔ |
+| Operator filter (`headerFilterMode: 'operator'`) | ✔ | ✔ | ✔ |
 | Custom cell template (`weGridCell`) | ✔ | ✔ | ✔ |
 | `displayValue` (code → label) | ✔ | | ✔ |
 | Summary row from developer defaults | ✔ | ✔ | ✔ |

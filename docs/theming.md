@@ -34,6 +34,7 @@ you can theme it two ways:
 | `--we-grid-summary-bg` | Summary (subtotal) row background |
 | `--we-grid-danger-color` | Row delete button, invalid editor outline, error notices |
 | `--we-grid-editing-bg` | Background of the row currently being edited |
+| `--we-grid-link-color` | Links in `email` / `url` / `phone` cells (0.5.0) |
 | `--we-grid-print-color` / `--we-grid-print-bg` | Text/background of the PDF (print) document |
 | `--we-grid-print-border-color` | Table borders in the PDF document |
 | `--we-grid-print-header-bg` | Header and summary row background in the PDF document |

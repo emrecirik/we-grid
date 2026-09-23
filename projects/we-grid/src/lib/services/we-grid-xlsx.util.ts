@@ -1,3 +1,4 @@
+import { weGridValueKind } from '../models/we-grid-column.model';
 import { WeGridExportTable, WeGridImportSheet } from '../models/we-grid-export.model';
 
 /**
@@ -167,6 +168,7 @@ const STYLE_DEFAULT = 0;
 const STYLE_HEADER = 1;
 const STYLE_DATE = 2;
 const STYLE_DATETIME = 3;
+const STYLE_PERCENT = 4;
 
 function buildStyles(): string {
   return (
@@ -176,11 +178,12 @@ function buildStyles(): string {
     `<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>` +
     `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="4">` +
+    `<cellXfs count="5">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
     `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
     `<xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
     `<xf numFmtId="22" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
+    `<xf numFmtId="10" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `</styleSheet>`
@@ -233,12 +236,15 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
         return;
       }
 
-      if (col.type === 'number' || col.type === 'currency') {
-        const num = Number(raw);
+      if (weGridValueKind(col.type) === 'number') {
+        const scale = col.numberScale ?? 1;
+        const num = scale === 1 ? Number(raw) : Number((Number(raw) * scale).toPrecision(12));
         // A "numeric" column can still hold something unparseable — fall back to the display text
         // instead of writing NaN, which Excel rejects.
         if (!isNaN(num)) {
-          cells.push(`<c r="${ref}" s="${STYLE_DEFAULT}"><v>${num}</v></c>`);
+          // A percent cell keeps the fraction and lets Excel's own 0.00% format show it
+          const style = col.type === 'percent' ? STYLE_PERCENT : STYLE_DEFAULT;
+          cells.push(`<c r="${ref}" s="${style}"><v>${num}</v></c>`);
           return;
         }
       } else if (col.type === 'boolean') {

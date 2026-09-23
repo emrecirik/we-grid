@@ -1,11 +1,11 @@
 import { WeGridColumnType, WeGridSummaryFunction } from '../models/we-grid-column.model';
 import { WeGridLocale, weGridLocaleEn } from '../models/we-grid-locale.model';
-import { formatWeGridValue, getNestedValue } from './we-grid-value.util';
+import { WeGridFormattableColumn, formatWeGridColumnValue, formatWeGridValue, getNestedValue } from './we-grid-value.util';
 
 /** Which data scope the summary was computed over — the label must always make the scope explicit */
 export type WeGridSummaryScope = 'override' | 'server' | 'client';
 
-interface SummaryColumnLike {
+interface SummaryColumnLike extends WeGridFormattableColumn {
   field: string;
   type: WeGridColumnType;
   format?: string;
@@ -79,7 +79,7 @@ function formatSummaryNumber(value: number, col: SummaryColumnLike, fn: Exclude<
   if (fn === 'count') {
     return formatWeGridValue(value, 'number', '0-0', options);
   }
-  return formatWeGridValue(value, col.type, col.format, options);
+  return formatWeGridColumnValue(value, col, options);
 }
 
 /**

@@ -1139,6 +1139,8 @@ describe('WeGridComponent — checklist header filter and server-side filtering'
     document.body.appendChild(fixture.nativeElement);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('gridKey', 'spec-checklist-grid');
+    // Only 'status' opts into the checklist here; the grid-wide default would turn 'code' into one too
+    fixture.componentRef.setInput('headerFilterMode', 'operator');
     fixture.componentRef.setInput('columns', columns);
     fixture.componentRef.setInput('data', firstPage);
     fixture.componentRef.setInput('trackByField', 'code');
@@ -1150,7 +1152,7 @@ describe('WeGridComponent — checklist header filter and server-side filtering'
     return component.internalColumns.find((c) => c.field === 'status')!;
   }
 
-  it('gives a checklist column a funnel icon without turning the filter row on, and leaves the others alone', () => {
+  it('gives a checklist column a funnel icon without turning the filter row on, and leaves operator columns alone', () => {
     fixture.detectChanges();
     expect(component.showFilterIcon(statusColumn())).toBeTrue();
     expect(component.showFilterIcon(component.internalColumns[0])).toBeFalse();
@@ -1286,6 +1288,7 @@ describe('WeGridComponent — reset layout', () => {
     document.body.appendChild(fixture.nativeElement);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('gridKey', 'spec-reset-grid');
+    fixture.componentRef.setInput('headerFilterMode', 'operator');
     fixture.componentRef.setInput('columns', [
       { field: 'code', header: 'Code' },
       { field: 'name', header: 'Name', headerFilterMode: 'checklist' }
@@ -1434,6 +1437,7 @@ describe('WeGridComponent — quick filter on a non-filterable column', () => {
     document.body.appendChild(fixture.nativeElement);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('gridKey', 'spec-quick-filter-grid');
+    fixture.componentRef.setInput('headerFilterMode', 'operator');
     fixture.componentRef.setInput('columns', columns);
     fixture.componentRef.setInput('grouping', true);
     fixture.componentRef.setInput('filterRow', true);
@@ -1534,6 +1538,7 @@ describe('WeGridComponent — restricted filter operators (filterOperators)', ()
     component = fixture.componentInstance;
     warn = spyOn(console, 'warn');
     fixture.componentRef.setInput('gridKey', 'spec-operators-grid');
+    fixture.componentRef.setInput('headerFilterMode', 'operator');
     fixture.componentRef.setInput('columns', [
       { field: 'code', header: 'Code', filterOperators: ['gt'] },
       { field: 'qty', header: 'Qty', type: 'number', filterOperators: ['lt', 'gt'] }
@@ -1621,6 +1626,7 @@ describe('WeGridComponent — Turkish formatting, comparison and sorting', () =>
     document.body.appendChild(fixture.nativeElement);
     component = fixture.componentInstance;
     fixture.componentRef.setInput('gridKey', 'spec-turkish-grid');
+    fixture.componentRef.setInput('headerFilterMode', 'operator');
     fixture.componentRef.setInput('columns', [
       { field: 'code', header: 'Kod' },
       { field: 'city', header: 'Şehir' },
@@ -1961,5 +1967,137 @@ describe('WeGridComponent — checklist values from a provider (checklistValuesP
     clickFunnelAgain('status');
 
     expect(response.observed).toBeFalse();
+  });
+});
+
+describe('WeGridComponent — column types, formatter and the default checklist', () => {
+  interface ProductRow {
+    sku: string;
+    email: string;
+    site: string;
+    priceKurus: number;
+    discount: number;
+    actions?: string;
+  }
+
+  let component: WeGridComponent<ProductRow>;
+  let fixture: ComponentFixture<WeGridComponent<ProductRow>>;
+
+  const columns: WeGridColumnDef<ProductRow>[] = [
+    { field: 'sku', header: 'SKU', formatter: (v, row) => `#${v}${row ? '' : ' (no row)'}` },
+    { field: 'email', header: 'E-mail', type: 'email' },
+    { field: 'site', header: 'Site', type: 'url' },
+    { field: 'priceKurus', header: 'Price', type: 'currency', minorUnits: true, summary: 'sum' },
+    { field: 'discount', header: 'Discount', type: 'percent' },
+    { field: 'actions', header: '', type: 'custom' }
+  ];
+
+  const rows: ProductRow[] = [
+    { sku: 'A1', email: 'ada@example.com', site: 'example.com', priceKurus: 12345, discount: 0.1 },
+    { sku: 'B2', email: 'bob@example.org', site: 'https://example.org', priceKurus: 500, discount: 0.25 }
+  ];
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({
+      imports: [WeGridComponent],
+      providers: [{ provide: WE_GRID_LOCALE, useValue: weGridLocaleTr }]
+    }).compileComponents();
+    fixture = TestBed.createComponent(WeGridComponent<ProductRow>);
+    document.body.appendChild(fixture.nativeElement);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('gridKey', 'spec-types-grid');
+    fixture.componentRef.setInput('columns', columns);
+    fixture.componentRef.setInput('data', rows);
+    fixture.componentRef.setInput('trackByField', 'sku');
+  });
+
+  afterEach(() => fixture.nativeElement.remove());
+
+  function col(field: string): WeGridInternalColumn<ProductRow> {
+    return component.internalColumns.find((c) => c.field === field)!;
+  }
+
+  it('gives every filterable non-custom column a checklist funnel by default, filter row off', () => {
+    fixture.detectChanges();
+    expect(component.internalColumns.map((c) => c.headerFilterMode)).toEqual([
+      'checklist',
+      'checklist',
+      'checklist',
+      'checklist',
+      'checklist',
+      'operator'
+    ]);
+    expect(fixture.nativeElement.querySelectorAll('.we-grid__th-filter-btn').length).toBe(5);
+  });
+
+  it('goes back to the operator popover and no funnel with headerFilterMode="operator"', () => {
+    fixture.componentRef.setInput('headerFilterMode', 'operator');
+    fixture.detectChanges();
+    expect(component.internalColumns.every((c) => c.headerFilterMode === 'operator')).toBeTrue();
+    expect(fixture.nativeElement.querySelectorAll('.we-grid__th-filter-btn').length).toBe(0);
+  });
+
+  it('switches the columns over when headerFilterMode changes at runtime', () => {
+    fixture.detectChanges();
+    fixture.componentRef.setInput('headerFilterMode', 'operator');
+    fixture.detectChanges();
+    expect(col('email').headerFilterMode).toBe('operator');
+  });
+
+  it('renders minor-unit money, percentages and formatter output', () => {
+    fixture.detectChanges();
+    expect(component.formatCell(rows[0], col('priceKurus'))).toBe('₺123,45');
+    expect(component.formatCell(rows[1], col('discount'))).toBe('%25');
+    expect(component.formatCell(rows[0], col('sku'))).toBe('#A1');
+    expect(component.summaryCellText(col('priceKurus'))).toContain('₺128,45');
+  });
+
+  it('labels checklist values through the formatter, without a row', () => {
+    fixture.detectChanges();
+    expect(component.checklistOptionsFor(col('priceKurus')).map((o) => o.label)).toContain('₺5,00');
+  });
+
+  it('renders email and url cells as safe links', () => {
+    fixture.detectChanges();
+    const links = Array.from(fixture.nativeElement.querySelectorAll('a.we-grid__cell-link')) as HTMLAnchorElement[];
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([
+      'mailto:ada@example.com',
+      'https://example.com',
+      'mailto:bob@example.org',
+      'https://example.org'
+    ]);
+    const site = links[1];
+    expect(site.getAttribute('target')).toBe('_blank');
+    expect(site.getAttribute('rel')).toBe('noopener noreferrer');
+    expect(links[0].getAttribute('target')).toBeNull();
+  });
+
+  it('takes a typed filter value in major units and keeps and emits it in minor units', fakeAsync(() => {
+    fixture.componentRef.setInput('headerFilterMode', 'operator');
+    fixture.componentRef.setInput('filterRow', true);
+    fixture.componentRef.setInput('filterMode', 'server');
+    fixture.componentRef.setInput('filterDebounceMs', 0);
+    fixture.detectChanges();
+    const emitted: WeGridFilterChangeEvent[] = [];
+    component.filterChange.subscribe((e) => emitted.push(e));
+
+    component.setFilterOperator(col('priceKurus'), 'gt');
+    component.setFilterValue(col('priceKurus'), 100.5);
+    tick(0);
+
+    expect(component.filterState.get('priceKurus')?.value).toBe(10050);
+    expect(component.filterInputNumber(col('priceKurus'), 'value')).toBe(100.5);
+    expect(emitted[emitted.length - 1][0]).toEqual({ field: 'priceKurus', operator: 'gt', value: 10050, value2: undefined });
+  }));
+
+  it('filters a percent column on the percentage the user typed', () => {
+    fixture.componentRef.setInput('headerFilterMode', 'operator');
+    fixture.componentRef.setInput('filterRow', true);
+    fixture.detectChanges();
+    component.setFilterOperator(col('discount'), 'gt');
+    component.setFilterValue(col('discount'), 20);
+    expect(component.filterState.get('discount')?.value).toBe(0.2);
+    expect(component.displayData.map((r) => r.sku)).toEqual(['B2']);
   });
 });

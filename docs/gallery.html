@@ -278,11 +278,11 @@
 
     <code class="install"><span class="prompt">$</span> npm install we-grid-angular @angular/cdk</code>
 
-    <p class="lede">Looking for the code rather than the pictures? <a href="./usage.html">How to use we-grid</a> walks through installation, the column definition, export/import and inline row editing.</p>
+    <p class="lede">Looking for the code rather than the pictures? <a href="./usage.html">How to use we-grid</a> walks through installation, the column definition and types, filtering the whole table on the server, export/import and inline row editing.</p>
 
     <dl class="facts">
       <div class="fact"><dt>Sample apps</dt><dd>3</dd></div>
-      <div class="fact"><dt>Unit tests</dt><dd>158 passing</dd></div>
+      <div class="fact"><dt>Unit tests</dt><dd>282 passing</dd></div>
       <div class="fact"><dt>CSS framework deps</dt><dd>0</dd></div>
       <div class="fact"><dt>Icon font deps</dt><dd>0 — inline SVG</dd></div>
       <div class="fact"><dt>Angular</dt><dd>18 &ndash; 22</dd></div>
@@ -337,10 +337,11 @@
         <span class="symbol">(filterChange)</span>
         <h2>Filter row, chips, and totals that follow</h2>
         <p>
-          Each column gets an operator and a value; active filters collapse into removable chips
-          above the header. Typing <code>Fallowick</code> into City takes 500 orders down to 26 —
-          and because the backend recomputes them, the revenue and cancellation figures move with
-          it. The pill on the right flips once a layout has been saved for this user.
+          Free-text, date and amount columns get an operator and a value; closed-set columns like
+          City get a checklist button. Active filters collapse into removable chips above the
+          header. Ticking <code>Fallowick</code> in City takes 500 orders down to 26 — every page of
+          them, because the filter runs on the backend — and the revenue and cancellation figures
+          move with it. The pill on the right flips once a layout has been saved for this user.
         </p>
       </div>
       <figure class="frame">
@@ -348,7 +349,7 @@
              alt="The same dashboard with a City filter applied: a City Fallowick chip, 26 matching orders, and recomputed KPI values.">
         <figcaption>
           <span><b>ecommerce-dashboard</b></span>
-          <span>contains · startsWith · equals · between · tri-state boolean</span>
+          <span>contains · startsWith · equals · between · tri-state boolean · checklist</span>
         </figcaption>
       </figure>
     </section>
@@ -358,9 +359,9 @@
         <span class="symbol">headerFilterMode: 'checklist'</span>
         <h2>Tick the values, not the operator</h2>
         <p>
-          A column whose values come from a closed set reads better as a list of ticks. The funnel
-          icon opens the distinct values of the loaded page — searchable, with a select-all box and
-          an entry for blanks — and the selection leaves as a single <code>'in'</code> filter
+          Every filterable column's funnel opens this by default: the distinct values — here of every
+          order, through <code>checklistValuesProvider</code>, not just the loaded page — searchable,
+          with a select-all box and an entry for blanks — and the selection leaves as a single <code>'in'</code> filter
           carrying the raw codes, which the backend turns into one <code>IN (…)</code> over every
           order. The labels come from the column's <code>displayValue</code>, so the user ticks
           "Shipped" while the query gets <code>40</code>.
@@ -384,7 +385,8 @@
           Grouping by a column turns the body into collapsible sections, each header carrying its
           own subtotals — here a sale-price average and a stock sum per category. Selection is the
           host app's business: the grid reports it, the sample turns it into a bulk action bar with
-          the retail value of what is ticked.
+          the retail value of what is ticked. The note above the grid is the other half of this
+          sample: filters and checklists cover all 400 products on the server, not the 50 on screen.
         </p>
       </div>
       <figure class="frame">

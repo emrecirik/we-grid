@@ -60,9 +60,23 @@ export class BankingApiService {
       shareReplay({ bufferSize: 1, refCount: false })
     );
 
+  /**
+   * The loan service speaks the way a core banking system does: TRY amounts in kuruş and rates as
+   * fractions. The JSON file keeps lira and percentages, so the conversion happens here — the grid
+   * then shows them through `minorUnits: true` and `type: 'percent'` without any mapping of its own.
+   */
   private readonly loans$: Observable<LoanRecord[]> = this.http
     .get<LoanRecord[]>('assets/data/loans.json')
-    .pipe(shareReplay({ bufferSize: 1, refCount: false }));
+    .pipe(
+      map((rows) =>
+        rows.map((row) => ({
+          ...row,
+          outstandingTry: Math.round(row.outstandingTry * 100),
+          interestRate: Number((row.interestRate / 100).toPrecision(12))
+        }))
+      ),
+      shareReplay({ bufferSize: 1, refCount: false })
+    );
 
   /** Server-side page: WHERE -> ORDER BY -> OFFSET/FETCH, plus totals over the filtered set */
   getTransactions(query: TransactionQuery): Observable<TransactionPage> {

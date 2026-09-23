@@ -33,8 +33,21 @@
       [disabled]="disabled"
       [attr.aria-label]="label"
       [attr.aria-invalid]="invalid"
+      [step]="numberStep"
       [ngModel]="numberValue"
       (ngModelChange)="emitNumber($event)"
+    />
+  }
+  @case ('time') {
+    <input
+      type="time"
+      class="we-grid-cell-editor__control"
+      [class.we-grid-cell-editor__control--invalid]="invalid"
+      [disabled]="disabled"
+      [attr.aria-label]="label"
+      [attr.aria-invalid]="invalid"
+      [value]="timeValue"
+      (change)="emitTime($any($event.target).value)"
     />
   }
   @case ('date') {
@@ -63,7 +76,7 @@
   }
   @default {
     <input
-      type="text"
+      [type]="textInputType"
       class="we-grid-cell-editor__control"
       [class.we-grid-cell-editor__control--invalid]="invalid"
       [disabled]="disabled"
