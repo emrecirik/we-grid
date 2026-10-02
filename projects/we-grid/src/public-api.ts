@@ -16,6 +16,7 @@ export * from './lib/directives/we-grid-cell.directive';
 
 // Row expansion (master-detail) content directive
 export * from './lib/directives/we-grid-row-detail.directive';
+export * from './lib/directives/we-grid-header.directive';
 
 // Models
 export * from './lib/models/we-grid-column.model';
@@ -31,6 +32,7 @@ export * from './lib/models/we-grid-locale.model';
 export * from './lib/models/we-grid-menu-action.model';
 export * from './lib/models/we-grid-row-detail.model';
 export * from './lib/models/we-grid-view.model';
+export * from './lib/models/we-grid-tree.model';
 
 // Persistence — default implementation (consumers may supply their own store)
 export * from './lib/services/local-storage-grid-layout-store';
@@ -49,3 +51,4 @@ export * from './lib/services/we-grid-summary.util';
 export * from './lib/services/we-grid-value.util';
 export * from './lib/services/we-grid-view.util';
 export * from './lib/services/we-grid-clipboard.util';
+export * from './lib/services/we-grid-interactive.util';

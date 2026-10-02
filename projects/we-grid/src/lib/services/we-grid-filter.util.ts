@@ -11,27 +11,39 @@ interface FilterableColumnLike<T> {
   displayValue?: (row: T) => string;
 }
 
+/** Reads a row's value for a column — `getNestedValue` unless the caller resolves values itself (tree rows) */
+export type WeGridValueReader<T> = (row: T, field: string) => unknown;
+
 /**
  * Applies the filter row's result to the loaded rows (whatever page the server returned).
  * With server-side pagination this only filters the LOADED PAGE — the grid shows a separate
  * warning for that (see the "only this page is searched" hint in the WeGridComponent template).
+ * `valueOf` replaces the plain field read — the tree uses it to read a child row through
+ * `childField` / `treeValue`.
  */
 export function applyWeGridFilters<T>(
   rows: T[],
   filters: Map<string, WeGridColumnFilterState>,
   columns: FilterableColumnLike<T>[],
-  locale: WeGridLocale = weGridLocaleEn
+  locale: WeGridLocale = weGridLocaleEn,
+  valueOf: WeGridValueReader<T> = getNestedValue
 ): T[] {
   const active = Array.from(filters.values()).filter((f) => isWeGridFilterActive(f));
   if (active.length === 0) return rows;
 
   const colByField = new Map(columns.map((c) => [c.field, c]));
-  return rows.filter((row) => active.every((filter) => matchesFilter(row, filter, colByField.get(filter.field), locale)));
+  return rows.filter((row) => active.every((filter) => matchesFilter(row, filter, colByField.get(filter.field), locale, valueOf)));
 }
 
-function matchesFilter<T>(row: T, filter: WeGridColumnFilterState, col: FilterableColumnLike<T> | undefined, locale: WeGridLocale): boolean {
+function matchesFilter<T>(
+  row: T,
+  filter: WeGridColumnFilterState,
+  col: FilterableColumnLike<T> | undefined,
+  locale: WeGridLocale,
+  valueOf: WeGridValueReader<T>
+): boolean {
   const type = col?.type ?? 'text';
-  const raw = getNestedValue(row, filter.field);
+  const raw = valueOf(row, filter.field);
 
   // 'in' comes from the checklist header filter and works the same way on every column type, so it
   // is answered before the per-type branches.

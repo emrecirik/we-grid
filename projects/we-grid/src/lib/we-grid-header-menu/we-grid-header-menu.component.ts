@@ -42,10 +42,18 @@ export class WeGridHeaderMenuComponent implements OnInit {
   @Input() enableGrouping = false;
   /** The currently active grouping field — used to show a checkmark on this column's group option */
   @Input() groupField: string | null = null;
+  /** Every grouping level, outermost first — `groupField` is its first entry */
+  @Input() groupFields: string[] = [];
   /** The value of the cell the menu was opened from (right-click), used for "Filter by this value" */
   @Input() cellValue: unknown = undefined;
   /** True when `cellValue` is valid (the menu was opened from a cell) — distinguishes "no value" from undefined/null */
   @Input() hasCellValue = false;
+  /** Whether "Move left" / "Move right" would do anything — the grid knows the neighbours and the locks */
+  @Input() canMoveLeft = false;
+  @Input() canMoveRight = false;
+  /** Tree mode: offers "Expand all" / "Collapse all" — the way back when the tree column is hidden */
+  @Input() treeMode = false;
+  @Input() treeAllExpanded = false;
 
   @Output() action = new EventEmitter<WeGridMenuAction>();
 

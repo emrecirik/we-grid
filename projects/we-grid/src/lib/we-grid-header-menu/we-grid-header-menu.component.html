@@ -36,6 +36,28 @@
     <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('eye')"></span> {{ locale.showAllColumns }}
   </button>
 
+  @if (treeMode) {
+    <button
+      #menuItem
+      type="button"
+      role="menuitem"
+      class="we-grid-menu__item"
+      (click)="emit({ type: treeAllExpanded ? 'tree-collapse-all' : 'tree-expand-all' })"
+    >
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('listSettings')"></span>
+      {{ treeAllExpanded ? locale.treeCollapseAll : locale.treeExpandAll }}
+    </button>
+  }
+
+  @if (groupFields.length > 0) {
+    <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'groups-expand-all' })">
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('stack')"></span> {{ locale.expandAllGroups }}
+    </button>
+    <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'groups-collapse-all' })">
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('stack')"></span> {{ locale.collapseAllGroups }}
+    </button>
+  }
+
   <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'autofit-all' })">
     <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('arrowLeftRight')"></span> {{ locale.autofitAllColumns }}
   </button>
@@ -49,6 +71,16 @@
         <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
       }
     </button>
+    @if (groupFields.length > 0 && !groupFields.includes(column.field)) {
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'group-add', field: column.field })">
+        <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('plus')"></span> {{ locale.addToGrouping }}
+      </button>
+    }
+    @if (groupFields.length > 1 && groupFields.includes(column.field)) {
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'group-remove', field: column.field })">
+        <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('close')"></span> {{ locale.removeFromGrouping }}
+      </button>
+    }
     @if (groupField) {
       <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'clear-grouping' })">
         <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('close')"></span> {{ locale.removeGrouping }}
@@ -95,35 +127,46 @@
       <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('arrowLeftRight')"></span> {{ locale.autofitWidth }}
     </button>
 
-    <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" [attr.aria-expanded]="pinOpen" (click)="pinOpen = !pinOpen">
-      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('pin')"></span> {{ locale.pin }}
-      <span class="we-grid-menu__arrow" aria-hidden="true" [innerHTML]="icon('chevronRight')"></span>
-    </button>
-    @if (pinOpen) {
-      <div class="we-grid-menu__submenu-panel" role="group" [attr.aria-label]="locale.pin">
-        <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'pin', field: column.field, pinned: 'left' })">
-          {{ locale.pinLeft }}
-          @if (column.pinned === 'left') {
-            <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
-          }
-        </button>
-        <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'pin', field: column.field, pinned: 'right' })">
-          {{ locale.pinRight }}
-          @if (column.pinned === 'right') {
-            <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
-          }
-        </button>
-        <button
-          #menuItem
-          type="button"
-          role="menuitem"
-          class="we-grid-menu__item"
-          [disabled]="!column.pinned"
-          (click)="emit({ type: 'pin', field: column.field, pinned: null })"
-        >
-          {{ locale.unpin }}
-        </button>
-      </div>
+    @if (!column.lockOrder) {
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" [disabled]="!canMoveLeft" (click)="emit({ type: 'move-column', field: column.field, direction: 'left' })">
+        <span class="we-grid-menu__icon we-grid-menu__icon--flip" aria-hidden="true" [innerHTML]="icon('chevronRight')"></span> {{ locale.moveColumnLeft }}
+      </button>
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" [disabled]="!canMoveRight" (click)="emit({ type: 'move-column', field: column.field, direction: 'right' })">
+        <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('chevronRight')"></span> {{ locale.moveColumnRight }}
+      </button>
+    }
+
+    @if (!column.lockPinned) {
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" [attr.aria-expanded]="pinOpen" (click)="pinOpen = !pinOpen">
+        <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('pin')"></span> {{ locale.pin }}
+        <span class="we-grid-menu__arrow" aria-hidden="true" [innerHTML]="icon('chevronRight')"></span>
+      </button>
+      @if (pinOpen) {
+        <div class="we-grid-menu__submenu-panel" role="group" [attr.aria-label]="locale.pin">
+          <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'pin', field: column.field, pinned: 'left' })">
+            {{ locale.pinLeft }}
+            @if (column.pinned === 'left') {
+              <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+            }
+          </button>
+          <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'pin', field: column.field, pinned: 'right' })">
+            {{ locale.pinRight }}
+            @if (column.pinned === 'right') {
+              <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+            }
+          </button>
+          <button
+            #menuItem
+            type="button"
+            role="menuitem"
+            class="we-grid-menu__item"
+            [disabled]="!column.pinned"
+            (click)="emit({ type: 'pin', field: column.field, pinned: null })"
+          >
+            {{ locale.unpin }}
+          </button>
+        </div>
+      }
     }
 
     @if (column.sortable) {

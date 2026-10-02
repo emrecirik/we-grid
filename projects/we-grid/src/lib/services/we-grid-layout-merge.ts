@@ -8,6 +8,7 @@ import {
 import { weGridDefaultEditor } from '../models/we-grid-edit.model';
 import { WeGridInternalColumn } from '../models/we-grid-internal.model';
 import { WeGridLayout } from '../models/we-grid-layout.model';
+import { WeGridRowEventName } from '../models/we-grid-events.model';
 
 /** Default column width used when the developer doesn't supply `width` and it isn't in the saved layout either */
 export const WE_GRID_DEFAULT_COLUMN_WIDTH = 150;
@@ -45,6 +46,8 @@ export function mergeGridLayout<T>(
   const merged: WeGridInternalColumn<T>[] = columnDefs.map((def, index) => {
     const savedCol = savedByField.get(def.field);
     const type = def.type ?? 'text';
+    const lockPinned = def.lockPinned ?? def.fixed ?? false;
+    const lockOrder = def.lockOrder ?? def.fixed ?? false;
     // If the user has a saved choice (including a deliberate 'none'), it wins — it never falls
     // back to the developer default. Without a saved choice (new column, first load, after
     // reset) the developer's `summary` default on the column definition is used.
@@ -64,7 +67,7 @@ export function mergeGridLayout<T>(
       headerOverride: savedCol?.headerOverride ?? null,
       type,
       visible: savedCol ? savedCol.visible : (def.visible ?? true),
-      order: savedCol ? savedCol.order : (useSaved ? 1000 + index : (def.order ?? index)),
+      order: savedCol && !lockOrder ? savedCol.order : (useSaved ? 1000 + index : (def.order ?? index)),
       width: savedCol?.width ?? def.width ?? def.minWidth ?? WE_GRID_DEFAULT_COLUMN_WIDTH,
       minWidth: def.minWidth ?? 60,
       maxWidth: def.maxWidth,
@@ -72,7 +75,7 @@ export function mergeGridLayout<T>(
       wrap: savedCol?.wrap ?? def.wrap ?? false,
       align: def.align ?? 'start',
       sortable: def.sortable ?? true,
-      pinned: savedCol ? savedCol.pinned : (def.pinned ?? null),
+      pinned: savedCol && !lockPinned ? savedCol.pinned : (def.pinned ?? null),
       // the real value is computed in recomputeRenderColumns() — this is just a valid starting point
       pinnedOffset: 0,
       format: def.format,
@@ -80,9 +83,21 @@ export function mergeGridLayout<T>(
       formatter: def.formatter,
       cellTemplate: def.cellTemplate,
       headerTooltip: def.headerTooltip,
-      lockVisible: def.lockVisible ?? false,
-      lockRename: def.lockRename ?? false,
+      lockVisible: def.lockVisible ?? def.fixed ?? false,
+      lockRename: def.lockRename ?? def.fixed ?? false,
+      lockPinned,
+      lockOrder,
+      headerHint: def.headerHint,
+      headerTemplate: def.headerTemplate,
       stopRowClick: def.stopRowClick ?? false,
+      stopRowEvents: resolveStopRowEvents(def.stopRowEvents, def.stopRowClick),
+      allowOverflow: def.allowOverflow ?? false,
+      childField: def.childField,
+      treeValue: def.treeValue,
+      groupSummary:
+        def.groupSummary && def.groupSummary !== 'count' && def.groupSummary !== 'none' && !isWeGridNumericSummaryType(type)
+          ? 'none'
+          : def.groupSummary,
       summary,
       filterable: def.filterable ?? true,
       filterOperators: def.filterOperators,
@@ -104,6 +119,7 @@ export function mergeGridLayout<T>(
   });
 
   merged.sort((a, b) => a.order - b.order);
+  placeOrderLockedColumns(merged, columnDefs);
   merged.forEach((c, i) => (c.order = i));
 
   return {
@@ -144,4 +160,33 @@ export function toColumnLayout<T>(columns: WeGridInternalColumn<T>[], columnDefs
       summary: c.summary !== defaultSummary ? c.summary : undefined
     };
   });
+}
+
+const WE_GRID_ALL_ROW_EVENTS: WeGridRowEventName[] = ['click', 'dblclick', 'contextmenu'];
+
+/** `stopRowEvents` (true = every row event) united with the older `stopRowClick` */
+function resolveStopRowEvents(stopRowEvents: boolean | WeGridRowEventName[] | undefined, stopRowClick: boolean | undefined): WeGridRowEventName[] {
+  const listed = stopRowEvents === true ? WE_GRID_ALL_ROW_EVENTS : Array.isArray(stopRowEvents) ? stopRowEvents : [];
+  const events = new Set<WeGridRowEventName>(listed.filter((e) => WE_GRID_ALL_ROW_EVENTS.includes(e)));
+  if (stopRowClick) events.add('click');
+  return WE_GRID_ALL_ROW_EVENTS.filter((e) => events.has(e));
+}
+
+/**
+ * A `lockOrder` column sits at its definition position (`order`, or its index) whatever the saved
+ * layout says; the other columns keep their saved order around it. Rendering still puts left- and
+ * right-pinned columns at the edges, so a locked pinned column stays first or last in its group.
+ */
+function placeOrderLockedColumns<T>(merged: WeGridInternalColumn<T>[], columnDefs: WeGridColumnDef<T>[]): void {
+  const locked = merged.filter((c) => c.lockOrder);
+  if (locked.length === 0) return;
+  const position = (c: WeGridInternalColumn<T>): number => {
+    const index = columnDefs.findIndex((d) => d.field === c.field);
+    return columnDefs[index]?.order ?? index;
+  };
+  const rest = merged.filter((c) => !c.lockOrder);
+  for (const col of [...locked].sort((a, b) => position(a) - position(b))) {
+    rest.splice(Math.min(Math.max(position(col), 0), rest.length), 0, col);
+  }
+  merged.splice(0, merged.length, ...rest);
 }

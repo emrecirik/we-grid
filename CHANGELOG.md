@@ -2,6 +2,104 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.7.0 — 2026-10-03
+
+Tree rows, multi-level grouping with group summaries, full-width sticky detail rows, interactive
+cell templates that keep their clicks, and column locks, header hints, bounded height and keyboard
+column handling. Everything new is opt-in: with the new inputs at their defaults the grid renders
+the same markup as 0.6.0 — guarded by DOM snapshot tests recorded from 0.6.0 — apart from the two
+entries under Changed.
+
+### Added
+
+#### Interactive cell templates
+- Column `stopRowEvents: boolean | ('click' | 'dblclick' | 'contextmenu')[]` — the general form of
+  `stopRowClick` (which keeps meaning `'click'` only; given together, the union applies).
+- Column `allowOverflow` — the cell stops clipping its content.
+- Grid `ignoreInteractiveTargets` — a click, double click or right click that starts on a control
+  inside a row (`WE_GRID_INTERACTIVE_SELECTOR`, `data-we-grid-ignore`; `data-we-grid-allow` opts
+  back in) reaches neither `(rowClick)` / `(rowDblClick)` nor the grid's cell menu, and the browser's
+  own menu keeps working. Exported helper `weGridIsInteractiveTarget(event, boundary?)`.
+- Grid `rowStateVersion` and `refreshRows()` — re-evaluate `rowClass` and cell templates for state
+  kept outside the grid, without rebuilding the templates (focus and caret survive).
+- CSS `--we-grid-row-bg` and `--we-grid-row-accent`, set from a `rowClass` — the row's colour reaches
+  pinned and sticky cells, and a 3px stripe marks its first cell. The library defines no value for
+  either, so rows look the same until a consumer sets them.
+- Guide: docs/cell-templates.md.
+
+#### Header hints, column locks, bounded height, footer, keyboard
+- Column `headerHint` — an ⓘ icon with its hint on hover and keyboard focus, in an overlay that cell
+  clipping can't cut; replaces the native `headerTooltip` title when both are set. Column
+  `headerTemplate` and the new `weGridHeader` directive (`WeGridHeaderDirective`,
+  `WeGridHeaderContext`) for custom header content.
+- Column `lockPinned`, `lockOrder` and the shorthand `fixed` (all four locks; explicit sub-flags
+  win). Locked columns lose the matching menu items and their drag handle, nothing can be dragged or
+  moved past a `lockOrder` column, and a saved layout's pin / position is ignored for them.
+- Grid `maxHeight` / `minHeight` — the grid scrolls inside itself with the header and filter row
+  stuck to the top and the summary row to the bottom.
+- Grid `footer: 'full' | 'count' | 'none'`.
+- Keyboard: Alt+←/→ on a header moves the column within its pin group (Alt+Shift to the group's
+  edge), announced through a polite live region and saved like a drag; the resize handle is
+  focusable (`role="separator"`) — arrows ±8px, Shift ±32px, Home = `minWidth`, Enter fits, Esc
+  returns. Column menu items Move left / Move right.
+- docs/api.md: how a saved layout from another source is merged, and when to bump `layoutVersion`.
+
+#### Tree rows
+- Grid `treeChildren`, `treeColumn`, `treeToggle`, `treeIndentPx`, `treeDefaultExpanded`,
+  `treeSummaryLevel`, output `(treeExpandChange)`; methods `toggleTreeNode`, `isTreeExpanded`,
+  `expandAllTree`, `collapseAllTree`, `treeAllExpanded`, `scrollToRow`.
+- Column `childField` and `treeValue` — how child rows read a column; the value is used for display,
+  sorting, filtering, summaries and exports alike. `WeGridCellContext.tree` and a third `tree`
+  argument for `rowClass` (two-argument functions keep working).
+- Sibling-only stable sorting, filters that keep the path to a match open, open state kept across
+  new `data` arrays, depth-first exports with indentation, `role="treegrid"` semantics. Rendering
+  500 roots with 2000 open children takes about as long as 2500 flat rows.
+- Guide: docs/tree.md.
+
+#### Row detail
+- Grid `detailTrigger: 'column' | 'none'`, `detailSticky`, `detailMaxWidth`, `canExpandRow`,
+  `detailMount: 'once' | 'whileOpen'`, output `(detailToggle)`; methods `toggleRowDetail`,
+  `openRowDetail`, `closeRowDetail`, `isRowDetailOpen`, `closeAllDetails`, `detailId`.
+- `WeGridRowDetailContext` gains `close()` and, in tree mode, `tree`. In a tree the detail comes
+  between a row and its children.
+- A sticky detail stays at the scroll area's edge on horizontal scroll and never widens the table;
+  one `ResizeObserver` per grid. As soon as a new detail option is used the content is wrapped in a
+  labelled `role="region"` the arrow points at with `aria-controls`.
+- Guide: docs/row-detail.md.
+
+#### Multi-level grouping and group summaries
+- Group by several fields: menu items Add to grouping / Remove from grouping, a chip per level,
+  grid `groupBy`, output `(groupFieldsChange)`, methods `setGrouping`, `addGroupField`,
+  `removeGroupField`, `expandAllGroups`, `collapseAllGroups` (also in the grid menu). `groupField`
+  and `(groupChange)` keep describing the outermost level.
+- Group summaries: column `groupSummary`, grid `groupAutoSummary` (every numeric column adds up) and
+  `groupSummaryPosition: 'header' | 'footer' | 'both'` — the footer puts each value under its column.
+  Saved views store every level (`WeGridSavedView.groupFields`).
+- Guide: docs/grouping.md.
+
+#### Other
+- `applyWeGridFilters`, `computeWeGridSummary` and `buildWeGridSummaryText` take an optional
+  `valueOf(row, field)` reader (the tree uses it); without it they behave as before.
+- Theme variables `--we-grid-group-nested-bg`, `--we-grid-detail-padding`,
+  `--we-grid-detail-inset-left`; icon `info`; locale keys listed in docs/localization.md.
+
+### Changed
+- The column resize handle is keyboard operable and therefore carries `role="separator"`,
+  `aria-orientation`, `tabindex="0"` and an `aria-label` on every grid — one extra tab stop per
+  header.
+- The column menu shows Move left / Move right on every column that isn't `lockOrder`.
+
+### Fixed
+- A header without `headerTooltip`, a summary cell without a summary and a templated or wrapped
+  cell no longer carry `title="null"` — browsers showed a "null" tooltip on them.
+
+### Notes on the requested signatures
+- `WeGridRowDetailContext.tree` is optional (it only exists in tree mode); `close` is always present.
+- `WeGridGroupSection` gained optional fields (`field`, `level`, `path`, `children`) rather than a
+  new type, so existing code reading `groupedSections` keeps working; `rows` of an outer section
+  holds every row of its sub-groups.
+- The tree's "N rows shown" announcement needed a key of its own: `treeRowsShown(count)`.
+
 ## 0.6.0 — 2026-10-03
 
 Best-fit columns on by default, a record form next to in-place editing, pasting ranges straight

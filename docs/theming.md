@@ -37,6 +37,26 @@ you can theme it two ways:
 | `--we-grid-link-color` | Links in `email` / `url` / `phone` cells (0.5.0) |
 | `--we-grid-on-accent-color` | Text on an accent-coloured button — the record form's Save (0.6.0) |
 | `--we-grid-dialog-backdrop` | The dimmed page behind the record form (0.6.0) |
+| `--we-grid-group-nested-bg` | Inner grouping levels — their header and footer rows (0.7.0) |
+| `--we-grid-detail-padding` | Padding of a sticky detail (0.7.0, default `0.75rem 1rem`) |
+| `--we-grid-detail-inset-left` | Where a sticky detail starts from the scroll area's edge (0.7.0, default `0`) |
+
+### Set by you, never by the library (0.7.0)
+
+These two have no default anywhere — the theme file doesn't declare them, so a row only changes
+when your `rowClass` sets them. See [cell-templates.md](cell-templates.md#coloured-rows).
+
+| Variable | Used for |
+|---|---|
+| `--we-grid-row-bg` | Background of every cell of the row, pinned and sticky cells included (keeps them opaque) |
+| `--we-grid-row-accent` | A 3px stripe on the row's first visible cell |
+
+### Written by the grid (0.7.0)
+
+| Variable | |
+|---|---|
+| `--we-grid-viewport-width` | The scroll area's width, while `detailSticky` is on |
+| `--we-grid-detail-max-width` | `detailMaxWidth`, on the sticky detail wrapper |
 | `--we-grid-print-color` / `--we-grid-print-bg` | Text/background of the PDF (print) document |
 | `--we-grid-print-border-color` | Table borders in the PDF document |
 | `--we-grid-print-header-bg` | Header and summary row background in the PDF document |

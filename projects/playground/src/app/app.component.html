@@ -238,4 +238,101 @@
       <pre class="demo__log">{{ workbenchLog.join('\n') }}</pre>
     }
   </section>
+
+  <section class="demo">
+    <h2>11. Tree rows, a sticky detail and interactive cells</h2>
+    <p class="demo__hint">
+      Orders and their lines share the same columns (<code>treeChildren</code>, <code>childField</code>,
+      <code>treeValue</code>). The decision buttons and the note input never trigger a row click
+      (<code>stopRowEvents</code>, <code>ignoreInteractiveTargets</code>); decisions live outside the grid and repaint
+      through <code>rowStateVersion</code>. "Notes" opens a detail that stays in view while you scroll sideways
+      (<code>detailTrigger="none"</code>, <code>detailSticky</code>). The first and last columns are <code>fixed</code>;
+      the grid scrolls inside 420px with its header stuck. Alt+←/→ on a header moves it.
+    </p>
+    <p>
+      <button type="button" (click)="treeGrid.treeAllExpanded ? treeGrid.collapseAllTree() : treeGrid.expandAllTree()">
+        {{ treeGrid.treeAllExpanded ? 'Collapse all' : 'Expand all' }}
+      </button>
+      <button type="button" (click)="treeGrid.scrollToRow('L-37-2')">Show line 3 of order 1037</button>
+    </p>
+    <we-grid
+      #treeGrid
+      gridKey="playground-tree"
+      [columns]="orderColumns"
+      [data]="orderTree"
+      trackByField="key"
+      [treeChildren]="orderChildren"
+      treeColumn="label"
+      [expandable]="true"
+      detailTrigger="none"
+      [detailSticky]="true"
+      detailMaxWidth="min(640px, 70vw)"
+      detailMount="whileOpen"
+      [canExpandRow]="isOrder"
+      [ignoreInteractiveTargets]="true"
+      [rowStateVersion]="stateVersion"
+      [rowClass]="orderRowClass"
+      [maxHeight]="420"
+      footer="count"
+      (rowClick)="onOrderRowClick($event.row)"
+    >
+      <ng-template weGridCell="decision" [weGridCellRowsOf]="orderTree" let-row let-tree="tree">
+        @if (tree?.level === 0) {
+          <span class="demo-decision">
+            <button type="button" [class.active]="decisions.get(row.key) === 'approved'" (click)="decide(row, 'approved')">Approve</button>
+            <button type="button" [class.active]="decisions.get(row.key) === 'rejected'" (click)="decide(row, 'rejected')">Reject</button>
+          </span>
+        }
+      </ng-template>
+      <ng-template weGridCell="note" [weGridCellRowsOf]="orderTree" let-row>
+        <input class="demo-note" [value]="notes[row.key] ?? ''" (input)="notes[row.key] = $any($event.target).value" placeholder="Note" />
+      </ng-template>
+      <ng-template weGridCell="notes" [weGridCellRowsOf]="orderTree" let-row let-tree="tree">
+        @if (tree?.level === 0) {
+          <button type="button" [attr.aria-controls]="treeGrid.detailId(row)" [attr.aria-expanded]="treeGrid.isRowDetailOpen(row)" (click)="treeGrid.toggleRowDetail(row)">
+            Notes
+          </button>
+        }
+      </ng-template>
+      <ng-template weGridRowDetail [weGridRowDetailRowsOf]="orderTree" let-row let-close="close">
+        <div class="demo-detail">
+          <strong>{{ row.label }}</strong> — {{ row.customer }}: {{ row.lines?.length }} lines.
+          This panel stays at the left edge while the table scrolls sideways.
+          <button type="button" (click)="close()">Hide</button>
+        </div>
+      </ng-template>
+    </we-grid>
+    @if (treeLog.length) {
+      <pre class="demo__log">{{ treeLog.join('\n') }}</pre>
+    }
+  </section>
+
+  <section class="demo">
+    <h2>12. Multi-level grouping with group summaries</h2>
+    <p class="demo__hint">
+      Grouped by category, then stock (<code>groupBy</code>) — add or remove levels from a header's menu. Every numeric
+      column adds up per group (<code>groupAutoSummary</code>), Price averages (<code>groupSummary: 'avg'</code>), and the
+      summaries show both in the group headers and in a footer row under the columns.
+    </p>
+    <p>
+      Summaries in:
+      <select [value]="groupSummaryPosition" (change)="groupSummaryPosition = $any($event.target).value">
+        <option value="header">header</option>
+        <option value="footer">footer</option>
+        <option value="both">both</option>
+      </select>
+    </p>
+    <we-grid
+      gridKey="playground-groups"
+      [columns]="groupedColumns"
+      [data]="groupedProducts"
+      trackByField="id"
+      [grouping]="true"
+      [groupBy]="['category', 'stockLabel']"
+      [groupAutoSummary]="true"
+      [groupSummaryPosition]="groupSummaryPosition"
+      [maxHeight]="480"
+      footer="count"
+    ></we-grid>
+  </section>
 </div>

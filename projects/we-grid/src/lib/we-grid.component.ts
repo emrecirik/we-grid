@@ -1,10 +1,11 @@
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
-import { ComponentPortal } from '@angular/cdk/portal';
+import { ComponentPortal, TemplatePortal } from '@angular/cdk/portal';
 import { Overlay, OverlayRef } from '@angular/cdk/overlay';
 import {
   AfterContentInit,
+  AfterViewInit,
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
@@ -22,9 +23,13 @@ import {
   OnInit,
   Output,
   QueryList,
+  SimpleChange,
   SimpleChanges,
   TemplateRef,
-  ViewChild
+  ViewChild,
+  ViewContainerRef,
+  afterNextRender,
+  Injector
 } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import {
@@ -45,16 +50,21 @@ import {
 } from 'rxjs';
 import { WeGridCellDirective } from './directives/we-grid-cell.directive';
 import { WeGridRowDetailDirective } from './directives/we-grid-row-detail.directive';
+import { WeGridHeaderDirective } from './directives/we-grid-header.directive';
 import {
   WeGridCellContext,
   WeGridColumnDef,
   WeGridDensity,
+  WeGridHeaderContext,
   WeGridHeaderFilterMode,
   WeGridSortDirection,
+  WeGridSummaryFunction,
   WeGridValueKind,
+  isWeGridNumericSummaryType,
   weGridValueKind
 } from './models/we-grid-column.model';
-import { WeGridInternalColumn, weGridDisplayHeader } from './models/we-grid-internal.model';
+import { WeGridInternalColumn, WeGridRenderItem, weGridDisplayHeader } from './models/we-grid-internal.model';
+import { WeGridScrollToRowOptions, WeGridTreeExpandEvent, WeGridTreeInfo, WeGridTreeNode } from './models/we-grid-tree.model';
 import { WeGridLayout, WeGridLayoutStore, WE_GRID_LAYOUT_STORE } from './models/we-grid-layout.model';
 import { WeGridMenuAction } from './models/we-grid-menu-action.model';
 import {
@@ -81,7 +91,7 @@ import {
   WeGridSelectionMode,
   WeGridSortChange
 } from './models/we-grid-events.model';
-import { WeGridRowDetailContext } from './models/we-grid-row-detail.model';
+import { WeGridDetailToggleEvent, WeGridRowDetailContext } from './models/we-grid-row-detail.model';
 import { WE_GRID_ICONS, WeGridIcons } from './models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from './models/we-grid-locale.model';
 import {
@@ -129,6 +139,7 @@ import {
 } from './services/we-grid-value.util';
 import { WeGridImportColumn, weGridCoerceImportValue, weGridMapImportedRows } from './services/we-grid-import.util';
 import { weGridParseClipboardTable } from './services/we-grid-clipboard.util';
+import { weGridIsInteractiveTarget } from './services/we-grid-interactive.util';
 import { weGridDecodeView, weGridEncodeView, weGridSanitizeView, weGridViewParamName } from './services/we-grid-view.util';
 import { WeGridSavedView, WeGridViewShareEvent } from './models/we-grid-view.model';
 import { WeGridHeaderMenuComponent } from './we-grid-header-menu/we-grid-header-menu.component';
@@ -151,6 +162,33 @@ const WE_GRID_EXPORT_THEME_VARIABLES = [
   '--we-grid-accent-color'
 ];
 
+/** A row of the full (unfiltered) tree — built from `data` and `treeChildren` once per data change */
+interface WeGridTreeModelNode<T> {
+  row: T;
+  key: unknown;
+  level: number;
+  parent: WeGridTreeModelNode<T> | null;
+  children: WeGridTreeModelNode<T>[];
+}
+
+interface WeGridTreeModel<T> {
+  roots: WeGridTreeModelNode<T>[];
+  /** Every row, depth first */
+  all: WeGridTreeModelNode<T>[];
+  /** First row per key */
+  byKey: Map<unknown, WeGridTreeModelNode<T>>;
+}
+
+/** A row of the filtered and sorted tree; `heldOpen` = an active filter matched below it */
+interface WeGridFilteredNode<T> {
+  node: WeGridTreeModelNode<T>;
+  children: WeGridFilteredNode<T>[];
+  heldOpen: boolean;
+}
+
+/** Deeper than this the data is taken to be cyclic */
+const WE_GRID_TREE_MAX_DEPTH = 32;
+
 /** Width in px of the row-action column added when `editable` or `allowDelete` is on */
 const WE_GRID_ACTION_COL_WIDTH = 92;
 
@@ -170,7 +208,7 @@ const WE_GRID_AUTO_FIT_MAX_WIDTH = 400;
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: { class: 'we-grid-host' }
 })
-export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, OnDestroy {
+export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, AfterViewInit, OnDestroy {
   @Input({ required: true }) gridKey!: string;
   @Input({ required: true }) columns: WeGridColumnDef<T>[] = [];
   @Input() data: T[] = [];
@@ -331,6 +369,96 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Input() savedViews = false;
 
   /**
+   * When true, a click, double click or right click that starts on an interactive element inside a
+   * row — a button, an input, a link, anything matching `WE_GRID_INTERACTIVE_SELECTOR` or marked
+   * `data-we-grid-ignore` — stays with that element: no `(rowClick)` / `(rowDblClick)`, no grid cell
+   * menu, and the browser's own context menu keeps working. `data-we-grid-allow` opts an element
+   * back in. Defaults to false (every click reaches the row, as before).
+   */
+  @Input() ignoreInteractiveTargets = false;
+
+  /**
+   * Bump this when state the rows are drawn from changes outside `data` — a Map of unsaved
+   * decisions, say. Any change (`!==`) makes the grid re-evaluate `rowClass` and the cell templates
+   * without rebuilding them, so an input inside a template keeps its focus. Use a counter or a
+   * Symbol: a new object literal on every change detection would refresh on every cycle.
+   */
+  @Input() rowStateVersion?: unknown;
+
+  /**
+   * Upper bound of the scrolling area — a px number or any CSS length (`'calc(100vh - 330px)'`).
+   * Given, the grid scrolls vertically inside itself with the header (and the filter row) stuck to
+   * the top and the summary row to the bottom. Left out, the grid grows with its rows, as before.
+   */
+  @Input() maxHeight?: number | string;
+
+  /** Lower bound of the scrolling area — keeps an empty or loading grid from collapsing */
+  @Input() minHeight?: number | string;
+
+  /**
+   * `'full'`: record count and pager (the default). `'count'`: the record count only. `'none'`: no
+   * footer. Display only — on a `serverSide` grid hiding the pager leaves no way to change pages.
+   */
+  @Input() footer: 'full' | 'count' | 'none' = 'full';
+
+  /**
+   * Turns on tree mode: `data` holds the root rows and this returns a row's children (empty,
+   * null or undefined for a leaf). Children are drawn in the same columns as their parent,
+   * indented and collapsible. `trackByField` must be unique across every level.
+   */
+  @Input() treeChildren?: (row: T) => readonly T[] | null | undefined;
+
+  /** Field of the column that carries the indentation and the toggle — defaults to the first visible unpinned column */
+  @Input() treeColumn?: string;
+
+  /** `'inline'`: the grid draws the toggle and the indentation. `'none'`: a cell template does, from `ctx.tree` and `toggleTreeNode` */
+  @Input() treeToggle: 'inline' | 'none' = 'inline';
+
+  /** Indentation per tree level, in px */
+  @Input() treeIndentPx = 16;
+
+  /** Which rows start open: false (none), true (all), or a number n (levels below n) */
+  @Input() treeDefaultExpanded: boolean | number = false;
+
+  /** Rows the summary row adds up in tree mode — the roots (no double counting), only leaves, or every row */
+  @Input() treeSummaryLevel: 'root' | 'leaf' | 'all' = 'root';
+
+  /**
+   * `'column'`: the expand arrow column opens the detail (the default). `'none'`: no arrow column
+   * at all — open the detail from your own control with `toggleRowDetail` / `openRowDetail`, and
+   * bind `detailId(row)` to its `aria-controls`.
+   */
+  @Input() detailTrigger: 'column' | 'none' = 'column';
+
+  /** Keeps the detail content in view while the table scrolls sideways — it sticks to the left edge of the scroll area */
+  @Input() detailSticky = false;
+
+  /** With `detailSticky`: the largest width of the detail content, px or a CSS length (`'min(960px, 70vw)'`). Defaults to the scroll area's width */
+  @Input() detailMaxWidth?: number | string;
+
+  /** Whether a row has a detail at all — rows answering false get no arrow and can't be opened. Defaults to every row */
+  @Input() canExpandRow?: (row: T) => boolean;
+
+  /** `'once'`: mounted on first open, hidden when closed (the default). `'whileOpen'`: removed when closed and created fresh on every open */
+  @Input() detailMount: 'once' | 'whileOpen' = 'once';
+
+  /**
+   * Groups the rows by these fields, outermost first — the same as the user picking "Group by this
+   * field" and then "Add to grouping". Applies whenever the input changes; the user can still change
+   * the grouping from the menu while `grouping` is on.
+   */
+  @Input() groupBy?: string[] | null;
+
+  /**
+   * Where group summaries appear: `'header'` in the group header line (the default), `'footer'`
+   * in a row closing each expanded group with every value under its column, or `'both'`.
+   */
+  @Input() groupSummaryPosition: 'header' | 'footer' | 'both' = 'header';
+
+  /** Adds up every numeric column in groups, without picking a summary per column — `groupSummary` or `summary` still win */
+  @Input() groupAutoSummary = false;
+
+  /**
    * Fits every column without an explicit width (neither `width` on its definition nor one in the
    * saved layout) to its content once, when the first rows arrive. Paging doesn't refit, so the
    * columns don't jump; a saved or dragged width always wins.
@@ -357,6 +485,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Output() filterChange = new EventEmitter<WeGridFilterChangeEvent>();
   /** Emitted when the grouping field changes (a group was selected/cleared) — fired on click, no debounce needed */
   @Output() groupChange = new EventEmitter<string | null>();
+  /** Every grouping change, with all levels — `groupChange` keeps reporting only the outermost field */
+  @Output() groupFieldsChange = new EventEmitter<string[]>();
 
   /**
    * Emitted for every export, carrying both the rows and the fully built table. On a serverSide
@@ -390,12 +520,19 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * only emits and the consumer builds the link.
    */
   @Output() viewShare = new EventEmitter<WeGridViewShareEvent>();
+  /** A tree row was opened or closed — by its toggle (`'user'`) or by a method call (`'api'`) */
+  @Output() treeExpandChange = new EventEmitter<WeGridTreeExpandEvent<T>>();
+  /** A row's detail opened or closed — by the arrow column (`'user'`) or a method call (`'api'`) */
+  @Output() detailToggle = new EventEmitter<WeGridDetailToggleEvent<T>>();
 
   /** The toolbar's refresh button was pressed — reloading is entirely the consumer's business */
   @Output() refresh = new EventEmitter<void>();
 
   @ContentChildren(WeGridCellDirective) cellTemplateDirectives!: QueryList<WeGridCellDirective<T>>;
   @ContentChild(WeGridRowDetailDirective) rowDetailDirective?: WeGridRowDetailDirective<T>;
+  @ContentChildren(WeGridHeaderDirective) headerTemplateDirectives!: QueryList<WeGridHeaderDirective>;
+  @ViewChild('headerHintTpl') headerHintTemplate?: TemplateRef<{ $implicit: string; id: string }>;
+  @ViewChild('scrollArea') scrollAreaRef?: ElementRef<HTMLElement>;
   @ViewChild('gearButton') gearButtonRef?: ElementRef<HTMLElement>;
   @ViewChild('importFileInput') importFileInputRef?: ElementRef<HTMLInputElement>;
 
@@ -425,12 +562,45 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   readonly filterState = new Map<string, WeGridColumnFilterState>();
 
   // ─── Grouping state ──────────────────────────────────────────────────
-  /** The field currently grouped by — null means grouping is off (single-level grouping only) */
-  groupField: string | null = null;
+  /** Every field grouped by, outermost first — empty while grouping is off */
+  groupFields: string[] = [];
+
+  /** The outermost grouping field — null means grouping is off. Setting it groups by that one field */
+  get groupField(): string | null {
+    return this.groupFields[0] ?? null;
+  }
+
+  set groupField(field: string | null) {
+    this.groupFields = field ? [field] : [];
+  }
   /** null means the template renders the old (ungrouped) rows — see we-grid.component.html */
   groupedSections: WeGridGroupSection<T>[] | null = null;
   /** Collapsed group keys — preserves the user's open/closed preference even as displayData refreshes */
   private readonly groupCollapsedKeys = new Set<string>();
+
+  /** What the body renders, in order — rows and group headers; see WeGridRenderItem */
+  renderItems: WeGridRenderItem<T>[] = [];
+  /** One stable track token per group key, so a group header keeps its DOM across refreshes */
+  private readonly groupTrackTokens = new Map<string, object>();
+
+  // ─── Tree state (treeChildren) ───────────────────────────────────────
+  /** Keys of the rows the user (or the API) opened — survives new `data` arrays, cleared on a page change */
+  readonly treeExpandedKeys = new Set<unknown>();
+  /** Keys already seen, so `treeDefaultExpanded` applies to a row once, not on every refresh */
+  private readonly treeKnownKeys = new Set<unknown>();
+  /** Rows the user closed although an active filter holds them open — forgotten when the filters change */
+  private readonly treeFilterClosedKeys = new Set<unknown>();
+  private treeModel: WeGridTreeModel<T> | null = null;
+  private treeModelSource: { data: T[]; children: unknown } | null = null;
+  /** The filtered and sorted tree the visible rows are flattened from */
+  private treeFiltered: WeGridFilteredNode<T>[] = [];
+  /** Every row's tree info — for the visible rows and the collapsed ones alike */
+  private readonly treeInfoByRow = new Map<T, WeGridTreeInfo<T>>();
+  /** The visible tree rows, in render order */
+  treeNodes: WeGridTreeNode<T>[] = [];
+  private treeFilterSignature = '';
+  private treeColumnField: string | null = null;
+  private readonly treeWarnings = new Set<string>();
 
   private readonly destroy$ = new Subject<void>();
   private readonly layoutSave$ = new Subject<void>();
@@ -509,7 +679,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     @Inject(WE_GRID_LOCALE) readonly locale: WeGridLocale,
     @Inject(WE_GRID_ICONS) private readonly icons: WeGridIcons,
     @Inject(WE_GRID_EXPORTER) private readonly exporter: WeGridExporter,
-    @Inject(WE_GRID_IMPORT_PARSER) private readonly importParser: WeGridImportParser
+    @Inject(WE_GRID_IMPORT_PARSER) private readonly importParser: WeGridImportParser,
+    private readonly viewContainerRef: ViewContainerRef,
+    private readonly injector: Injector
   ) {}
 
   icon(key: string): SafeHtml {
@@ -591,7 +763,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * (leftmost of all). Public because the template binds it for the select-col's [style.left.px].
    */
   get expandColWidthPx(): number {
-    return this.expandable ? this.expandColWidth : 0;
+    return this.showExpandCol ? this.expandColWidth : 0;
+  }
+
+  /** The arrow column is drawn for `expandable` grids unless `detailTrigger` is 'none' */
+  get showExpandCol(): boolean {
+    return this.expandable && this.detailTrigger === 'column';
   }
 
   /** Total column count for the empty row's colspan and the detail row's single cell */
@@ -599,7 +776,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return (
       this.renderColumns.length +
       (this.selectable !== 'none' ? 1 : 0) +
-      (this.expandable ? 1 : 0) +
+      (this.showExpandCol ? 1 : 0) +
       (this.hasRowActions ? 1 : 0)
     );
   }
@@ -704,7 +881,13 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   get allSelected(): boolean {
-    return this.displayData.length > 0 && this.displayData.every((row) => this.isSelected(row));
+    const rows = this.selectableRows;
+    return rows.length > 0 && rows.every((row) => this.isSelected(row));
+  }
+
+  /** Rows "select all" covers — every filtered tree row in tree mode (each selects on its own), otherwise displayData */
+  private get selectableRows(): T[] {
+    return this.treeActive ? this.treeFilteredRows : this.displayData;
   }
 
   ngOnInit(): void {
@@ -728,7 +911,19 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     ) {
       this.rebuildColumnsFromDefs();
     }
-    if (changes['data'] || changes['sortField'] || changes['sortDirection'] || changes['serverSide']) {
+    if (changes['treeChildren'] && !changes['treeChildren'].firstChange && !this.treeChildren) {
+      // Back to flat rows — the tree's open state belongs to the tree
+      this.resetTreeState();
+    }
+    if (changes['treeColumn'] || changes['treeChildren']) this.resolveTreeColumn();
+    if (
+      changes['data'] ||
+      changes['sortField'] ||
+      changes['sortDirection'] ||
+      changes['serverSide'] ||
+      changes['treeChildren'] ||
+      changes['treeDefaultExpanded']
+    ) {
       this.refreshDisplayData();
     }
     // A checklist lists the values of the LOADED rows, so a new page has to be reflected in an
@@ -746,9 +941,23 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (changes['page'] && !changes['page'].firstChange) {
       this.expandedKeys.clear();
       this.mountedDetailKeys.clear();
+      if (this.treeActive) {
+        this.resetTreeState();
+        this.refreshDisplayData();
+      }
       // An open editor belongs to a row of the page being left — keeping it would attach the
       // draft to whichever row happens to land on the same key on the new page.
       this.edit = null;
+    }
+    if (changes['rowStateVersion']) this.warnRowStateVersionLiteral(changes['rowStateVersion']);
+    if (changes['detailSticky'] && !changes['detailSticky'].firstChange) this.syncViewportObserver();
+    if (changes['groupBy'] && this.internalColumns.length > 0) this.setGrouping(this.groupBy ?? [], false);
+    if ((changes['groupSummaryPosition'] && !changes['groupSummaryPosition'].firstChange) || changes['groupAutoSummary']) this.rebuildRenderItems();
+    if ((changes['canExpandRow'] || changes['rowStateVersion']) && !changes['data']) this.closeDetailsThatCannotExpand();
+    if (changes['detailTrigger'] && !changes['detailTrigger'].firstChange && this.internalColumns.length > 0) this.recomputeRenderColumns();
+    if ((changes['footer'] || changes['serverSide']) && this.serverSide && this.footer !== 'full' && isDevMode() && !this.footerWarned) {
+      this.footerWarned = true;
+      console.warn(`[we-grid] "${this.gridKey}": footer="${this.footer}" on a serverSide grid hides the pager — the user can't reach other pages.`);
     }
     // The action column is pinned right, so turning it on or off changes every right-pinned
     // column's offset — without this the pinned columns would sit underneath the buttons.
@@ -757,17 +966,26 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
   }
 
+  ngAfterViewInit(): void {
+    this.syncViewportObserver();
+  }
+
   ngAfterContentInit(): void {
     this.rebuildCellTemplateMap();
     this.cellTemplateDirectives.changes.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.rebuildCellTemplateMap();
       this.cdr.markForCheck();
     });
+    this.headerTemplateDirectives.changes.pipe(takeUntil(this.destroy$)).subscribe(() => this.cdr.markForCheck());
   }
 
   ngOnDestroy(): void {
     this.closeHeaderMenu();
     this.closeFilterPopover();
+    this.hideHeaderHint();
+    if (this.liveTimer) clearTimeout(this.liveTimer);
+    this.viewportObserver?.disconnect();
+    this.viewportObserver = null;
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -785,6 +1003,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         if (merged.density) this.density = merged.density;
         this.filterRowVisible = merged.filterRowVisible ?? false;
         this.recomputeRenderColumns();
+        if (this.groupBy?.length && this.groupFields.length === 0) this.groupFields = this.validGroupFields(this.groupBy);
         this.refreshDisplayData();
         if (!this.sharedViewChecked) {
           this.sharedViewChecked = true;
@@ -832,6 +1051,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
 
     this.renderColumns = [...left, ...middle, ...right];
+    this.resolveTreeColumn();
   }
 
   private persistLayout(): void {
@@ -860,22 +1080,162 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.cellTemplateDirectives?.forEach((d) => this.cellTemplateMap.set(d.field, d.templateRef));
   }
 
+  /** The column's header template — the `weGridHeader` directive first, then the definition's `headerTemplate` */
+  getHeaderTemplate(col: WeGridInternalColumn<T>): TemplateRef<WeGridHeaderContext<T>> | null {
+    const directive = this.headerTemplateDirectives?.find((d) => d.field === col.field);
+    return (directive?.templateRef as TemplateRef<WeGridHeaderContext<T>> | undefined) ?? col.headerTemplate ?? null;
+  }
+
+  private readonly headerContextCache = new Map<string, WeGridHeaderContext<T>>();
+
+  /** Cached per column so the template view is updated, not rebuilt, on every check */
+  headerContext(col: WeGridInternalColumn<T>): WeGridHeaderContext<T> {
+    const def = this.columns.find((d) => d.field === col.field) ?? ({ field: col.field, header: col.defaultHeader } as WeGridColumnDef<T>);
+    const title = weGridDisplayHeader(col);
+    const cached = this.headerContextCache.get(col.field);
+    if (cached && cached.column === def && cached.title === title) return cached;
+    const ctx: WeGridHeaderContext<T> = { $implicit: def, column: def, title };
+    this.headerContextCache.set(col.field, ctx);
+    return ctx;
+  }
+
+  /** The `title` attribute of a header — dropped when a `headerHint` icon already explains the column */
+  headerTitle(col: WeGridInternalColumn<T>): string | null {
+    return col.headerHint ? null : col.headerTooltip || null;
+  }
+
+  // ─── Header hint (headerHint) ───────────────────────────────────────
+  private hintOverlayRef: OverlayRef | null = null;
+  /** The icon whose hint is open — a second show for the same icon is a no-op */
+  hintOpenFor: HTMLElement | null = null;
+  private hintSeq = 0;
+  hintId: string | null = null;
+
+  showHeaderHint(anchor: HTMLElement, col: WeGridInternalColumn<T>): void {
+    if (!col.headerHint || !this.headerHintTemplate) return;
+    if (this.hintOpenFor === anchor) return;
+    this.hideHeaderHint();
+    const positionStrategy = this.overlay
+      .position()
+      .flexibleConnectedTo(anchor)
+      .withPositions([
+        { originX: 'center', originY: 'bottom', overlayX: 'center', overlayY: 'top', offsetY: 6 },
+        { originX: 'center', originY: 'top', overlayX: 'center', overlayY: 'bottom', offsetY: -6 }
+      ])
+      .withPush(true)
+      .withViewportMargin(8);
+    this.hintOverlayRef = this.overlay.create({
+      positionStrategy,
+      scrollStrategy: this.overlay.scrollStrategies.close(),
+      panelClass: 'we-grid-hint-panel'
+    });
+    this.hintId = `we-grid-hint-${++this.hintSeq}`;
+    this.hintOverlayRef.attach(new TemplatePortal(this.headerHintTemplate, this.viewContainerRef, { $implicit: col.headerHint, id: this.hintId }));
+    this.hintOpenFor = anchor;
+    this.cdr.markForCheck();
+  }
+
+  hideHeaderHint(): void {
+    if (!this.hintOverlayRef) return;
+    this.hintOverlayRef.dispose();
+    this.hintOverlayRef = null;
+    this.hintOpenFor = null;
+    this.hintId = null;
+    this.cdr.markForCheck();
+  }
+
+  onHeaderHintKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape' && this.hintOverlayRef) {
+      event.stopPropagation();
+      this.hideHeaderHint();
+    }
+  }
+
+  // ─── Bounded height (maxHeight / minHeight) ────────────────────────
+  get scrollMaxHeight(): string | null {
+    return this.cssLength(this.maxHeight);
+  }
+
+  get scrollMinHeight(): string | null {
+    return this.cssLength(this.minHeight);
+  }
+
+  private cssLength(value: number | string | undefined): string | null {
+    if (value === undefined || value === null || value === '') return null;
+    return typeof value === 'number' ? `${value}px` : value;
+  }
+
+  private footerWarned = false;
+
+  // ─── Live announcements ──────────────────────────────────────────────
+  /** The polite live region is only added once there is something to say, so it never costs markup up front */
+  liveRegionOn = false;
+  liveMessage = '';
+  private liveTimer: ReturnType<typeof setTimeout> | null = null;
+
+  /**
+   * Announces `text` to screen readers. The region is created first and filled a moment later —
+   * a live region that appears together with its text is not reliably read out.
+   */
+  announce(text: string): void {
+    this.liveRegionOn = true;
+    this.liveMessage = '';
+    this.cdr.markForCheck();
+    if (this.liveTimer) clearTimeout(this.liveTimer);
+    this.liveTimer = setTimeout(() => {
+      this.liveTimer = null;
+      this.liveMessage = text;
+      this.cdr.markForCheck();
+    }, 50);
+  }
+
   getCellTemplate(col: WeGridInternalColumn<T>): TemplateRef<WeGridCellContext<T>> | null {
     return this.cellTemplateMap.get(col.field) ?? col.cellTemplate ?? null;
   }
 
   buildCellContext(row: T, col: WeGridInternalColumn<T>, rowIndex: number): WeGridCellContext<T> {
-    return {
+    const context: WeGridCellContext<T> = {
       $implicit: row,
       row,
-      value: getNestedValue(row, col.field),
+      value: this.cellValue(row, col),
       rowIndex,
       column: { field: col.field, header: weGridDisplayHeader(col), type: col.type }
     };
+    const tree = this.treeActive ? this.treeInfoByRow.get(row) : undefined;
+    if (tree) context.tree = tree;
+    return context;
   }
 
   formatCell(row: T, col: WeGridInternalColumn<T>): string {
-    return formatWeGridColumnValue(getNestedValue(row, col.field), col, this.valueFormatOptions(), row);
+    return formatWeGridColumnValue(this.cellValue(row, col), col, this.valueFormatOptions(), row);
+  }
+
+  /**
+   * The value a cell shows, sorts, filters and exports by. Outside tree mode that is the field; in
+   * tree mode `treeValue` wins, then `childField` on child rows, then the field.
+   */
+  cellValue(row: T, col: WeGridInternalColumn<T>): unknown {
+    if (!this.treeActive) return getNestedValue(row, col.field);
+    const tree = this.treeInfoByRow.get(row);
+    if (!tree) return getNestedValue(row, col.field);
+    if (col.treeValue) return col.treeValue(row, tree);
+    if (tree.level > 0 && col.childField !== undefined) {
+      return col.childField === null ? undefined : getNestedValue(row, col.childField);
+    }
+    return getNestedValue(row, col.field);
+  }
+
+  /** `cellValue` by field — the shape the filter and summary helpers read through */
+  private readonly readCellValue = (row: T, field: string): unknown => {
+    const col = this.internalColumns.find((c) => c.field === field);
+    return col ? this.cellValue(row, col) : getNestedValue(row, field);
+  };
+
+  /** Whether a tree cell shows a mapped value (`treeValue` / `childField`) — editing and paste leave those alone */
+  private isMappedTreeCell(row: T, col: WeGridInternalColumn<T>): boolean {
+    if (!this.treeActive) return false;
+    const tree = this.treeInfoByRow.get(row);
+    return !!tree && (!!col.treeValue || (tree.level > 0 && col.childField !== undefined));
   }
 
   /** A value's display text without its row — the column's formatter or the built-in formatting */
@@ -885,7 +1245,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** The `href` of an email/url/phone cell — null renders plain text (other types, empty values) */
   cellLink(row: T, col: WeGridInternalColumn<T>): string | null {
-    return weGridLinkHref(getNestedValue(row, col.field), col.type);
+    return weGridLinkHref(this.cellValue(row, col), col.type);
   }
 
   /** The family the column filters and edits like — the templates branch on this, not on `type` */
@@ -949,6 +1309,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   private refreshDisplayData(): void {
+    if (this.treeActive) {
+      this.refreshTree();
+      this.autoFitPendingColumns();
+      this.closeDetailsThatCannotExpand();
+      return;
+    }
     // The filter row only ever operates on the loaded rows (this.data) — on screens with
     // serverSide=true, that means "the loaded page", not the entire dataset (see the filterRow
     // Input JSDoc and the "only this page is searched" hint in the template). If there's no
@@ -965,6 +1331,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       this.displayData = source;
       this.applyGrouping();
       this.autoFitPendingColumns();
+      this.closeDetailsThatCannotExpand();
       return;
     }
     const { field, direction } = this.clientSort;
@@ -982,6 +1349,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.displayData = copy;
     this.applyGrouping();
     this.autoFitPendingColumns();
+    this.closeDetailsThatCannotExpand();
   }
 
   // ─── Pagination ──────────────────────────────────────────────────────
@@ -992,17 +1360,61 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   // ─── Row events / selection ────────────────────────────────────────
-  onRowClick(row: T, index: number): void {
+  onRowClick(row: T, index: number, event?: Event): void {
+    if (event && this.isFromInteractiveTarget(event)) return;
     this.rowClick.emit({ row, rowIndex: index });
   }
 
-  onRowDblClick(row: T, index: number): void {
+  onRowDblClick(row: T, index: number, event?: Event): void {
+    if (event && this.isFromInteractiveTarget(event)) return;
     this.rowDblClick.emit({ row, rowIndex: index });
   }
 
+  /** `ignoreInteractiveTargets` — whether the event began on a control inside the row it reached */
+  private isFromInteractiveTarget(event: Event): boolean {
+    if (!this.ignoreInteractiveTargets) return false;
+    const current = event.currentTarget instanceof Element ? event.currentTarget : null;
+    const row = current?.closest('tr') ?? null;
+    return weGridIsInteractiveTarget(event, row);
+  }
+
+  /** A cell keeps a double click to itself when its column lists it in `stopRowEvents` */
+  onCellDblClick(event: MouseEvent, col: WeGridInternalColumn<T>): void {
+    if (col.stopRowEvents.includes('dblclick')) event.stopPropagation();
+  }
+
+  /**
+   * Re-evaluates `rowClass` and the cell templates now — the imperative twin of `rowStateVersion`,
+   * for state the grid cannot see changing. Template views are updated in place, never rebuilt.
+   */
+  refreshRows(): void {
+    this.cdr.markForCheck();
+  }
+
+  private rowStateVersionWarned = false;
+
+  /** A fresh object literal each cycle compares unequal every time — worth one hint in dev mode */
+  private warnRowStateVersionLiteral(change: SimpleChange): void {
+    if (this.rowStateVersionWarned || change.firstChange || !isDevMode()) return;
+    const { previousValue, currentValue } = change;
+    if (typeof currentValue !== 'object' || currentValue === null || typeof previousValue !== 'object' || previousValue === null) return;
+    let same = false;
+    try {
+      same = JSON.stringify(previousValue) === JSON.stringify(currentValue);
+    } catch {
+      return;
+    }
+    if (!same) return;
+    this.rowStateVersionWarned = true;
+    console.warn(
+      `[we-grid] "${this.gridKey}": rowStateVersion received a new object with the same content — every such change refreshes the rows. Pass a counter or a Symbol instead.`
+    );
+  }
+
   /** Returns null when `rowClass` isn't given — [ngClass] accepts null fine, no extra class is added */
-  rowClassFor(row: T, index: number): string | string[] | Record<string, boolean> | null {
-    return this.rowClass ? this.rowClass(row, index) : null;
+  rowClassFor(row: T, index: number, tree?: WeGridTreeInfo<T> | null): string | string[] | Record<string, boolean> | null {
+    if (!this.rowClass) return null;
+    return tree ? this.rowClass(row, index, tree) : this.rowClass(row, index);
   }
 
   private rowKey(row: T): unknown {
@@ -1013,7 +1425,16 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** Builds a column's summary cell text — null when 'none' (nothing at all is printed in the cell) */
   summaryCellText(col: WeGridInternalColumn<T>): string | null {
     const scope = this.serverSide ? 'server' : 'client';
-    return buildWeGridSummaryText(this.displayData, col, scope, this.summaryValues?.[col.field], this.locale);
+    if (!this.treeActive) return buildWeGridSummaryText(this.displayData, col, scope, this.summaryValues?.[col.field], this.locale);
+    return buildWeGridSummaryText(this.treeSummaryRows, col, scope, this.summaryValues?.[col.field], this.locale, this.readCellValue);
+  }
+
+  /** The rows `treeSummaryLevel` adds up — over the filtered tree, collapsed rows included */
+  private get treeSummaryRows(): T[] {
+    if (this.treeSummaryLevel === 'root') return this.displayData;
+    const rows = this.treeFilteredRows;
+    if (this.treeSummaryLevel === 'all') return rows;
+    return rows.filter((row) => !this.treeInfoByRow.get(row)?.hasChildren);
   }
 
   // ─── Filter row ────────────────────────────────────────────────────────
@@ -1109,8 +1530,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const labels = this.checklistLabelsFor(col.field);
     const byKey = new Map<string, WeGridChecklistOption>();
 
-    for (const row of this.data) {
-      const raw = getNestedValue(row, col.field);
+    for (const row of this.treeActive ? (this.treeModel?.all.map((n) => n.row) ?? this.data) : this.data) {
+      const raw = this.cellValue(row, col);
       const blank = raw === null || raw === undefined || raw === '';
       const value = blank ? null : raw;
       const key = weGridFilterValueKey(value);
@@ -1489,17 +1910,29 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   // ─── Grouping ────────────────────────────────────────────────────────
   /** Called at the end of refreshDisplayData whenever displayData (post filter+sort) changes */
   private applyGrouping(): void {
-    if (!this.groupField) {
+    if (this.groupField && this.treeActive) {
+      this.warnTreeOnce('grouping', 'grouping is ignored while treeChildren is set — rows and a tree cannot be grouped at the same time.');
+    }
+    if (!this.groupField || this.treeActive) {
       this.groupedSections = null;
+      this.rebuildRenderItems();
       return;
     }
-    const field = this.groupField;
+    const indexOf = new Map<T, number>();
+    this.displayData.forEach((row, i) => indexOf.set(row, i));
+    this.groupedSections = this.buildGroupSections(this.displayData, 0, '', indexOf);
+    this.rebuildRenderItems();
+  }
+
+  /** One grouping level: buckets `rows` by `groupFields[level]` and recurses into the next field */
+  private buildGroupSections(rows: T[], level: number, parentPath: string, indexOf: Map<T, number>): WeGridGroupSection<T>[] {
+    const field = this.groupFields[level];
     const col = this.internalColumns.find((c) => c.field === field);
     // When displayValue is given, the group key is also built from the LABEL — otherwise
     // different raw codes that map to the same label (e.g. two legacy status codes both showing
     // "Draft") would end up as two separate groups with the same visible heading, which is confusing.
     const buckets = new Map<string, T[]>();
-    for (const row of this.displayData) {
+    for (const row of rows) {
       const raw = getNestedValue(row, field);
       const isEmptyRaw = raw === null || raw === undefined || raw === '';
       const key = isEmptyRaw ? ' EMPTY' : col?.displayValue ? col.displayValue(row) : String(raw);
@@ -1507,58 +1940,519 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       if (bucket) bucket.push(row);
       else buckets.set(key, [row]);
     }
-    this.groupedSections = Array.from(buckets.entries())
+    return Array.from(buckets.entries())
       .sort((a, b) => a[0].localeCompare(b[0], this.locale.intlLocale))
-      .map(([key, rows]) => {
+      .map(([key, bucketRows]) => {
         const isEmpty = key === ' EMPTY';
         const label = isEmpty
           ? this.locale.emptyGroupValue
           : col?.displayValue
-            ? col.displayValue(rows[0])
+            ? col.displayValue(bucketRows[0])
             : col
-              ? this.formatColumnValue(col, getNestedValue(rows[0], field))
+              ? this.formatColumnValue(col, getNestedValue(bucketRows[0], field))
               : key;
-        return {
+        // The outermost level keeps its plain key, so a collapsed group from before survives
+        const path = level === 0 ? key : `${parentPath}\u001f${key}`;
+        const section: WeGridGroupSection<T> = {
           key,
           label,
-          collapsed: this.groupCollapsedKeys.has(key),
-          rows: rows.map((row) => ({ row, index: this.displayData.indexOf(row) }))
+          collapsed: this.groupCollapsedKeys.has(path),
+          rows: bucketRows.map((row) => ({ row, index: indexOf.get(row) ?? -1 })),
+          field,
+          level,
+          path
         };
+        if (level + 1 < this.groupFields.length) section.children = this.buildGroupSections(bucketRows, level + 1, path, indexOf);
+        return section;
       });
   }
 
   /** The × button on the toolbar's grouping chip — does the same thing as 'Remove grouping' in the context menu */
   clearGrouping(): void {
     if (!this.groupField) return;
-    this.groupField = null;
+    this.setGrouping([]);
+  }
+
+  /**
+   * Groups by `fields`, outermost first — unknown fields are dropped. Emits `(groupFieldsChange)`
+   * and, when the outermost field changed, `(groupChange)`.
+   */
+  setGrouping(fields: string[], emit = true): void {
+    const next = this.validGroupFields(fields);
+    if (next.join('\u0000') === this.groupFields.join('\u0000')) return;
+    const outerBefore = this.groupField;
+    this.groupFields = next;
     this.applyGrouping();
-    this.groupChange.emit(null);
+    if (emit) {
+      if (this.groupField !== outerBefore) this.groupChange.emit(this.groupField);
+      this.groupFieldsChange.emit([...this.groupFields]);
+    }
     this.cdr.markForCheck();
+  }
+
+  /** Adds a grouping level under the current ones */
+  addGroupField(field: string): void {
+    if (this.groupFields.includes(field)) return;
+    this.setGrouping([...this.groupFields, field]);
+  }
+
+  removeGroupField(field: string): void {
+    this.setGrouping(this.groupFields.filter((f) => f !== field));
+  }
+
+  expandAllGroups(): void {
+    this.groupCollapsedKeys.clear();
+    this.applyGrouping();
+    this.cdr.markForCheck();
+  }
+
+  collapseAllGroups(): void {
+    const collect = (sections: WeGridGroupSection<T>[]): void =>
+      sections.forEach((section) => {
+        this.groupCollapsedKeys.add(section.path ?? section.key);
+        collect(section.children ?? []);
+      });
+    collect(this.groupedSections ?? []);
+    this.applyGrouping();
+    this.cdr.markForCheck();
+  }
+
+  /** Distinct fields of known columns, at most one level per field */
+  private validGroupFields(fields: readonly string[]): string[] {
+    const known = new Set(this.internalColumns.map((c) => c.field));
+    return Array.from(new Set(fields)).filter((f) => known.has(f));
   }
 
   toggleGroupCollapse(section: WeGridGroupSection<T>): void {
     section.collapsed = !section.collapsed;
-    if (section.collapsed) this.groupCollapsedKeys.add(section.key);
-    else this.groupCollapsedKeys.delete(section.key);
+    const key = section.path ?? section.key;
+    if (section.collapsed) this.groupCollapsedKeys.add(key);
+    else this.groupCollapsedKeys.delete(key);
+    this.rebuildRenderItems();
     this.cdr.markForCheck();
   }
 
-  groupFieldHeaderLabel(): string {
-    const col = this.internalColumns.find((c) => c.field === this.groupField);
-    return col ? weGridDisplayHeader(col) : (this.groupField ?? '');
+  /** Lays out what the body renders — see `renderItems` */
+  private rebuildRenderItems(): void {
+    if (this.treeActive) {
+      this.renderItems = this.treeNodes.map((node, index) => ({
+        kind: 'row',
+        row: node.row,
+        index,
+        tree: this.treeInfoByRow.get(node.row) ?? null,
+        trackKey: this.rowKey(node.row)
+      }));
+      return;
+    }
+    if (!this.groupedSections) {
+      this.renderItems = this.displayData.map((row, index) => ({ kind: 'row', row, index, tree: null, trackKey: this.rowKey(row) }));
+      return;
+    }
+    const items: WeGridRenderItem<T>[] = [];
+    const footers = this.groupSummaryPosition !== 'header';
+    const walk = (sections: WeGridGroupSection<T>[], level: number): void => {
+      for (const section of sections) {
+        const path = section.path ?? section.key;
+        items.push({ kind: 'group', section, level, trackKey: this.groupTrackToken(path) });
+        if (section.collapsed) continue;
+        if (section.children) {
+          walk(section.children, level + 1);
+        } else {
+          for (const entry of section.rows) {
+            items.push({ kind: 'row', row: entry.row, index: entry.index, tree: null, trackKey: this.rowKey(entry.row) });
+          }
+        }
+        if (footers) items.push({ kind: 'groupFooter', section, level, trackKey: this.groupTrackToken(`\u0001${path}`) });
+      }
+    };
+    walk(this.groupedSections, 0);
+    this.renderItems = items;
   }
 
-  /** "Column Label: value" fragments shown in the group header — null if no column has a summary selected (see hasSummaryRow) */
+  private groupTrackToken(key: string): object {
+    let token = this.groupTrackTokens.get(key);
+    if (!token) {
+      token = { group: key };
+      this.groupTrackTokens.set(key, token);
+    }
+    return token;
+  }
+
+  groupFieldHeaderLabel(field: string | null = this.groupField): string {
+    const col = this.internalColumns.find((c) => c.field === field);
+    return col ? weGridDisplayHeader(col) : (field ?? '');
+  }
+
+  /** The header text of a group section's own field */
+  groupSectionFieldLabel(section: WeGridGroupSection<T>): string {
+    return this.groupFieldHeaderLabel(section.field ?? this.groupField);
+  }
+
+  /** Inner levels are indented; the outermost keeps the plain cell padding */
+  groupIndent(level: number): string | null {
+    return level > 0 ? `calc(0.6rem + ${level * 1.25}rem)` : null;
+  }
+
+  /**
+   * The function a column summarises a group with: its `groupSummary`, else its `summary`, else
+   * 'sum' for a numeric column when `groupAutoSummary` is on.
+   */
+  groupSummaryFunction(col: WeGridInternalColumn<T>): WeGridSummaryFunction {
+    if (col.groupSummary) return col.groupSummary;
+    if (col.summary !== 'none') return col.summary;
+    return this.groupAutoSummary && isWeGridNumericSummaryType(col.type) ? 'sum' : 'none';
+  }
+
+  /** Whether any column has a group summary — drives the header text and the footer row */
+  get hasGroupSummary(): boolean {
+    return this.internalColumns.some((c) => this.groupSummaryFunction(c) !== 'none');
+  }
+
+  /** "Column Label: value" fragments shown in the group header — null if no column has a group summary */
   groupSummaryLabel(section: WeGridGroupSection<T>): string | null {
-    if (!this.hasSummaryRow) return null;
+    if (this.groupSummaryPosition === 'footer' || !this.hasGroupSummary) return null;
     const rows = section.rows.map((e) => e.row);
     const parts: string[] = [];
     for (const col of this.internalColumns) {
-      if (col.summary === 'none') continue;
-      const text = buildWeGridSummaryText(rows, col, 'client', undefined, this.locale);
+      const fn = this.groupSummaryFunction(col);
+      if (fn === 'none') continue;
+      const text = buildWeGridSummaryText(rows, { ...col, summary: fn }, 'client', undefined, this.locale);
       if (text) parts.push(`${weGridDisplayHeader(col)} ${text}`);
     }
     return parts.length ? parts.join(' · ') : null;
+  }
+
+  /** A group footer cell — the column's group summary over the group's rows, or null */
+  groupFooterCellText(section: WeGridGroupSection<T>, col: WeGridInternalColumn<T>): string | null {
+    const fn = this.groupSummaryFunction(col);
+    if (fn === 'none') return null;
+    return buildWeGridSummaryText(
+      section.rows.map((e) => e.row),
+      { ...col, summary: fn },
+      'client',
+      undefined,
+      this.locale
+    );
+  }
+
+  // ─── Tree rows (treeChildren) ───────────────────────────────────────
+  /** Whether the grid is in tree mode — `treeChildren` is set */
+  get treeActive(): boolean {
+    return !!this.treeChildren;
+  }
+
+  /** Every row of the filtered tree, depth first — collapsed ones included (exports, selection, summaries) */
+  treeFilteredRows: T[] = [];
+
+  /** Whether this cell draws the tree's indentation and toggle */
+  isTreeCell(item: WeGridRenderItem<T>, col: WeGridInternalColumn<T>): boolean {
+    return item.kind === 'row' && item.tree !== null && this.treeToggle === 'inline' && col.field === this.treeColumnField;
+  }
+
+  treeIndent(tree: WeGridTreeInfo<T> | null): string | null {
+    return tree ? `calc(0.5rem + ${tree.level * this.treeIndentPx}px)` : null;
+  }
+
+  /** The text a toggle's accessible name is built from — the row's value in the tree column */
+  treeRowLabel(row: T): string {
+    const col = this.internalColumns.find((c) => c.field === this.treeColumnField);
+    return col ? this.formatCell(row, col) : '';
+  }
+
+  /** `id` of a tree row's element — the target `scrollToRow` and deep links use; only with `trackByField` */
+  rowDomId(row: T): string | null {
+    return this.treeActive && this.trackByField ? `we-grid-row-${encodeURIComponent(String(this.rowKey(row)))}` : null;
+  }
+
+  rowKeyAttr(row: T): string | null {
+    return this.treeActive && this.trackByField ? encodeURIComponent(String(this.rowKey(row))) : null;
+  }
+
+  isTreeExpanded(row: T): boolean {
+    const info = this.treeInfoByRow.get(row);
+    if (info) return info.expanded;
+    return this.treeExpandedKeys.has(this.rowKey(row));
+  }
+
+  /** True when every row that has children is open — drives an "Expand all / Collapse all" label */
+  get treeAllExpanded(): boolean {
+    const parents = (this.treeModel?.all ?? []).filter((n) => n.children.length > 0);
+    return parents.length > 0 && parents.every((n) => this.treeExpandedKeys.has(n.key));
+  }
+
+  /** Opens or closes a row's children; `force` picks the state. Emits `(treeExpandChange)` with source 'api' */
+  toggleTreeNode(row: T, force?: boolean): void {
+    this.setTreeExpanded(row, force ?? !this.isTreeExpanded(row), 'api');
+  }
+
+  onTreeToggleClick(event: Event, row: T): void {
+    event.stopPropagation();
+    this.setTreeExpanded(row, !this.isTreeExpanded(row), 'user');
+  }
+
+  expandAllTree(): void {
+    const opened = (this.treeModel?.all ?? []).filter((n) => n.children.length > 0 && !this.treeExpandedKeys.has(n.key));
+    opened.forEach((n) => {
+      this.treeExpandedKeys.add(n.key);
+      this.treeFilterClosedKeys.delete(n.key);
+    });
+    this.flattenTree();
+    opened.forEach((n) => this.treeExpandChange.emit({ row: n.row, expanded: true, source: 'api' }));
+    this.announce(this.locale.treeRowsShown(this.treeNodes.length));
+    this.cdr.markForCheck();
+  }
+
+  collapseAllTree(): void {
+    const all = this.treeModel?.all ?? [];
+    const closed = all.filter((n) => n.children.length > 0 && this.isTreeExpanded(n.row));
+    this.treeExpandedKeys.clear();
+    // Rows an active filter holds open close too, until the filters change
+    all.filter((n) => n.children.length > 0).forEach((n) => this.treeFilterClosedKeys.add(n.key));
+    this.flattenTree();
+    closed.forEach((n) => this.treeExpandChange.emit({ row: n.row, expanded: false, source: 'api' }));
+    this.announce(this.locale.treeRowsShown(this.treeNodes.length));
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Brings a row into view: opens its ancestors (unless `expandParents: false`), then scrolls it
+   * into the scroll area after the next render. False when no row has that key, or a filter hides it.
+   */
+  scrollToRow(key: unknown, opts: WeGridScrollToRowOptions = {}): boolean {
+    if (this.treeActive) {
+      const node = this.treeModel?.byKey.get(key);
+      if (!node || !this.treeFilteredRows.includes(node.row)) return false;
+      if (opts.expandParents !== false) {
+        const ancestors: T[] = [];
+        for (let parent = node.parent; parent; parent = parent.parent) ancestors.unshift(parent.row);
+        ancestors.forEach((row) => {
+          if (!this.isTreeExpanded(row)) this.setTreeExpanded(row, true, 'api');
+        });
+      }
+    }
+    const rowItems = this.renderItems.filter((item) => item.kind === 'row');
+    const position = rowItems.findIndex((item) => item.kind === 'row' && this.rowKey(item.row) === key);
+    if (position === -1) return false;
+    this.cdr.markForCheck();
+    afterNextRender(() => this.scrollRowIntoView(key, opts), { injector: this.injector });
+    return true;
+  }
+
+  private scrollRowIntoView(key: unknown, opts: WeGridScrollToRowOptions): void {
+    const host = this.elementRef.nativeElement as HTMLElement;
+    const position = this.renderItems
+      .filter((item) => item.kind === 'row')
+      .findIndex((item) => item.kind === 'row' && this.rowKey(item.row) === key);
+    // The draft row of "Add row" is the first .we-grid__row while it is open
+    const rows = host.querySelectorAll<HTMLElement>('tbody > tr.we-grid__row');
+    const element = rows[position + (this.showDraftRow ? 1 : 0)];
+    if (!element) return;
+    // Inside a bounded grid the sticky header would cover a row scrolled to the very top
+    const head = host.querySelector<HTMLElement>('.we-grid__table > thead');
+    if (this.scrollMaxHeight && head) element.style.scrollMarginTop = `${head.offsetHeight}px`;
+    const reduceMotion = typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    element.scrollIntoView({ block: opts.block ?? 'center', behavior: reduceMotion ? 'auto' : (opts.behavior ?? 'auto') });
+  }
+
+  private setTreeExpanded(row: T, expanded: boolean, source: 'user' | 'api'): void {
+    const key = this.rowKey(row);
+    const node = this.treeModel?.byKey.get(key);
+    if (!node || node.children.length === 0 || this.isTreeExpanded(row) === expanded) return;
+    if (expanded) {
+      this.treeExpandedKeys.add(key);
+      this.treeFilterClosedKeys.delete(key);
+    } else {
+      this.treeExpandedKeys.delete(key);
+      this.treeFilterClosedKeys.add(key);
+    }
+    this.flattenTree();
+    this.treeExpandChange.emit({ row, expanded, source });
+    this.cdr.markForCheck();
+  }
+
+  private resetTreeState(): void {
+    this.treeExpandedKeys.clear();
+    this.treeKnownKeys.clear();
+    this.treeFilterClosedKeys.clear();
+    this.treeModel = null;
+    this.treeModelSource = null;
+    this.treeInfoByRow.clear();
+    this.treeFiltered = [];
+    this.treeNodes = [];
+    this.treeFilteredRows = [];
+  }
+
+  private resolveTreeColumn(): void {
+    if (!this.treeActive) {
+      this.treeColumnField = null;
+      return;
+    }
+    if (this.treeColumn) {
+      // A hidden tree column takes its toggle with it — "Expand all" in the menu stays available
+      this.treeColumnField = this.renderColumns.some((c) => c.field === this.treeColumn) ? this.treeColumn : null;
+      return;
+    }
+    this.treeColumnField = (this.renderColumns.find((c) => !c.pinned) ?? this.renderColumns[0])?.field ?? null;
+  }
+
+  /**
+   * Tree mode's refreshDisplayData: filter (a row stays when it or a descendant matches; a matching
+   * row with no matching child keeps all its children), sort siblings, flatten what is open.
+   * `displayData` holds the filtered roots, so paging, the footer and server-side totals stay root based.
+   */
+  private refreshTree(): void {
+    const model = this.ensureTreeModel();
+    this.fillTreeInfo(model);
+
+    const filtering = this.hasActiveFilters && !this.isServerFilter;
+    const signature = filtering ? this.activeFilterSignature() : '';
+    if (signature !== this.treeFilterSignature) {
+      this.treeFilterClosedKeys.clear();
+      this.treeFilterSignature = signature;
+    }
+    const matched = filtering
+      ? new Set(applyWeGridFilters(model.all.map((n) => n.row), this.filterState, this.internalColumns, this.locale, this.readCellValue))
+      : null;
+    const relevant = new Map<WeGridTreeModelNode<T>, boolean>();
+    const isRelevant = (node: WeGridTreeModelNode<T>): boolean => {
+      let result = relevant.get(node);
+      if (result === undefined) {
+        result = matched!.has(node.row) || node.children.some(isRelevant);
+        relevant.set(node, result);
+      }
+      return result;
+    };
+    const compare = this.treeComparator();
+    const build = (nodes: WeGridTreeModelNode<T>[], showAll: boolean): WeGridFilteredNode<T>[] => {
+      const kept = !matched || showAll ? nodes : nodes.filter(isRelevant);
+      // Array.prototype.sort is stable, so equal values keep their original order
+      const ordered = compare ? [...kept].sort(compare) : kept;
+      return ordered.map((node) => {
+        if (!matched || showAll) return { node, children: build(node.children, showAll), heldOpen: false };
+        const matchingChildren = node.children.filter(isRelevant);
+        if (matchingChildren.length > 0) return { node, children: build(matchingChildren, false), heldOpen: true };
+        // The row matched on its own: its children stay visible so it keeps its context
+        return { node, children: matched.has(node.row) ? build(node.children, true) : [], heldOpen: false };
+      });
+    };
+    this.treeFiltered = build(model.roots, false);
+    this.displayData = this.treeFiltered.map((f) => f.node.row);
+    this.groupedSections = null;
+    this.flattenTree();
+  }
+
+  /** Sibling comparator for the client sort — null when the grid isn't sorting itself */
+  private treeComparator(): ((a: WeGridTreeModelNode<T>, b: WeGridTreeModelNode<T>) => number) | null {
+    if (this.isServerSort || !this.clientSort?.direction) return null;
+    const { field, direction } = this.clientSort;
+    const col = this.internalColumns.find((c) => c.field === field);
+    const read = (row: T): unknown => (col ? this.cellValue(row, col) : getNestedValue(row, field));
+    return (a, b) => {
+      const va = read(a.row);
+      const vb = read(b.row);
+      if (va == null && vb == null) return 0;
+      if (va == null) return direction === 'asc' ? -1 : 1;
+      if (vb == null) return direction === 'asc' ? 1 : -1;
+      if ((va as number) < (vb as number)) return direction === 'asc' ? -1 : 1;
+      if ((va as number) > (vb as number)) return direction === 'asc' ? 1 : -1;
+      return 0;
+    };
+  }
+
+  /** The full tree, rebuilt only when `data` or `treeChildren` changed — not on a sort, filter or toggle */
+  private ensureTreeModel(): WeGridTreeModel<T> {
+    if (this.treeModel && this.treeModelSource?.data === this.data && this.treeModelSource.children === this.treeChildren) {
+      return this.treeModel;
+    }
+    if (!this.trackByField) {
+      this.warnTreeOnce('trackBy', 'tree mode needs trackByField, unique across every level — rows are tracked by object reference until it is set.');
+    }
+    const all: WeGridTreeModelNode<T>[] = [];
+    const byKey = new Map<unknown, WeGridTreeModelNode<T>>();
+    let duplicate = false;
+    const visit = (rows: readonly T[], level: number, parent: WeGridTreeModelNode<T> | null): WeGridTreeModelNode<T>[] => {
+      if (level > WE_GRID_TREE_MAX_DEPTH) {
+        if (isDevMode()) {
+          throw new Error(`[we-grid] "${this.gridKey}": the tree is deeper than ${WE_GRID_TREE_MAX_DEPTH} levels — treeChildren probably returns a row's own ancestor.`);
+        }
+        return [];
+      }
+      return rows.map((row) => {
+        const node: WeGridTreeModelNode<T> = { row, key: this.rowKey(row), level, parent, children: [] };
+        all.push(node);
+        if (byKey.has(node.key)) duplicate = true;
+        else byKey.set(node.key, node);
+        const children = this.treeChildren?.(row) ?? [];
+        node.children = children.length > 0 ? visit(children, level + 1, node) : [];
+        return node;
+      });
+    };
+    const roots = visit(this.data ?? [], 0, null);
+    if (duplicate && this.trackByField) {
+      this.warnTreeOnce('duplicate', `two tree rows share a trackByField value — they share their open/closed state.`);
+    }
+
+    // treeDefaultExpanded applies to a row the first time it is seen; rows that disappeared lose their state
+    for (const node of all) {
+      if (node.children.length === 0 || this.treeKnownKeys.has(node.key)) continue;
+      this.treeKnownKeys.add(node.key);
+      const open = this.treeDefaultExpanded === true || (typeof this.treeDefaultExpanded === 'number' && node.level < this.treeDefaultExpanded);
+      if (open) this.treeExpandedKeys.add(node.key);
+    }
+    for (const set of [this.treeExpandedKeys, this.treeKnownKeys, this.treeFilterClosedKeys]) {
+      for (const key of Array.from(set)) if (!byKey.has(key)) set.delete(key);
+    }
+
+    this.treeModel = { roots, all, byKey };
+    this.treeModelSource = { data: this.data, children: this.treeChildren };
+    return this.treeModel;
+  }
+
+  /**
+   * Gives every row a provisional tree info from the unfiltered tree — `childField`/`treeValue`
+   * need the level while filtering and sorting, before the filtered positions are known.
+   */
+  private fillTreeInfo(model: WeGridTreeModel<T>): void {
+    this.treeInfoByRow.clear();
+    const fill = (nodes: WeGridTreeModelNode<T>[]) =>
+      nodes.forEach((node, index) => {
+        this.treeInfoByRow.set(node.row, {
+          level: node.level,
+          hasChildren: node.children.length > 0,
+          expanded: this.treeExpandedKeys.has(node.key),
+          parent: node.parent?.row ?? null,
+          index,
+          siblingCount: nodes.length
+        });
+        fill(node.children);
+      });
+    fill(model.roots);
+  }
+
+  /** Recomputes the tree infos of the filtered tree and lays out the open rows — the cheap part of a toggle */
+  private flattenTree(): void {
+    const visible: WeGridTreeNode<T>[] = [];
+    const everyRow: T[] = [];
+    const walk = (list: WeGridFilteredNode<T>[], parent: T | null, shown: boolean): void => {
+      list.forEach((f, index) => {
+        const { row, key, level } = f.node;
+        const expanded = f.children.length > 0 && (this.treeExpandedKeys.has(key) || (f.heldOpen && !this.treeFilterClosedKeys.has(key)));
+        this.treeInfoByRow.set(row, { level, hasChildren: f.children.length > 0, expanded, parent, index, siblingCount: list.length });
+        everyRow.push(row);
+        if (shown) visible.push({ row, level, parent, index, siblingCount: list.length });
+        walk(f.children, row, shown && expanded);
+      });
+    };
+    walk(this.treeFiltered, null, true);
+    this.treeNodes = visible;
+    this.treeFilteredRows = everyRow;
+    this.rebuildRenderItems();
+  }
+
+  private warnTreeOnce(id: string, message: string): void {
+    if (!isDevMode() || this.treeWarnings.has(id)) return;
+    this.treeWarnings.add(id);
+    console.warn(`[we-grid] "${this.gridKey}": ${message}`);
   }
 
   // ─── Row expansion (master-detail) ─────────────────────────────────────
@@ -1578,14 +2472,128 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   toggleRowExpand(row: T, event?: Event): void {
     event?.stopPropagation();
+    this.setDetailOpen(row, !this.isRowExpanded(row), event ? 'user' : 'api');
+  }
+
+  /** Whether `canExpandRow` lets this row have a detail */
+  rowCanExpand(row: T): boolean {
+    return !this.canExpandRow || this.canExpandRow(row);
+  }
+
+  /** Opens or closes a row's detail — `force` picks the state. Emits `(detailToggle)` with source 'api' */
+  toggleRowDetail(row: T, force?: boolean): void {
+    this.setDetailOpen(row, force ?? !this.isRowExpanded(row), 'api');
+  }
+
+  openRowDetail(row: T): void {
+    this.setDetailOpen(row, true, 'api');
+  }
+
+  closeRowDetail(row: T): void {
+    this.setDetailOpen(row, false, 'api');
+  }
+
+  /** Alias of `isRowExpanded` */
+  isRowDetailOpen(row: T): boolean {
+    return this.isRowExpanded(row);
+  }
+
+  /** `id` of a row's detail region — for the `aria-controls` of a button that opens it */
+  detailId(row: T): string {
+    return `we-grid-detail-${encodeURIComponent(String(this.rowKey(row)))}`;
+  }
+
+  closeAllDetails(): void {
+    const open = this.expandedRows();
+    open.forEach((row) => this.setDetailOpen(row, false, 'api'));
+  }
+
+  /**
+   * Whether the detail row carries the region wrapper — any of the newer detail options turns it
+   * on; with all of them at their defaults the detail markup stays exactly as it always was.
+   */
+  get detailEnhanced(): boolean {
+    return this.detailSticky || this.detailTrigger !== 'column' || this.detailMount !== 'once' || !!this.canExpandRow || this.detailMaxWidth != null;
+  }
+
+  get detailMaxWidthCss(): string | null {
+    return this.cssLength(this.detailMaxWidth);
+  }
+
+  /** A row's readable name — its text in the tree column, else in the first visible column */
+  rowLabel(row: T): string {
+    const field = this.treeColumnField ?? this.renderColumns[0]?.field;
+    const col = this.renderColumns.find((c) => c.field === field);
+    return col ? this.formatCell(row, col) : '';
+  }
+
+  private setDetailOpen(row: T, open: boolean, source: 'user' | 'api'): void {
+    if (open && !this.rowCanExpand(row)) return;
     const key = this.rowKey(row);
-    if (this.expandedKeys.has(key)) {
-      this.expandedKeys.delete(key);
-    } else {
+    if (this.expandedKeys.has(key) === open) return;
+    if (open) {
       this.expandedKeys.add(key);
       this.mountedDetailKeys.add(key);
+    } else {
+      this.expandedKeys.delete(key);
+      // 'whileOpen' rebuilds the content on the next open — its cached context goes with it
+      if (this.detailMount === 'whileOpen') this.rowDetailContextCache.delete(key);
     }
+    this.detailToggle.emit({ row, open, source });
     this.cdr.markForCheck();
+  }
+
+  /** The loaded rows whose detail is open */
+  private expandedRows(): T[] {
+    if (this.expandedKeys.size === 0) return [];
+    const rows = this.treeActive ? (this.treeModel?.all.map((n) => n.row) ?? []) : this.data ?? [];
+    const seen = new Set<unknown>();
+    return rows.filter((row) => {
+      const key = this.rowKey(row);
+      if (!this.expandedKeys.has(key) || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  /** A row `canExpandRow` stopped allowing loses its open detail — reported with source 'api' */
+  private closeDetailsThatCannotExpand(): void {
+    if (!this.canExpandRow || this.expandedKeys.size === 0) return;
+    this.expandedRows()
+      .filter((row) => !this.rowCanExpand(row))
+      .forEach((row) => this.setDetailOpen(row, false, 'api'));
+  }
+
+  // ─── Sticky detail: the scroll area's width as a CSS variable ─────
+  private viewportObserver: ResizeObserver | null = null;
+  private lastViewportWidth = -1;
+
+  /**
+   * One ResizeObserver per grid, however many details are open, and only while `detailSticky` is
+   * on: it writes the scroll area's width to `--we-grid-viewport-width`, which caps the sticky
+   * content. It runs outside Angular and touches the DOM only when the width really changed.
+   */
+  private syncViewportObserver(): void {
+    const area = this.scrollAreaRef?.nativeElement;
+    if (!this.detailSticky || !area || typeof ResizeObserver === 'undefined') {
+      this.viewportObserver?.disconnect();
+      this.viewportObserver = null;
+      this.lastViewportWidth = -1;
+      area?.style.removeProperty('--we-grid-viewport-width');
+      return;
+    }
+    if (this.viewportObserver) return;
+    const write = (): void => {
+      const width = area.clientWidth;
+      if (width === this.lastViewportWidth) return;
+      this.lastViewportWidth = width;
+      area.style.setProperty('--we-grid-viewport-width', `${width}px`);
+    };
+    this.ngZone.runOutsideAngular(() => {
+      this.viewportObserver = new ResizeObserver(() => write());
+      this.viewportObserver.observe(area);
+    });
+    write();
   }
 
   /**
@@ -1599,11 +2607,13 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   buildRowDetailContext(row: T, rowIndex: number): WeGridRowDetailContext<T> {
     const key = this.rowKey(row);
+    const tree = this.treeActive ? this.treeInfoByRow.get(row) : undefined;
     const cached = this.rowDetailContextCache.get(key);
-    if (cached && cached.row === row && cached.rowIndex === rowIndex) {
+    if (cached && cached.row === row && cached.rowIndex === rowIndex && cached.tree === tree) {
       return cached;
     }
-    const ctx: WeGridRowDetailContext<T> = { $implicit: row, row, rowIndex };
+    const ctx: WeGridRowDetailContext<T> = { $implicit: row, row, rowIndex, close: () => this.setDetailOpen(row, false, 'api') };
+    if (tree) ctx.tree = tree;
     this.rowDetailContextCache.set(key, ctx);
     return ctx;
   }
@@ -1629,9 +2639,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   toggleSelectAll(): void {
     if (this.allSelected) {
-      this.displayData.forEach((row) => this.selectedKeys.delete(this.rowKey(row)));
+      this.selectableRows.forEach((row) => this.selectedKeys.delete(this.rowKey(row)));
     } else {
-      this.displayData.forEach((row) => this.selectedKeys.add(this.rowKey(row)));
+      this.selectableRows.forEach((row) => this.selectedKeys.add(this.rowKey(row)));
     }
     this.emitSelectionChange();
   }
@@ -1644,7 +2654,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   // ─── Export ──────────────────────────────────────────────────────────
   /** The rows currently ticked, in display order — also what an export covers when non-empty */
   get selectedRows(): T[] {
-    return this.displayData.filter((row) => this.isSelected(row));
+    return this.selectableRows.filter((row) => this.isSelected(row));
   }
 
   /**
@@ -1685,7 +2695,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   exportAs(format: WeGridExportFormat): void {
     const scope = this.exportScope;
-    const rows = scope === 'selected' ? this.selectedRows : this.displayData;
+    const rows = scope === 'selected' ? this.selectedRows : this.treeActive ? this.treeFilteredRows : this.displayData;
     const table = this.buildExportTable(rows);
     this.exportRequest.emit({ format, scope, rows, table });
     if (this.isServerExport) return;
@@ -1711,10 +2721,18 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         useDisplayText: !!col.displayValue,
         numberScale: col.type === 'currency' && col.minorUnits ? this.inputScale(col) : 1
       })),
-      rows: rows.map((row) => ({
-        values: columns.map((col) => getNestedValue(row, col.field)),
-        text: columns.map((col) => (col.displayValue ? col.displayValue(row) : this.formatCell(row, col)))
-      })),
+      rows: rows.map((row) => {
+        const values = columns.map((col) => this.cellValue(row, col));
+        const text = columns.map((col) => (col.displayValue ? col.displayValue(row) : this.formatCell(row, col)));
+        // Tree mode: two spaces per level in front of the first column keep the hierarchy readable
+        const level = this.treeActive ? (this.treeInfoByRow.get(row)?.level ?? 0) : 0;
+        if (level > 0 && text.length > 0) {
+          const indent = '  '.repeat(level);
+          text[0] = indent + text[0];
+          if (typeof values[0] === 'string') values[0] = indent + values[0];
+        }
+        return { values, text };
+      }),
       summary: this.hasSummaryRow ? columns.map((col) => this.summaryCellText(col)) : null,
       cssVariables: this.readExportThemeVariables()
     };
@@ -1834,7 +2852,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** Whether this cell shows an editor right now — the row is in edit mode AND the column allows it */
   isCellEditing(row: T, col: WeGridInternalColumn<T>): boolean {
-    return col.editable && this.isEditingRow(row);
+    return col.editable && this.isEditingRow(row) && !this.isMappedTreeCell(row, col);
   }
 
   draftValue(col: WeGridInternalColumn<T>): unknown {
@@ -2062,6 +3080,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         .filter(isWeGridFilterActive)
         .map((f) => ({ ...f })),
       groupField: this.groupField,
+      ...(this.groupFields.length > 1 ? { groupFields: [...this.groupFields] } : {}),
       filterRowVisible: this.filterRowVisible
     };
   }
@@ -2108,11 +3127,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       if (allowed) this.filterState.set(col.field, { ...filter });
     }
 
-    const groupField = this.grouping && view.groupField && this.internalColumns.some((c) => c.field === view.groupField) ? view.groupField : null;
-    if (groupField !== this.groupField) {
-      this.groupField = groupField;
+    const wanted = view.groupFields?.length ? view.groupFields : view.groupField ? [view.groupField] : [];
+    const groupFields = this.grouping && !this.treeActive ? this.validGroupFields(wanted) : [];
+    if (groupFields.join('\u0000') !== this.groupFields.join('\u0000')) {
+      const outerBefore = this.groupField;
+      this.groupFields = groupFields;
       this.groupCollapsedKeys.clear();
-      this.groupChange.emit(groupField);
+      if (this.groupField !== outerBefore) this.groupChange.emit(this.groupField);
+      this.groupFieldsChange.emit([...this.groupFields]);
     }
 
     this.recomputeRenderColumns();
@@ -2185,7 +3207,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   onCellClick(event: MouseEvent, row: T, col: WeGridInternalColumn<T>): void {
-    if (col.stopRowClick) event.stopPropagation();
+    if (col.stopRowEvents.includes('click')) event.stopPropagation();
     if (this.pasteEnabled && !this.isCellEditing(row, col)) this.activeCell = { key: this.rowKey(row), field: col.field };
   }
 
@@ -2202,8 +3224,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** The rows in the order the user sees them — grouped, a collapsed group's rows are skipped */
   private get visibleRowsInOrder(): T[] {
-    if (!this.groupedSections) return this.displayData;
-    return this.groupedSections.flatMap((section) => (section.collapsed ? [] : section.rows.map((entry) => entry.row)));
+    return this.renderItems.flatMap((item) => (item.kind === 'row' ? [item.row] : []));
   }
 
   private pasteTable(table: string[][]): void {
@@ -2230,7 +3251,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       const values: Record<string, unknown> = {};
       cells.forEach((raw, c) => {
         const col = this.renderColumns[startCol + c];
-        if (!col || !col.editable) return;
+        if (!col || !col.editable || (original && this.isMappedTreeCell(original, col))) return;
         const { value, ok } = this.coercePastedValue(raw, col);
         const cellName = `${weGridDisplayHeader(col)} (${startRow + offset + 1})`;
         if (!ok) {
@@ -2388,10 +3409,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   // ─── Column drag-and-drop reordering ─────────────────────────────────
   onColumnDrop(event: CdkDragDrop<WeGridInternalColumn<T>[]>): void {
     if (event.previousIndex === event.currentIndex) return;
+    const moving = this.renderColumns[event.previousIndex];
+    if (moving && !this.dropSortPredicate(event.currentIndex, { data: moving })) return;
     moveItemInArray(this.renderColumns, event.previousIndex, event.currentIndex);
-    this.renderColumns.forEach((c, i) => (c.order = i));
-    const hidden = this.internalColumns.filter((c) => !c.visible);
-    hidden.forEach((c, i) => (c.order = this.renderColumns.length + i));
+    this.renumberColumnOrder();
     // When the order changes, pinned columns' left/right offsets must also be recomputed —
     // otherwise the DOM order changes but the old offsets remain, and pinned columns overlap on horizontal scroll.
     this.recomputeRenderColumns();
@@ -2409,8 +3430,118 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
       event.preventDefault();
       this.openHeaderMenu(thEl, col);
+      return;
+    }
+    // Alt+arrows move the focused header. Only on the header itself — Alt+arrow means back/forward
+    // to the browser everywhere else, and a control inside the header owns its own keys.
+    if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight') && event.target === thEl) {
+      event.preventDefault();
+      const towardsEnd = (event.key === 'ArrowRight') !== this.isRtl;
+      const moved = this.moveColumn(col, event.shiftKey ? (towardsEnd ? 'last' : 'first') : towardsEnd ? 1 : -1);
+      if (moved) {
+        // The header element moves with its column; keep the keyboard on it
+        setTimeout(() => thEl.focus());
+      }
     }
   }
+
+  private get isRtl(): boolean {
+    if (typeof window === 'undefined') return false;
+    return window.getComputedStyle(this.elementRef.nativeElement).direction === 'rtl';
+  }
+
+  /** The keyboard twin of dragging the resize handle — see docs/api.md for the keys */
+  onResizeKeydown(event: KeyboardEvent, col: WeGridInternalColumn<T>, thEl: HTMLElement): void {
+    const step = event.shiftKey ? 32 : 8;
+    let next: number | null = null;
+    switch (event.key) {
+      case 'ArrowRight':
+        next = col.width + (this.isRtl ? -step : step);
+        break;
+      case 'ArrowLeft':
+        next = col.width + (this.isRtl ? step : -step);
+        break;
+      case 'Home':
+        next = col.minWidth;
+        break;
+      case 'Enter':
+        event.preventDefault();
+        event.stopPropagation();
+        this.handleMenuAction({ type: 'autofit', field: col.field });
+        return;
+      case 'Escape':
+        event.preventDefault();
+        event.stopPropagation();
+        thEl.focus();
+        return;
+      default:
+        return;
+    }
+    event.preventDefault();
+    event.stopPropagation();
+    const width = Math.max(col.minWidth, Math.round(next));
+    if (width === col.width) return;
+    col.width = width;
+    col.autoFitPending = false;
+    this.recomputeRenderColumns();
+    this.scheduleLayoutSave();
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Moves a visible column inside its pin group (left, unpinned, right) — by one place, or to the
+   * group's first/last place. A `lockOrder` column never moves and nothing passes it; the move
+   * stops at the last free place. Returns whether anything moved.
+   */
+  moveColumn(col: WeGridInternalColumn<T>, to: 1 | -1 | 'first' | 'last'): boolean {
+    const target = this.moveTargetIndex(col, to);
+    if (target === null) return false;
+    const from = this.renderColumns.indexOf(col);
+    moveItemInArray(this.renderColumns, from, target);
+    this.renumberColumnOrder();
+    this.recomputeRenderColumns();
+    this.scheduleLayoutSave();
+    this.announce(this.locale.columnMoved(weGridDisplayHeader(col), this.renderColumns.indexOf(col) + 1));
+    this.cdr.markForCheck();
+    return true;
+  }
+
+  /** Index in `renderColumns` a move would land on, or null when it can't move that way */
+  private moveTargetIndex(col: WeGridInternalColumn<T>, to: 1 | -1 | 'first' | 'last'): number | null {
+    if (col.lockOrder) return null;
+    const list = this.renderColumns;
+    const from = list.indexOf(col);
+    if (from === -1) return null;
+    const group = list.map((_, i) => i).filter((i) => (list[i].pinned ?? null) === (col.pinned ?? null));
+    const pos = group.indexOf(from);
+    const goal = to === 'first' ? 0 : to === 'last' ? group.length - 1 : Math.min(Math.max(pos + to, 0), group.length - 1);
+    const step = goal > pos ? 1 : -1;
+    let reached = pos;
+    while (reached !== goal && !list[group[reached + step]].lockOrder) reached += step;
+    return reached === pos ? null : group[reached];
+  }
+
+  /** Writes the visible order back to `order`, hidden columns after the visible ones */
+  private renumberColumnOrder(): void {
+    this.renderColumns.forEach((c, i) => (c.order = i));
+    this.internalColumns.filter((c) => !c.visible).forEach((c, i) => (c.order = this.renderColumns.length + i));
+  }
+
+  /**
+   * Drag-and-drop guard: a locked column's place can't be taken, a drag can't cross one, and a
+   * column pinned to one side can't be dropped among the other side's columns.
+   */
+  readonly dropSortPredicate = (index: number, drag: { data: unknown }): boolean => {
+    const dragged = drag.data as WeGridInternalColumn<T>;
+    if (dragged.lockOrder) return false;
+    const target = this.renderColumns[index];
+    if (!target || target === dragged) return true;
+    if (target.lockOrder) return false;
+    if (dragged.pinned && target.pinned && dragged.pinned !== target.pinned) return false;
+    const from = this.renderColumns.indexOf(dragged);
+    const [lo, hi] = from < index ? [from, index] : [index, from];
+    return !this.renderColumns.slice(lo + 1, hi).some((c) => c.lockOrder);
+  };
 
   openColumnsMenuFromToolbar(): void {
     if (this.gearButtonRef) {
@@ -2424,6 +3555,13 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * exactly as it did on existing screens (the handler is bound but stays inert).
    */
   onCellContextMenu(event: MouseEvent, col: WeGridInternalColumn<T>, row: T): void {
+    // A cell that keeps its right click, or a control under ignoreInteractiveTargets, gets the
+    // browser's own menu — copy and paste in an input must keep working.
+    if (col.stopRowEvents.includes('contextmenu')) {
+      event.stopPropagation();
+      return;
+    }
+    if (this.isFromInteractiveTarget(event)) return;
     if (!this.grouping) return;
     event.preventDefault();
     const raw = getNestedValue(row, col.field);
@@ -2486,10 +3624,15 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     componentRef.setInput('allColumns', this.internalColumns);
     componentRef.setInput('density', this.density);
     componentRef.setInput('sort', this.currentSort);
-    componentRef.setInput('enableGrouping', this.grouping);
+    componentRef.setInput('enableGrouping', this.grouping && !this.treeActive);
+    componentRef.setInput('treeMode', this.treeActive);
+    componentRef.setInput('treeAllExpanded', this.treeActive && this.treeAllExpanded);
     componentRef.setInput('groupField', this.groupField);
+    componentRef.setInput('groupFields', this.groupFields);
     componentRef.setInput('cellValue', cellCtx?.value);
     componentRef.setInput('hasCellValue', !!cellCtx);
+    componentRef.setInput('canMoveLeft', !!column && this.moveTargetIndex(column, this.isRtl ? 1 : -1) !== null);
+    componentRef.setInput('canMoveRight', !!column && this.moveTargetIndex(column, this.isRtl ? -1 : 1) !== null);
 
     componentRef.instance.action.pipe(takeUntil(this.destroy$)).subscribe((action) => {
       this.handleMenuAction(action);
@@ -2567,6 +3710,20 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         if (col) this.autofitColumn(col);
         break;
       }
+      case 'move-column': {
+        const col = this.internalColumns.find((c) => c.field === action.field);
+        const towardsEnd = (action.direction === 'right') !== this.isRtl;
+        // moveColumn already saves and re-renders
+        if (col) this.moveColumn(col, towardsEnd ? 1 : -1);
+        this.cdr.markForCheck();
+        return;
+      }
+      case 'tree-expand-all':
+        this.expandAllTree();
+        return;
+      case 'tree-collapse-all':
+        this.collapseAllTree();
+        return;
       case 'autofit-all':
         // A templated cell's content can't be measured as text — fitting it would shrink the
         // column to its header, so those columns keep their width.
@@ -2574,7 +3731,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         break;
       case 'pin': {
         const col = this.internalColumns.find((c) => c.field === action.field);
-        if (col) col.pinned = action.pinned;
+        if (col && !col.lockPinned) col.pinned = action.pinned;
         break;
       }
       case 'sort':
@@ -2602,11 +3759,24 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       case 'group-by':
         // Grouping is NOT part of the layout (WeGridLayout) — it isn't persisted, so we return
         // early and skip scheduleLayoutSave() (otherwise every group change would trigger an
-        // unnecessary PUT/localStorage write).
+        // unnecessary PUT/localStorage write). "Group by this field" replaces every level.
         this.groupField = action.field;
         this.applyGrouping();
         this.groupChange.emit(this.groupField);
+        this.groupFieldsChange.emit([...this.groupFields]);
         this.cdr.markForCheck();
+        return;
+      case 'group-add':
+        this.addGroupField(action.field);
+        return;
+      case 'group-remove':
+        this.removeGroupField(action.field);
+        return;
+      case 'groups-expand-all':
+        this.expandAllGroups();
+        return;
+      case 'groups-collapse-all':
+        this.collapseAllGroups();
         return;
       case 'clear-grouping':
         this.clearGrouping();

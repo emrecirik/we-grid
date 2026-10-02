@@ -69,6 +69,10 @@ export function weGridSanitizeView(input: unknown): WeGridSavedView | null {
   }
   const groupField = input['groupField'];
   view.groupField = typeof groupField === 'string' ? groupField : null;
+  const groupFields = input['groupFields'];
+  if (Array.isArray(groupFields) && groupFields.length > 0 && groupFields.every((f) => typeof f === 'string')) {
+    view.groupFields = groupFields.slice(0, 10);
+  }
   if (typeof input['filterRowVisible'] === 'boolean') view.filterRowVisible = input['filterRowVisible'];
   return view;
 }

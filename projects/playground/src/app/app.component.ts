@@ -16,8 +16,10 @@ import {
   WeGridRowDeleteEvent,
   WeGridRowDetailDirective,
   WeGridRowEditEvent,
+  WeGridHeaderDirective,
   WeGridRowsPasteEvent,
-  WeGridSortChange
+  WeGridSortChange,
+  WeGridTreeInfo
 } from 'we-grid-angular';
 
 interface Product {
@@ -78,10 +80,48 @@ const TYPED_ROWS: TypedRow[] = Array.from({ length: 12 }, (_, i) => ({
   shippedAt: new Date(2026, 8, 1 + i, 9 + (i % 8), 15).toISOString()
 }));
 
+/** An order with its lines — section 11 renders both levels in the same columns */
+interface OrderNode {
+  key: string;
+  kind: 'order' | 'line';
+  label: string;
+  customer?: string;
+  product?: string;
+  qty: number;
+  unitPrice?: number;
+  total: number;
+  lines?: OrderNode[];
+}
+
+const ORDER_TREE: OrderNode[] = Array.from({ length: 40 }, (_, o) => {
+  const lines: OrderNode[] = Array.from({ length: 1 + (o % 4) }, (_, l) => {
+    const qty = 1 + ((o + l * 3) % 7);
+    const unitPrice = Math.round((15 + ((o * 7 + l * 11) % 90)) * 100) / 100;
+    return {
+      key: `L-${o}-${l}`,
+      kind: 'line' as const,
+      label: `Line ${l + 1}`,
+      product: ALL_PRODUCTS[(o * 3 + l) % ALL_PRODUCTS.length].name,
+      qty,
+      unitPrice,
+      total: Math.round(qty * unitPrice * 100) / 100
+    };
+  });
+  return {
+    key: `O-${1000 + o}`,
+    kind: 'order' as const,
+    label: `Order ${1000 + o}`,
+    customer: ['Atlas Ltd', 'Birch & Co', 'Cedar Inc', 'Delta GmbH'][o % 4],
+    qty: lines.reduce((sum, l) => sum + l.qty, 0),
+    total: Math.round(lines.reduce((sum, l) => sum + l.total, 0) * 100) / 100,
+    lines
+  };
+});
+
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, WeGridComponent, WeGridCellDirective, WeGridRowDetailDirective],
+  imports: [CommonModule, WeGridComponent, WeGridCellDirective, WeGridRowDetailDirective, WeGridHeaderDirective],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -380,5 +420,66 @@ export class AppComponent {
     ];
     e.done(true);
   }
+
+
+  // ─── 11. Tree rows, sticky detail, interactive cells ──────────────
+  orderTree = ORDER_TREE;
+  orderChildren = (row: OrderNode): OrderNode[] | undefined => row.lines;
+  orderColumns: WeGridColumnDef<OrderNode>[] = [
+    { field: 'label', header: 'Order / line', width: 220, pinned: 'left', fixed: true },
+    { field: 'customer', header: 'Customer', width: 150, childField: 'product' },
+    { field: 'qty', header: 'Qty', type: 'integer', width: 80, align: 'end', summary: 'sum' },
+    {
+      field: 'unitPrice',
+      header: 'Unit price',
+      type: 'currency',
+      width: 120,
+      align: 'end',
+      headerHint: 'Orders show their cheapest line.\nLines show their own unit price.',
+      treeValue: (row: OrderNode, tree: WeGridTreeInfo<OrderNode>) =>
+        tree.level === 0 ? Math.min(...(row.lines ?? []).map((l) => l.unitPrice ?? Infinity)) : row.unitPrice
+    },
+    { field: 'total', header: 'Total', type: 'currency', width: 130, align: 'end', summary: 'sum' },
+    { field: 'decision', header: 'Decision', width: 220, stopRowEvents: true, sortable: false, filterable: false, exportable: false },
+    { field: 'note', header: 'Note', width: 220, sortable: false, filterable: false, exportable: false },
+    { field: 'notes', header: 'Notes', width: 110, pinned: 'right', fixed: true, sortable: false, filterable: false, exportable: false }
+  ];
+  /** Unsaved decisions and notes live here, outside the grid — rowStateVersion tells it to repaint */
+  readonly decisions = new Map<string, 'approved' | 'rejected'>();
+  readonly notes: Record<string, string> = {};
+  stateVersion = 0;
+  treeLog: string[] = [];
+
+  decide(row: OrderNode, decision: 'approved' | 'rejected'): void {
+    if (this.decisions.get(row.key) === decision) this.decisions.delete(row.key);
+    else this.decisions.set(row.key, decision);
+    this.stateVersion++;
+  }
+
+  orderRowClass = (row: OrderNode, _index: number, tree?: WeGridTreeInfo<OrderNode>): string[] => {
+    const classes: string[] = [];
+    const decision = this.decisions.get(row.key);
+    if (decision) classes.push(`demo-row--${decision}`);
+    if (tree && tree.level > 0) classes.push('demo-row--line');
+    return classes;
+  };
+
+  isOrder = (row: OrderNode): boolean => row.kind === 'order';
+
+  onOrderRowClick(row: OrderNode): void {
+    this.treeLog = [...this.treeLog.slice(-4), `rowClick ${row.key}`];
+  }
+
+  // ─── 12. Multi-level grouping with group summaries ────────────────
+  groupedProducts = ALL_PRODUCTS.map((p) => ({ ...p, stockLabel: p.inStock ? 'In stock' : 'Out of stock', units: (p.id * 7) % 40 }));
+  groupedColumns: WeGridColumnDef<Product & { stockLabel: string; units: number }>[] = [
+    { field: 'code', header: 'Code', width: 120 },
+    { field: 'name', header: 'Name', width: 180 },
+    { field: 'category', header: 'Category', width: 150 },
+    { field: 'stockLabel', header: 'Stock', width: 130 },
+    { field: 'units', header: 'Units', type: 'integer', width: 90, align: 'end' },
+    { field: 'price', header: 'Price', type: 'currency', width: 120, align: 'end', groupSummary: 'avg' }
+  ];
+  groupSummaryPosition: 'header' | 'footer' | 'both' = 'both';
 
 }

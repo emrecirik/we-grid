@@ -295,6 +295,92 @@
   }
 }
 
+// maxHeight: the grid scrolls inside itself; the header (sticky top) and the summary row (sticky
+// bottom, below) stay in view
+.we-grid__scroll--bounded {
+  overflow-y: auto;
+}
+
+.we-grid__scroll--bounded .we-grid__summary-row td {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+}
+
+.we-grid__scroll--bounded .we-grid__summary-row td.we-grid__td--pinned-left,
+.we-grid__scroll--bounded .we-grid__summary-row td.we-grid__td--pinned-right {
+  z-index: 3;
+}
+
+.we-grid__scroll--bounded .we-grid__summary-row td.we-grid__select-col,
+.we-grid__scroll--bounded .we-grid__summary-row td.we-grid__expand-col,
+.we-grid__scroll--bounded .we-grid__summary-row td.we-grid__action-col {
+  z-index: 4;
+}
+
+// Screen-reader-only text (live announcements)
+.we-grid__sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+// ─── Header hint (headerHint) ─────────────────────────────────────────
+.we-grid__th-hint {
+  display: inline-flex;
+  flex-shrink: 0;
+  color: var(--we-grid-muted-color, #878a99);
+  cursor: help;
+  border-radius: 50%;
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: 1px;
+  }
+}
+
+// Rendered through the CDK overlay (attached to <body>), so table clipping never cuts it
+.we-grid-hint {
+  max-width: 320px;
+  padding: 0.4rem 0.6rem;
+  background: var(--we-grid-menu-bg, #fff);
+  color: var(--we-grid-menu-color, #212529);
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  box-shadow: var(--we-grid-menu-shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.4;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+// A lockOrder column has no drag handle
+.we-grid__th--locked-order .we-grid__th-inner {
+  cursor: default;
+}
+
+// --we-grid-row-accent (consumer-defined, no library default): a 3px stripe on the row's first
+// visible cell. Left undefined, the declaration is invalid and the cell keeps no box-shadow.
+.we-grid__row > td:first-child {
+  box-shadow: inset 3px 0 0 var(--we-grid-row-accent);
+}
+
+// allowOverflow: dropdowns and tooltips inside the cell may spill out instead of being clipped
+.we-grid__row td.we-grid__td--overflow {
+  overflow: visible;
+}
+
+.we-grid__row td.we-grid__td--overflow:not(.we-grid__td--pinned-left):not(.we-grid__td--pinned-right) {
+  position: relative;
+}
+
 // The paste target — where the top-left cell of a pasted range lands
 .we-grid__row td.we-grid__td--active {
   box-shadow: inset 0 0 0 2px var(--we-grid-accent-color, #405189);
@@ -377,7 +463,7 @@
 
 .we-grid__row td.we-grid__expand-col {
   z-index: 2;
-  background: var(--we-grid-bg, #fff);
+  background: var(--we-grid-row-bg, var(--we-grid-bg, #fff));
 }
 
 .we-grid__expand-btn {
@@ -547,11 +633,123 @@
   color: var(--we-grid-muted-color, #878a99);
 }
 
+// Inner grouping levels read lighter than the outermost one
+.we-grid__group-row--nested td {
+  font-weight: 500;
+  background: var(--we-grid-group-nested-bg, var(--we-grid-bg, #fff));
+}
+
+// groupSummaryPosition 'footer' / 'both': one value under each column, closing the group
+.we-grid__group-footer-row td {
+  height: var(--we-grid-row-height);
+  padding: 0 0.5rem;
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+  background: var(--we-grid-summary-bg, var(--we-grid-header-bg, #f3f6f9));
+  font-size: 0.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-grid__group-footer-row td.we-grid__select-col,
+.we-grid__group-footer-row td.we-grid__expand-col,
+.we-grid__group-footer-row td.we-grid__action-col {
+  position: sticky;
+  z-index: 2;
+}
+
+.we-grid__group-footer-label {
+  margin-inline-end: 0.4rem;
+  font-weight: 600;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-grid__group-footer-row--nested td {
+  background: var(--we-grid-group-nested-bg, var(--we-grid-bg, #fff));
+}
+
+// Several grouping levels in one chip: "Grouped by: City › Status", each level removable
+.we-grid__group-chip-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.we-grid__group-chip-sep {
+  display: inline-flex;
+  opacity: 0.7;
+}
+
+// ─── Tree rows (treeChildren) ─────────────────────────────────────────
+.we-grid__tree-toggle,
+.we-grid__tree-spacer {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  margin-inline-end: 0.25rem;
+  vertical-align: middle;
+}
+
+.we-grid__tree-toggle {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  border-radius: 0.2rem;
+  transition: transform 0.15s ease;
+
+  &:hover {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.035));
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: 1px;
+  }
+
+  &--open {
+    transform: rotate(90deg);
+  }
+}
+
+[dir='rtl'] .we-grid__tree-toggle:not(.we-grid__tree-toggle--open) {
+  transform: scaleX(-1);
+}
+
 // ─── Row expansion (master-detail) ────────────────────────────────────
 .we-grid__detail-row td {
   padding: 0.75rem 1rem;
   background: var(--we-grid-detail-bg, rgba(0, 0, 0, 0.015));
   border-bottom: 1px solid var(--we-grid-border-color, #eef0f2);
+}
+
+// detailSticky: the padding moves to the sticky wrapper so it can sit flush on the scroll area's
+// edge; the background stays on the cell so it still runs the full row
+.we-grid__detail-row--sticky > td {
+  padding: 0;
+}
+
+.we-grid__detail-sticky {
+  position: sticky;
+  inset-inline-start: var(--we-grid-detail-inset-left, 0);
+  box-sizing: border-box;
+  // As wide as the visible part of the table (written by the grid), never wider than the table
+  width: min(var(--we-grid-viewport-width, 100%), var(--we-grid-detail-max-width, 100%));
+  max-width: 100%;
+  padding: var(--we-grid-detail-padding, 0.75rem 1rem);
+  white-space: normal;
+  // Content wider than the viewport scrolls inside the detail instead of widening the table
+  overflow-x: auto;
+}
+
+@media print {
+  .we-grid__detail-sticky {
+    position: static;
+    width: auto;
+  }
 }
 
 .we-grid__th-inner {
@@ -638,6 +836,13 @@
     background: var(--we-grid-accent-color, #405189);
     opacity: 0.4;
   }
+
+  // Keyboard resizing (arrows, Home, Enter) — the handle shows where the focus is
+  &:focus-visible {
+    outline: none;
+    background: var(--we-grid-accent-color, #405189);
+    opacity: 0.8;
+  }
 }
 
 // ─── Body ────────────────────────────────────────────────────────────
@@ -650,7 +855,9 @@
     height: var(--we-grid-row-height);
     padding: 0 0.5rem;
     border-bottom: 1px solid var(--we-grid-border-color, #eef0f2);
-    background: var(--we-grid-bg, #fff);
+    // --we-grid-row-bg is set by the consumer, usually from a rowClass — never by the library. The
+    // sticky cells below read it too, so a row's colour reaches its pinned cells and stays opaque.
+    background: var(--we-grid-row-bg, var(--we-grid-bg, #fff));
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1004,7 +1211,7 @@
 
 .we-grid__row td.we-grid__action-col {
   z-index: 2;
-  background: var(--we-grid-bg, #fff);
+  background: var(--we-grid-row-bg, var(--we-grid-bg, #fff));
   padding: 0 0.25rem;
 }
 

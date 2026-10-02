@@ -5,7 +5,32 @@
   [class.we-grid--clickable]="rowClick.observed"
 >
   <div class="we-grid__toolbar">
-    @if (groupField) {
+    @if (groupFields.length > 1) {
+      <span class="we-grid__group-chip we-grid__group-chip--levels" role="group" [attr.aria-label]="locale.groupingLabel">
+        <span [innerHTML]="icon('stack')" aria-hidden="true"></span>
+        {{ locale.groupingLabel }}
+        @for (field of groupFields; track field; let first = $first) {
+          @if (!first) {
+            <span class="we-grid__group-chip-sep" [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+          }
+          <span class="we-grid__group-chip-level">
+            {{ groupFieldHeaderLabel(field) }}
+            <button
+              type="button"
+              class="we-grid__group-chip-remove"
+              (click)="removeGroupField(field)"
+              [attr.aria-label]="locale.removeFromGrouping + ': ' + groupFieldHeaderLabel(field)"
+              [title]="locale.removeFromGrouping"
+            >
+              <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+            </button>
+          </span>
+        }
+        <button type="button" class="we-grid__group-chip-remove we-grid__group-chip-remove--all" (click)="clearGrouping()" [attr.aria-label]="locale.clearGroupingAria" [title]="locale.clearGroupingAria">
+          <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+        </button>
+      </span>
+    } @else if (groupField) {
       <span class="we-grid__group-chip">
         <span [innerHTML]="icon('stack')" aria-hidden="true"></span>
         {{ locale.groupingLabel }} {{ groupFieldHeaderLabel() }}
@@ -196,17 +221,31 @@
     </div>
   }
 
-  <div class="we-grid__scroll" [attr.tabindex]="pasteEnabled ? -1 : null" (paste)="onPaste($event)">
+  <div
+    #scrollArea
+    class="we-grid__scroll"
+    [class.we-grid__scroll--bounded]="!!scrollMaxHeight"
+    [style.max-height]="scrollMaxHeight"
+    [style.min-height]="scrollMinHeight"
+    [attr.tabindex]="pasteEnabled ? -1 : null"
+    (paste)="onPaste($event)"
+  >
     <table
       class="we-grid__table"
-      role="grid"
+      [attr.role]="treeActive ? 'treegrid' : 'grid'"
       [style.width.px]="tableWidthPx"
       [attr.aria-rowcount]="totalCount || displayData.length"
       [attr.aria-colcount]="renderColumns.length"
     >
       <thead>
-        <tr class="we-grid__header-row" cdkDropList cdkDropListOrientation="horizontal" (cdkDropListDropped)="onColumnDrop($event)">
-          @if (expandable) {
+        <tr
+          class="we-grid__header-row"
+          cdkDropList
+          cdkDropListOrientation="horizontal"
+          [cdkDropListSortPredicate]="dropSortPredicate"
+          (cdkDropListDropped)="onColumnDrop($event)"
+        >
+          @if (showExpandCol) {
             <th class="we-grid__expand-col" scope="col" [style.left.px]="0"></th>
           }
           @if (selectable !== 'none') {
@@ -223,6 +262,7 @@
               cdkDragLockAxis="x"
               cdkDragPreviewClass="we-grid__drag-preview"
               [cdkDragData]="col"
+              [cdkDragDisabled]="col.lockOrder"
               role="columnheader"
               tabindex="0"
               scope="col"
@@ -234,14 +274,41 @@
               [class.we-grid__th--pinned-left]="col.pinned === 'left'"
               [class.we-grid__th--pinned-right]="col.pinned === 'right'"
               [class.we-grid__th--sortable]="col.sortable"
-              [title]="col.headerTooltip || null"
+              [class.we-grid__th--locked-order]="col.lockOrder"
+              [attr.title]="headerTitle(col)"
               (contextmenu)="onHeaderContextMenu($event, col)"
               (keydown)="onHeaderKeydown($event, col, thRef)"
             >
               <div class="we-grid__th-inner">
                 <span class="we-grid__th-label" [style.text-align]="col.align" (click)="onHeaderLabelClick(col)">
-                  {{ displayHeader(col) }}
+                  @if (getHeaderTemplate(col); as headerTmpl) {
+                    <ng-container *ngTemplateOutlet="headerTmpl; context: headerContext(col)"></ng-container>
+                  } @else {
+                    {{ displayHeader(col) }}
+                  }
                 </span>
+                @if (col.headerHint) {
+                  <!-- Pointer and click events stop here: the icon is not a drag handle, a sort toggle or a menu -->
+                  <span
+                    #hintIcon
+                    class="we-grid__th-hint"
+                    tabindex="0"
+                    role="img"
+                    [attr.aria-label]="locale.headerHintAria + ': ' + col.headerHint"
+                    [attr.aria-describedby]="hintOpenFor === hintIcon ? hintId : null"
+                    [innerHTML]="icon('info')"
+                    (mouseenter)="showHeaderHint(hintIcon, col)"
+                    (mouseleave)="hideHeaderHint()"
+                    (focus)="showHeaderHint(hintIcon, col)"
+                    (blur)="hideHeaderHint()"
+                    (keydown)="onHeaderHintKeydown($event)"
+                    (click)="$event.stopPropagation()"
+                    (mousedown)="$event.stopPropagation()"
+                    (touchstart)="$event.stopPropagation()"
+                    (pointerdown)="$event.stopPropagation()"
+                    (contextmenu)="$event.stopPropagation()"
+                  ></span>
+                }
                 @if (col.sortable && currentSort?.field === col.field) {
                   <span
                     class="we-grid__sort-icon"
@@ -271,7 +338,16 @@
                   <span [innerHTML]="icon('settings')" aria-hidden="true"></span>
                 </button>
               </div>
-              <div class="we-grid__resize-handle" (pointerdown)="onResizeStart($event, col, thRef)" (dblclick)="onResizeHandleDblClick($event, col)"></div>
+              <div
+                class="we-grid__resize-handle"
+                role="separator"
+                aria-orientation="vertical"
+                tabindex="0"
+                [attr.aria-label]="locale.columnResizeAria(displayHeader(col))"
+                (pointerdown)="onResizeStart($event, col, thRef)"
+                (dblclick)="onResizeHandleDblClick($event, col)"
+                (keydown)="onResizeKeydown($event, col, thRef)"
+              ></div>
             </th>
           }
           @if (hasRowActions) {
@@ -280,7 +356,7 @@
         </tr>
         @if (filterRow && filterRowVisible) {
           <tr class="we-grid__filter-row">
-            @if (expandable) {
+            @if (showExpandCol) {
               <th class="we-grid__expand-col" scope="col"></th>
             }
             @if (selectable !== 'none') {
@@ -386,7 +462,7 @@
              also visible on a completely empty grid, which is exactly when "Add row" is pressed most. -->
         @if (showDraftRow) {
           <tr class="we-grid__row we-grid__row--editing" [title]="edit?.error || ''">
-            @if (expandable) {
+            @if (showExpandCol) {
               <td class="we-grid__expand-col"></td>
             }
             @if (selectable !== 'none') {
@@ -443,7 +519,7 @@
                search/page change while rows already exist doesn't replace/flicker them with skeletons. -->
           @for (i of skeletonRows; track i) {
             <tr class="we-grid__skeleton-row">
-              @if (expandable) {
+              @if (showExpandCol) {
                 <td class="we-grid__expand-col"></td>
               }
               @if (selectable !== 'none') {
@@ -470,301 +546,241 @@
               }
             </td>
           </tr>
-        } @else if (groupedSections) {
-          <!-- A separate render branch while grouping is on (grouping=true + the user picked a
-               field) — displayData ITSELF does NOT change (selection/footer/summary always keep
-               working off displayData), groupedSections only distributes rows into group buckets
-               for DISPLAY purposes. -->
-          @for (section of groupedSections; track section.key) {
-            <tr class="we-grid__group-row">
-              <td [attr.colspan]="totalColSpan">
-                <button
-                  type="button"
-                  class="we-grid__group-toggle"
-                  [class.we-grid__group-toggle--open]="!section.collapsed"
-                  [attr.aria-expanded]="!section.collapsed"
-                  [attr.aria-label]="section.collapsed ? locale.groupByThisField : locale.removeGrouping"
-                  (click)="toggleGroupCollapse(section)"
-                >
-                  <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
-                </button>
-                <span class="we-grid__group-label">{{ groupFieldHeaderLabel() }}: {{ section.label }}</span>
-                <span class="we-grid__group-count">{{ section.rows.length }} {{ locale.recordsLabel }}</span>
-                @if (groupSummaryLabel(section); as sumText) {
-                  <span class="we-grid__group-summary">{{ sumText }}</span>
+        } @else {
+          <!-- One flattened list drives every mode — plain rows, group headers while grouping, and
+               the open rows of a tree. Each row entry renders its row, then its detail row, so a
+               tree reads parent → detail → children. -->
+          @for (item of renderItems; track item.trackKey) {
+            @if (item.kind === 'group') {
+              <tr class="we-grid__group-row" [class.we-grid__group-row--nested]="item.level > 0">
+                <td [attr.colspan]="totalColSpan" [style.padding-inline-start]="groupIndent(item.level)">
+                  <button
+                    type="button"
+                    class="we-grid__group-toggle"
+                    [class.we-grid__group-toggle--open]="!item.section.collapsed"
+                    [attr.aria-expanded]="!item.section.collapsed"
+                    [attr.aria-label]="item.section.collapsed ? locale.groupByThisField : locale.removeGrouping"
+                    (click)="toggleGroupCollapse(item.section)"
+                  >
+                    <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+                  </button>
+                  <span class="we-grid__group-label">{{ groupSectionFieldLabel(item.section) }}: {{ item.section.label }}</span>
+                  <span class="we-grid__group-count">{{ item.section.rows.length }} {{ locale.recordsLabel }}</span>
+                  @if (groupSummaryLabel(item.section); as sumText) {
+                    <span class="we-grid__group-summary">{{ sumText }}</span>
+                  }
+                </td>
+              </tr>
+            } @else if (item.kind === 'groupFooter') {
+              <tr class="we-grid__group-footer-row" [class.we-grid__group-footer-row--nested]="item.level > 0">
+                @if (showExpandCol) {
+                  <td class="we-grid__expand-col"></td>
                 }
-              </td>
-            </tr>
-            @if (!section.collapsed) {
-              @for (entry of section.rows; track trackByRow(entry.row)) {
-                <tr
-                  class="we-grid__row"
-                  [class.we-grid__row--selected]="isSelected(entry.row)"
-                  [class.we-grid__row--editing]="isEditingRow(entry.row)"
-                  [ngClass]="rowClassFor(entry.row, entry.index)"
-                  (click)="onRowClick(entry.row, entry.index)"
-                  (dblclick)="onRowDblClick(entry.row, entry.index)"
-                >
-                  @if (expandable) {
-                    <td class="we-grid__expand-col" (click)="$event.stopPropagation()">
-                      @if (canExpandRows) {
+                @if (selectable !== 'none') {
+                  <td class="we-grid__select-col" [style.left.px]="expandColWidthPx">
+                    <span class="we-grid__summary-count">{{ item.section.rows.length }}</span>
+                  </td>
+                }
+                @for (col of renderColumns; track col.field; let first = $first) {
+                  <td
+                    class="we-grid__group-footer-cell"
+                    [style.width.px]="col.width"
+                    [style.text-align]="col.align"
+                    [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                    [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                    [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+                    [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+                    [attr.title]="groupFooterCellText(item.section, col)"
+                  >
+                    @if (first) {
+                      <!-- Which group this footer closes — with several levels the footers stack up -->
+                      <span class="we-grid__group-footer-label">{{ item.section.label }}</span>
+                      @if (selectable === 'none') {
+                        <span class="we-grid__summary-count">{{ item.section.rows.length }} {{ locale.recordsLabel }}</span>
+                      }
+                    }
+                    @if (groupFooterCellText(item.section, col); as text) {
+                      <span class="we-grid__summary-value">{{ text }}</span>
+                    }
+                  </td>
+                }
+                @if (hasRowActions) {
+                  <td class="we-grid__action-col"></td>
+                }
+              </tr>
+            } @else {
+              <tr
+                class="we-grid__row"
+                [class.we-grid__row--selected]="isSelected(item.row)"
+                [class.we-grid__row--editing]="isEditingRow(item.row)"
+                [ngClass]="rowClassFor(item.row, item.index, item.tree)"
+                [attr.id]="item.tree ? rowDomId(item.row) : null"
+                [attr.data-we-grid-row-key]="item.tree ? rowKeyAttr(item.row) : null"
+                [attr.aria-level]="item.tree ? item.tree.level + 1 : null"
+                [attr.aria-posinset]="item.tree ? item.tree.index + 1 : null"
+                [attr.aria-setsize]="item.tree ? item.tree.siblingCount : null"
+                [attr.aria-expanded]="item.tree?.hasChildren ? item.tree?.expanded : null"
+                (click)="onRowClick(item.row, item.index, $event)"
+                (dblclick)="onRowDblClick(item.row, item.index, $event)"
+              >
+                @if (showExpandCol) {
+                  <td class="we-grid__expand-col" (click)="$event.stopPropagation()">
+                    @if (canExpandRows && rowCanExpand(item.row)) {
+                      <button
+                        type="button"
+                        class="we-grid__expand-btn"
+                        [class.we-grid__expand-btn--open]="isRowExpanded(item.row)"
+                        [attr.aria-expanded]="isRowExpanded(item.row)"
+                        [attr.aria-controls]="detailEnhanced ? detailId(item.row) : null"
+                        [attr.aria-label]="locale.groupByThisField"
+                        (click)="toggleRowExpand(item.row, $event)"
+                      >
+                        <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+                      </button>
+                    }
+                  </td>
+                }
+                @if (selectable !== 'none') {
+                  <td class="we-grid__select-col" [style.left.px]="expandColWidthPx" (click)="$event.stopPropagation()">
+                    <input
+                      [type]="selectable === 'multi' ? 'checkbox' : 'radio'"
+                      [checked]="isSelected(item.row)"
+                      (change)="toggleRowSelection(item.row)"
+                      [attr.aria-label]="locale.all"
+                    />
+                  </td>
+                }
+                @for (col of renderColumns; track col.field) {
+                  <td
+                    [style.width.px]="col.width"
+                    [style.text-align]="col.align"
+                    [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                    [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                    [class.we-grid__td--wrap]="col.wrap"
+                    [class.we-grid__td--nowrap]="!col.wrap"
+                    [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+                    [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+                    [attr.title]="col.wrap || getCellTemplate(col) ? null : formatCell(item.row, col)"
+                    [class.we-grid__td--active]="isActiveCell(item.row, col)"
+                    [class.we-grid__td--overflow]="col.allowOverflow"
+                    [style.padding-inline-start]="isTreeCell(item, col) ? treeIndent(item.tree) : null"
+                    (click)="onCellClick($event, item.row, col)"
+                    (dblclick)="onCellDblClick($event, col)"
+                    (contextmenu)="onCellContextMenu($event, col, item.row)"
+                  >
+                    @if (isTreeCell(item, col)) {
+                      @if (item.tree?.hasChildren) {
                         <button
                           type="button"
-                          class="we-grid__expand-btn"
-                          [class.we-grid__expand-btn--open]="isRowExpanded(entry.row)"
-                          [attr.aria-expanded]="isRowExpanded(entry.row)"
-                          [attr.aria-label]="locale.groupByThisField"
-                          (click)="toggleRowExpand(entry.row, $event)"
+                          class="we-grid__tree-toggle"
+                          [class.we-grid__tree-toggle--open]="item.tree?.expanded"
+                          [attr.aria-expanded]="item.tree?.expanded"
+                          [attr.aria-label]="item.tree?.expanded ? locale.treeCollapseRow(treeRowLabel(item.row)) : locale.treeExpandRow(treeRowLabel(item.row))"
+                          (click)="onTreeToggleClick($event, item.row)"
                         >
                           <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
                         </button>
-                      }
-                    </td>
-                  }
-                  @if (selectable !== 'none') {
-                    <td class="we-grid__select-col" [style.left.px]="expandColWidthPx" (click)="$event.stopPropagation()">
-                      <input
-                        [type]="selectable === 'multi' ? 'checkbox' : 'radio'"
-                        [checked]="isSelected(entry.row)"
-                        (change)="toggleRowSelection(entry.row)"
-                        [attr.aria-label]="locale.all"
-                      />
-                    </td>
-                  }
-                  @for (col of renderColumns; track col.field) {
-                    <td
-                      [style.width.px]="col.width"
-                      [style.text-align]="col.align"
-                      [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
-                      [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
-                      [class.we-grid__td--wrap]="col.wrap"
-                      [class.we-grid__td--nowrap]="!col.wrap"
-                      [class.we-grid__td--pinned-left]="col.pinned === 'left'"
-                      [class.we-grid__td--pinned-right]="col.pinned === 'right'"
-                      [title]="col.wrap || getCellTemplate(col) ? null : formatCell(entry.row, col)"
-                      [class.we-grid__td--active]="isActiveCell(entry.row, col)"
-                      (click)="onCellClick($event, entry.row, col)"
-                      (contextmenu)="onCellContextMenu($event, col, entry.row)"
-                    >
-                      @if (isCellEditing(entry.row, col)) {
-                        <we-grid-cell-editor
-                          [column]="$any(col)"
-                  [scale]="inputScale(col)"
-                          [value]="draftValue(col)"
-                          [invalid]="hasDraftError(col)"
-                          [disabled]="!!edit?.saving"
-                          (valueChange)="setDraftValue(col, $event)"
-                        />
                       } @else {
-                        @if (getCellTemplate(col); as tmpl) {
-                          <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(entry.row, col, entry.index)"></ng-container>
-                        } @else {
-                          @if (cellLink(entry.row, col); as href) {
-                          <a
-                            class="we-grid__cell-link"
-                            [href]="href"
-                            [attr.target]="col.type === 'url' ? '_blank' : null"
-                            [attr.rel]="col.type === 'url' ? 'noopener noreferrer' : null"
-                            (click)="$event.stopPropagation()"
-                            >{{ formatCell(entry.row, col) }}</a
-                          >
-                        } @else {
-                          {{ formatCell(entry.row, col) }}
-                        }
-                        }
+                        <span class="we-grid__tree-spacer" aria-hidden="true"></span>
                       }
-                    </td>
-                  }
-                  @if (hasRowActions) {
-                    <td class="we-grid__action-col" (click)="$event.stopPropagation()">
-                      @if (isEditingRow(entry.row)) {
-                        <button
-                          type="button"
-                          class="we-grid__row-action-btn we-grid__row-action-btn--primary"
-                          (click)="commitEdit()"
-                          [disabled]="!!edit?.saving"
-                          [attr.aria-label]="locale.saveRow"
-                          [title]="edit?.saving ? locale.savingRow : locale.saveRow"
-                        ><span [innerHTML]="icon('save')" aria-hidden="true"></span></button>
+                    }
+                    @if (isCellEditing(item.row, col)) {
+                      <we-grid-cell-editor
+                        [column]="$any(col)"
+                    [scale]="inputScale(col)"
+                        [value]="draftValue(col)"
+                        [invalid]="hasDraftError(col)"
+                        [disabled]="!!edit?.saving"
+                        (valueChange)="setDraftValue(col, $event)"
+                      />
+                    } @else {
+                      @if (getCellTemplate(col); as tmpl) {
+                        <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(item.row, col, item.index)"></ng-container>
+                      } @else {
+                        @if (cellLink(item.row, col); as href) {
+                            <a
+                              class="we-grid__cell-link"
+                              [href]="href"
+                              [attr.target]="col.type === 'url' ? '_blank' : null"
+                              [attr.rel]="col.type === 'url' ? 'noopener noreferrer' : null"
+                              (click)="$event.stopPropagation()"
+                              >{{ formatCell(item.row, col) }}</a
+                            >
+                          } @else {
+                            {{ formatCell(item.row, col) }}
+                          }
+                      }
+                    }
+                  </td>
+                }
+                @if (hasRowActions) {
+                  <td class="we-grid__action-col" (click)="$event.stopPropagation()">
+                    @if (isEditingRow(item.row)) {
+                      <button
+                        type="button"
+                        class="we-grid__row-action-btn we-grid__row-action-btn--primary"
+                        (click)="commitEdit()"
+                        [disabled]="!!edit?.saving"
+                        [attr.aria-label]="locale.saveRow"
+                        [title]="edit?.saving ? locale.savingRow : locale.saveRow"
+                      ><span [innerHTML]="icon('save')" aria-hidden="true"></span></button>
+                      <button
+                        type="button"
+                        class="we-grid__row-action-btn"
+                        (click)="cancelEdit()"
+                        [disabled]="!!edit?.saving"
+                        [attr.aria-label]="locale.cancelEdit"
+                        [title]="locale.cancelEdit"
+                      ><span [innerHTML]="icon('close')" aria-hidden="true"></span></button>
+                    } @else {
+                      @if (editable) {
                         <button
                           type="button"
                           class="we-grid__row-action-btn"
-                          (click)="cancelEdit()"
-                          [disabled]="!!edit?.saving"
-                          [attr.aria-label]="locale.cancelEdit"
-                          [title]="locale.cancelEdit"
-                        ><span [innerHTML]="icon('close')" aria-hidden="true"></span></button>
-                      } @else {
-                        @if (editable) {
-                          <button
-                            type="button"
-                            class="we-grid__row-action-btn"
-                            (click)="startEdit(entry.row, entry.index, $event)"
-                            [attr.aria-label]="locale.editRow"
-                            [title]="locale.editRow"
-                          ><span [innerHTML]="icon('pencil')" aria-hidden="true"></span></button>
-                        }
-                        @if (allowDelete) {
-                          <button
-                            type="button"
-                            class="we-grid__row-action-btn we-grid__row-action-btn--danger"
-                            (click)="requestDelete(entry.row, entry.index, $event)"
-                            [disabled]="isRowDeleting(entry.row)"
-                            [attr.aria-label]="locale.deleteRow"
-                            [title]="locale.deleteRow"
-                          ><span [innerHTML]="icon('trash')" aria-hidden="true"></span></button>
-                        }
+                          (click)="startEdit(item.row, item.index, $event)"
+                          [attr.aria-label]="locale.editRow"
+                          [title]="locale.editRow"
+                        ><span [innerHTML]="icon('pencil')" aria-hidden="true"></span></button>
                       }
-                    </td>
+                      @if (allowDelete) {
+                        <button
+                          type="button"
+                          class="we-grid__row-action-btn we-grid__row-action-btn--danger"
+                          (click)="requestDelete(item.row, item.index, $event)"
+                          [disabled]="isRowDeleting(item.row)"
+                          [attr.aria-label]="locale.deleteRow"
+                          [title]="locale.deleteRow"
+                        ><span [innerHTML]="icon('trash')" aria-hidden="true"></span></button>
+                      }
+                    }
+                  </td>
+                }
+              </tr>
+              <!-- NOTE: uses the mount-once + [hidden] pattern instead of `@if (canExpandRows &&
+                   isRowExpanded(item.row))`. Reproducibly confirmed in this environment: once an
+                   @if/*ngIf view becomes true and is added to the DOM, flipping back to false does
+                   NOT remove it again (only the first false→true transition is reliable — confirmed
+                   with a minimal isolated repro, not specific to we-grid). So the detail content is
+                   mounted only ONCE, the first time a item.row is expanded, via `isRowDetailMounted`
+                   (this @if never transitions true→false, the item.row stays "mounted" permanently), and
+                   subsequent toggles use `[hidden]` without removing it from the DOM. -->
+              @if (canExpandRows && rowCanExpand(item.row)) {
+                @if (detailMount === 'whileOpen') {
+                  @if (isRowExpanded(item.row)) {
+                    <tr class="we-grid__detail-row" [class.we-grid__detail-row--sticky]="detailSticky">
+                      <td [attr.colspan]="totalColSpan">
+                        <ng-container *ngTemplateOutlet="detailContent; context: { $implicit: item }"></ng-container>
+                      </td>
+                    </tr>
                   }
-                </tr>
-                @if (canExpandRows && isRowDetailMounted(entry.row)) {
-                  <tr class="we-grid__detail-row" [hidden]="!isRowExpanded(entry.row)">
+                } @else if (isRowDetailMounted(item.row)) {
+                  <tr class="we-grid__detail-row" [class.we-grid__detail-row--sticky]="detailSticky" [hidden]="!isRowExpanded(item.row)">
                     <td [attr.colspan]="totalColSpan">
-                      <ng-container *ngTemplateOutlet="rowDetailDirective!.templateRef; context: buildRowDetailContext(entry.row, entry.index)"></ng-container>
+                      <ng-container *ngTemplateOutlet="detailContent; context: { $implicit: item }"></ng-container>
                     </td>
                   </tr>
                 }
               }
-            }
-          }
-        } @else {
-          @for (row of displayData; track trackByRow(row); let i = $index) {
-            <tr
-              class="we-grid__row"
-              [class.we-grid__row--selected]="isSelected(row)"
-              [class.we-grid__row--editing]="isEditingRow(row)"
-              [ngClass]="rowClassFor(row, i)"
-              (click)="onRowClick(row, i)"
-              (dblclick)="onRowDblClick(row, i)"
-            >
-              @if (expandable) {
-                <td class="we-grid__expand-col" (click)="$event.stopPropagation()">
-                  @if (canExpandRows) {
-                    <button
-                      type="button"
-                      class="we-grid__expand-btn"
-                      [class.we-grid__expand-btn--open]="isRowExpanded(row)"
-                      [attr.aria-expanded]="isRowExpanded(row)"
-                      [attr.aria-label]="locale.groupByThisField"
-                      (click)="toggleRowExpand(row, $event)"
-                    >
-                      <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
-                    </button>
-                  }
-                </td>
-              }
-              @if (selectable !== 'none') {
-                <td class="we-grid__select-col" [style.left.px]="expandColWidthPx" (click)="$event.stopPropagation()">
-                  <input
-                    [type]="selectable === 'multi' ? 'checkbox' : 'radio'"
-                    [checked]="isSelected(row)"
-                    (change)="toggleRowSelection(row)"
-                    [attr.aria-label]="locale.all"
-                  />
-                </td>
-              }
-              @for (col of renderColumns; track col.field) {
-                <td
-                  [style.width.px]="col.width"
-                  [style.text-align]="col.align"
-                  [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
-                  [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
-                  [class.we-grid__td--wrap]="col.wrap"
-                  [class.we-grid__td--nowrap]="!col.wrap"
-                  [class.we-grid__td--pinned-left]="col.pinned === 'left'"
-                  [class.we-grid__td--pinned-right]="col.pinned === 'right'"
-                  [title]="col.wrap || getCellTemplate(col) ? null : formatCell(row, col)"
-                  [class.we-grid__td--active]="isActiveCell(row, col)"
-                  (click)="onCellClick($event, row, col)"
-                  (contextmenu)="onCellContextMenu($event, col, row)"
-                >
-                  @if (isCellEditing(row, col)) {
-                    <we-grid-cell-editor
-                      [column]="$any(col)"
-                  [scale]="inputScale(col)"
-                      [value]="draftValue(col)"
-                      [invalid]="hasDraftError(col)"
-                      [disabled]="!!edit?.saving"
-                      (valueChange)="setDraftValue(col, $event)"
-                    />
-                  } @else {
-                    @if (getCellTemplate(col); as tmpl) {
-                      <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(row, col, i)"></ng-container>
-                    } @else {
-                      @if (cellLink(row, col); as href) {
-                          <a
-                            class="we-grid__cell-link"
-                            [href]="href"
-                            [attr.target]="col.type === 'url' ? '_blank' : null"
-                            [attr.rel]="col.type === 'url' ? 'noopener noreferrer' : null"
-                            (click)="$event.stopPropagation()"
-                            >{{ formatCell(row, col) }}</a
-                          >
-                        } @else {
-                          {{ formatCell(row, col) }}
-                        }
-                    }
-                  }
-                </td>
-              }
-              @if (hasRowActions) {
-                <td class="we-grid__action-col" (click)="$event.stopPropagation()">
-                  @if (isEditingRow(row)) {
-                    <button
-                      type="button"
-                      class="we-grid__row-action-btn we-grid__row-action-btn--primary"
-                      (click)="commitEdit()"
-                      [disabled]="!!edit?.saving"
-                      [attr.aria-label]="locale.saveRow"
-                      [title]="edit?.saving ? locale.savingRow : locale.saveRow"
-                    ><span [innerHTML]="icon('save')" aria-hidden="true"></span></button>
-                    <button
-                      type="button"
-                      class="we-grid__row-action-btn"
-                      (click)="cancelEdit()"
-                      [disabled]="!!edit?.saving"
-                      [attr.aria-label]="locale.cancelEdit"
-                      [title]="locale.cancelEdit"
-                    ><span [innerHTML]="icon('close')" aria-hidden="true"></span></button>
-                  } @else {
-                    @if (editable) {
-                      <button
-                        type="button"
-                        class="we-grid__row-action-btn"
-                        (click)="startEdit(row, i, $event)"
-                        [attr.aria-label]="locale.editRow"
-                        [title]="locale.editRow"
-                      ><span [innerHTML]="icon('pencil')" aria-hidden="true"></span></button>
-                    }
-                    @if (allowDelete) {
-                      <button
-                        type="button"
-                        class="we-grid__row-action-btn we-grid__row-action-btn--danger"
-                        (click)="requestDelete(row, i, $event)"
-                        [disabled]="isRowDeleting(row)"
-                        [attr.aria-label]="locale.deleteRow"
-                        [title]="locale.deleteRow"
-                      ><span [innerHTML]="icon('trash')" aria-hidden="true"></span></button>
-                    }
-                  }
-                </td>
-              }
-            </tr>
-            <!-- NOTE: uses the mount-once + [hidden] pattern instead of `@if (canExpandRows &&
-                 isRowExpanded(row))`. Reproducibly confirmed in this environment: once an
-                 @if/*ngIf view becomes true and is added to the DOM, flipping back to false does
-                 NOT remove it again (only the first false→true transition is reliable — confirmed
-                 with a minimal isolated repro, not specific to we-grid). So the detail content is
-                 mounted only ONCE, the first time a row is expanded, via `isRowDetailMounted`
-                 (this @if never transitions true→false, the row stays "mounted" permanently), and
-                 subsequent toggles use `[hidden]` without removing it from the DOM. -->
-            @if (canExpandRows && isRowDetailMounted(row)) {
-              <tr class="we-grid__detail-row" [hidden]="!isRowExpanded(row)">
-                <td [attr.colspan]="totalColSpan">
-                  <ng-container *ngTemplateOutlet="rowDetailDirective!.templateRef; context: buildRowDetailContext(row, i)"></ng-container>
-                </td>
-              </tr>
             }
           }
         }
@@ -772,7 +788,7 @@
       @if (hasSummaryRow) {
         <tfoot>
           <tr class="we-grid__summary-row">
-            @if (expandable) {
+            @if (showExpandCol) {
               <td class="we-grid__expand-col"></td>
             }
             @if (selectable !== 'none') {
@@ -789,7 +805,7 @@
                 [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
                 [class.we-grid__td--pinned-left]="col.pinned === 'left'"
                 [class.we-grid__td--pinned-right]="col.pinned === 'right'"
-                [title]="summaryCellText(col)"
+                [attr.title]="summaryCellText(col)"
               >
                 @if (first && selectable === 'none') {
                   <span class="we-grid__summary-count" [title]="totalRecordCountForSummary + ' ' + locale.recordsLabel">{{ totalRecordCountForSummary }} {{ locale.recordsLabel }}</span>
@@ -808,8 +824,14 @@
     </table>
   </div>
 
+  @if (footer !== 'none') {
   <div class="we-grid__footer">
-    <div class="we-grid__footer-info">{{ totalCount || displayData.length }} {{ locale.recordsLabel }} — {{ locale.pageOf(page, totalPagesComputed) }}</div>
+    @if (footer === 'count') {
+      <div class="we-grid__footer-info">{{ totalCount || displayData.length }} {{ locale.recordsLabel }}</div>
+    } @else {
+      <div class="we-grid__footer-info">{{ totalCount || displayData.length }} {{ locale.recordsLabel }} — {{ locale.pageOf(page, totalPagesComputed) }}</div>
+    }
+    @if (footer === 'full') {
     <nav class="we-grid__pager" [attr.aria-label]="locale.paginationAriaLabel">
       <button
         type="button"
@@ -869,7 +891,9 @@
         [attr.aria-label]="locale.lastPage"
       ><span [innerHTML]="icon('chevronLast')" aria-hidden="true"></span></button>
     </nav>
+    }
   </div>
+  }
 
   @if (edit && editMode === 'form') {
     <we-grid-edit-form
@@ -885,4 +909,30 @@
       (cancel)="cancelEdit()"
     />
   }
+
+  @if (liveRegionOn) {
+    <div class="we-grid__sr-only" role="status" aria-live="polite">{{ liveMessage }}</div>
+  }
+
+  <!-- A detail's content — wrapped in a labelled region once any of the newer detail options is in use -->
+  <ng-template #detailContent let-item>
+    @if (detailEnhanced) {
+      <div
+        class="we-grid__detail-region"
+        [class.we-grid__detail-sticky]="detailSticky"
+        role="region"
+        [attr.id]="detailId(item.row)"
+        [attr.aria-label]="locale.detailRegionLabel(rowLabel(item.row))"
+        [style.--we-grid-detail-max-width]="detailMaxWidthCss"
+      >
+        <ng-container *ngTemplateOutlet="rowDetailDirective!.templateRef; context: buildRowDetailContext(item.row, item.index)"></ng-container>
+      </div>
+    } @else {
+      <ng-container *ngTemplateOutlet="rowDetailDirective!.templateRef; context: buildRowDetailContext(item.row, item.index)"></ng-container>
+    }
+  </ng-template>
+
+  <ng-template #headerHintTpl let-text let-id="id">
+    <div class="we-grid-hint" role="tooltip" [id]="id">{{ text }}</div>
+  </ng-template>
 </div>

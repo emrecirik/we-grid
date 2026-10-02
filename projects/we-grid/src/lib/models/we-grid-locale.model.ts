@@ -173,6 +173,35 @@ export interface WeGridLocale {
   viewLinkCopied: string;
   /** Shown with the link itself when the clipboard refused it, so the user can copy it by hand */
   viewLinkCopyFailed: string;
+
+  // ─── Header hint, column moving and resizing from the keyboard ───
+  /** Accessible name prefix of the ⓘ icon — the hint text follows it */
+  headerHintAria: string;
+  /** Announced after a keyboard move, e.g. `(title, 3) => \`${title} moved to position 3\`` */
+  columnMoved: (title: string, position: number) => string;
+  /** Accessible name of a column's resize handle */
+  columnResizeAria: (title: string) => string;
+  moveColumnLeft: string;
+  moveColumnRight: string;
+
+  // ─── Tree rows (treeChildren) ───
+  /** Accessible name of a collapsed row's toggle — `label` is the row's text in the tree column */
+  treeExpandRow: (label: string) => string;
+  treeCollapseRow: (label: string) => string;
+  treeExpandAll: string;
+  treeCollapseAll: string;
+  /** Announced once after expand/collapse all */
+  treeRowsShown: (count: number) => string;
+
+  // ─── Row detail ───
+  /** Accessible name of a detail region — `label` is the row's text in its first column */
+  detailRegionLabel: (label: string) => string;
+
+  // ─── Multi-level grouping ───
+  addToGrouping: string;
+  removeFromGrouping: string;
+  expandAllGroups: string;
+  collapseAllGroups: string;
 }
 
 export const weGridLocaleEn: WeGridLocale = {
@@ -290,7 +319,22 @@ export const weGridLocaleEn: WeGridLocale = {
   shareView: 'Copy link to view',
   noSavedViews: 'No saved views yet',
   viewLinkCopied: 'Link copied',
-  viewLinkCopyFailed: 'Copy this link:'
+  viewLinkCopyFailed: 'Copy this link:',
+  headerHintAria: 'About this column',
+  columnMoved: (title, position) => `${title} moved to position ${position}`,
+  columnResizeAria: (title) => `Resize column ${title}`,
+  moveColumnLeft: 'Move left',
+  moveColumnRight: 'Move right',
+  treeExpandRow: (label) => `Expand ${label}`,
+  treeCollapseRow: (label) => `Collapse ${label}`,
+  treeExpandAll: 'Expand all',
+  treeCollapseAll: 'Collapse all',
+  treeRowsShown: (count) => `${count} rows shown`,
+  detailRegionLabel: (label) => `Details of ${label}`,
+  addToGrouping: 'Add to grouping',
+  removeFromGrouping: 'Remove from grouping',
+  expandAllGroups: 'Expand all groups',
+  collapseAllGroups: 'Collapse all groups'
 };
 
 /**
@@ -426,7 +470,22 @@ export const weGridLocaleTr: WeGridLocale = {
   shareView: 'Görünüm bağlantısını kopyala',
   noSavedViews: 'Henüz kayıtlı görünüm yok',
   viewLinkCopied: 'Bağlantı kopyalandı',
-  viewLinkCopyFailed: 'Bu bağlantıyı kopyalayın:'
+  viewLinkCopyFailed: 'Bu bağlantıyı kopyalayın:',
+  headerHintAria: 'Kolon hakkında',
+  columnMoved: (title, position) => `${title} ${position}. sıraya taşındı`,
+  columnResizeAria: (title) => `${title} kolonunu yeniden boyutlandır`,
+  moveColumnLeft: 'Sola Taşı',
+  moveColumnRight: 'Sağa Taşı',
+  treeExpandRow: (label) => `${label} satırını aç`,
+  treeCollapseRow: (label) => `${label} satırını kapat`,
+  treeExpandAll: 'Tümünü Aç',
+  treeCollapseAll: 'Tümünü Kapat',
+  treeRowsShown: (count) => `${count} satır gösteriliyor`,
+  detailRegionLabel: (label) => `${label} ayrıntıları`,
+  addToGrouping: 'Gruplamaya Ekle',
+  removeFromGrouping: 'Gruplamadan Çıkar',
+  expandAllGroups: 'Tüm Grupları Aç',
+  collapseAllGroups: 'Tüm Grupları Kapat'
 };
 
 /**

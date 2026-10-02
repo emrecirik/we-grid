@@ -47,10 +47,15 @@ export function weGridSummaryLabel(fn: Exclude<WeGridSummaryFunction, 'none'>, s
  * number (NaN) are skipped too. Returns null when there's no valid value to compute (the summary
  * row then shows '-').
  */
-export function computeWeGridSummary<T>(rows: T[], field: string, fn: WeGridSummaryFunction): number | null {
+export function computeWeGridSummary<T>(
+  rows: T[],
+  field: string,
+  fn: WeGridSummaryFunction,
+  valueOf: (row: T, field: string) => unknown = getNestedValue
+): number | null {
   if (fn === 'none') return null;
 
-  const raw = rows.map((row) => getNestedValue(row, field)).filter((v) => v !== null && v !== undefined && v !== '');
+  const raw = rows.map((row) => valueOf(row, field)).filter((v) => v !== null && v !== undefined && v !== '');
 
   if (fn === 'count') {
     return raw.length;
@@ -93,7 +98,8 @@ export function buildWeGridSummaryText<T>(
   col: SummaryColumnLike,
   scope: 'server' | 'client',
   overrideValue: number | undefined,
-  locale: WeGridLocale = weGridLocaleEn
+  locale: WeGridLocale = weGridLocaleEn,
+  valueOf: (row: T, field: string) => unknown = getNestedValue
 ): string | null {
   if (col.summary === 'none') return null;
   const fn = col.summary;
@@ -102,7 +108,7 @@ export function buildWeGridSummaryText<T>(
     return `${weGridSummaryLabel(fn, 'override', locale)}: ${formatSummaryNumber(overrideValue, col, fn, locale)}`;
   }
 
-  const computed = computeWeGridSummary(rows, col.field, fn);
+  const computed = computeWeGridSummary(rows, col.field, fn, valueOf);
   const label = weGridSummaryLabel(fn, scope, locale);
   if (computed === null) return `${label}: -`;
   return `${label}: ${formatSummaryNumber(computed, col, fn, locale)}`;

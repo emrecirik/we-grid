@@ -337,3 +337,51 @@ describe('mergeGridLayout — auto fit', () => {
     expect(layout.find((c) => c.field === 'name')?.width).toBe(222);
   });
 });
+
+describe('mergeGridLayout — a v1 layout written by another source', () => {
+  // Only some columns, pinned: null everywhere — what a screen that saved its own layout before
+  // moving to the grid typically stored.
+  const defs: WeGridColumnDef<Row & { total: number }>[] = [
+    { field: 'code', header: 'Code', pinned: 'left', width: 120, fixed: true },
+    { field: 'name', header: 'Name', width: 200 },
+    { field: 'status', header: 'Status', visible: false },
+    { field: 'total', header: 'Total', pinned: 'right', width: 90 }
+  ];
+  const external: WeGridLayout = {
+    gridKey: 'external',
+    version: 1,
+    columns: [
+      { field: 'status', visible: true, order: 0, width: 140, pinned: null },
+      { field: 'name', visible: false, order: 1, pinned: null },
+      { field: 'legacy', visible: true, order: 2, width: 50, pinned: null }
+    ]
+  };
+
+  it('12. keeps the stored order, widths and visibility, adds missing columns from the definitions and drops unknown ones', () => {
+    const result = mergeGridLayout(defs, external, 1);
+    const byField = new Map(result.columns.map((c) => [c.field, c]));
+
+    expect(result.columns.map((c) => c.field)).toEqual(['code', 'status', 'name', 'total']);
+    expect(byField.get('status')).toEqual(jasmine.objectContaining({ visible: true, width: 140 }));
+    expect(byField.get('name')).toEqual(jasmine.objectContaining({ visible: false, width: 200 }));
+    // Missing from the record — taken from the definitions, pinning included
+    expect(byField.get('code')).toEqual(jasmine.objectContaining({ pinned: 'left', width: 120, visible: true }));
+    expect(byField.get('total')).toEqual(jasmine.objectContaining({ pinned: 'right', width: 90, visible: true }));
+    expect(byField.has('legacy')).toBeFalse();
+  });
+
+  it('12. a stored pinned: null does not unpin a lockPinned column', () => {
+    const withPin: WeGridLayout = { ...external, columns: [{ field: 'code', visible: true, order: 3, pinned: null }] };
+    const code = mergeGridLayout(defs, withPin, 1).columns.find((c) => c.field === 'code')!;
+    expect(code.pinned).toBe('left');
+    expect(code.order).toBe(0);
+  });
+
+  it('12. a version mismatch discards the whole record', () => {
+    const result = mergeGridLayout(defs, { ...external, version: 2 }, 1);
+    expect(result.columns.map((c) => c.field)).toEqual(['code', 'name', 'status', 'total']);
+    expect(result.columns.find((c) => c.field === 'status')!.visible).toBeFalse();
+    expect(result.columns.find((c) => c.field === 'name')!.visible).toBeTrue();
+  });
+});
+

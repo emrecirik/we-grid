@@ -15,6 +15,8 @@ export interface WeGridSavedView {
   /** Active filters only, in the same shape `(filterChange)` reports them */
   filters?: WeGridColumnFilterState[];
   groupField?: string | null;
+  /** Every grouping level, outermost first — only written when more than one field is grouped */
+  groupFields?: string[];
   filterRowVisible?: boolean;
 }
 

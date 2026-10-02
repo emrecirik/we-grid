@@ -35,7 +35,15 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - **Paste a range from Excel / Google Sheets** onto the grid: every cell converted to its column's
   type (`₺1.234,56`, `12,5%`, `evet`), extra rows become new rows, one `(rowsPaste)` batch event
 - **Saved views**: named snapshots of columns, filters, sort and grouping, shareable as a link
-- Single-level grouping with collapsible sections and per-group summaries
+- **Multi-level grouping** with record counts and group summaries — automatic sums for numeric
+  columns, per-column functions, in the group header or in a footer row under the columns
+- **Tree rows**: children in the same columns as their parent, indented and collapsible, with
+  sibling sorting, path-preserving filters, deep-link scrolling and `treegrid` semantics
+- Full-width detail rows that can stay in view while the table scrolls sideways, opened from any cell
+- Interactive cell templates (buttons, inputs) that never leak clicks to the row; row colours that
+  reach pinned cells
+- Header hints, columns the user can't move or unpin, bounded height with a sticky header,
+  keyboard column moving and resizing
 - Subtotal (summary) row: sum / average / min / max / count, per column
 - Master-detail row expansion via a `weGridRowDetail` template
 - Server-side pagination, sorting, and filtering — filters reach your backend and search the **whole
@@ -223,6 +231,10 @@ npm run start:ecommerce           # then any sample app
 - [Export and import (CSV / Excel / PDF)](docs/export-import.md)
 - [Inline row editing](docs/row-editing.md) — also the record form and spreadsheet paste
 - [Saved views](docs/saved-views.md)
+- [Grouping and group summaries](docs/grouping.md)
+- [Tree rows](docs/tree.md)
+- [Row detail](docs/row-detail.md)
+- [Interactive cell templates](docs/cell-templates.md)
 - [Theming](docs/theming.md)
 - [Localization](docs/localization.md)
 - [Can I use this from React?](docs/react.md)

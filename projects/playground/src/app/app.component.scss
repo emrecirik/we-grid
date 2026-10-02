@@ -85,3 +85,43 @@
   max-height: 10rem;
   overflow: auto;
 }
+
+// Section 11 — a row's colour reaches its pinned cells through --we-grid-row-bg
+:host ::ng-deep {
+  tr.demo-row--approved {
+    --we-grid-row-bg: #e7f6ec;
+    --we-grid-row-accent: #2f9e5b;
+  }
+
+  tr.demo-row--rejected {
+    --we-grid-row-bg: #fdecea;
+    --we-grid-row-accent: #d64545;
+  }
+
+  tr.demo-row--line td {
+    color: #5c6370;
+  }
+}
+
+.demo-decision {
+  display: inline-flex;
+  gap: 0.25rem;
+
+  button.active {
+    font-weight: 600;
+    outline: 2px solid currentColor;
+  }
+}
+
+.demo-note {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.demo-detail {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+

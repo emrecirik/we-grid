@@ -1,5 +1,7 @@
 import { TemplateRef } from '@angular/core';
 import { WeGridEditorOption, WeGridEditorType } from './we-grid-edit.model';
+import { WeGridRowEventName } from './we-grid-events.model';
+import { WeGridTreeInfo } from './we-grid-tree.model';
 import { WeGridFilterOperator } from './we-grid-filter.model';
 
 /**
@@ -105,9 +107,20 @@ export function isWeGridNumericSummaryType(type: WeGridColumnType): boolean {
 export interface WeGridCellContext<T> {
   $implicit: T;
   row: T;
+  /** The cell's value — in tree mode resolved for the row's level (`treeValue` → `childField` → `field`) */
   value: unknown;
   rowIndex: number;
   column: WeGridColumnDef<T>;
+  /** The row's place in the tree — only present in tree mode (`treeChildren`) */
+  tree?: WeGridTreeInfo<T>;
+}
+
+/** Context passed to a header template (`headerTemplate` or the `weGridHeader` directive) */
+export interface WeGridHeaderContext<T> {
+  $implicit: WeGridColumnDef<T>;
+  column: WeGridColumnDef<T>;
+  /** The header text the grid would show — the user's rename included */
+  title: string;
 }
 
 /**
@@ -180,12 +193,59 @@ export interface WeGridColumnDef<T> {
   cellTemplate?: TemplateRef<WeGridCellContext<T>>;
   /** Tooltip shown when hovering over the header */
   headerTooltip?: string;
+  /**
+   * Explanation shown behind an info icon (ⓘ) next to the header text — on hover and on keyboard
+   * focus, in an overlay that cell clipping can't cut. Long text wraps at about 320px and keeps its
+   * line breaks. Already translated text: the grid shows it as is, and a rename doesn't change it.
+   * When set, `headerTooltip` is not rendered (one tooltip per header).
+   */
+  headerHint?: string;
+  /** Custom header content — the `weGridHeader` directive does the same from the template */
+  headerTemplate?: TemplateRef<WeGridHeaderContext<T>>;
   /** If true, the user cannot hide this column (e.g. an actions column) */
   lockVisible?: boolean;
   /** If true, the user cannot rename this column */
   lockRename?: boolean;
+  /**
+   * The user can't change how this column is pinned — the pin items are left out of its menu and
+   * a pin stored in a saved layout is ignored in favour of `pinned` here.
+   */
+  lockPinned?: boolean;
+  /**
+   * The user can't move this column, and no other column can be moved past it: it has no drag
+   * handle and no move items, and keeps its definition position whatever a saved layout says.
+   */
+  lockOrder?: boolean;
+  /**
+   * Shorthand for `lockVisible` + `lockRename` + `lockPinned` + `lockOrder`. A sub-flag given
+   * explicitly wins — `fixed: true, lockRename: false` leaves the column renamable.
+   */
+  fixed?: boolean;
   /** If true, clicking this cell does not bubble into the row's rowClick event — used for action/button columns */
   stopRowClick?: boolean;
+  /**
+   * The general form of `stopRowClick`: the listed events stop at the cell, so a button group or an
+   * input inside it never fires `(rowClick)` / `(rowDblClick)` and a right click never opens the
+   * grid's cell menu (the browser's own menu stays). `true` means all three. Combined with
+   * `stopRowClick`, the union applies — `stopRowClick: true` alone still stops only `'click'`.
+   */
+  stopRowEvents?: boolean | WeGridRowEventName[];
+  /**
+   * Tree mode: the field a CHILD row (level 1 and deeper) is read from — defaults to `field`.
+   * `null` leaves the column empty on child rows. Sorting, filtering, the summary row and exports
+   * read the same value the cell shows.
+   */
+  childField?: string | null;
+  /**
+   * Tree mode: computes the value per row from its place in the tree. Wins over `childField` and
+   * `field` everywhere the value is read — the cell text, sorting, filtering, summaries, exports.
+   */
+  treeValue?: (row: T, tree: WeGridTreeInfo<T>) => unknown;
+  /**
+   * Lets a cell's content spill out of it — a dropdown, a tooltip — instead of being clipped:
+   * the cell gets `overflow: visible` (and `position: relative` unless it is pinned). Defaults to false.
+   */
+  allowOverflow?: boolean;
   /**
    * Developer-supplied default summary function — defaults to 'none'.
    * If the user makes their own choice from the header menu (including a deliberate 'none'), that
@@ -193,6 +253,12 @@ export interface WeGridColumnDef<T> {
    * silently re-enables a total the user turned off.
    */
   summary?: WeGridSummaryFunction;
+  /**
+   * What this column shows in group headers and group footers while rows are grouped — independent
+   * of `summary`, which drives the grand summary row. Left out, groups use `summary` and, when the
+   * grid's `groupAutoSummary` is on, numeric columns without a summary add up ('sum').
+   */
+  groupSummary?: WeGridSummaryFunction;
   /**
    * Whether this column can be edited in the filter row — defaults to true. Set to `false` for
    * columns where filtering makes no sense (e.g. action/button columns); the cell stays empty in

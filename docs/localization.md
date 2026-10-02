@@ -142,3 +142,12 @@ from the injected `WeGridLocale`.
 - Spreadsheet paste: `pasteApplied(cellCount)`, `pasteRowsDropped(rowCount)`, `pasteInvalidCells`
 - Saved views: `viewsButton`, `viewNamePlaceholder`, `saveView`, `deleteView`, `shareView`,
   `noSavedViews`, `viewLinkCopied`, `viewLinkCopyFailed`
+
+## Keys added in 0.7.0
+
+- Header hint and keyboard column handling: `headerHintAria`, `columnMoved(title, position)`,
+  `columnResizeAria(title)`, `moveColumnLeft`, `moveColumnRight`
+- Tree rows: `treeExpandRow(label)`, `treeCollapseRow(label)`, `treeExpandAll`, `treeCollapseAll`,
+  `treeRowsShown(count)`
+- Row detail: `detailRegionLabel(label)`
+- Grouping: `addToGrouping`, `removeFromGrouping`, `expandAllGroups`, `collapseAllGroups`

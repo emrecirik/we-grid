@@ -7,6 +7,13 @@ export type WeGridMenuAction =
   | { type: 'toggle-wrap'; field: string }
   | { type: 'autofit'; field: string }
   | { type: 'autofit-all' }
+  | { type: 'move-column'; field: string; direction: 'left' | 'right' }
+  | { type: 'tree-expand-all' }
+  | { type: 'tree-collapse-all' }
+  | { type: 'group-add'; field: string }
+  | { type: 'group-remove'; field: string }
+  | { type: 'groups-expand-all' }
+  | { type: 'groups-collapse-all' }
   | { type: 'pin'; field: string; pinned: WeGridPinned }
   | { type: 'sort'; field: string; direction: WeGridSortDirection }
   | { type: 'density'; density: WeGridDensity }

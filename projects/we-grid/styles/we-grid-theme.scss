@@ -40,6 +40,9 @@
   --we-grid-link-color: #405189;
   --we-grid-on-accent-color: #ffffff;
   --we-grid-dialog-backdrop: rgba(0, 0, 0, 0.35);
+  --we-grid-group-nested-bg: #f8f9fb;
+  --we-grid-detail-padding: 0.75rem 1rem;
+  --we-grid-detail-inset-left: 0px;
   // Print / PDF export. The exported document is rendered in its own window and never inherits
   // this page's stylesheet, so the grid copies these values into it (see we-grid-pdf.util.ts).
   // Paper is light whatever the screen theme is, which is why the dark blocks repeat the same
@@ -76,6 +79,9 @@
     --we-grid-link-color: #8ea2e0;
     --we-grid-on-accent-color: #ffffff;
     --we-grid-dialog-backdrop: rgba(0, 0, 0, 0.6);
+    --we-grid-group-nested-bg: #232733;
+    --we-grid-detail-padding: 0.75rem 1rem;
+    --we-grid-detail-inset-left: 0px;
     // Print / PDF export — the same paper values as the light theme, see the :root block above
     --we-grid-print-color: #212529;
     --we-grid-print-bg: #ffffff;
@@ -109,6 +115,9 @@
   --we-grid-link-color: #8ea2e0;
   --we-grid-on-accent-color: #ffffff;
   --we-grid-dialog-backdrop: rgba(0, 0, 0, 0.6);
+  --we-grid-group-nested-bg: #232733;
+  --we-grid-detail-padding: 0.75rem 1rem;
+  --we-grid-detail-inset-left: 0px;
   // Print / PDF export — the same paper values as the light theme, see the :root block above
   --we-grid-print-color: #212529;
   --we-grid-print-bg: #ffffff;
