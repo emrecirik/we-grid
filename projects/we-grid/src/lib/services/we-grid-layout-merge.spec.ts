@@ -304,3 +304,36 @@ describe('mergeGridLayout — header filter mode', () => {
     expect(col.formatter).toBe(formatter);
   });
 });
+
+describe('mergeGridLayout — auto fit', () => {
+  it('marks only columns without a developer or saved width as pending a fit', () => {
+    const columns: WeGridColumnDef<Row>[] = [
+      { field: 'code', header: 'Code', width: 90 },
+      { field: 'name', header: 'Name' },
+      { field: 'status', header: 'Status' }
+    ];
+    const saved: WeGridLayout = {
+      gridKey: 'test',
+      version: 1,
+      columns: [{ field: 'status', visible: true, order: 2, width: 210, pinned: null }]
+    };
+
+    const result = mergeGridLayout(columns, saved, 1);
+    const pending = (field: string) => result.columns.find((c) => c.field === field)?.autoFitPending;
+
+    expect(pending('code')).toBeFalse();
+    expect(pending('name')).toBeTrue();
+    expect(pending('status')).toBeFalse();
+  });
+
+  it('does not save the placeholder width of a column still pending a fit', () => {
+    const merged = mergeGridLayout(baseColumns, null, 1);
+    merged.columns[1].autoFitPending = false;
+    merged.columns[1].width = 222;
+
+    const layout = toColumnLayout(merged.columns, baseColumns);
+
+    expect(layout.find((c) => c.field === 'code')?.width).toBeUndefined();
+    expect(layout.find((c) => c.field === 'name')?.width).toBe(222);
+  });
+});

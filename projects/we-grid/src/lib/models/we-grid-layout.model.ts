@@ -1,6 +1,7 @@
 import { InjectionToken } from '@angular/core';
 import { Observable } from 'rxjs';
 import { WeGridDensity, WeGridPinned, WeGridSortDirection, WeGridSummaryFunction } from './we-grid-column.model';
+import { WeGridSavedView } from './we-grid-view.model';
 import { LocalStorageGridLayoutStore } from '../services/local-storage-grid-layout-store';
 
 /** Customizations the user has made to a column */
@@ -34,6 +35,11 @@ export interface WeGridLayout {
    * open/closed preference is remembered.
    */
   filterRowVisible?: boolean;
+  /**
+   * Saved views. Only ever set on the separate record the grid keeps them in, under the key
+   * `<gridKey>::views` (columns is empty there) — so resetting the layout never deletes them.
+   */
+  views?: WeGridSavedView[];
 }
 
 /**

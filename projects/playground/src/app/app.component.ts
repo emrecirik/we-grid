@@ -16,6 +16,7 @@ import {
   WeGridRowDeleteEvent,
   WeGridRowDetailDirective,
   WeGridRowEditEvent,
+  WeGridRowsPasteEvent,
   WeGridSortChange
 } from 'we-grid-angular';
 
@@ -351,4 +352,33 @@ export class AppComponent {
       done(true);
     }, 400);
   }
+
+  // ─── 10. Form editing, spreadsheet paste and saved views ──────────
+  workbenchData = ALL_PRODUCTS.slice(0, 12).map((p) => ({ ...p }));
+  workbenchLog: string[] = [];
+
+  onWorkbenchCreate(e: WeGridRowEditEvent<Product>): void {
+    this.workbenchData = [{ ...e.row, id: ++this.nextCrudId }, ...this.workbenchData];
+    this.workbenchLog = [...this.workbenchLog, `create ${e.row.code}`];
+    e.done(true);
+  }
+
+  onWorkbenchUpdate(e: WeGridRowEditEvent<Product>): void {
+    this.workbenchData = this.workbenchData.map((row) => (row === e.original ? e.row : row));
+    this.workbenchLog = [...this.workbenchLog, `update ${e.row.code} → ${JSON.stringify(e.changes)}`];
+    e.done(true);
+  }
+
+  /** One batch for the whole paste — a real screen would send it as a single request */
+  onWorkbenchPaste(e: WeGridRowsPasteEvent<Product>): void {
+    const replaced = new Map(e.updates.map((u) => [u.original, u.row]));
+    const created = e.created.map((row) => ({ ...row, id: ++this.nextCrudId }));
+    this.workbenchData = [...this.workbenchData.map((row) => replaced.get(row) ?? row), ...created];
+    this.workbenchLog = [
+      ...this.workbenchLog,
+      `paste: ${e.updates.length} updated, ${e.created.length} created, ${e.errors.length} skipped`
+    ];
+    e.done(true);
+  }
+
 }

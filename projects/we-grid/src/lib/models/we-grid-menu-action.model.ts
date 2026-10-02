@@ -6,6 +6,7 @@ export type WeGridMenuAction =
   | { type: 'rename'; field: string; header: string }
   | { type: 'toggle-wrap'; field: string }
   | { type: 'autofit'; field: string }
+  | { type: 'autofit-all' }
   | { type: 'pin'; field: string; pinned: WeGridPinned }
   | { type: 'sort'; field: string; direction: WeGridSortDirection }
   | { type: 'density'; density: WeGridDensity }

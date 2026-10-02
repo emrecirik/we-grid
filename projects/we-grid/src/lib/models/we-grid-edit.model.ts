@@ -12,6 +12,12 @@
  * work without a backend.
  */
 
+/**
+ * Where a record is edited: `'row'` turns the row itself into editors, `'form'` opens a modal form
+ * with one labelled field per editable column — hidden columns included.
+ */
+export type WeGridEditMode = 'row' | 'form';
+
 /** Editor control used for a cell while its row is in edit mode — inferred from the column type when omitted */
 export type WeGridEditorType = 'text' | 'number' | 'date' | 'datetime' | 'time' | 'email' | 'url' | 'tel' | 'checkbox' | 'select';
 
@@ -45,6 +51,34 @@ export interface WeGridRowEditEvent<T> {
 export interface WeGridRowDeleteEvent<T> {
   row: T;
   rowIndex: number;
+  done: WeGridCommitFn;
+}
+
+/** One existing row a paste changed — see `WeGridRowsPasteEvent` */
+export interface WeGridPastedRow<T> {
+  /** A shallow copy of the row with the pasted values written in — never the object inside `data` */
+  row: T;
+  /** The untouched row as it is in `data` */
+  original: T;
+  /** Index of the row inside the rendered data */
+  rowIndex: number;
+  /** Only the fields whose value the paste actually changed */
+  changes: Record<string, unknown>;
+}
+
+/**
+ * Emitted by `(rowsPaste)` after a spreadsheet range was pasted onto the grid. Every cell is already
+ * converted to its column's type (`'12,5%'` → `0.125`, `'₺1.234,56'` → `1234.56`), the same way a
+ * file import converts it. Like the row editor, the grid never mutates `data` while the output is
+ * bound — the consumer saves the changes and calls `done`.
+ */
+export interface WeGridRowsPasteEvent<T> {
+  /** Existing rows that received at least one changed value, top to bottom */
+  updates: WeGridPastedRow<T>[];
+  /** Rows pasted below the last row — only filled when `allowAdd` is on, otherwise they are dropped */
+  created: T[];
+  /** Cells whose text didn't fit the column's type, or that left a required column empty; they were skipped */
+  errors: string[];
   done: WeGridCommitFn;
 }
 

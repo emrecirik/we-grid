@@ -208,4 +208,34 @@
       <pre class="demo__log">{{ typedFilterLog.join('\n') }}</pre>
     }
   </section>
+
+  <section class="demo">
+    <h2>10. Form editing, spreadsheet paste and saved views</h2>
+    <p class="demo__hint">
+      <code>editMode="form"</code>: the pencil and "Add row" open a record form instead of editing in place.
+      Click any cell, then paste a range copied from Excel or Google Sheets (Ctrl+V) — the cells are converted to each
+      column's type, and rows past the last one become new rows. Filter, sort or group, then save it under
+      <em>Views</em> and switch back to it later, or copy a link that opens the page in that view.
+    </p>
+    <we-grid
+      gridKey="playground-workbench"
+      [columns]="crudColumns"
+      [data]="workbenchData"
+      editMode="form"
+      [editable]="true"
+      [allowAdd]="true"
+      [allowDelete]="true"
+      [savedViews]="true"
+      [grouping]="true"
+      [filterRow]="true"
+      [newRowTemplate]="crudNewRow"
+      trackByField="id"
+      (rowCreate)="onWorkbenchCreate($event)"
+      (rowUpdate)="onWorkbenchUpdate($event)"
+      (rowsPaste)="onWorkbenchPaste($event)"
+    ></we-grid>
+    @if (workbenchLog.length) {
+      <pre class="demo__log">{{ workbenchLog.join('\n') }}</pre>
+    }
+  </section>
 </div>

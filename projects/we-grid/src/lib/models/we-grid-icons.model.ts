@@ -44,6 +44,8 @@ export const weGridDefaultIcons: WeGridIcons = {
   trash: svg('<path d="M9 3h6l1 2h4v2H4V5h4l1-2ZM6 8h12l-1 13H7L6 8Zm4 3v7h1.5v-7H10Zm3 0v7h1.5v-7H13Z"/>'),
   save: svg('<path d="M5 3h11l3 3v15H5V3Zm2 2v4h8V5H7Zm1 8v6h8v-6H8Z"/>'),
   sortAsc: svg('<path d="M7 20V8H4l5-6 5 6h-3v12Zm9-1v-4h-2l3-4 3 4h-2v4Zm0-8V7h-2l3-4 3 4h-2v4Z"/>'),
+  bookmark: svg('<path d="M6 3h12v18l-6-4-6 4V3Zm2 2v12.26l4-2.67 4 2.67V5H8Z"/>'),
+  link: svg('<path d="M8.5 17.5a3.5 3.5 0 0 1-2.47-5.97l2.5-2.5 1.41 1.41-2.5 2.5a1.5 1.5 0 1 0 2.12 2.12l2.5-2.5 1.41 1.41-2.5 2.5a3.48 3.48 0 0 1-2.47 1.03Zm1.15-3.74-1.41-1.41 6.11-6.11 1.41 1.41-6.11 6.11Zm7.82-1.29-1.41-1.41 2.5-2.5a1.5 1.5 0 1 0-2.12-2.12l-2.5 2.5-1.41-1.41 2.5-2.5a3.5 3.5 0 0 1 4.94 4.94l-2.5 2.5Z"/>'),
   sortDesc: svg('<path d="M7 4v12H4l5 6 5-6h-3V4Zm9 3v4h-2l3 4 3-4h-2V7Zm0 8v4h-2l3 4 3-4h-2v-4Z"/>')
 };
 

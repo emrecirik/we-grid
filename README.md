@@ -16,7 +16,8 @@ Material, no icon font. Standalone components and directives on top of Angular C
 
 ## Features
 
-- Column hide/show, rename, drag-to-reorder, resize, pin (left/right), autofit-to-content
+- Column hide/show, rename, drag-to-reorder, resize, pin (left/right), autofit-to-content —
+  per column, all at once, by double-clicking a column border, and automatically on first load
 - Density modes (comfortable / normal / compact)
 - Per-user layout persisted automatically (localStorage by default, pluggable backend store)
 - Excel/DevExpress-style checklist header filter **on every column by default**: tick the distinct
@@ -30,6 +31,10 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - Per-column operator restriction (`filterOperators`) for fields the backend can only match one way
 - Locale-aware values: `weGridLocaleTr` formats `1.234,50` / `11.09.2026`, matches "İSTANBUL" for
   "istanbul" and sorts Ç/Ş/İ where the Turkish alphabet puts them
+- **Record form** (`editMode="form"`) alongside in-place row editing — same events, same validation
+- **Paste a range from Excel / Google Sheets** onto the grid: every cell converted to its column's
+  type (`₺1.234,56`, `12,5%`, `evet`), extra rows become new rows, one `(rowsPaste)` batch event
+- **Saved views**: named snapshots of columns, filters, sort and grouping, shareable as a link
 - Single-level grouping with collapsible sections and per-group summaries
 - Subtotal (summary) row: sum / average / min / max / count, per column
 - Master-detail row expansion via a `weGridRowDetail` template
@@ -216,7 +221,8 @@ npm run start:ecommerce           # then any sample app
 - [API reference](docs/api.md)
 - [Server-side pagination/sorting/filtering](docs/server-side.md) — **filtering the whole table, not just the loaded page**
 - [Export and import (CSV / Excel / PDF)](docs/export-import.md)
-- [Inline row editing](docs/row-editing.md)
+- [Inline row editing](docs/row-editing.md) — also the record form and spreadsheet paste
+- [Saved views](docs/saved-views.md)
 - [Theming](docs/theming.md)
 - [Localization](docs/localization.md)
 - [Can I use this from React?](docs/react.md)

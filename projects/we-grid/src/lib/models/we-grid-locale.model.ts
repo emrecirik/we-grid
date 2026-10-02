@@ -86,6 +86,7 @@ export interface WeGridLocale {
   rename: string;
   wrapText: string;
   autofitWidth: string;
+  autofitAllColumns: string;
   pin: string;
   pinLeft: string;
   pinRight: string;
@@ -149,6 +150,29 @@ export interface WeGridLocale {
   checklistValuesTruncated: (limit: number) => string;
   /** Repeats a failed request */
   retry: string;
+
+  // ─── Record form (editMode: 'form') ───
+  formEditTitle: string;
+  formCreateTitle: string;
+
+  // ─── Pasting a spreadsheet range ───
+  /** Accepts the number of cells written, e.g. `(n) => \`${n} cells pasted\`` */
+  pasteApplied: (cellCount: number) => string;
+  /** Accepts the number of pasted rows that fell below the last row and were dropped */
+  pasteRowsDropped: (rowCount: number) => string;
+  /** Prefix for the list of cells whose text didn't fit the column's type */
+  pasteInvalidCells: string;
+
+  // ─── Saved views ───
+  viewsButton: string;
+  viewNamePlaceholder: string;
+  saveView: string;
+  deleteView: string;
+  shareView: string;
+  noSavedViews: string;
+  viewLinkCopied: string;
+  /** Shown with the link itself when the clipboard refused it, so the user can copy it by hand */
+  viewLinkCopyFailed: string;
 }
 
 export const weGridLocaleEn: WeGridLocale = {
@@ -209,6 +233,7 @@ export const weGridLocaleEn: WeGridLocale = {
   rename: 'Rename',
   wrapText: 'Wrap text',
   autofitWidth: 'Fit width to content',
+  autofitAllColumns: 'Fit all columns to content',
   pin: 'Pin',
   pinLeft: 'Pin left',
   pinRight: 'Pin right',
@@ -252,7 +277,20 @@ export const weGridLocaleEn: WeGridLocale = {
   checklistValuesLoading: 'Loading values…',
   checklistValuesError: 'The values could not be loaded',
   checklistValuesTruncated: (limit) => `Showing the first ${limit} values — narrow your search`,
-  retry: 'Retry'
+  retry: 'Retry',
+  formEditTitle: 'Edit record',
+  formCreateTitle: 'New record',
+  pasteApplied: (cellCount) => `${cellCount} cells pasted`,
+  pasteRowsDropped: (rowCount) => `${rowCount} rows didn't fit below the last row`,
+  pasteInvalidCells: 'Not pasted:',
+  viewsButton: 'Views',
+  viewNamePlaceholder: 'View name',
+  saveView: 'Save current view',
+  deleteView: 'Delete view',
+  shareView: 'Copy link to view',
+  noSavedViews: 'No saved views yet',
+  viewLinkCopied: 'Link copied',
+  viewLinkCopyFailed: 'Copy this link:'
 };
 
 /**
@@ -327,6 +365,7 @@ export const weGridLocaleTr: WeGridLocale = {
   rename: 'Yeniden Adlandır',
   wrapText: 'Kelime Kaydır',
   autofitWidth: 'Genişliği İçeriğe Sığdır',
+  autofitAllColumns: 'Tüm Kolonları İçeriğe Sığdır',
   pin: 'Sabitle',
   pinLeft: 'Sola Sabitle',
   pinRight: 'Sağa Sabitle',
@@ -374,7 +413,20 @@ export const weGridLocaleTr: WeGridLocale = {
   checklistValuesLoading: 'Değerler yükleniyor…',
   checklistValuesError: 'Değerler yüklenemedi',
   checklistValuesTruncated: (limit) => `İlk ${limit} değer gösteriliyor — aramayı daraltın`,
-  retry: 'Tekrar dene'
+  retry: 'Tekrar dene',
+  formEditTitle: 'Kaydı Düzenle',
+  formCreateTitle: 'Yeni Kayıt',
+  pasteApplied: (cellCount) => `${cellCount} hücre yapıştırıldı`,
+  pasteRowsDropped: (rowCount) => `${rowCount} satır son satırın altına sığmadı`,
+  pasteInvalidCells: 'Yapıştırılamayanlar:',
+  viewsButton: 'Görünümler',
+  viewNamePlaceholder: 'Görünüm adı',
+  saveView: 'Mevcut görünümü kaydet',
+  deleteView: 'Görünümü sil',
+  shareView: 'Görünüm bağlantısını kopyala',
+  noSavedViews: 'Henüz kayıtlı görünüm yok',
+  viewLinkCopied: 'Bağlantı kopyalandı',
+  viewLinkCopyFailed: 'Bu bağlantıyı kopyalayın:'
 };
 
 /**

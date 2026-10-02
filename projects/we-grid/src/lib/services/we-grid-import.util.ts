@@ -111,7 +111,11 @@ function parseLooseDate(raw: string): Date | null {
 const TRUE_WORDS = new Set(['true', '1', 'yes', 'y', 'evet', 'e', 'x', 'on']);
 const FALSE_WORDS = new Set(['false', '0', 'no', 'n', 'hayir', 'h', 'off']);
 
-function coerce(raw: string, col: WeGridImportColumn): { value: unknown; ok: boolean } {
+/**
+ * Converts one cell's text into the column's value — shared by file import and clipboard paste.
+ * An empty text is a valid `null`; `ok: false` means the text doesn't fit the column's type.
+ */
+export function weGridCoerceImportValue(raw: string, col: WeGridImportColumn): { value: unknown; ok: boolean } {
   const text = raw.trim();
   if (text === '') return { value: null, ok: true };
 
@@ -171,7 +175,7 @@ export function weGridMapImportedRows(sheet: WeGridImportSheet, columns: WeGridI
     mapping.forEach((col, colIndex) => {
       if (!col) return;
       const raw = cells[colIndex] ?? '';
-      const { value, ok } = coerce(raw, col);
+      const { value, ok } = weGridCoerceImportValue(raw, col);
       if (!ok) {
         if (errors.length < MAX_REPORTED_ERRORS) {
           errors.push(`${col.header} (${rowIndex + 2}): "${raw}"`);

@@ -13,12 +13,14 @@ import {
   WeGridChecklistValuesResult,
   WeGridFilterChangeEvent
 } from './models/we-grid-filter.model';
-import { WeGridRowDeleteEvent, WeGridRowEditEvent } from './models/we-grid-edit.model';
+import { WeGridRowDeleteEvent, WeGridRowEditEvent, WeGridRowsPasteEvent } from './models/we-grid-edit.model';
 import { WeGridImportResult } from './models/we-grid-export.model';
 import { WE_GRID_LAYOUT_STORE, WeGridLayout } from './models/we-grid-layout.model';
 import { WE_GRID_LOCALE, WeGridLocale, weGridLocaleTr } from './models/we-grid-locale.model';
 import { WeGridMenuAction } from './models/we-grid-menu-action.model';
 import { WeGridFilterPopoverComponent } from './we-grid-filter-popover/we-grid-filter-popover.component';
+import { WeGridSavedView, WeGridViewShareEvent } from './models/we-grid-view.model';
+import { weGridDecodeView, weGridEncodeView, weGridViewParamName } from './services/we-grid-view.util';
 
 interface Row {
   code: string;
@@ -512,6 +514,106 @@ describe('WeGridComponent', () => {
     // The equivalent test above with maxWidth=300 for the same content clamps at 300 — here,
     // without clamping, the measured width should be well above that.
     expect(nameCol.width).toBeGreaterThan(300);
+  });
+
+  // ─── Automatic column fit ────────────────────────────────────────────
+  type WithAutofitAll = { handleMenuAction: (action: WeGridMenuAction) => void };
+
+  it('fits columns without an explicit width to their content when the first rows arrive', () => {
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Code', width: 222 },
+      { field: 'name', header: 'Name' }
+    ]);
+    fixture.componentRef.setInput('data', [{ code: 'A1', name: 'A product name that is clearly wider than the default' }]);
+    fixture.detectChanges();
+
+    const byField = (f: string) => component.internalColumns.find((c) => c.field === f)!;
+    expect(byField('code').width).toBe(222);
+    expect(byField('name').width).toBeGreaterThan(150);
+    expect(byField('name').autoFitPending).toBeFalse();
+  });
+
+  it('does not refit when the next page arrives', () => {
+    fixture.detectChanges();
+    const nameCol = component.internalColumns.find((c) => c.field === 'name')!;
+    const fitted = nameCol.width;
+
+    fixture.componentRef.setInput('data', [{ code: 'A1', name: 'x'.repeat(80) }]);
+    fixture.detectChanges();
+
+    expect(nameCol.width).toBe(fitted);
+  });
+
+  it('waits for rows before fitting, so an empty first load keeps the column pending', () => {
+    fixture.componentRef.setInput('data', []);
+    fixture.detectChanges();
+    const nameCol = component.internalColumns.find((c) => c.field === 'name')!;
+    expect(nameCol.autoFitPending).toBeTrue();
+
+    fixture.componentRef.setInput('data', [{ code: 'A1', name: 'A product name that is clearly wider than the default' }]);
+    fixture.detectChanges();
+
+    expect(nameCol.autoFitPending).toBeFalse();
+    expect(nameCol.width).toBeGreaterThan(150);
+  });
+
+  it('caps the automatic fit at 400px unless the column declares its own maxWidth', () => {
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Code', maxWidth: 600 },
+      { field: 'name', header: 'Name' }
+    ]);
+    fixture.componentRef.setInput('data', [{ code: 'y'.repeat(2000), name: 'x'.repeat(2000) }]);
+    fixture.detectChanges();
+
+    expect(component.internalColumns.find((c) => c.field === 'name')!.width).toBe(400);
+    expect(component.internalColumns.find((c) => c.field === 'code')!.width).toBe(600);
+  });
+
+  it('leaves every column on its default width when autoFitColumns is off', () => {
+    fixture.componentRef.setInput('autoFitColumns', false);
+    fixture.componentRef.setInput('data', [{ code: 'A1', name: 'x'.repeat(200) }]);
+    fixture.detectChanges();
+
+    expect(component.internalColumns.every((c) => c.width === 150)).toBeTrue();
+  });
+
+  it('the automatic fit is not saved as a layout change', fakeAsync(() => {
+    const emitted: WeGridLayout[] = [];
+    component.layoutChange.subscribe((l) => emitted.push(l));
+    fixture.detectChanges();
+    tick(600);
+
+    expect(emitted.length).toBe(0);
+  }));
+
+  it('"fit all columns" fits every visible column, including ones with an explicit width', fakeAsync(() => {
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Code', width: 500 },
+      { field: 'name', header: 'Name', width: 60 }
+    ]);
+    fixture.componentRef.setInput('data', [{ code: 'A1', name: 'A product name that is clearly wider than sixty' }]);
+    fixture.detectChanges();
+
+    (component as unknown as WithAutofitAll).handleMenuAction({ type: 'autofit-all' });
+    tick(600);
+
+    const byField = (f: string) => component.internalColumns.find((c) => c.field === f)!;
+    expect(byField('code').width).toBeLessThan(500);
+    expect(byField('name').width).toBeGreaterThan(60);
+  }));
+
+  it('double-clicking a resize handle fits that column', () => {
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Code', width: 400 },
+      { field: 'name', header: 'Name', width: 400 }
+    ]);
+    fixture.detectChanges();
+
+    const handle = fixture.nativeElement.querySelector('.we-grid__resize-handle') as HTMLElement;
+    handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+
+    expect(component.internalColumns.find((c) => c.field === 'code')!.width).toBeLessThan(400);
+    expect(component.internalColumns.find((c) => c.field === 'name')!.width).toBe(400);
   });
 
   // ─── Keyboard accessibility ────────────────────────────────────────────
@@ -1100,6 +1202,192 @@ describe('WeGridComponent — export, import and row editing', () => {
     expect(results[0].rows).toEqual([{ code: 'C3', name: 'Product C', qty: 7 }]);
     expect(component.data.length).toBe(2);
     expect(component.notice?.error).toBeFalse();
+  });
+
+  // ─── editMode: 'form' ────────────────────────────────────────────────
+  it("editMode 'form' opens a dialog with every editable column and leaves the row itself alone", () => {
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Code', required: true },
+      { field: 'name', header: 'Name', editable: false },
+      { field: 'qty', header: 'Qty', type: 'number', visible: false }
+    ]);
+    fixture.componentRef.setInput('editable', true);
+    fixture.componentRef.setInput('editMode', 'form');
+    fixture.detectChanges();
+
+    component.startEdit(component.displayData[0], 0);
+    fixture.detectChanges();
+
+    const dialog = fixture.nativeElement.querySelector('[role="dialog"]') as HTMLElement;
+    expect(dialog).toBeTruthy();
+    // The hidden qty column is still part of the record; the read-only name column is not a field.
+    const labels = Array.from(dialog.querySelectorAll('.we-grid-form__label')).map((l) => l.textContent?.replace('*', '').trim());
+    expect(labels).toEqual(['Code', 'Qty']);
+    expect(fixture.nativeElement.querySelector('.we-grid__row--editing')).toBeNull();
+  });
+
+  it("the form's save emits rowUpdate with the changed fields, and done(true) closes it", () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.componentRef.setInput('editMode', 'form');
+    fixture.detectChanges();
+    const events: WeGridRowEditEvent<EditRow>[] = [];
+    component.rowUpdate.subscribe((e) => events.push(e));
+
+    component.startEdit(component.displayData[0], 0);
+    fixture.detectChanges();
+    const nameInput = fixture.nativeElement.querySelectorAll('.we-grid-form we-grid-cell-editor input')[1] as HTMLInputElement;
+    nameInput.value = 'Renamed';
+    nameInput.dispatchEvent(new Event('input'));
+    (fixture.nativeElement.querySelector('.we-grid-form__btn--primary') as HTMLButtonElement).click();
+    fixture.detectChanges();
+
+    expect(events.length).toBe(1);
+    expect(events[0].changes).toEqual({ name: 'Renamed' });
+    expect(fixture.nativeElement.querySelector('.we-grid-form__btn--primary').disabled).toBeTrue();
+
+    events[0].done(true);
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it('the form shows a required error and the rejection message from done(false)', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.componentRef.setInput('editMode', 'form');
+    fixture.detectChanges();
+    component.rowUpdate.subscribe((e) => e.done(false, 'Conflict'));
+
+    component.startEdit(component.displayData[0], 0);
+    component.setDraftValue(component.internalColumns[0], '');
+    component.commitEdit();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.we-grid-form__field-error')?.textContent).toContain(component.locale.requiredField);
+
+    component.setDraftValue(component.internalColumns[0], 'A9');
+    component.commitEdit();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.we-grid-form__error')?.textContent).toContain('Conflict');
+  });
+
+  it("'Add row' in form mode opens the dialog instead of a draft row", () => {
+    fixture.componentRef.setInput('allowAdd', true);
+    fixture.componentRef.setInput('editable', true);
+    fixture.componentRef.setInput('editMode', 'form');
+    fixture.detectChanges();
+
+    component.startCreate();
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.we-grid-form__title')?.textContent).toContain(component.locale.formCreateTitle);
+    expect(fixture.nativeElement.querySelector('.we-grid__row--editing')).toBeNull();
+  });
+
+  it('Escape closes the form without emitting', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.componentRef.setInput('editMode', 'form');
+    fixture.detectChanges();
+    let emitted = 0;
+    component.rowUpdate.subscribe(() => emitted++);
+
+    component.startEdit(component.displayData[0], 0);
+    fixture.detectChanges();
+    fixture.nativeElement.querySelector('[role="dialog"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    fixture.detectChanges();
+
+    expect(component.edit).toBeNull();
+    expect(emitted).toBe(0);
+  });
+
+  // ─── Pasting a spreadsheet range ─────────────────────────────────────
+  function pasteText(text: string): void {
+    const clipboardData = new DataTransfer();
+    clipboardData.setData('text/plain', text);
+    const scroll = fixture.nativeElement.querySelector('.we-grid__scroll') as HTMLElement;
+    scroll.dispatchEvent(new ClipboardEvent('paste', { clipboardData, bubbles: true, cancelable: true }));
+  }
+
+  function clickCell(rowIndex: number, field: string): void {
+    const colIndex = component.renderColumns.findIndex((c) => c.field === field);
+    const row = fixture.nativeElement.querySelectorAll('tbody tr.we-grid__row')[rowIndex] as HTMLElement;
+    (row.querySelectorAll('td')[colIndex] as HTMLElement).click();
+    fixture.detectChanges();
+  }
+
+  it('pastes a range from the clicked cell down and right, converting each cell to its column type', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    const events: WeGridRowsPasteEvent<EditRow>[] = [];
+    component.rowsPaste.subscribe((e) => events.push(e));
+
+    clickCell(0, 'name');
+    expect(fixture.nativeElement.querySelector('.we-grid__td--active')).toBeTruthy();
+    pasteText('Pasted A\t1.234\r\nProduct B\t9\r\n');
+
+    expect(events.length).toBe(1);
+    expect(events[0].updates.map((u) => u.changes)).toEqual([{ name: 'Pasted A', qty: 1234 }, { qty: 9 }]);
+    expect(events[0].updates[0].original.name).toBe('Product A');
+    expect(events[0].created).toEqual([]);
+  });
+
+  it('skips cells that do not fit the column type or leave a required column empty, and reports them', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    const events: WeGridRowsPasteEvent<EditRow>[] = [];
+    component.rowsPaste.subscribe((e) => events.push(e));
+
+    clickCell(0, 'code');
+    pasteText('\tNew name\tabc');
+
+    expect(events[0].updates[0].changes).toEqual({ name: 'New name' });
+    expect(events[0].errors.length).toBe(2);
+    events[0].done(true);
+    expect(component.notice?.error).toBeTrue();
+  });
+
+  it('writes onto the loaded rows when nobody listens, and drops rows past the end without allowAdd', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+
+    clickCell(1, 'qty');
+    pasteText('7\n8\n9');
+
+    expect(component.data[1].qty).toBe(7);
+    expect(component.data.length).toBe(2);
+    expect(component.notice?.text).toContain(component.locale.pasteRowsDropped(2));
+  });
+
+  it('turns rows past the end into new rows when allowAdd is on', () => {
+    fixture.componentRef.setInput('editable', true);
+    fixture.componentRef.setInput('allowAdd', true);
+    fixture.componentRef.setInput('newRowTemplate', { qty: 1 });
+    fixture.detectChanges();
+    const events: WeGridRowsPasteEvent<EditRow>[] = [];
+    component.rowsPaste.subscribe((e) => events.push(e));
+
+    clickCell(1, 'code');
+    pasteText('B2\tProduct B\nC3\tProduct C');
+
+    expect(events[0].updates).toEqual([]);
+    expect(events[0].created).toEqual([{ qty: 1, code: 'C3', name: 'Product C' } as EditRow]);
+  });
+
+  it('leaves a paste alone on a read-only grid, without a clicked cell, or inside a text box', () => {
+    fixture.detectChanges();
+    let emitted = 0;
+    component.rowsPaste.subscribe(() => emitted++);
+    clickCell(0, 'name');
+    pasteText('x');
+    expect(emitted).toBe(0);
+
+    fixture.componentRef.setInput('editable', true);
+    fixture.detectChanges();
+    pasteText('x');
+    expect(emitted).toBe(0);
+
+    clickCell(0, 'name');
+    component.startEdit(component.displayData[1], 1);
+    fixture.detectChanges();
+    pasteText('x');
+    expect(emitted).toBe(0);
   });
 });
 
@@ -2101,3 +2389,180 @@ describe('WeGridComponent — column types, formatter and the default checklist'
     expect(component.displayData.map((r) => r.sku)).toEqual(['B2']);
   });
 });
+
+describe('WeGridComponent — saved views', () => {
+  interface ViewRow {
+    code: string;
+    city: string;
+    total: number;
+  }
+
+  let component: WeGridComponent<ViewRow>;
+  let fixture: ComponentFixture<WeGridComponent<ViewRow>>;
+
+  const columns: WeGridColumnDef<ViewRow>[] = [
+    { field: 'code', header: 'Code' },
+    { field: 'city', header: 'City', headerFilterMode: 'operator' },
+    { field: 'total', header: 'Total', type: 'number' }
+  ];
+
+  const rows: ViewRow[] = [
+    { code: 'A1', city: 'Ankara', total: 10 },
+    { code: 'B2', city: 'Izmir', total: 30 },
+    { code: 'C3', city: 'Ankara', total: 20 }
+  ];
+
+  function create(): void {
+    fixture = TestBed.createComponent(WeGridComponent<ViewRow>);
+    document.body.appendChild(fixture.nativeElement);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('gridKey', 'spec-views-grid');
+    fixture.componentRef.setInput('columns', columns);
+    fixture.componentRef.setInput('data', rows);
+    fixture.componentRef.setInput('savedViews', true);
+    fixture.componentRef.setInput('grouping', true);
+  }
+
+  const col = (field: string) => component.internalColumns.find((c) => c.field === field)!;
+  type WithMenuAction = { handleMenuAction: (action: WeGridMenuAction) => void };
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [WeGridComponent] }).compileComponents();
+    create();
+  });
+
+  afterEach(() => fixture.nativeElement.remove());
+
+  it('saves the filters, sort, grouping and hidden columns, and applying the view brings them back', () => {
+    fixture.detectChanges();
+    component.setFilterValue(col('city'), 'ank');
+    component.onHeaderLabelClick(col('total'));
+    (component as unknown as WithMenuAction).handleMenuAction({ type: 'hide-column', field: 'code' });
+    (component as unknown as WithMenuAction).handleMenuAction({ type: 'group-by', field: 'city' });
+    component.saveCurrentView('Ankara by total');
+
+    component.clearAllFilters();
+    component.onHeaderLabelClick(col('total'));
+    component.onHeaderLabelClick(col('total'));
+    component.clearGrouping();
+    (component as unknown as WithMenuAction).handleMenuAction({ type: 'show-all-columns' });
+    expect(component.displayData.length).toBe(3);
+
+    component.applyView(component.views[0]);
+
+    expect(component.displayData.map((r) => r.code)).toEqual(['A1', 'C3']);
+    expect(component.currentSort).toEqual({ field: 'total', direction: 'asc' });
+    expect(component.groupField).toBe('city');
+    expect(col('code').visible).toBeFalse();
+    expect(component.activeViewName).toBe('Ankara by total');
+  });
+
+  it('keeps views in their own store record, so they survive a page reload and a layout reset', () => {
+    fixture.detectChanges();
+    component.saveCurrentView('First');
+    expect(JSON.parse(localStorage.getItem('we-grid-layout:spec-views-grid::views')!).views[0].name).toBe('First');
+
+    (component as unknown as WithMenuAction).handleMenuAction({ type: 'reset-layout' });
+    fixture.nativeElement.remove();
+    create();
+    fixture.detectChanges();
+
+    expect(component.views.map((v) => v.name)).toEqual(['First']);
+  });
+
+  it('replaces a view saved again under the same name, and deletes one', () => {
+    fixture.detectChanges();
+    component.saveCurrentView('Mine');
+    component.setFilterValue(col('city'), 'izm');
+    component.saveCurrentView('Mine');
+    expect(component.views.length).toBe(1);
+    expect(component.views[0].filters?.[0].value).toBe('izm');
+
+    component.deleteView('Mine');
+    expect(component.views).toEqual([]);
+    expect(component.activeViewName).toBeNull();
+  });
+
+  it('drops what no longer fits the columns when a view is applied', () => {
+    fixture.detectChanges();
+    component.applyView({
+      name: 'Old',
+      columns: [{ field: 'gone', visible: true, order: 0, pinned: null }],
+      sort: { field: 'gone', direction: 'asc' },
+      filters: [
+        { field: 'gone', operator: 'contains', value: 'x' },
+        { field: 'total', operator: 'contains', value: '1' },
+        { field: 'city', operator: 'contains', value: 'izm' }
+      ],
+      groupField: 'gone'
+    });
+
+    expect(Array.from(component.filterState.keys())).toEqual(['city']);
+    expect(component.currentSort).toBeNull();
+    expect(component.groupField).toBeNull();
+    expect(component.internalColumns.map((c) => c.field)).toEqual(['code', 'city', 'total']);
+  });
+
+  it('tells a server-side screen about the new sort and filters at once', () => {
+    fixture.componentRef.setInput('serverSide', true);
+    fixture.detectChanges();
+    const sorts: unknown[] = [];
+    const filters: WeGridFilterChangeEvent[] = [];
+    component.sortChange.subscribe((e) => sorts.push(e));
+    component.filterChange.subscribe((e) => filters.push(e));
+
+    component.applyView({
+      name: 'Server',
+      columns: [],
+      sort: { field: 'total', direction: 'desc' },
+      filters: [{ field: 'city', operator: 'contains', value: 'ank' }]
+    });
+
+    expect(sorts).toEqual([{ field: 'total', direction: 'desc' }]);
+    expect(filters.length).toBe(1);
+    expect(filters[0].resetPage).toBeTrue();
+  });
+
+  it('emits the view and a token that decodes back to it when viewShare is bound', () => {
+    fixture.detectChanges();
+    const shared: WeGridViewShareEvent[] = [];
+    component.viewShare.subscribe((e) => shared.push(e));
+    component.saveCurrentView('Shared');
+
+    component.shareView(component.views[0]);
+
+    expect(weGridDecodeView(shared[0].token)).toEqual(component.views[0]);
+  });
+
+  it('opens in the view a shared link carries', async () => {
+    const view: WeGridSavedView = { name: 'From a link', columns: [], filters: [{ field: 'city', operator: 'equals', value: 'Izmir' }] };
+    const original = window.location.href;
+    const url = new URL(original);
+    url.searchParams.set(weGridViewParamName('spec-views-grid'), weGridEncodeView(view));
+    window.history.replaceState(null, '', url.toString());
+    try {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      expect(component.displayData.map((r) => r.code)).toEqual(['B2']);
+      expect(component.activeViewName).toBe('From a link');
+      expect(component.newViewName).toBe('From a link');
+    } finally {
+      window.history.replaceState(null, '', original);
+    }
+  });
+
+  it('renders the Views panel with the saved views', () => {
+    fixture.detectChanges();
+    component.saveCurrentView('Panel view');
+    component.toggleViewsPanel();
+    fixture.detectChanges();
+
+    const panel = fixture.nativeElement.querySelector('.we-grid__views-panel') as HTMLElement;
+    expect(panel.textContent).toContain('Panel view');
+    (panel.querySelector('.we-grid__views-apply') as HTMLButtonElement).click();
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('.we-grid__views-panel')).toBeNull();
+  });
+});
+

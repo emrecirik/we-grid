@@ -2,6 +2,50 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.6.0 — 2026-10-03
+
+Best-fit columns on by default, a record form next to in-place editing, pasting ranges straight
+from a spreadsheet, and saved, shareable views. A minor release: everything new is opt-in except
+the automatic column fit, which changes how columns without an explicit width open, and paste on
+`editable` grids — see Changed.
+
+### Added
+
+- **Best fit, on by default.** New grid input `autoFitColumns` (default `true`): every column with no
+  explicit width — neither `width` on its definition nor one in the user's saved layout — is fitted
+  to its content once, when the first rows arrive. Paging doesn't refit, so the columns don't jump.
+  The automatic fit stops at 400px unless the column declares `maxWidth`, skips columns rendered
+  through a cell template, and isn't saved as a layout change.
+- Header menu entry **Fit all columns to content** (`autofitAllColumns` locale key) — fits every
+  visible, non-templated column, explicit widths included, and saves the result like any resize.
+- Double-clicking a column's resize border fits that column.
+- **Record form.** New input `editMode: 'row' | 'form'`. In `'form'` the pencil and "Add row" open a
+  modal form with one labelled field per editable column — hidden columns included — reusing the
+  inline editors. `(rowCreate)` / `(rowUpdate)`, `done` and `required` validation are unchanged.
+  The form is `WeGridEditFormComponent`, exported.
+- **Paste from a spreadsheet.** On an `editable` grid, click a cell and press Ctrl+V with a range
+  copied from Excel, LibreOffice or Google Sheets. Cells are converted to the column types the same
+  way a file import converts them, a `select` column also matches option labels, read-only columns
+  are left alone, invalid cells are skipped and reported, and rows past the end become new rows when
+  `allowAdd` is on. The whole paste is one `(rowsPaste)` event (`updates`, `created`, `errors`,
+  `done`); unbound, the values are written onto the loaded rows. New input `allowPaste` (default
+  `true`) switches it off. New utilities `weGridParseClipboardTable` and `weGridCoerceImportValue`.
+- **Saved views.** New input `savedViews` adds a Views toolbar button: save the current columns,
+  filters, sort and grouping under a name, switch between views, and copy a link that opens the
+  page in a view (`we-grid-view-<gridKey>` query parameter). Views are stored through the layout
+  store under `<gridKey>::views`, so "Reset layout" keeps them. New output `(viewShare)`, models
+  `WeGridSavedView` / `WeGridViewShareEvent` and utilities `weGridEncodeView` / `weGridDecodeView` /
+  `weGridSanitizeView` / `weGridViewParamName`.
+- Theme variables `--we-grid-on-accent-color` and `--we-grid-dialog-backdrop`; icons `bookmark` and
+  `link`; locale keys for the form, paste and views (see docs/localization.md).
+
+### Changed
+
+- A column without an explicit width no longer opens at a flat 150px when rows are present. Set
+  `[autoFitColumns]="false"` to keep the old widths.
+- A saved layout no longer stores the width of a column that hasn't been fitted or resized yet.
+- On an `editable` grid, clicking a cell now marks it as the paste target (an accent outline).
+
 ## 0.5.0 — 2026-09-23
 
 Column types for what a backend actually stores — money in kuruş/cents, percentages, whole numbers,

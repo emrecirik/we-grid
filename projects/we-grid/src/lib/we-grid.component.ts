@@ -98,8 +98,11 @@ import {
 } from './models/we-grid-export.model';
 import {
   WE_GRID_NEW_ROW_KEY,
+  WeGridEditMode,
   WeGridEditState,
+  WeGridPastedRow,
   WeGridRowDeleteEvent,
+  WeGridRowsPasteEvent,
   WeGridRowEditEvent,
   weGridSameEditValue
 } from './models/we-grid-edit.model';
@@ -124,9 +127,13 @@ import {
   weGridResolveCurrency,
   weGridToInputNumber
 } from './services/we-grid-value.util';
-import { weGridMapImportedRows } from './services/we-grid-import.util';
+import { WeGridImportColumn, weGridCoerceImportValue, weGridMapImportedRows } from './services/we-grid-import.util';
+import { weGridParseClipboardTable } from './services/we-grid-clipboard.util';
+import { weGridDecodeView, weGridEncodeView, weGridSanitizeView, weGridViewParamName } from './services/we-grid-view.util';
+import { WeGridSavedView, WeGridViewShareEvent } from './models/we-grid-view.model';
 import { WeGridHeaderMenuComponent } from './we-grid-header-menu/we-grid-header-menu.component';
 import { WeGridCellEditorComponent } from './we-grid-cell-editor/we-grid-cell-editor.component';
+import { WeGridEditFormChange, WeGridEditFormComponent } from './we-grid-edit-form/we-grid-edit-form.component';
 import { WeGridFilterPopoverAction, WeGridFilterPopoverComponent } from './we-grid-filter-popover/we-grid-filter-popover.component';
 
 type WeGridMenuOrigin = HTMLElement | { x: number; y: number };
@@ -147,10 +154,17 @@ const WE_GRID_EXPORT_THEME_VARIABLES = [
 /** Width in px of the row-action column added when `editable` or `allowDelete` is on */
 const WE_GRID_ACTION_COL_WIDTH = 92;
 
+/**
+ * Upper bound of the automatic fit when the column declares no `maxWidth`. The automatic pass runs
+ * without anyone asking, so a single long free-text value must not stretch the table; an explicit
+ * fit from the menu is not bounded by this.
+ */
+const WE_GRID_AUTO_FIT_MAX_WIDTH = 400;
+
 @Component({
   selector: 'we-grid',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule, WeGridCellEditorComponent],
+  imports: [CommonModule, FormsModule, DragDropModule, WeGridCellEditorComponent, WeGridEditFormComponent],
   templateUrl: './we-grid.component.html',
   styleUrls: ['./we-grid.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -278,6 +292,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Input() importFormats: WeGridImportFormat[] = [];
 
   // ─── Row editing (create / update / delete) ──────────────────────────
+  /**
+   * `'row'` edits in place; `'form'` opens a modal form for both editing and "Add row". The events,
+   * the `done` callback and the validation are the same in both modes.
+   */
+  @Input() editMode: WeGridEditMode = 'row';
+
   /** Enables inline row editing — adds an edit button to each row's action cell */
   @Input() editable = false;
 
@@ -295,6 +315,27 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** Field values a newly created draft row starts from */
   @Input() newRowTemplate?: Partial<T>;
+
+  /**
+   * On an `editable` grid, clicking a cell makes it the paste target and Ctrl+V writes a range
+   * copied from Excel or Google Sheets across the editable columns, starting there. Rows that run
+   * past the last row become new rows when `allowAdd` is on. Turn off to keep paste out entirely.
+   */
+  @Input() allowPaste = true;
+
+  /**
+   * Adds a Views button to the toolbar: the user saves the current columns, filters, sort and
+   * grouping under a name, switches between them, and copies a link that opens the grid in that
+   * view. Views are stored through the layout store under `<gridKey>::views`.
+   */
+  @Input() savedViews = false;
+
+  /**
+   * Fits every column without an explicit width (neither `width` on its definition nor one in the
+   * saved layout) to its content once, when the first rows arrive. Paging doesn't refit, so the
+   * columns don't jump; a saved or dragged width always wins.
+   */
+  @Input() autoFitColumns = true;
 
   @Output() pageChange = new EventEmitter<WeGridPageChange>();
   @Output() sortChange = new EventEmitter<WeGridSortChange>();
@@ -338,6 +379,17 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** A row's delete button was confirmed — call `event.done(true)` once the backend accepted it */
   @Output() rowDelete = new EventEmitter<WeGridRowDeleteEvent<T>>();
+  /**
+   * A spreadsheet range was pasted onto the grid — call `event.done(true)` once it is saved. When
+   * nothing is bound, the grid writes the values onto the loaded rows itself, like the row editor.
+   */
+  @Output() rowsPaste = new EventEmitter<WeGridRowsPasteEvent<T>>();
+  /**
+   * "Copy link" in the Views panel. Unbound, the grid copies the current page's URL with the view
+   * in a `we-grid-view-<gridKey>` query parameter, which it reads back on load; bound, the grid
+   * only emits and the consumer builds the link.
+   */
+  @Output() viewShare = new EventEmitter<WeGridViewShareEvent>();
 
   /** The toolbar's refresh button was pressed — reloading is entirely the consumer's business */
   @Output() refresh = new EventEmitter<void>();
@@ -420,6 +472,21 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private readonly warnedChecklistSourceFields = new Set<string>();
 
   // ─── Row editing state ───────────────────────────────────────────────
+  /** The user's saved views, see `savedViews` */
+  views: WeGridSavedView[] = [];
+  viewsPanelOpen = false;
+  newViewName = '';
+  /** Name of the view last applied or saved — shown on the Views button */
+  activeViewName: string | null = null;
+  /** A view link is applied once, on the first layout load, not again on every reload of the layout */
+  private sharedViewChecked = false;
+
+  /**
+   * The paste target cell — set by a click on an editable grid, see `allowPaste`. Held by row key,
+   * so it stays put when the consumer answers a paste by replacing the row objects.
+   */
+  activeCell: { key: unknown; field: string } | null = null;
+
   /** The row currently being edited or created — null while nothing is in edit mode */
   edit: WeGridEditState<T> | null = null;
   /** Row keys whose delete is waiting on the consumer's `done` callback */
@@ -651,6 +718,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       )
       .subscribe(() => this.emitFilterChange());
     this.loadLayout();
+    if (this.savedViews) this.loadViews();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -718,6 +786,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         this.filterRowVisible = merged.filterRowVisible ?? false;
         this.recomputeRenderColumns();
         this.refreshDisplayData();
+        if (!this.sharedViewChecked) {
+          this.sharedViewChecked = true;
+          // A synchronous store answers inside ngOnInit — the view's (sortChange)/(filterChange)
+          // must not reach the consumer while its own template is still being checked.
+          void Promise.resolve().then(() => this.applyViewFromUrl());
+        }
         this.cdr.markForCheck();
       });
   }
@@ -890,6 +964,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (this.isServerSort || !this.clientSort) {
       this.displayData = source;
       this.applyGrouping();
+      this.autoFitPendingColumns();
       return;
     }
     const { field, direction } = this.clientSort;
@@ -906,6 +981,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     });
     this.displayData = copy;
     this.applyGrouping();
+    this.autoFitPendingColumns();
   }
 
   // ─── Pagination ──────────────────────────────────────────────────────
@@ -1689,15 +1765,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       // carry a column the user has hidden on screen.
       const mapped = weGridMapImportedRows(
         sheet,
-        this.internalColumns.map((col) => ({
-          field: col.field,
-          header: weGridDisplayHeader(col),
-          type: col.type,
-          minorUnitFactor:
-            col.type === 'currency' && col.minorUnits
-              ? 10 ** weGridCurrencyFractionDigits(weGridResolveCurrency(col.format, this.locale.intlCurrency))
-              : 1
-        }))
+        this.internalColumns.map((col) => this.importColumn(col))
       );
       const result: WeGridImportResult<T> = {
         format,
@@ -1738,8 +1806,26 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return this.edit?.key === WE_GRID_NEW_ROW_KEY;
   }
 
+  /** The draft row at the top of the table — only in row mode; the form mode edits in its dialog */
+  get showDraftRow(): boolean {
+    return this.isCreating && this.editMode === 'row';
+  }
+
+  /** Whether the row itself shows editors — never in form mode, where the dialog does */
   isEditingRow(row: T): boolean {
-    return !!this.edit && !this.isCreating && this.edit.key === this.rowKey(row);
+    return this.editMode === 'row' && !!this.edit && !this.isCreating && this.edit.key === this.rowKey(row);
+  }
+
+  /** The fields of the record form: every editable column in column order, hidden ones included */
+  get formColumns(): WeGridInternalColumn<T>[] {
+    return this.internalColumns.filter((c) => c.editable).sort((a, b) => a.order - b.order);
+  }
+
+  readonly formScaleFor = (col: WeGridInternalColumn<unknown>): number => this.inputScale(col as WeGridInternalColumn<T>);
+
+  onFormValueChange(change: WeGridEditFormChange): void {
+    const col = this.internalColumns.find((c) => c.field === change.field);
+    if (col) this.setDraftValue(col, change.value);
   }
 
   isRowDeleting(row: T): boolean {
@@ -1935,7 +2021,310 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.refresh.emit();
   }
 
+  // ─── Saved views ─────────────────────────────────────────────────────
+  private get viewsKey(): string {
+    return `${this.gridKey}::views`;
+  }
+
+  private loadViews(): void {
+    this.layoutStore
+      .load(this.viewsKey)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((record) => {
+        this.views = (record?.views ?? []).map((v) => weGridSanitizeView(v)).filter((v): v is WeGridSavedView => v !== null);
+        this.cdr.markForCheck();
+      });
+  }
+
+  private persistViews(): void {
+    const record: WeGridLayout = { gridKey: this.viewsKey, version: 1, columns: [], views: this.views };
+    this.layoutStore.save(this.viewsKey, record).pipe(takeUntil(this.destroy$)).subscribe();
+  }
+
+  toggleViewsPanel(): void {
+    this.viewsPanelOpen = !this.viewsPanelOpen;
+  }
+
+  /** Closes the panel once focus has left it and its button — a click anywhere else does that */
+  onViewsFocusOut(event: FocusEvent, container: HTMLElement): void {
+    const next = event.relatedTarget as Node | null;
+    if (!next || !container.contains(next)) this.viewsPanelOpen = false;
+  }
+
+  /** The grid as it looks right now, as a view called `name` */
+  getCurrentView(name: string): WeGridSavedView {
+    return {
+      name,
+      columns: toColumnLayout(this.internalColumns, this.columns),
+      density: this.density,
+      sort: this.currentSort?.direction ? { ...this.currentSort } : null,
+      filters: Array.from(this.filterState.values())
+        .filter(isWeGridFilterActive)
+        .map((f) => ({ ...f })),
+      groupField: this.groupField,
+      filterRowVisible: this.filterRowVisible
+    };
+  }
+
+  /** Saves the current state as a view — a view of the same name is replaced */
+  saveCurrentView(name: string): void {
+    const trimmed = name.trim();
+    if (trimmed === '') return;
+    const view = weGridSanitizeView(this.getCurrentView(trimmed));
+    if (!view) return;
+    const index = this.views.findIndex((v) => v.name === view.name);
+    this.views = index === -1 ? [...this.views, view] : this.views.map((v, i) => (i === index ? view : v));
+    this.activeViewName = view.name;
+    this.newViewName = '';
+    this.persistViews();
+    this.cdr.markForCheck();
+  }
+
+  deleteView(name: string): void {
+    this.views = this.views.filter((v) => v.name !== name);
+    if (this.activeViewName === name) this.activeViewName = null;
+    this.persistViews();
+    this.cdr.markForCheck();
+  }
+
+  /**
+   * Puts the grid into a view. Anything that no longer fits the current columns is dropped: a
+   * column that was removed, a filter whose operator the column doesn't offer, a sort on a column
+   * that can't be sorted. Server-side grids get `(sortChange)`, `(filterChange)` and
+   * `(groupChange)` just as if the user had made the changes by hand.
+   */
+  applyView(view: WeGridSavedView): void {
+    const synthetic: WeGridLayout = { gridKey: this.gridKey, version: this.layoutVersion, columns: view.columns };
+    this.internalColumns = mergeGridLayout(this.columns, synthetic, this.layoutVersion, this.headerFilterMode).columns;
+    if (view.density) this.density = view.density;
+    if (view.filterRowVisible !== undefined) this.filterRowVisible = view.filterRowVisible;
+
+    const filtersBefore = this.activeFilterSignature();
+    this.filterState.clear();
+    for (const filter of view.filters ?? []) {
+      const col = this.internalColumns.find((c) => c.field === filter.field);
+      if (!col?.filterable) continue;
+      const allowed = filter.operator === 'in' || weGridFilterOperatorsFor(col.type, col.filterOperators).includes(filter.operator);
+      if (allowed) this.filterState.set(col.field, { ...filter });
+    }
+
+    const groupField = this.grouping && view.groupField && this.internalColumns.some((c) => c.field === view.groupField) ? view.groupField : null;
+    if (groupField !== this.groupField) {
+      this.groupField = groupField;
+      this.groupCollapsedKeys.clear();
+      this.groupChange.emit(groupField);
+    }
+
+    this.recomputeRenderColumns();
+    this.refreshDisplayData();
+
+    const sortCol = view.sort ? this.internalColumns.find((c) => c.field === view.sort?.field && c.sortable) : undefined;
+    const target = sortCol && view.sort ? view.sort : null;
+    const current = this.currentSort?.direction ? this.currentSort : null;
+    if (target && (target.field !== current?.field || target.direction !== current?.direction)) {
+      this.applySort(target.field, target.direction);
+    } else if (!target && current) {
+      this.applySort(current.field, null);
+    }
+
+    // Flushed rather than debounced: picking a view is one deliberate click, like resetting
+    if (this.activeFilterSignature() !== filtersBefore) {
+      this.filterEmit$.next();
+      this.filterEmitFlush$.next();
+    }
+
+    this.activeViewName = view.name;
+    this.viewsPanelOpen = false;
+    this.scheduleLayoutSave();
+    this.cdr.markForCheck();
+  }
+
+  private activeFilterSignature(): string {
+    return JSON.stringify(
+      Array.from(this.filterState.values())
+        .filter(isWeGridFilterActive)
+        .map((f) => [f.field, f.operator, f.value ?? null, f.value2 ?? null])
+    );
+  }
+
+  shareView(view: WeGridSavedView): void {
+    const token = weGridEncodeView(view);
+    if (this.viewShare.observed) {
+      this.viewShare.emit({ view, token });
+      return;
+    }
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    url.searchParams.set(weGridViewParamName(this.gridKey), token);
+    const link = url.toString();
+    const failed = (): void => this.showNotice(`${this.locale.viewLinkCopyFailed} ${link}`, true);
+    if (!navigator.clipboard) {
+      failed();
+      return;
+    }
+    navigator.clipboard.writeText(link).then(() => this.showNotice(this.locale.viewLinkCopied, false), failed);
+  }
+
+  /** Opens the grid in the view a shared link carries — offered for saving under its own name */
+  private applyViewFromUrl(): void {
+    if (!this.savedViews || typeof window === 'undefined') return;
+    const token = new URLSearchParams(window.location.search).get(weGridViewParamName(this.gridKey));
+    const view = token ? weGridDecodeView(token) : null;
+    if (!view) return;
+    this.applyView(view);
+    this.newViewName = view.name;
+  }
+
+  // ─── Pasting a spreadsheet range ─────────────────────────────────────
+  get pasteEnabled(): boolean {
+    return this.editable && this.allowPaste;
+  }
+
+  isActiveCell(row: T, col: WeGridInternalColumn<T>): boolean {
+    return this.activeCell !== null && this.activeCell.field === col.field && this.activeCell.key === this.rowKey(row);
+  }
+
+  onCellClick(event: MouseEvent, row: T, col: WeGridInternalColumn<T>): void {
+    if (col.stopRowClick) event.stopPropagation();
+    if (this.pasteEnabled && !this.isCellEditing(row, col)) this.activeCell = { key: this.rowKey(row), field: col.field };
+  }
+
+  onPaste(event: ClipboardEvent): void {
+    if (!this.pasteEnabled || !this.activeCell || this.edit) return;
+    // A paste into an editor, the filter row or any other text box is that control's business
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+    const text = event.clipboardData?.getData('text/plain') ?? '';
+    if (text === '') return;
+    event.preventDefault();
+    this.pasteTable(weGridParseClipboardTable(text));
+  }
+
+  /** The rows in the order the user sees them — grouped, a collapsed group's rows are skipped */
+  private get visibleRowsInOrder(): T[] {
+    if (!this.groupedSections) return this.displayData;
+    return this.groupedSections.flatMap((section) => (section.collapsed ? [] : section.rows.map((entry) => entry.row)));
+  }
+
+  private pasteTable(table: string[][]): void {
+    const anchor = this.activeCell;
+    if (!anchor) return;
+    const rows = this.visibleRowsInOrder;
+    const startRow = rows.findIndex((row) => this.rowKey(row) === anchor.key);
+    const startCol = this.renderColumns.findIndex((c) => c.field === anchor.field);
+    if (startRow === -1 || startCol === -1) return;
+
+    const updates: WeGridPastedRow<T>[] = [];
+    const created: T[] = [];
+    const errors: string[] = [];
+    let cellCount = 0;
+    let droppedRows = 0;
+
+    table.forEach((cells, offset) => {
+      const original = rows[startRow + offset] as T | undefined;
+      if (!original && !this.allowAdd) {
+        droppedRows++;
+        return;
+      }
+      // Cells are laid over the columns as the user sees them; read-only columns keep their value
+      const values: Record<string, unknown> = {};
+      cells.forEach((raw, c) => {
+        const col = this.renderColumns[startCol + c];
+        if (!col || !col.editable) return;
+        const { value, ok } = this.coercePastedValue(raw, col);
+        const cellName = `${weGridDisplayHeader(col)} (${startRow + offset + 1})`;
+        if (!ok) {
+          errors.push(`${cellName}: "${raw}"`);
+          return;
+        }
+        if (col.required && (value === null || value === '')) {
+          errors.push(`${cellName}: ${this.locale.requiredField}`);
+          return;
+        }
+        values[col.field] = value;
+      });
+
+      if (!original) {
+        const row = { ...((this.newRowTemplate ?? {}) as object) } as T;
+        for (const [field, value] of Object.entries(values)) setNestedValue(row, field, value);
+        created.push(row);
+        cellCount += Object.keys(values).length;
+        return;
+      }
+      const changes: Record<string, unknown> = {};
+      for (const [field, value] of Object.entries(values)) {
+        if (!weGridSameEditValue(getNestedValue(original, field), value)) changes[field] = value;
+      }
+      if (Object.keys(changes).length === 0) return;
+      const row = { ...(original as object) } as T;
+      for (const [field, value] of Object.entries(changes)) setNestedValue(row, field, value);
+      updates.push({ row, original, rowIndex: this.displayData.indexOf(original), changes });
+      cellCount += Object.keys(changes).length;
+    });
+
+    const parts = [this.locale.pasteApplied(cellCount)];
+    if (droppedRows > 0) parts.push(this.locale.pasteRowsDropped(droppedRows));
+    if (errors.length > 0) parts.push(`${this.locale.pasteInvalidCells} ${errors.slice(0, 10).join(', ')}`);
+    const summary = parts.join(' · ');
+    const hasProblems = droppedRows > 0 || errors.length > 0;
+
+    if (updates.length === 0 && created.length === 0) {
+      this.showNotice(summary, hasProblems);
+      return;
+    }
+
+    if (!this.rowsPaste.observed) {
+      for (const update of updates) {
+        for (const [field, value] of Object.entries(update.changes)) setNestedValue(update.original, field, value);
+      }
+      if (created.length > 0) this.data = [...this.data, ...created];
+      this.refreshDisplayData();
+      this.showNotice(summary, hasProblems);
+      return;
+    }
+
+    this.rowsPaste.emit({
+      updates,
+      created,
+      errors,
+      done: (success, error) => this.showNotice(success ? summary : (error ?? this.locale.saveFailed), !success || hasProblems)
+    });
+  }
+
+  /** A pasted text in the column's terms — a select column also accepts an option's label */
+  private coercePastedValue(raw: string, col: WeGridInternalColumn<T>): { value: unknown; ok: boolean } {
+    if (col.editorOptions && raw.trim() !== '') {
+      const text = raw.trim().toLocaleLowerCase(this.locale.intlLocale);
+      const option = col.editorOptions.find(
+        (o) =>
+          o.label.toLocaleLowerCase(this.locale.intlLocale) === text ||
+          String(o.value).toLocaleLowerCase(this.locale.intlLocale) === text
+      );
+      return option ? { value: option.value, ok: true } : { value: null, ok: false };
+    }
+    return weGridCoerceImportValue(raw, this.importColumn(col));
+  }
+
+  /** The column as the import/paste converter sees it */
+  private importColumn(col: WeGridInternalColumn<T>): WeGridImportColumn {
+    return {
+      field: col.field,
+      header: weGridDisplayHeader(col),
+      type: col.type,
+      minorUnitFactor:
+        col.type === 'currency' && col.minorUnits
+          ? 10 ** weGridCurrencyFractionDigits(weGridResolveCurrency(col.format, this.locale.intlCurrency))
+          : 1
+    };
+  }
+
   // ─── Column width dragging ───────────────────────────────────────────
+  /** Double-clicking a column's right border fits it to its content, like a spreadsheet */
+  onResizeHandleDblClick(event: MouseEvent, col: WeGridInternalColumn<T>): void {
+    event.stopPropagation();
+    this.handleMenuAction({ type: 'autofit', field: col.field });
+  }
+
   // NOTE: this used to listen on `document` — every pixel of movement re-entered the zone and
   // triggered change detection for the WHOLE application, and if the pointer left the window and
   // pointerup never fired, the subscription stayed open until the component was destroyed. Using
@@ -1946,6 +2335,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     event.stopPropagation();
     const startX = event.clientX;
     const startWidth = col.width;
+    col.autoFitPending = false;
     const handleEl = event.currentTarget as HTMLElement;
     const pointerId = event.pointerId;
     const stop$ = new Subject<void>();
@@ -2177,6 +2567,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         if (col) this.autofitColumn(col);
         break;
       }
+      case 'autofit-all':
+        // A templated cell's content can't be measured as text — fitting it would shrink the
+        // column to its header, so those columns keep their width.
+        this.internalColumns.filter((c) => c.visible && !this.getCellTemplate(c)).forEach((c) => this.autofitColumn(c));
+        break;
       case 'pin': {
         const col = this.internalColumns.find((c) => c.field === action.field);
         if (col) col.pinned = action.pinned;
@@ -2252,26 +2647,93 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
   }
 
-  private autofitColumn(col: WeGridInternalColumn<T>): void {
+  private autofitColumn(col: WeGridInternalColumn<T>, maxWidth?: number): void {
     const ctx = this.measureCanvas?.getContext('2d');
     if (!ctx) return;
-    ctx.font = this.getMeasureFont();
-    let max = ctx.measureText(weGridDisplayHeader(col)).width;
-    const hasTemplate = !!this.getCellTemplate(col);
-    const sample = this.displayData.slice(0, 200);
-    for (const row of sample) {
-      if (hasTemplate) continue;
-      const text = this.formatCell(row, col);
-      const width = ctx.measureText(text).width;
-      if (width > max) max = width;
+    const host = this.elementRef.nativeElement as HTMLElement;
+    const root = host.querySelector<HTMLElement>('.we-grid') ?? host;
+    // Header and cells are measured in the font they actually render in — the grid's own font
+    // size differs from the host's (and between densities), and the header is bold.
+    const rootStyle = this.computedStyle(root);
+    const font = rootStyle ? `${rootStyle.fontSize} ${rootStyle.fontFamily}` : '13px sans-serif';
+    ctx.font = `600 ${font}`;
+    const header = ctx.measureText(weGridDisplayHeader(col)).width + this.headerChromeWidth(col);
+    ctx.font = font;
+    let cells = 0;
+    if (!this.getCellTemplate(col)) {
+      for (const row of this.displayData.slice(0, 200)) {
+        const width = ctx.measureText(this.formatCell(row, col)).width;
+        if (width > cells) cells = width;
+      }
     }
-    const fitted = Math.max(col.minWidth, Math.ceil(max) + 40);
-    col.width = col.maxWidth ? Math.min(fitted, col.maxWidth) : fitted;
+    const cellPadding = this.horizontalPadding(host.querySelector<HTMLElement>('.we-grid__row td')) ?? 16;
+    // A few px of slack — canvas text metrics and the rendered text don't round the same way
+    const fitted = Math.max(col.minWidth, Math.ceil(Math.max(header, cells + cellPadding)) + 4);
+    const bound = col.maxWidth ?? maxWidth;
+    col.width = bound ? Math.max(col.minWidth, Math.min(fitted, bound)) : fitted;
+    col.autoFitPending = false;
   }
 
-  private getMeasureFont(): string {
-    if (typeof window === 'undefined') return '13px sans-serif';
-    const styles = window.getComputedStyle(this.elementRef.nativeElement);
-    return `${styles.fontSize} ${styles.fontFamily}`;
+  /**
+   * Width the header cell needs besides its label — padding, the funnel and menu buttons, and room
+   * for a sort arrow that may appear later. Read from the column's own rendered header (or any
+   * header, for a hidden column); the fallback covers a fit that runs before the first render.
+   */
+  private headerChromeWidth(col: WeGridInternalColumn<T>): number {
+    const host = this.elementRef.nativeElement as HTMLElement;
+    const headers = Array.from(host.querySelectorAll<HTMLElement>('.we-grid__header-row th[role="columnheader"]'));
+    const th = headers[this.renderColumns.indexOf(col)] ?? headers[0];
+    const inner = th?.querySelector<HTMLElement>('.we-grid__th-inner');
+    const innerStyle = inner ? this.computedStyle(inner) : null;
+    if (!inner || !innerStyle) return 64;
+    const gap = parseFloat(innerStyle.columnGap) || 0;
+    let width = this.horizontalPadding(inner) ?? 0;
+    let hasSortIcon = false;
+    for (const child of Array.from(inner.children) as HTMLElement[]) {
+      if (child.classList.contains('we-grid__th-label')) continue;
+      if (child.classList.contains('we-grid__sort-icon')) hasSortIcon = true;
+      width += child.getBoundingClientRect().width + gap;
+    }
+    if (col.sortable && !hasSortIcon) {
+      const sortIcon = host.querySelector<HTMLElement>('.we-grid__sort-icon');
+      width += (sortIcon?.getBoundingClientRect().width ?? 12) + gap;
+    }
+    return width;
+  }
+
+  private horizontalPadding(el: HTMLElement | null): number | null {
+    const style = el ? this.computedStyle(el) : null;
+    if (!style) return null;
+    return (
+      (parseFloat(style.paddingLeft) || 0) +
+      (parseFloat(style.paddingRight) || 0) +
+      (parseFloat(style.borderLeftWidth) || 0) +
+      (parseFloat(style.borderRightWidth) || 0)
+    );
+  }
+
+  private computedStyle(el: HTMLElement): CSSStyleDeclaration | null {
+    if (typeof window === 'undefined') return null;
+    const style = window.getComputedStyle(el);
+    return style.fontSize ? style : null;
+  }
+
+  /**
+   * The automatic half of `autoFitColumns`: fits the columns still on the default width once there
+   * are rows to measure. Runs before the rows render, so the columns never visibly jump; the result
+   * isn't saved as a layout change — nothing the user did changed.
+   */
+  private autoFitPendingColumns(): void {
+    if (!this.autoFitColumns || this.displayData.length === 0) return;
+    const pending = this.internalColumns.filter((c) => c.autoFitPending);
+    if (pending.length === 0) return;
+    // Detached, the host has no computed font and the measurement would be wrong — the next data
+    // refresh after attaching tries again.
+    if (!(this.elementRef.nativeElement as HTMLElement).isConnected) return;
+    for (const col of pending) {
+      if (this.getCellTemplate(col)) col.autoFitPending = false;
+      else this.autofitColumn(col, WE_GRID_AUTO_FIT_MAX_WIDTH);
+    }
+    this.recomputeRenderColumns();
   }
 }

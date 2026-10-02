@@ -1,0 +1,151 @@
+// Fixed to the viewport rather than attached through the CDK overlay: the form is part of the
+// grid's own template, so it shares the grid's change detection with the draft it edits. An
+// ancestor with a `transform` would turn `fixed` into a containing block of its own.
+.we-grid-form__backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: var(--we-grid-dialog-backdrop, rgba(0, 0, 0, 0.35));
+}
+
+.we-grid-form {
+  display: flex;
+  flex-direction: column;
+  width: min(44rem, 100%);
+  max-height: 100%;
+  background: var(--we-grid-menu-bg, #fff);
+  color: var(--we-grid-menu-color, #212529);
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  box-shadow: var(--we-grid-menu-shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+  font-size: var(--we-grid-font-size, 0.8125rem);
+}
+
+.we-grid-form__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+}
+
+.we-grid-form__title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.we-grid-form__close {
+  display: inline-flex;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  padding: 0.2rem;
+  border-radius: 0.2rem;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.035));
+    outline: none;
+  }
+}
+
+.we-grid-form__body {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  margin: 0;
+}
+
+.we-grid-form__fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 0.75rem 1rem;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.we-grid-form__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: 0;
+}
+
+.we-grid-form__field--inline {
+  flex-direction: row-reverse;
+  justify-content: flex-end;
+  align-items: center;
+  align-self: end;
+
+  we-grid-cell-editor {
+    width: auto;
+  }
+}
+
+.we-grid-form__label {
+  font-weight: 600;
+}
+
+.we-grid-form__required,
+.we-grid-form__field-error {
+  color: var(--we-grid-danger-color, #f06548);
+}
+
+.we-grid-form__field-error {
+  font-size: 0.85em;
+}
+
+.we-grid-form__error {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 1rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--we-grid-danger-color, #f06548);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  color: var(--we-grid-danger-color, #f06548);
+}
+
+.we-grid-form__footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-top: 1px solid var(--we-grid-border-color, #dee2e6);
+}
+
+.we-grid-form__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.9rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+.we-grid-form__btn--primary {
+  border-color: var(--we-grid-accent-color, #405189);
+  background: var(--we-grid-accent-color, #405189);
+  color: var(--we-grid-on-accent-color, #fff);
+}

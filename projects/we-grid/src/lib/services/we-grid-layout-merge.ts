@@ -68,6 +68,7 @@ export function mergeGridLayout<T>(
       width: savedCol?.width ?? def.width ?? def.minWidth ?? WE_GRID_DEFAULT_COLUMN_WIDTH,
       minWidth: def.minWidth ?? 60,
       maxWidth: def.maxWidth,
+      autoFitPending: savedCol?.width == null && def.width == null,
       wrap: savedCol?.wrap ?? def.wrap ?? false,
       align: def.align ?? 'start',
       sortable: def.sortable ?? true,
@@ -134,7 +135,9 @@ export function toColumnLayout<T>(columns: WeGridInternalColumn<T>[], columnDefs
       field: c.field,
       visible: c.visible,
       order: c.order,
-      width: c.width,
+      // A width the grid hasn't fitted yet is a placeholder, not a choice — saving it would stop
+      // the column from ever being fitted to its content.
+      width: c.autoFitPending ? undefined : c.width,
       wrap: c.wrap,
       pinned: c.pinned,
       headerOverride: c.headerOverride ?? undefined,

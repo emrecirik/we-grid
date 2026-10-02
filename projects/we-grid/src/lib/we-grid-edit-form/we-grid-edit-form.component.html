@@ -1,0 +1,57 @@
+<div class="we-grid-form__backdrop">
+  <div
+    class="we-grid-form"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="we-grid-form-title"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (keydown)="onKeydown($event)"
+  >
+    <div class="we-grid-form__header">
+      <h2 id="we-grid-form-title" class="we-grid-form__title">{{ title }}</h2>
+      <button type="button" class="we-grid-form__close" (click)="cancel.emit()" [disabled]="saving" [attr.aria-label]="locale.close" [title]="locale.close">
+        <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <form class="we-grid-form__body" (submit)="onSubmit($event)" novalidate>
+      <div class="we-grid-form__fields" cdkFocusInitial>
+        @for (col of columns; track col.field) {
+          <label class="we-grid-form__field" [class.we-grid-form__field--inline]="col.editor === 'checkbox'">
+            <span class="we-grid-form__label">
+              {{ label(col) }}
+              @if (col.required) {
+                <span class="we-grid-form__required" aria-hidden="true">*</span>
+              }
+            </span>
+            <we-grid-cell-editor
+              [column]="col"
+              [scale]="scaleFor(col)"
+              [value]="draft[col.field]"
+              [invalid]="!!errors[col.field]"
+              [disabled]="saving"
+              (valueChange)="valueChange.emit({ field: col.field, value: $event })"
+            />
+            @if (errors[col.field]) {
+              <span class="we-grid-form__field-error">{{ errors[col.field] }}</span>
+            }
+          </label>
+        }
+      </div>
+
+      @if (error) {
+        <div class="we-grid-form__error" role="alert">
+          <span [innerHTML]="icon('warning')" aria-hidden="true"></span> {{ error }}
+        </div>
+      }
+
+      <div class="we-grid-form__footer">
+        <button type="button" class="we-grid-form__btn" (click)="cancel.emit()" [disabled]="saving">{{ locale.cancelEdit }}</button>
+        <button type="submit" class="we-grid-form__btn we-grid-form__btn--primary" [disabled]="saving">
+          <span [innerHTML]="icon('save')" aria-hidden="true"></span> {{ saving ? locale.savingRow : locale.saveRow }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

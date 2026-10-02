@@ -106,6 +106,57 @@ playgrounds, demos and purely local grids work with no wiring. That fallback wri
 own objects, which is exactly why binding the output is the documented path — only then do you
 control when, and whether, the change lands.
 
+## Form mode
+
+`editMode="form"` keeps everything above — the events, `done`, `required` validation, the local
+fallback — and only moves the editors: the pencil and "Add row" open a modal record form with one
+labelled field per editable column instead of turning the row into inputs.
+
+```html
+<we-grid [columns]="columns" [data]="rows" [editable]="true" [allowAdd]="true" editMode="form" ...></we-grid>
+```
+
+- The form lists every editable column in column order, **hidden ones included** — a column the
+  user hid from the table is still part of the record. Make a column `editable: false` to keep it
+  out.
+- Each field uses the same editor as the inline mode, so `editor`, `editorOptions`, `minorUnits`
+  and percent scaling behave identically.
+- Enter submits, Escape cancels, focus stays inside the dialog while it is open and returns to
+  where it was when it closes. A rejected `done(false, message)` shows the message in the form.
+- The dialog is `position: fixed` inside the grid. An ancestor with a CSS `transform` makes that
+  ancestor its containing block — avoid wrapping the grid in one when using form mode.
+
+## Pasting from a spreadsheet
+
+On an `editable` grid, click a cell and press Ctrl+V with a range copied from Excel, LibreOffice or
+Google Sheets. The range lands with its top-left cell on the clicked one and spreads right across
+the visible columns and down across the rows as they are shown (sorted, filtered, grouped).
+
+- Each cell is converted to its column's type exactly like a file import: `₺1.234,56`, `12,5%`,
+  `11.09.2026`, `evet` / `no` all arrive as numbers, fractions, dates and booleans; a `select`
+  column also matches an option's label.
+- Read-only columns inside the range keep their values. Cells that don't fit their type, or that
+  would empty a `required` column, are skipped and listed in the notice.
+- Rows that run past the last row become new rows when `allowAdd` is on (starting from
+  `newRowTemplate`), and are dropped otherwise.
+- The whole paste arrives as **one** `(rowsPaste)` event, so it can be saved in one request:
+
+```ts
+onPaste(e: WeGridRowsPasteEvent<Order>): void {
+  this.api.saveBatch(e.updates.map((u) => ({ id: u.original.id, ...u.changes })), e.created).subscribe({
+    next: () => {
+      this.reload();
+      e.done(true);
+    },
+    error: (err) => e.done(false, err.message)
+  });
+}
+```
+
+Without a `(rowsPaste)` subscriber the values are written onto the loaded rows, like the editor's
+fallback. A paste into any text box — an editor, the filter row — is left to that text box. Set
+`[allowPaste]="false"` to switch the feature off.
+
 ## Notes
 
 - Only one row is editable at a time. Opening another editor replaces the current one; a row that

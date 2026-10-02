@@ -29,6 +29,12 @@ export interface WeGridInternalColumn<T> {
   minWidth: number;
   /** autofit never exceeds this bound — see WeGridColumnDef.maxWidth */
   maxWidth: number | undefined;
+  /**
+   * True while the width is still the grid's default — neither the developer's `width` nor a saved
+   * one. Such a column is fitted to its content once rows arrive when the grid's `autoFitColumns`
+   * is on; any explicit width (a drag, a menu fit, a saved layout) clears it.
+   */
+  autoFitPending: boolean;
   wrap: boolean;
   align: WeGridAlign;
   sortable: boolean;

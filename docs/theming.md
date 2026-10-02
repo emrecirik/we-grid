@@ -35,6 +35,8 @@ you can theme it two ways:
 | `--we-grid-danger-color` | Row delete button, invalid editor outline, error notices |
 | `--we-grid-editing-bg` | Background of the row currently being edited |
 | `--we-grid-link-color` | Links in `email` / `url` / `phone` cells (0.5.0) |
+| `--we-grid-on-accent-color` | Text on an accent-coloured button — the record form's Save (0.6.0) |
+| `--we-grid-dialog-backdrop` | The dimmed page behind the record form (0.6.0) |
 | `--we-grid-print-color` / `--we-grid-print-bg` | Text/background of the PDF (print) document |
 | `--we-grid-print-border-color` | Table borders in the PDF document |
 | `--we-grid-print-header-bg` | Header and summary row background in the PDF document |

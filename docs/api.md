@@ -41,6 +41,10 @@
 | `confirmDelete` | `boolean` | `true` | Whether deleting calls `window.confirm` first. |
 | `showRefresh` | `boolean` | `false` | Adds a toolbar button that only emits `(refresh)`. |
 | `newRowTemplate` | `Partial<T>` | — | Field values a new draft row starts from. |
+| `editMode` | `'row' \| 'form'` | `'row'` | `'form'` edits and creates in a modal record form instead of in the row — see [row-editing.md](row-editing.md#form-mode). |
+| `allowPaste` | `boolean` | `true` | On an `editable` grid, Ctrl+V pastes a spreadsheet range from the clicked cell — see [row-editing.md](row-editing.md#pasting-from-a-spreadsheet). |
+| `savedViews` | `boolean` | `false` | Adds a Views toolbar button: named, shareable snapshots of columns, filters, sort and grouping — see [saved-views.md](saved-views.md). |
+| `autoFitColumns` | `boolean` | `true` | Fits every column without an explicit `width` (on its definition or in the saved layout) to its content once, when the first rows arrive. Paging doesn't refit. The automatic fit stops at 400px unless the column sets `maxWidth`; it isn't saved as a layout change. |
 
 ### Outputs
 
@@ -58,6 +62,8 @@
 | `rowCreate` / `rowUpdate` | `WeGridRowEditEvent<T>` | `{ row, original, rowIndex, changes, done }` |
 | `rowDelete` | `WeGridRowDeleteEvent<T>` | `{ row, rowIndex, done }` |
 | `refresh` | `void` | The toolbar's refresh button was pressed. |
+| `rowsPaste` | `WeGridRowsPasteEvent<T>` | `{ updates, created, errors, done }` — a pasted spreadsheet range, already converted to the column types. |
+| `viewShare` | `WeGridViewShareEvent` | `{ view, token }` — "Copy link" in the Views panel; bound, the grid builds no link itself. |
 
 ### Notable public members
 
@@ -75,7 +81,10 @@
 - `openImportPicker()`, `importAccept`
 - `edit: WeGridEditState<T> | null`, `startEdit(row, index, event?)`, `startCreate()`, `commitEdit()`,
   `cancelEdit()`, `requestDelete(row, index, event?)`, `isEditingRow(row)`, `isCreating`, `hasRowActions`
-- `notice` — the strip under the toolbar reporting the last import/commit/delete outcome, `dismissNotice()`
+- `notice` — the strip under the toolbar reporting the last import/commit/delete/paste outcome, `dismissNotice()`
+- `activeCell`, `pasteEnabled` — the paste target
+- `views`, `activeViewName`, `getCurrentView(name)`, `saveCurrentView(name)`, `applyView(view)`,
+  `deleteView(name)`, `shareView(view)` — saved views
 
 ## Directives
 
@@ -136,8 +145,9 @@
   `WE_GRID_EXPORTER`, `WeGridImportSheet`, `WeGridImportParser`, `WE_GRID_IMPORT_PARSER`,
   `WeGridImportResult<T>` — see [export-import.md](export-import.md)
 - `WeGridEditorType`, `WeGridEditorOption`, `WeGridCommitFn`, `WeGridRowEditEvent<T>`,
-  `WeGridRowDeleteEvent<T>`, `WeGridEditState<T>`, `WE_GRID_NEW_ROW_KEY` — see
-  [row-editing.md](row-editing.md)
+  `WeGridRowDeleteEvent<T>`, `WeGridEditState<T>`, `WE_GRID_NEW_ROW_KEY`, `WeGridEditMode`,
+  `WeGridRowsPasteEvent<T>`, `WeGridPastedRow<T>` — see [row-editing.md](row-editing.md)
+- `WeGridSavedView`, `WeGridViewShareEvent` — see [saved-views.md](saved-views.md)
 
 ## Utilities / services
 
@@ -157,11 +167,16 @@
 - `weGridToCsv(table, options?)`, `weGridParseCsv(text, options?)`, `weGridDownloadBlob(blob, fileName)`
 - `weGridBuildXlsx(table)`, `weGridReadXlsx(file)`
 - `weGridBuildPrintDocument(table, options?)`, `weGridPrintTable(table, options?)`
-- `weGridMapImportedRows(sheet, columns)`
+- `weGridMapImportedRows(sheet, columns)`, `weGridCoerceImportValue(raw, column)` — one cell's text
+  in the column's type, shared by import and paste
+- `weGridParseClipboardTable(text)` — a spreadsheet copy's `text/plain` as rows of cells
+- `weGridEncodeView(view)`, `weGridDecodeView(token)`, `weGridSanitizeView(input)`,
+  `weGridViewParamName(gridKey)` — saved views as link tokens
 - `applyWeGridFilters(rows, filters, columns, locale?)`, `isWeGridFilterActive(filter)`,
   `weGridFilterChipLabel(col, filter, locale?, valueLabel?)`, `weGridInFilterValueLabel(values, valueLabel, maxShown?)`
 - `weGridFilterOperatorsFor(type, filterOperators?)`, `weGridQuickFilterOperator(col)`,
   `weGridFilterOperatorLabel(operator, type, locale?)`
+- `WeGridEditFormComponent` (`<we-grid-edit-form>`) — the record form of `editMode: 'form'`
 - `WeGridCellEditorComponent` (`<we-grid-cell-editor>`), `weGridDefaultEditor(type)`,
   `weGridSameEditValue(before, after)`
 - `isWeGridNumericSummaryType(type)`, `computeWeGridSummary(rows, field, fn)`,

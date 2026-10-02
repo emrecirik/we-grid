@@ -23,6 +23,102 @@
 }
 
 // ─── Toolbar ──────────────────────────────────────────────────────────
+.we-grid__views {
+  position: relative;
+}
+
+.we-grid__views-panel {
+  position: absolute;
+  top: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 16rem;
+  max-width: min(22rem, 90vw);
+  padding: 0.4rem;
+  background: var(--we-grid-menu-bg, #fff);
+  color: var(--we-grid-menu-color, #212529);
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  box-shadow: var(--we-grid-menu-shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.we-grid__views-item {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.we-grid__views-apply,
+.we-grid__views-icon-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+  padding: 0.3rem 0.4rem;
+  border-radius: 0.2rem;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.035));
+    outline: none;
+  }
+}
+
+.we-grid__views-apply {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.4rem;
+  min-width: 0;
+  text-align: start;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.we-grid__views-icon-btn {
+  display: inline-flex;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-grid__views-empty {
+  padding: 0.3rem 0.4rem;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-grid__views-save {
+  display: flex;
+  gap: 0.3rem;
+  margin: 0.3rem 0 0;
+  padding-top: 0.4rem;
+  border-top: 1px solid var(--we-grid-border-color, #dee2e6);
+}
+
+.we-grid__views-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 0.2rem;
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font: inherit;
+  padding: 0.2rem 0.4rem;
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: -1px;
+  }
+}
+
 .we-grid__toolbar {
   display: flex;
   align-items: center;
@@ -192,6 +288,16 @@
   overflow-x: auto;
   overflow-y: visible;
   max-width: 100%;
+
+  // Focusable only so a paste reaches the grid after a cell click — the active cell is the cue
+  &:focus {
+    outline: none;
+  }
+}
+
+// The paste target — where the top-left cell of a pasted range lands
+.we-grid__row td.we-grid__td--active {
+  box-shadow: inset 0 0 0 2px var(--we-grid-accent-color, #405189);
 }
 
 .we-grid__table {

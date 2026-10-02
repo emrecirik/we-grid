@@ -36,6 +36,10 @@
     <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('eye')"></span> {{ locale.showAllColumns }}
   </button>
 
+  <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'autofit-all' })">
+    <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('arrowLeftRight')"></span> {{ locale.autofitAllColumns }}
+  </button>
+
   @if (column && enableGrouping) {
     <div class="we-grid-menu__divider"></div>
 

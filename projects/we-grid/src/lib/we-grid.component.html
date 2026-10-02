@@ -77,6 +77,56 @@
         }
       </span>
     }
+    @if (savedViews) {
+      <span class="we-grid__views" #viewsContainer (focusout)="onViewsFocusOut($event, viewsContainer)">
+        <button
+          type="button"
+          class="we-grid__filter-toggle-btn"
+          [class.we-grid__filter-toggle-btn--active]="!!activeViewName"
+          (click)="toggleViewsPanel()"
+          [attr.aria-expanded]="viewsPanelOpen"
+          [title]="locale.viewsButton"
+        >
+          <span [innerHTML]="icon('bookmark')" aria-hidden="true"></span> {{ locale.viewsButton }}@if (activeViewName) {: {{ activeViewName }}}
+        </button>
+        @if (viewsPanelOpen) {
+          <div class="we-grid__views-panel" role="dialog" tabindex="-1" [attr.aria-label]="locale.viewsButton" (keydown.escape)="viewsPanelOpen = false">
+            @for (view of views; track view.name) {
+              <div class="we-grid__views-item">
+                <button type="button" class="we-grid__views-apply" (click)="applyView(view)">
+                  {{ view.name }}
+                  @if (view.name === activeViewName) {
+                    <span [innerHTML]="icon('check')" aria-hidden="true"></span>
+                  }
+                </button>
+                <button type="button" class="we-grid__views-icon-btn" (click)="shareView(view)" [attr.aria-label]="locale.shareView + ': ' + view.name" [title]="locale.shareView">
+                  <span [innerHTML]="icon('link')" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="we-grid__views-icon-btn" (click)="deleteView(view.name)" [attr.aria-label]="locale.deleteView + ': ' + view.name" [title]="locale.deleteView">
+                  <span [innerHTML]="icon('trash')" aria-hidden="true"></span>
+                </button>
+              </div>
+            } @empty {
+              <div class="we-grid__views-empty">{{ locale.noSavedViews }}</div>
+            }
+            <form class="we-grid__views-save" (ngSubmit)="saveCurrentView(newViewName)">
+              <input
+                type="text"
+                class="we-grid__views-input"
+                name="weGridViewName"
+                maxlength="100"
+                [(ngModel)]="newViewName"
+                [placeholder]="locale.viewNamePlaceholder"
+                [attr.aria-label]="locale.viewNamePlaceholder"
+              />
+              <button type="submit" class="we-grid__filter-toggle-btn" [disabled]="!newViewName.trim()">
+                <span [innerHTML]="icon('save')" aria-hidden="true"></span> {{ locale.saveView }}
+              </button>
+            </form>
+          </div>
+        }
+      </span>
+    }
     @if (filterRow) {
       <button
         type="button"
@@ -146,7 +196,7 @@
     </div>
   }
 
-  <div class="we-grid__scroll">
+  <div class="we-grid__scroll" [attr.tabindex]="pasteEnabled ? -1 : null" (paste)="onPaste($event)">
     <table
       class="we-grid__table"
       role="grid"
@@ -221,7 +271,7 @@
                   <span [innerHTML]="icon('settings')" aria-hidden="true"></span>
                 </button>
               </div>
-              <div class="we-grid__resize-handle" (pointerdown)="onResizeStart($event, col, thRef)"></div>
+              <div class="we-grid__resize-handle" (pointerdown)="onResizeStart($event, col, thRef)" (dblclick)="onResizeHandleDblClick($event, col)"></div>
             </th>
           }
           @if (hasRowActions) {
@@ -334,7 +384,7 @@
       <tbody>
         <!-- The draft row of a record being created. Rendered before every other branch so it is
              also visible on a completely empty grid, which is exactly when "Add row" is pressed most. -->
-        @if (isCreating) {
+        @if (showDraftRow) {
           <tr class="we-grid__row we-grid__row--editing" [title]="edit?.error || ''">
             @if (expandable) {
               <td class="we-grid__expand-col"></td>
@@ -407,7 +457,7 @@
               }
             </tr>
           }
-        } @else if (displayData.length === 0 && !isCreating) {
+        } @else if (displayData.length === 0 && !showDraftRow) {
           <tr>
             <td class="we-grid__empty" [attr.colspan]="totalColSpan">
               @if (hasActiveFilters) {
@@ -492,7 +542,8 @@
                       [class.we-grid__td--pinned-left]="col.pinned === 'left'"
                       [class.we-grid__td--pinned-right]="col.pinned === 'right'"
                       [title]="col.wrap || getCellTemplate(col) ? null : formatCell(entry.row, col)"
-                      (click)="col.stopRowClick && $event.stopPropagation()"
+                      [class.we-grid__td--active]="isActiveCell(entry.row, col)"
+                      (click)="onCellClick($event, entry.row, col)"
                       (contextmenu)="onCellContextMenu($event, col, entry.row)"
                     >
                       @if (isCellEditing(entry.row, col)) {
@@ -624,7 +675,8 @@
                   [class.we-grid__td--pinned-left]="col.pinned === 'left'"
                   [class.we-grid__td--pinned-right]="col.pinned === 'right'"
                   [title]="col.wrap || getCellTemplate(col) ? null : formatCell(row, col)"
-                  (click)="col.stopRowClick && $event.stopPropagation()"
+                  [class.we-grid__td--active]="isActiveCell(row, col)"
+                  (click)="onCellClick($event, row, col)"
                   (contextmenu)="onCellContextMenu($event, col, row)"
                 >
                   @if (isCellEditing(row, col)) {
@@ -818,4 +870,19 @@
       ><span [innerHTML]="icon('chevronLast')" aria-hidden="true"></span></button>
     </nav>
   </div>
+
+  @if (edit && editMode === 'form') {
+    <we-grid-edit-form
+      [columns]="$any(formColumns)"
+      [draft]="edit.draft"
+      [errors]="edit.errors"
+      [saving]="edit.saving"
+      [error]="edit.error"
+      [creating]="isCreating"
+      [scaleFor]="formScaleFor"
+      (valueChange)="onFormValueChange($event)"
+      (save)="commitEdit()"
+      (cancel)="cancelEdit()"
+    />
+  }
 </div>

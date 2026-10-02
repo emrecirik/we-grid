@@ -134,3 +134,11 @@ not reach into your cell templates (`weGridCell`), `displayValue` functions or `
 those render whatever you return. `formatWeGridValue` remains usable on its own: it takes `locale`,
 `currency`, `timeZone` and `yesLabel`/`noLabel` options, and the main component passes all of them
 from the injected `WeGridLocale`.
+
+## Keys added in 0.6.0
+
+- `autofitAllColumns` — the header menu's "Fit all columns to content" entry
+- Record form: `formEditTitle`, `formCreateTitle`
+- Spreadsheet paste: `pasteApplied(cellCount)`, `pasteRowsDropped(rowCount)`, `pasteInvalidCells`
+- Saved views: `viewsButton`, `viewNamePlaceholder`, `saveView`, `deleteView`, `shareView`,
+  `noSavedViews`, `viewLinkCopied`, `viewLinkCopyFailed`

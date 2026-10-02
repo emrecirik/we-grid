@@ -8,6 +8,9 @@ export * from './lib/we-grid.component';
 // Inline cell editor — rendered by the grid, exported so a consumer can reuse it in a detail form
 export * from './lib/we-grid-cell-editor/we-grid-cell-editor.component';
 
+// Record form — the dialog of editMode 'form'
+export * from './lib/we-grid-edit-form/we-grid-edit-form.component';
+
 // Column cell template directive
 export * from './lib/directives/we-grid-cell.directive';
 
@@ -27,6 +30,7 @@ export * from './lib/models/we-grid-layout.model';
 export * from './lib/models/we-grid-locale.model';
 export * from './lib/models/we-grid-menu-action.model';
 export * from './lib/models/we-grid-row-detail.model';
+export * from './lib/models/we-grid-view.model';
 
 // Persistence — default implementation (consumers may supply their own store)
 export * from './lib/services/local-storage-grid-layout-store';
@@ -43,3 +47,5 @@ export * from './lib/services/we-grid-filter.util';
 export * from './lib/services/we-grid-layout-merge';
 export * from './lib/services/we-grid-summary.util';
 export * from './lib/services/we-grid-value.util';
+export * from './lib/services/we-grid-view.util';
+export * from './lib/services/we-grid-clipboard.util';
