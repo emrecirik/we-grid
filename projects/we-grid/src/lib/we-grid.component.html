@@ -3,179 +3,193 @@
   [class.we-grid--compact]="density === 'compact'"
   [class.we-grid--comfortable]="density === 'comfortable'"
   [class.we-grid--clickable]="rowClick.observed"
+  [class.we-grid--th-menu-hover]="headerMenuButton === 'hover'"
 >
-  <div class="we-grid__toolbar">
-    @if (groupFields.length > 1) {
-      <span class="we-grid__group-chip we-grid__group-chip--levels" role="group" [attr.aria-label]="locale.groupingLabel">
-        <span [innerHTML]="icon('stack')" aria-hidden="true"></span>
-        {{ locale.groupingLabel }}
-        @for (field of groupFields; track field; let first = $first) {
-          @if (!first) {
-            <span class="we-grid__group-chip-sep" [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+  @if (toolbar !== 'none') {
+    <div class="we-grid__toolbar">
+      @if (groupFields.length > 1) {
+        <span class="we-grid__group-chip we-grid__group-chip--levels" role="group" [attr.aria-label]="locale.groupingLabel">
+          <span [innerHTML]="icon('stack')" aria-hidden="true"></span>
+          {{ locale.groupingLabel }}
+          @for (field of groupFields; track field; let first = $first) {
+            @if (!first) {
+              <span class="we-grid__group-chip-sep" [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+            }
+            <span class="we-grid__group-chip-level">
+              {{ groupFieldHeaderLabel(field) }}
+              <button
+                type="button"
+                class="we-grid__group-chip-remove"
+                (click)="removeGroupField(field)"
+                [attr.aria-label]="locale.removeFromGrouping + ': ' + groupFieldHeaderLabel(field)"
+                [title]="locale.removeFromGrouping"
+              >
+                <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+              </button>
+            </span>
           }
-          <span class="we-grid__group-chip-level">
-            {{ groupFieldHeaderLabel(field) }}
-            <button
-              type="button"
-              class="we-grid__group-chip-remove"
-              (click)="removeGroupField(field)"
-              [attr.aria-label]="locale.removeFromGrouping + ': ' + groupFieldHeaderLabel(field)"
-              [title]="locale.removeFromGrouping"
-            >
-              <span [innerHTML]="icon('close')" aria-hidden="true"></span>
-            </button>
-          </span>
-        }
-        <button type="button" class="we-grid__group-chip-remove we-grid__group-chip-remove--all" (click)="clearGrouping()" [attr.aria-label]="locale.clearGroupingAria" [title]="locale.clearGroupingAria">
-          <span [innerHTML]="icon('close')" aria-hidden="true"></span>
-        </button>
-      </span>
-    } @else if (groupField) {
-      <span class="we-grid__group-chip">
-        <span [innerHTML]="icon('stack')" aria-hidden="true"></span>
-        {{ locale.groupingLabel }} {{ groupFieldHeaderLabel() }}
-        <button type="button" class="we-grid__group-chip-remove" (click)="clearGrouping()" [attr.aria-label]="locale.clearGroupingAria" [title]="locale.clearGroupingAria">
-          <span [innerHTML]="icon('close')" aria-hidden="true"></span>
-        </button>
-      </span>
-    }
-    @if (showRefresh) {
-      <button
-        type="button"
-        class="we-grid__filter-toggle-btn"
-        (click)="emitRefresh()"
-        [attr.aria-label]="locale.refreshButton"
-        [title]="locale.refreshButton"
-      >
-        <span [innerHTML]="icon('restart')" aria-hidden="true"></span> {{ locale.refreshButton }}
-      </button>
-    }
-    @if (allowAdd) {
-      <button
-        type="button"
-        class="we-grid__filter-toggle-btn"
-        (click)="startCreate()"
-        [disabled]="isCreating || !!edit?.saving"
-        [attr.aria-label]="locale.addRow"
-        [title]="locale.addRow"
-      >
-        <span [innerHTML]="icon('plus')" aria-hidden="true"></span> {{ locale.addRow }}
-      </button>
-    }
-    @if (importFormats.length > 0) {
-      <button
-        type="button"
-        class="we-grid__filter-toggle-btn"
-        (click)="openImportPicker()"
-        [attr.aria-label]="locale.importButton"
-        [title]="locale.importButton"
-      >
-        <span [innerHTML]="icon('upload')" aria-hidden="true"></span> {{ locale.importButton }}
-      </button>
-      <!-- Kept out of the accessibility tree: the visible button above is the control, this input
-           only exists because a file picker cannot be opened any other way. -->
-      <input
-        #importFileInput
-        type="file"
-        class="we-grid__file-input"
-        tabindex="-1"
-        aria-hidden="true"
-        [accept]="importAccept"
-        (change)="onImportFileSelected($event)"
-      />
-    }
-    @if (exportFormats.length > 0) {
-      <span class="we-grid__export-group" role="group" [attr.aria-label]="locale.exportButton">
-        <span class="we-grid__export-label">
-          <span [innerHTML]="icon('download')" aria-hidden="true"></span> {{ locale.exportButton }}
-        </span>
-        @for (format of exportFormats; track format) {
-          <button
-            type="button"
-            class="we-grid__export-btn"
-            (click)="exportAs(format)"
-            [attr.aria-label]="exportButtonTitle(format)"
-            [title]="exportButtonTitle(format)"
-          >
-            <span [innerHTML]="icon(exportFormatIcon(format))" aria-hidden="true"></span> {{ exportFormatLabel(format) }}
+          <button type="button" class="we-grid__group-chip-remove we-grid__group-chip-remove--all" (click)="clearGrouping()" [attr.aria-label]="locale.clearGroupingAria" [title]="locale.clearGroupingAria">
+            <span [innerHTML]="icon('close')" aria-hidden="true"></span>
           </button>
-        }
-      </span>
-    }
-    @if (savedViews) {
-      <span class="we-grid__views" #viewsContainer (focusout)="onViewsFocusOut($event, viewsContainer)">
+        </span>
+      } @else if (groupField) {
+        <span class="we-grid__group-chip">
+          <span [innerHTML]="icon('stack')" aria-hidden="true"></span>
+          {{ locale.groupingLabel }} {{ groupFieldHeaderLabel() }}
+          <button type="button" class="we-grid__group-chip-remove" (click)="clearGrouping()" [attr.aria-label]="locale.clearGroupingAria" [title]="locale.clearGroupingAria">
+            <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+          </button>
+        </span>
+      }
+      @if (showRefresh) {
         <button
           type="button"
           class="we-grid__filter-toggle-btn"
-          [class.we-grid__filter-toggle-btn--active]="!!activeViewName"
-          (click)="toggleViewsPanel()"
-          [attr.aria-expanded]="viewsPanelOpen"
-          [title]="locale.viewsButton"
+          (click)="emitRefresh()"
+          [attr.aria-label]="locale.refreshButton"
+          [title]="locale.refreshButton"
         >
-          <span [innerHTML]="icon('bookmark')" aria-hidden="true"></span> {{ locale.viewsButton }}@if (activeViewName) {: {{ activeViewName }}}
+          <span [innerHTML]="icon('restart')" aria-hidden="true"></span> {{ locale.refreshButton }}
         </button>
-        @if (viewsPanelOpen) {
-          <div class="we-grid__views-panel" role="dialog" tabindex="-1" [attr.aria-label]="locale.viewsButton" (keydown.escape)="viewsPanelOpen = false">
-            @for (view of views; track view.name) {
-              <div class="we-grid__views-item">
-                <button type="button" class="we-grid__views-apply" (click)="applyView(view)">
-                  {{ view.name }}
-                  @if (view.name === activeViewName) {
-                    <span [innerHTML]="icon('check')" aria-hidden="true"></span>
-                  }
+      }
+      @if (allowAdd) {
+        <button
+          type="button"
+          class="we-grid__filter-toggle-btn"
+          (click)="startCreate()"
+          [disabled]="isCreating || !!edit?.saving"
+          [attr.aria-label]="locale.addRow"
+          [title]="locale.addRow"
+        >
+          <span [innerHTML]="icon('plus')" aria-hidden="true"></span> {{ locale.addRow }}
+        </button>
+      }
+      @if (importFormats.length > 0) {
+        <button
+          type="button"
+          class="we-grid__filter-toggle-btn"
+          (click)="openImportPicker()"
+          [attr.aria-label]="locale.importButton"
+          [title]="locale.importButton"
+        >
+          <span [innerHTML]="icon('upload')" aria-hidden="true"></span> {{ locale.importButton }}
+        </button>
+        <!-- Kept out of the accessibility tree: the visible button above is the control, this input
+             only exists because a file picker cannot be opened any other way. -->
+        <input
+          #importFileInput
+          type="file"
+          class="we-grid__file-input"
+          tabindex="-1"
+          aria-hidden="true"
+          [accept]="importAccept"
+          (change)="onImportFileSelected($event)"
+        />
+      }
+      @if (exportFormats.length > 0) {
+        <span class="we-grid__export-group" role="group" [attr.aria-label]="locale.exportButton">
+          <span class="we-grid__export-label">
+            <span [innerHTML]="icon('download')" aria-hidden="true"></span> {{ locale.exportButton }}
+          </span>
+          @for (format of exportFormats; track format) {
+            <button
+              type="button"
+              class="we-grid__export-btn"
+              (click)="exportAs(format)"
+              [attr.aria-label]="exportButtonTitle(format)"
+              [title]="exportButtonTitle(format)"
+            >
+              <span [innerHTML]="icon(exportFormatIcon(format))" aria-hidden="true"></span> {{ exportFormatLabel(format) }}
+            </button>
+          }
+        </span>
+      }
+      @if (savedViews) {
+        <span class="we-grid__views" #viewsContainer (focusout)="onViewsFocusOut($event, viewsContainer)">
+          <button
+            type="button"
+            class="we-grid__filter-toggle-btn"
+            [class.we-grid__filter-toggle-btn--active]="!!activeViewName"
+            (click)="toggleViewsPanel()"
+            [attr.aria-expanded]="viewsPanelOpen"
+            [title]="locale.viewsButton"
+          >
+            <span [innerHTML]="icon('bookmark')" aria-hidden="true"></span> {{ locale.viewsButton }}@if (activeViewName) {: {{ activeViewName }}}
+          </button>
+          @if (viewsPanelOpen) {
+            <div class="we-grid__views-panel" role="dialog" tabindex="-1" [attr.aria-label]="locale.viewsButton" (keydown.escape)="viewsPanelOpen = false">
+              @for (view of views; track view.name) {
+                <div class="we-grid__views-item">
+                  <button type="button" class="we-grid__views-apply" (click)="applyView(view)">
+                    {{ view.name }}
+                    @if (view.name === activeViewName) {
+                      <span [innerHTML]="icon('check')" aria-hidden="true"></span>
+                    }
+                  </button>
+                  <button type="button" class="we-grid__views-icon-btn" (click)="shareView(view)" [attr.aria-label]="locale.shareView + ': ' + view.name" [title]="locale.shareView">
+                    <span [innerHTML]="icon('link')" aria-hidden="true"></span>
+                  </button>
+                  <button type="button" class="we-grid__views-icon-btn" (click)="deleteView(view.name)" [attr.aria-label]="locale.deleteView + ': ' + view.name" [title]="locale.deleteView">
+                    <span [innerHTML]="icon('trash')" aria-hidden="true"></span>
+                  </button>
+                </div>
+              } @empty {
+                <div class="we-grid__views-empty">{{ locale.noSavedViews }}</div>
+              }
+              <form class="we-grid__views-save" (ngSubmit)="saveCurrentView(newViewName)">
+                <input
+                  type="text"
+                  class="we-grid__views-input"
+                  name="weGridViewName"
+                  maxlength="100"
+                  [(ngModel)]="newViewName"
+                  [placeholder]="locale.viewNamePlaceholder"
+                  [attr.aria-label]="locale.viewNamePlaceholder"
+                />
+                <button type="submit" class="we-grid__filter-toggle-btn" [disabled]="!newViewName.trim()">
+                  <span [innerHTML]="icon('save')" aria-hidden="true"></span> {{ locale.saveView }}
                 </button>
-                <button type="button" class="we-grid__views-icon-btn" (click)="shareView(view)" [attr.aria-label]="locale.shareView + ': ' + view.name" [title]="locale.shareView">
-                  <span [innerHTML]="icon('link')" aria-hidden="true"></span>
-                </button>
-                <button type="button" class="we-grid__views-icon-btn" (click)="deleteView(view.name)" [attr.aria-label]="locale.deleteView + ': ' + view.name" [title]="locale.deleteView">
-                  <span [innerHTML]="icon('trash')" aria-hidden="true"></span>
-                </button>
-              </div>
-            } @empty {
-              <div class="we-grid__views-empty">{{ locale.noSavedViews }}</div>
-            }
-            <form class="we-grid__views-save" (ngSubmit)="saveCurrentView(newViewName)">
-              <input
-                type="text"
-                class="we-grid__views-input"
-                name="weGridViewName"
-                maxlength="100"
-                [(ngModel)]="newViewName"
-                [placeholder]="locale.viewNamePlaceholder"
-                [attr.aria-label]="locale.viewNamePlaceholder"
-              />
-              <button type="submit" class="we-grid__filter-toggle-btn" [disabled]="!newViewName.trim()">
-                <span [innerHTML]="icon('save')" aria-hidden="true"></span> {{ locale.saveView }}
-              </button>
-            </form>
-          </div>
-        }
-      </span>
-    }
-    @if (filterRow) {
+              </form>
+            </div>
+          }
+        </span>
+      }
+      @if (filterRow) {
+        <button
+          type="button"
+          class="we-grid__filter-toggle-btn"
+          [class.we-grid__filter-toggle-btn--active]="filterRowVisible"
+          (click)="toggleFilterRowVisible()"
+          [attr.aria-pressed]="filterRowVisible"
+          [attr.aria-label]="locale.filterRowButton"
+          [title]="locale.filterRowButton"
+        >
+          <span [innerHTML]="icon('filter')" aria-hidden="true"></span> {{ locale.filterRowButton }}
+        </button>
+      }
       <button
+        #gearButton
         type="button"
-        class="we-grid__filter-toggle-btn"
-        [class.we-grid__filter-toggle-btn--active]="filterRowVisible"
-        (click)="toggleFilterRowVisible()"
-        [attr.aria-pressed]="filterRowVisible"
-        [attr.aria-label]="locale.filterRowButton"
-        [title]="locale.filterRowButton"
+        class="we-grid__gear-btn"
+        (click)="openColumnsMenuFromToolbar()"
+        [attr.aria-label]="locale.columnsButton"
+        [title]="locale.columnsButton"
       >
-        <span [innerHTML]="icon('filter')" aria-hidden="true"></span> {{ locale.filterRowButton }}
+        <span [innerHTML]="icon('settings')" aria-hidden="true"></span> {{ locale.columnsButton }}
       </button>
-    }
-    <button
-      #gearButton
-      type="button"
-      class="we-grid__gear-btn"
-      (click)="openColumnsMenuFromToolbar()"
-      [attr.aria-label]="locale.columnsButton"
-      [title]="locale.columnsButton"
-    >
-      <span [innerHTML]="icon('settings')" aria-hidden="true"></span> {{ locale.columnsButton }}
-    </button>
-  </div>
+    </div>
+  } @else if (importFormats.length > 0) {
+    <!-- No toolbar: openImportPicker() still needs a file input to open -->
+    <input
+      #importFileInput
+      type="file"
+      class="we-grid__file-input"
+      tabindex="-1"
+      aria-hidden="true"
+      [accept]="importAccept"
+      (change)="onImportFileSelected($event)"
+    />
+  }
 
   @if ((hasColumnFilters && hasActiveFilters) || isFilteringPageOnly || isSortingPageOnly) {
     <div class="we-grid__chips-row">
@@ -536,7 +550,11 @@
         } @else if (displayData.length === 0 && !showDraftRow) {
           <tr>
             <td class="we-grid__empty" [attr.colspan]="totalColSpan">
-              @if (hasActiveFilters) {
+              @if (emptyDirective) {
+                <div class="we-grid__empty-custom" role="status">
+                  <ng-container *ngTemplateOutlet="emptyDirective.templateRef; context: emptyContext"></ng-container>
+                </div>
+              } @else if (hasActiveFilters) {
                 <span [innerHTML]="icon('filterOff')" class="fs-1" aria-hidden="true"></span>
                 <p class="mt-2 mb-1">{{ locale.noRecordsMatchFilter }}</p>
                 <button type="button" class="we-grid__empty-clear-btn" (click)="clearAllFilters()">{{ locale.clearFilters }}</button>

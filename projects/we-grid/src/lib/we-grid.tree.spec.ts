@@ -46,13 +46,15 @@ function sampleData(): Node[] {
   imports: [WeGridComponent, WeGridCellDirective],
   template: `
     <we-grid
-      gridKey="tree-spec"
+      [gridKey]="gridKey"
       [columns]="columns"
       [data]="data"
       [trackByField]="trackBy"
       [treeChildren]="treeChildren"
       [treeColumn]="treeColumn"
       [treeDefaultExpanded]="treeDefaultExpanded"
+      [treeRetainState]="treeRetainState"
+      [treeStateRetainLimit]="retainLimit"
       [treeSummaryLevel]="treeSummaryLevel"
       [grouping]="grouping"
       [serverSide]="serverSide"
@@ -89,7 +91,10 @@ class TreeHostComponent {
   trackBy: keyof Node | undefined = 'key';
   treeChildren: ((row: Node) => Node[] | undefined) | undefined = (row: Node) => row.children;
   treeColumn?: string;
+  gridKey = 'tree-spec';
   treeDefaultExpanded: boolean | number = false;
+  treeRetainState = false;
+  retainLimit = 5000;
   treeSummaryLevel: 'root' | 'leaf' | 'all' = 'root';
   grouping = false;
   serverSide = false;
@@ -264,6 +269,100 @@ describe('WeGridComponent — tree rows', () => {
     expect(rowEl('C1')).toBe(openRow);
     expect(host.grid.treeExpandedKeys.has('P2')).toBeFalse();
     expect(host.grid.treeExpandedKeys.has('P1')).toBeTrue();
+  });
+
+  it('8. treeRetainState: a row that leaves data and comes back keeps its open state, without an event', () => {
+    host.treeRetainState = true;
+    render();
+    host.grid.toggleTreeNode(node('P2'));
+    render();
+    host.expandEvents.length = 0;
+
+    host.data = sampleData().filter((n) => n.key !== 'P2');
+    render();
+    expect(keys()).toEqual(['P1', 'P3']);
+    host.data = sampleData();
+    render();
+    expect(keys()).toEqual(['P1', 'P2', 'C3', 'P3']);
+    expect(host.expandEvents).toEqual([]);
+  });
+
+  it('8. without treeRetainState a returning row starts from treeDefaultExpanded again (0.7.0)', () => {
+    render();
+    host.grid.toggleTreeNode(node('P2'));
+    render();
+    host.data = sampleData().filter((n) => n.key !== 'P2');
+    render();
+    host.data = sampleData();
+    render();
+    expect(keys()).toEqual(['P1', 'P2', 'P3']);
+  });
+
+  it('8. treeRetainState: a row closed against treeDefaultExpanded stays closed; an unseen row gets the default', () => {
+    host.treeRetainState = true;
+    host.treeDefaultExpanded = true;
+    host.data = sampleData().filter((n) => n.key !== 'P2');
+    render();
+    host.grid.toggleTreeNode(node('P1'), false);
+    host.data = sampleData().filter((n) => n.key !== 'P1');
+    render();
+    // P2 has never been seen: it opens by default
+    expect(keys()).toEqual(['P2', 'C3', 'P3']);
+    host.data = sampleData();
+    render();
+    expect(keys()).toEqual(['P1', 'P2', 'C3', 'P3']);
+  });
+
+  it('8. treeStateRetainLimit forgets the earliest rows to leave first', () => {
+    host.treeRetainState = true;
+    host.retainLimit = 1;
+    render();
+    host.grid.toggleTreeNode(node('P1'));
+    host.grid.toggleTreeNode(node('P2'));
+    render();
+    host.data = sampleData().filter((n) => n.key !== 'P1');
+    render();
+    host.data = sampleData().filter((n) => n.key === 'P3');
+    render();
+    // P1 left first and is over the limit; P2 is still remembered
+    expect(host.grid.treeExpandedKeys.has('P1')).toBeFalse();
+    expect(host.grid.treeExpandedKeys.has('P2')).toBeTrue();
+    host.data = sampleData();
+    render();
+    expect(keys()).toEqual(['P1', 'P2', 'C3', 'P3']);
+  });
+
+  it('8. clearTreeState forgets everything and applies treeDefaultExpanded again; a gridKey change does it too', () => {
+    host.treeRetainState = true;
+    host.treeDefaultExpanded = 1;
+    render();
+    host.grid.toggleTreeNode(node('P1'), false);
+    host.data = sampleData().filter((n) => n.key !== 'P2');
+    render();
+    expect(host.grid.treeExpandedKeys.has('P2')).toBeTrue();
+    host.grid.clearTreeState();
+    render();
+    expect(keys()).toEqual(['P1', 'C1', 'C2', 'P3']);
+    expect(host.grid.treeExpandedKeys.has('P2')).toBeFalse();
+
+    host.grid.toggleTreeNode(node('P1'), false);
+    render();
+    host.gridKey = 'tree-spec-other';
+    render();
+    expect(keys()).toEqual(['P1', 'C1', 'C2', 'P3']);
+  });
+
+  it('8. collapseAllTree leaves the remembered state of rows outside data alone', () => {
+    host.treeRetainState = true;
+    render();
+    host.grid.toggleTreeNode(node('P1'));
+    host.grid.toggleTreeNode(node('P2'));
+    host.data = sampleData().filter((n) => n.key !== 'P2');
+    render();
+    host.grid.collapseAllTree();
+    render();
+    expect(host.grid.treeExpandedKeys.has('P1')).toBeFalse();
+    expect(host.grid.treeExpandedKeys.has('P2')).toBeTrue();
   });
 
   it('9. the client sort orders siblings only and keeps ties stable; children stay under their parent', () => {

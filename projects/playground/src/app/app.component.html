@@ -335,4 +335,36 @@
       footer="count"
     ></we-grid>
   </section>
+  <section class="demo">
+    <h2>13. Your own chrome around the grid</h2>
+    <p class="demo__hint">
+      No toolbar (<code>toolbar="none"</code>): the Columns button below opens the grid's menu anchored to itself
+      (<code>openColumnsMenu($event.currentTarget)</code>). Header ⚙ buttons show on hover or focus only
+      (<code>headerMenuButton="hover"</code>). The customer search filters <code>data</code> outside the grid; open a few
+      orders, search, clear — they come back open (<code>treeRetainState</code>). Search for something that doesn't exist
+      to see the <code>weGridEmpty</code> template clear the outside search.
+    </p>
+    <p>
+      <input type="search" placeholder="Customer…" [value]="chromeSearch" (input)="setChromeSearch($any($event.target).value)" />
+      <button type="button" aria-haspopup="menu" (click)="chromeGrid.openColumnsMenu($any($event.currentTarget))">Columns</button>
+    </p>
+    <we-grid
+      #chromeGrid
+      gridKey="playground-chrome"
+      [columns]="chromeColumns"
+      [data]="chromeData"
+      trackByField="key"
+      [treeChildren]="orderChildren"
+      treeColumn="label"
+      toolbar="none"
+      headerMenuButton="hover"
+      [treeRetainState]="true"
+      footer="count"
+    >
+      <ng-template weGridEmpty let-ctx>
+        <p>No orders match "{{ chromeSearch }}".</p>
+        <button type="button" (click)="setChromeSearch(''); ctx.clearAllFilters()">Clear the search</button>
+      </ng-template>
+    </we-grid>
+  </section>
 </div>

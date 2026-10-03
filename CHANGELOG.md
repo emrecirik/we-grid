@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.8.0 — 2026-10-03
+
+Four opt-in pieces for screens that bring their own chrome around the grid — a minor release: nothing
+existing changes meaning. With the new inputs at their defaults the markup and styles are those of
+0.7.0.
+
+### Added
+
+- Grid `toolbar: 'auto' | 'none'` — `'none'` leaves the toolbar out of the DOM; the features behind
+  its buttons keep working from code, and dev mode warns once that they have no button.
+- `openColumnsMenu(anchor?)` — the columns menu anchored to any element (else the Columns button,
+  else the grid's corner), focus back to the anchor on close; one grid menu open on the page at a
+  time. `openColumnsMenuFromToolbar()` stays and calls it. `toggleFilterRow(open?)`.
+- Grid `headerMenuButton: 'always' | 'hover'` — the header ⚙ button shows on hover / focus only,
+  keeping its place and its keyboard reach; always shown where the device can't hover. CSS
+  `--we-grid-th-menu-btn-idle-opacity` / `--we-grid-th-menu-btn-hover-opacity`.
+- Grid `treeRetainState` and `treeStateRetainLimit` — a tree row that leaves `data` keeps its open
+  state for when it comes back. `clearTreeState()`; a `gridKey` change clears the tree state.
+- `weGridEmpty` template (`WeGridEmptyDirective`, `WeGridEmptyContext`) — your own empty state, in a
+  `role="status"` wrapper, with the grid's `hasActiveFilters`, `clearAllFilters()` and `message`.
+
+### Changed
+
+- `collapseAllTree()` closes the rows in `data` only, instead of clearing the whole open set — the
+  same result unless `treeRetainState` remembers rows outside it.
+
 ## 0.7.0 — 2026-10-03
 
 Tree rows, multi-level grouping with group summaries, full-width sticky detail rows, interactive

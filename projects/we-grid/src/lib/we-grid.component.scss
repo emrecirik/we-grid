@@ -793,6 +793,24 @@
   }
 }
 
+// headerMenuButton='hover': the button keeps its place but only shows while the header is hovered
+// or holds focus. Devices that can't hover keep the default look.
+@media (hover: hover) {
+  .we-grid--th-menu-hover .we-grid__th-menu-btn {
+    opacity: var(--we-grid-th-menu-btn-idle-opacity, 0);
+  }
+
+  .we-grid--th-menu-hover th:hover .we-grid__th-menu-btn,
+  .we-grid--th-menu-hover th:focus-within .we-grid__th-menu-btn {
+    opacity: var(--we-grid-th-menu-btn-hover-opacity, 0.5);
+  }
+
+  .we-grid--th-menu-hover th .we-grid__th-menu-btn:hover,
+  .we-grid--th-menu-hover th .we-grid__th-menu-btn:focus-visible {
+    opacity: 1;
+  }
+}
+
 // The header funnel icon — normally faint (outline), turns filled/colored with a highlighted
 // background once that column has an active filter (see the [ngClass]/[innerHTML] binding in we-grid.component.html).
 .we-grid__th-filter-btn {

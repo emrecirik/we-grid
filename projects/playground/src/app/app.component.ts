@@ -8,6 +8,7 @@ import {
   WeGridColumnFilterState,
   WeGridCommitFn,
   WeGridComponent,
+  WeGridEmptyDirective,
   WeGridExportFormat,
   WeGridFilterChangeEvent,
   WeGridImportFormat,
@@ -121,7 +122,7 @@ const ORDER_TREE: OrderNode[] = Array.from({ length: 40 }, (_, o) => {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, WeGridComponent, WeGridCellDirective, WeGridRowDetailDirective, WeGridHeaderDirective],
+  imports: [CommonModule, WeGridComponent, WeGridCellDirective, WeGridRowDetailDirective, WeGridHeaderDirective, WeGridEmptyDirective],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -481,5 +482,22 @@ export class AppComponent {
     { field: 'price', header: 'Price', type: 'currency', width: 120, align: 'end', groupSummary: 'avg' }
   ];
   groupSummaryPosition: 'header' | 'footer' | 'both' = 'both';
+
+  // ─── 13. Your own chrome around the grid ──────────────────────────
+  chromeColumns: WeGridColumnDef<OrderNode>[] = [
+    { field: 'label', header: 'Order / line', width: 220 },
+    { field: 'customer', header: 'Customer', width: 160, childField: 'product' },
+    { field: 'qty', header: 'Qty', type: 'integer', width: 80, align: 'end' },
+    { field: 'total', header: 'Total', type: 'currency', width: 130, align: 'end' }
+  ];
+  chromeSearch = '';
+  chromeData: OrderNode[] = ORDER_TREE;
+
+  /** The outside filter: rows leave data and come back, keeping their open state */
+  setChromeSearch(value: string): void {
+    this.chromeSearch = value;
+    const needle = value.trim().toLowerCase();
+    this.chromeData = needle ? ORDER_TREE.filter((o) => (o.customer ?? '').toLowerCase().includes(needle)) : ORDER_TREE;
+  }
 
 }

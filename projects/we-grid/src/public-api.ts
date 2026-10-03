@@ -17,10 +17,12 @@ export * from './lib/directives/we-grid-cell.directive';
 // Row expansion (master-detail) content directive
 export * from './lib/directives/we-grid-row-detail.directive';
 export * from './lib/directives/we-grid-header.directive';
+export * from './lib/directives/we-grid-empty.directive';
 
 // Models
 export * from './lib/models/we-grid-column.model';
 export * from './lib/models/we-grid-edit.model';
+export * from './lib/models/we-grid-empty.model';
 export * from './lib/models/we-grid-events.model';
 export * from './lib/models/we-grid-export.model';
 export * from './lib/models/we-grid-filter.model';

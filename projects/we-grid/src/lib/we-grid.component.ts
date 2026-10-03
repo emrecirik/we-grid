@@ -51,6 +51,8 @@ import {
 import { WeGridCellDirective } from './directives/we-grid-cell.directive';
 import { WeGridRowDetailDirective } from './directives/we-grid-row-detail.directive';
 import { WeGridHeaderDirective } from './directives/we-grid-header.directive';
+import { WeGridEmptyDirective } from './directives/we-grid-empty.directive';
+import { WeGridEmptyContext } from './models/we-grid-empty.model';
 import {
   WeGridCellContext,
   WeGridColumnDef,
@@ -198,6 +200,9 @@ const WE_GRID_ACTION_COL_WIDTH = 92;
  * fit from the menu is not bounded by this.
  */
 const WE_GRID_AUTO_FIT_MAX_WIDTH = 400;
+
+/** Closes whichever grid's menu is open, so opening one from code never leaves two on screen */
+let weGridOpenMenuCloser: (() => void) | null = null;
 
 @Component({
   selector: 'we-grid',
@@ -402,6 +407,20 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Input() footer: 'full' | 'count' | 'none' = 'full';
 
   /**
+   * `'auto'`: the toolbar is drawn as before. `'none'`: no toolbar at all — the features behind its
+   * buttons (filterRow, exportFormats, savedViews, showRefresh, allowAdd …) still work, but have
+   * no button; drive them from your own controls (`openColumnsMenu`, `toggleFilterRow`, `exportAs` …).
+   */
+  @Input() toolbar: 'auto' | 'none' = 'auto';
+
+  /**
+   * `'always'`: the column menu button shows on every header (the default). `'hover'`: it shows
+   * only while the pointer is over the header or focus is inside it — it keeps its place, stays
+   * reachable by keyboard, and stays visible on touch screens.
+   */
+  @Input() headerMenuButton: 'always' | 'hover' = 'always';
+
+  /**
    * Turns on tree mode: `data` holds the root rows and this returns a row's children (empty,
    * null or undefined for a leaf). Children are drawn in the same columns as their parent,
    * indented and collapsible. `trackByField` must be unique across every level.
@@ -419,6 +438,15 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** Which rows start open: false (none), true (all), or a number n (levels below n) */
   @Input() treeDefaultExpanded: boolean | number = false;
+
+  /**
+   * false: a row that leaves `data` loses its open/closed state. true: the state is kept, so a row
+   * an outside filter took away comes back the way the user left it. See `treeStateRetainLimit`.
+   */
+  @Input() treeRetainState = false;
+
+  /** With `treeRetainState`: how many keys of rows missing from `data` are remembered — beyond it the earliest to go are forgotten first */
+  @Input() treeStateRetainLimit = 5000;
 
   /** Rows the summary row adds up in tree mode — the roots (no double counting), only leaves, or every row */
   @Input() treeSummaryLevel: 'root' | 'leaf' | 'all' = 'root';
@@ -531,6 +559,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @ContentChildren(WeGridCellDirective) cellTemplateDirectives!: QueryList<WeGridCellDirective<T>>;
   @ContentChild(WeGridRowDetailDirective) rowDetailDirective?: WeGridRowDetailDirective<T>;
   @ContentChildren(WeGridHeaderDirective) headerTemplateDirectives!: QueryList<WeGridHeaderDirective>;
+  @ContentChild(WeGridEmptyDirective) emptyDirective?: WeGridEmptyDirective;
   @ViewChild('headerHintTpl') headerHintTemplate?: TemplateRef<{ $implicit: string; id: string }>;
   @ViewChild('scrollArea') scrollAreaRef?: ElementRef<HTMLElement>;
   @ViewChild('gearButton') gearButtonRef?: ElementRef<HTMLElement>;
@@ -590,6 +619,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private readonly treeKnownKeys = new Set<unknown>();
   /** Rows the user closed although an active filter holds them open — forgotten when the filters change */
   private readonly treeFilterClosedKeys = new Set<unknown>();
+  /** With `treeRetainState`: keys kept although their row left `data`, in the order they left */
+  private readonly treeRetainedKeys = new Set<unknown>();
   private treeModel: WeGridTreeModel<T> | null = null;
   private treeModelSource: { data: T[]; children: unknown } | null = null;
   /** The filtered and sorted tree the visible rows are flattened from */
@@ -786,6 +817,36 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return this.internalColumns.some((c) => c.summary !== 'none');
   }
 
+  private emptyContextCache: WeGridEmptyContext | null = null;
+
+  /** Context of the `weGridEmpty` template — the same object while nothing in it changed */
+  get emptyContext(): WeGridEmptyContext {
+    const hasActiveFilters = this.hasActiveFilters;
+    const message = hasActiveFilters ? this.locale.noRecordsMatchFilter : this.resolvedEmptyMessage;
+    const cached = this.emptyContextCache;
+    if (cached && cached.hasActiveFilters === hasActiveFilters && cached.message === message) return cached;
+    const state = { hasActiveFilters, clearAllFilters: () => this.clearAllFilters(), message };
+    this.emptyContextCache = { $implicit: state, ...state };
+    return this.emptyContextCache;
+  }
+
+  private toolbarWarned = false;
+
+  private warnToolbarlessFeatures(): void {
+    if (this.toolbar !== 'none' || this.toolbarWarned || !isDevMode()) return;
+    const features = [
+      this.filterRow && 'filterRow',
+      this.exportFormats.length > 0 && 'exportFormats',
+      this.importFormats.length > 0 && 'importFormats',
+      this.savedViews && 'savedViews',
+      this.showRefresh && 'showRefresh',
+      this.allowAdd && 'allowAdd'
+    ].filter(Boolean);
+    if (features.length === 0) return;
+    this.toolbarWarned = true;
+    console.warn(`[we-grid] "${this.gridKey}": toolbar="none" — ${features.join(', ')} still work but have no button; trigger them from your own controls.`);
+  }
+
   /** Whether at least one column has a truly applied (non-empty/default) filter */
   get hasActiveFilters(): boolean {
     for (const f of this.filterState.values()) {
@@ -915,8 +976,17 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       // Back to flat rows — the tree's open state belongs to the tree
       this.resetTreeState();
     }
+    if (changes['gridKey'] && !changes['gridKey'].firstChange && this.treeActive) {
+      // Another record set — the open rows of the previous one mean nothing here
+      this.resetTreeState();
+    }
+    if (changes['toolbar'] && !changes['toolbar'].firstChange) this.closeHeaderMenu();
+    if (changes['toolbar'] || changes['exportFormats'] || changes['importFormats'] || changes['savedViews'] || changes['showRefresh'] || changes['allowAdd'] || changes['filterRow']) {
+      this.warnToolbarlessFeatures();
+    }
     if (changes['treeColumn'] || changes['treeChildren']) this.resolveTreeColumn();
     if (
+      (changes['gridKey'] && !changes['gridKey'].firstChange && this.treeActive) ||
       changes['data'] ||
       changes['sortField'] ||
       changes['sortDirection'] ||
@@ -1439,8 +1509,15 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   // ─── Filter row ────────────────────────────────────────────────────────
   toggleFilterRowVisible(): void {
+    this.toggleFilterRow();
+  }
+
+  /** Opens or closes the filter row (`open` picks the state) — only while `filterRow=true` */
+  toggleFilterRow(open?: boolean): void {
     if (!this.filterRow) return;
-    this.filterRowVisible = !this.filterRowVisible;
+    const next = open ?? !this.filterRowVisible;
+    if (next === this.filterRowVisible) return;
+    this.filterRowVisible = next;
     this.scheduleLayoutSave();
     this.cdr.markForCheck();
   }
@@ -2205,7 +2282,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   collapseAllTree(): void {
     const all = this.treeModel?.all ?? [];
     const closed = all.filter((n) => n.children.length > 0 && this.isTreeExpanded(n.row));
-    this.treeExpandedKeys.clear();
+    // Only the rows in data — the remembered state of rows that left (treeRetainState) is kept
+    all.forEach((n) => this.treeExpandedKeys.delete(n.key));
     // Rows an active filter holds open close too, until the filters change
     all.filter((n) => n.children.length > 0).forEach((n) => this.treeFilterClosedKeys.add(n.key));
     this.flattenTree();
@@ -2270,10 +2348,21 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.cdr.markForCheck();
   }
 
+  /**
+   * Forgets every row's open/closed state — remembered ones included — and applies
+   * `treeDefaultExpanded` again. For switching to an unrelated record set; a `gridKey` change does it by itself.
+   */
+  clearTreeState(): void {
+    this.resetTreeState();
+    if (this.treeActive) this.refreshDisplayData();
+    this.cdr.markForCheck();
+  }
+
   private resetTreeState(): void {
     this.treeExpandedKeys.clear();
     this.treeKnownKeys.clear();
     this.treeFilterClosedKeys.clear();
+    this.treeRetainedKeys.clear();
     this.treeModel = null;
     this.treeModelSource = null;
     this.treeInfoByRow.clear();
@@ -2341,6 +2430,23 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.flattenTree();
   }
 
+  /**
+   * treeRetainState bookkeeping: a key that left `data` joins the end of `treeRetainedKeys`, one
+   * that came back leaves it, and past `treeStateRetainLimit` the earliest to leave are forgotten.
+   */
+  private retainMissingTreeKeys(present: Map<unknown, unknown>): void {
+    for (const key of Array.from(this.treeRetainedKeys)) if (present.has(key)) this.treeRetainedKeys.delete(key);
+    for (const key of this.treeKnownKeys) if (!present.has(key)) this.treeRetainedKeys.add(key);
+    for (const key of this.treeExpandedKeys) if (!present.has(key)) this.treeRetainedKeys.add(key);
+    const limit = Math.max(0, this.treeStateRetainLimit);
+    for (const key of Array.from(this.treeRetainedKeys)) {
+      if (this.treeRetainedKeys.size <= limit) break;
+      this.treeRetainedKeys.delete(key);
+      this.treeKnownKeys.delete(key);
+      this.treeExpandedKeys.delete(key);
+    }
+  }
+
   /** Sibling comparator for the client sort — null when the grid isn't sorting itself */
   private treeComparator(): ((a: WeGridTreeModelNode<T>, b: WeGridTreeModelNode<T>) => number) | null {
     if (this.isServerSort || !this.clientSort?.direction) return null;
@@ -2392,15 +2498,22 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       this.warnTreeOnce('duplicate', `two tree rows share a trackByField value — they share their open/closed state.`);
     }
 
-    // treeDefaultExpanded applies to a row the first time it is seen; rows that disappeared lose their state
+    // treeDefaultExpanded applies to a row the first time it is seen; rows that disappeared lose
+    // their state — unless treeRetainState keeps it for when they come back
     for (const node of all) {
       if (node.children.length === 0 || this.treeKnownKeys.has(node.key)) continue;
       this.treeKnownKeys.add(node.key);
       const open = this.treeDefaultExpanded === true || (typeof this.treeDefaultExpanded === 'number' && node.level < this.treeDefaultExpanded);
       if (open) this.treeExpandedKeys.add(node.key);
     }
-    for (const set of [this.treeExpandedKeys, this.treeKnownKeys, this.treeFilterClosedKeys]) {
-      for (const key of Array.from(set)) if (!byKey.has(key)) set.delete(key);
+    if (this.treeRetainState) {
+      this.retainMissingTreeKeys(byKey);
+      for (const key of Array.from(this.treeFilterClosedKeys)) if (!byKey.has(key)) this.treeFilterClosedKeys.delete(key);
+    } else {
+      this.treeRetainedKeys.clear();
+      for (const set of [this.treeExpandedKeys, this.treeKnownKeys, this.treeFilterClosedKeys]) {
+        for (const key of Array.from(set)) if (!byKey.has(key)) set.delete(key);
+      }
     }
 
     this.treeModel = { roots, all, byKey };
@@ -3543,10 +3656,23 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return !this.renderColumns.slice(lo + 1, hi).some((c) => c.lockOrder);
   };
 
-  openColumnsMenuFromToolbar(): void {
-    if (this.gearButtonRef) {
-      this.openHeaderMenu(this.gearButtonRef.nativeElement, null);
+  /**
+   * Opens the columns menu — the toolbar menu, without the column-specific items — anchored to
+   * `anchor`, or to the toolbar's Columns button, or (with `toolbar='none'`) to the grid's top
+   * corner. Focus returns to the anchor when the menu closes.
+   */
+  openColumnsMenu(anchor?: HTMLElement): void {
+    const origin = anchor ?? this.gearButtonRef?.nativeElement;
+    if (origin) {
+      this.openHeaderMenu(origin, null);
+      return;
     }
+    const rect = (this.elementRef.nativeElement as HTMLElement).getBoundingClientRect();
+    this.openHeaderMenu({ x: this.isRtl ? rect.right : rect.left, y: rect.top }, null);
+  }
+
+  openColumnsMenuFromToolbar(): void {
+    this.openColumnsMenu();
   }
 
   /**
@@ -3580,6 +3706,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   private openHeaderMenu(origin: WeGridMenuOrigin, column: WeGridInternalColumn<T> | null, cellCtx?: { value: unknown }): void {
+    // One grid menu on the page at a time — opening this one from code closes another grid's
+    weGridOpenMenuCloser?.();
     this.closeHeaderMenu();
     this.closeFilterPopover();
     if (column) this.warnIfNumericCustomColumn(column);
@@ -3605,6 +3733,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     });
 
     const returnFocusEl = origin instanceof HTMLElement ? origin : (this.gearButtonRef?.nativeElement ?? null);
+    weGridOpenMenuCloser = () => this.closeHeaderMenu();
 
     this.overlayRef
       .backdropClick()
@@ -3680,6 +3809,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (!this.overlayRef) return;
     this.overlayRef.dispose();
     this.overlayRef = null;
+    weGridOpenMenuCloser = null;
     returnFocusEl?.focus();
   }
 

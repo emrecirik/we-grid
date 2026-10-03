@@ -48,7 +48,9 @@
 | `rowStateVersion` *(0.7.0)* | `unknown` | — | Any change (`!==`) re-evaluates `rowClass` and the cell templates without rebuilding them. Use a counter. |
 | `maxHeight` / `minHeight` *(0.7.0)* | `number \| string` | — | Bounds of the scroll area (px or CSS length). With `maxHeight` the grid scrolls inside itself: header and filter row stick to the top, the summary row to the bottom. |
 | `footer` *(0.7.0)* | `'full' \| 'count' \| 'none'` | `'full'` | `'count'` keeps the record count without the pager, `'none'` drops the footer. A `serverSide` grid without a pager warns in dev mode. |
-| `treeChildren` *(0.7.0)* | `(row) => readonly T[] \| null \| undefined` | — | Turns on tree mode — see [tree.md](tree.md), with `treeColumn`, `treeToggle`, `treeIndentPx`, `treeDefaultExpanded`, `treeSummaryLevel`. |
+| `toolbar` *(0.8.0)* | `'auto' \| 'none'` | `'auto'` | `'none'` leaves the toolbar out of the DOM entirely. `filterRow`, `exportFormats`, `importFormats`, `savedViews`, `showRefresh` and `allowAdd` keep working but have no button — drive them from your own controls (`openColumnsMenu`, `toggleFilterRow`, `exportAs`, `openImportPicker`, `startCreate` …). Dev mode warns once when such a feature is on. |
+| `headerMenuButton` *(0.8.0)* | `'always' \| 'hover'` | `'always'` | `'hover'`: the header ⚙ button shows only while the header is hovered or holds focus (opacity — it keeps its place and its keyboard focus). Devices that can't hover always show it. Tune with `--we-grid-th-menu-btn-idle-opacity` / `-hover-opacity`. |
+| `treeChildren` *(0.7.0)* | `(row) => readonly T[] \| null \| undefined` | — | Turns on tree mode — see [tree.md](tree.md), with `treeColumn`, `treeToggle`, `treeIndentPx`, `treeDefaultExpanded`, `treeSummaryLevel`, `treeRetainState` / `treeStateRetainLimit` *(0.8.0)*. |
 | `detailTrigger` *(0.7.0)* | `'column' \| 'none'` | `'column'` | `'none'`: no arrow column, open details from code — see [row-detail.md](row-detail.md), with `detailSticky`, `detailMaxWidth`, `canExpandRow`, `detailMount`. |
 | `groupBy` *(0.7.0)* | `string[] \| null` | — | Grouping levels, outermost first — see [grouping.md](grouping.md). |
 | `groupSummaryPosition` *(0.7.0)* | `'header' \| 'footer' \| 'both'` | `'header'` | Where group summaries appear. |
@@ -89,6 +91,12 @@
 - `filterOperatorsFor(col)`, `filterOperatorLabel(col, operator)` — the operators a column's filter
   row cell and popover offer
 - `groupField`, `groupedSections`, `clearGrouping()`
+- `openColumnsMenu(anchor?)` *(0.8.0)* — opens the columns menu (the toolbar's, without the
+  column-specific items) anchored to `anchor`; without one to the toolbar's Columns button, and with
+  `toolbar='none'` to the grid's top corner. It flips / pushes to stay on screen, closes any other
+  grid's open menu, and gives focus back to the anchor on close — `aria-expanded` on your button is
+  yours to manage. `openColumnsMenuFromToolbar()` is kept and calls it.
+- `toggleFilterRow(open?)` *(0.8.0)* — opens / closes the filter row while `filterRow=true`
 - `exportAs(format)`, `exportScope`, `exportColumns`, `isServerExport`
 - `openImportPicker()`, `importAccept`
 - `edit: WeGridEditState<T> | null`, `startEdit(row, index, event?)`, `startCreate()`, `commitEdit()`,
@@ -100,7 +108,7 @@
 - `refreshRows()` — the imperative twin of `rowStateVersion`
 - Tree: `treeActive`, `toggleTreeNode(row, force?)`, `isTreeExpanded(row)`, `expandAllTree()`,
   `collapseAllTree()`, `treeAllExpanded`, `scrollToRow(key, opts?)`, `treeNodes`, `treeExpandedKeys`,
-  `cellValue(row, col)` — see [tree.md](tree.md)
+  `cellValue(row, col)`, `clearTreeState()` *(0.8.0)* — see [tree.md](tree.md)
 - Detail: `toggleRowDetail(row, force?)`, `openRowDetail(row)`, `closeRowDetail(row)`,
   `isRowDetailOpen(row)`, `closeAllDetails()`, `detailId(row)` — see [row-detail.md](row-detail.md)
 - Grouping: `groupFields`, `setGrouping(fields)`, `addGroupField(field)`, `removeGroupField(field)`,
@@ -142,6 +150,19 @@ Adding or removing a column needs no bump.
   column field. Context: `WeGridHeaderContext` (`$implicit` / `column` = the column definition,
   `title` = the header text). The sort arrow, funnel, menu button and hint icon are still drawn by
   the grid.
+- **`WeGridEmptyDirective`** (`[weGridEmpty]`) *(0.8.0)* — replaces the content of the empty-state
+  cell, inside a `role="status"` wrapper. Context: `WeGridEmptyContext`. Not drawn while `loading`;
+  without it the grid draws its own icon, message and *Clear filters* button. It refreshes with
+  `rowStateVersion` like the cell templates.
+
+  ```html
+  <we-grid …>
+    <ng-template weGridEmpty let-ctx>
+      <p>No lines match the filters.</p>
+      <button type="button" (click)="clearMyFilters(); ctx.clearAllFilters()">Clear</button>
+    </ng-template>
+  </we-grid>
+  ```
 
 ## Models
 
@@ -189,6 +210,8 @@ Adding or removing a column needs no bump.
 - `WeGridCellContext<T>` — `$implicit`, `row`, `value`, `rowIndex`, `column`, `tree?` (tree mode)
 - `WeGridRowDetailContext<T>` — `$implicit`, `row`, `rowIndex`, `close()`, `tree?`
 - `WeGridHeaderContext<T>` — `$implicit`, `column`, `title`
+- `WeGridEmptyContext` *(0.8.0)* — `hasActiveFilters` (the grid's OWN filters only), `clearAllFilters()`,
+  `message` (`noRecordsMatchFilter` while filtering, otherwise `emptyMessage`); `$implicit` carries the same fields
 - `WeGridRowEventName` = `'click' | 'dblclick' | 'contextmenu'`
 - `WeGridTreeInfo<T>` (`level`, `hasChildren`, `expanded`, `parent`, `index`, `siblingCount`),
   `WeGridTreeExpandEvent<T>`, `WeGridTreeNode<T>`, `WeGridScrollToRowOptions` — see [tree.md](tree.md)

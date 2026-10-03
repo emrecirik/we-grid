@@ -40,6 +40,8 @@ you can theme it two ways:
 | `--we-grid-group-nested-bg` | Inner grouping levels — their header and footer rows (0.7.0) |
 | `--we-grid-detail-padding` | Padding of a sticky detail (0.7.0, default `0.75rem 1rem`) |
 | `--we-grid-detail-inset-left` | Where a sticky detail starts from the scroll area's edge (0.7.0, default `0`) |
+| `--we-grid-th-menu-btn-idle-opacity` | With `headerMenuButton="hover"`: the header ⚙ button at rest (0.8.0, default `0`) |
+| `--we-grid-th-menu-btn-hover-opacity` | With `headerMenuButton="hover"`: the button while its header is hovered or focused (0.8.0, default `0.5`) |
 
 ### Set by you, never by the library (0.7.0)
 

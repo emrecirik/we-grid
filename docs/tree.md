@@ -41,6 +41,8 @@ identity and warns in dev mode; a duplicate key warns too (the two rows then sha
 | `treeToggle` | `'inline'` | `'none'` leaves both the toggle and the indentation to your cell template (`ctx.tree` + `toggleTreeNode`). |
 | `treeIndentPx` | `16` | Indentation per level. |
 | `treeDefaultExpanded` | `false` | `true` opens everything, a number `n` opens the levels below `n` (`1` = the roots are open). Applies to a row the first time it is seen. |
+| `treeRetainState` *(0.8.0)* | `false` | `true` keeps the open/closed state of a row that leaves `data` — an outside filter, say — so it comes back the way the user left it, without a `(treeExpandChange)`. `treeDefaultExpanded` then applies only to rows never seen before. See [Open state](#open-state). |
+| `treeStateRetainLimit` *(0.8.0)* | `5000` | With `treeRetainState`: how many keys of rows missing from `data` are remembered; past it the earliest to leave are forgotten first. |
 | `treeSummaryLevel` | `'root'` | Which rows the summary row adds up: `'root'` (no double counting), `'leaf'` or `'all'`. |
 | `(treeExpandChange)` | | `{ row, expanded, source: 'user' \| 'api' }` — `'user'` for the toggle, `'api'` for every method call. |
 
@@ -88,6 +90,7 @@ on that row: writing it back to `field` would put the value somewhere else than 
 | `toggleTreeNode(row, force?)` | Opens / closes a row's children; `force` picks the state. |
 | `isTreeExpanded(row)` | Whether its children are shown. |
 | `expandAllTree()` / `collapseAllTree()` | Every row that has children; one screen-reader announcement ("N rows shown"). |
+| `clearTreeState()` *(0.8.0)* | Forgets every row's open state — remembered ones included — and applies `treeDefaultExpanded` again. For switching to an unrelated record set; a `gridKey` change does it by itself. |
 | `treeAllExpanded` | True when every row with children is open — for an *Expand all / Collapse all* label. |
 | `scrollToRow(key, { expandParents?, block?, behavior? })` | Opens the row's ancestors (unless `expandParents: false`), then scrolls it into view after the next render. Returns false for an unknown key or a row the filters hide — clear the filters and call it again. Falls back to an instant scroll when the user prefers reduced motion; inside a `maxHeight` grid the sticky header doesn't cover the row. |
 
@@ -99,6 +102,11 @@ deep links.
 The open state belongs to the keys, not to the row objects: a new `data` array keeps every row whose
 key still exists open — and its DOM, so an input inside it keeps the focus — and forgets the keys
 that disappeared. A page change clears it. It is never part of the saved layout.
+
+With `treeRetainState` the keys that disappeared are kept instead (up to `treeStateRetainLimit`),
+so filtering `data` outside the grid and lifting the filter restores what the user had open.
+`expandAllTree()` / `collapseAllTree()` only touch the rows in `data`; the remembered state of rows
+outside it is left alone. Changing `gridKey` or calling `clearTreeState()` starts over.
 
 ## Sorting and filtering (client side)
 
