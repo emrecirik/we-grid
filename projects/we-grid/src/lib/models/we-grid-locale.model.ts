@@ -313,6 +313,11 @@ export interface WeGridLocale {
   sheetListInvalid: string;
   /** The arrow that shows a dropdown-list cell's choices */
   sheetListOpen: string;
+  /** Context-menu item and title of the note editor */
+  sheetNote: string;
+  /** Above the note editor's text box */
+  sheetNoteHint: string;
+  sheetNoteRemove: string;
   sheetFreezeColumn: string;
   sheetSuggestions: string;
   sheetOptions: string;
@@ -657,6 +662,9 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetListRemove: 'Remove list',
   sheetListInvalid: 'Choose one of the values in the list',
   sheetListOpen: 'Show choices',
+  sheetNote: 'Note…',
+  sheetNoteHint: 'A note shown when the cell is pointed at',
+  sheetNoteRemove: 'Remove note',
   sheetFreezeColumn: 'Freeze first column',
   sheetSuggestions: 'Functions',
   sheetOptions: 'Table options',
@@ -1006,6 +1014,9 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetListRemove: 'Listeyi kaldır',
   sheetListInvalid: 'Listedeki değerlerden birini seçin',
   sheetListOpen: 'Seçenekleri göster',
+  sheetNote: 'Not…',
+  sheetNoteHint: 'Hücrenin üzerine gelince gösterilen not',
+  sheetNoteRemove: 'Notu kaldır',
   sheetFreezeColumn: 'İlk kolonu dondur',
   sheetSuggestions: 'Fonksiyonlar',
   sheetOptions: 'Tablo seçenekleri',

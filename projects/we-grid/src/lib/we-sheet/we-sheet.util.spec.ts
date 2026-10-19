@@ -206,3 +206,21 @@ describe('dropdown lists', () => {
     expect(clean?.cells['A2']).toBeUndefined();
   });
 });
+
+describe('sheet conditional formats', () => {
+  it('keeps well-formed one-column rules and moves their ranges with inserted rows and columns', () => {
+    const clean = weSheetSanitize({
+      version: 1, rows: 9, cols: 4, cells: {},
+      formats: [
+        { id: 'a', field: 'X', range: 'B2:B9', type: 'condition', operator: 'gt', value: 5, style: { bold: true } },
+        { id: 'b', field: 'B', range: 'B2:C9', type: 'dataBar', color: 'blue' },
+        { id: 'c', field: 'B', range: 'B2:B9', type: 'condition', operator: 'formula', value: '=1' },
+        { id: 'd', range: 'C1:C3', type: 'iconSet', icons: 'dots' }
+      ]
+    })!;
+    expect(clean.formats?.map((f) => [f.id, f.field, f.range])).toEqual([['a', 'B', 'B2:B9'], ['d', 'C', 'C1:C3']]);
+    const moved = weSheetInsert(clean, 'col', 0, 1);
+    expect(moved.formats?.map((f) => [f.field, f.range])).toEqual([['C', 'C2:C9'], ['D', 'D1:D3']]);
+    expect(weSheetInsert(clean, 'row', 0, -3).formats?.map((f) => f.range)).toEqual(['B1:B6']);
+  });
+});

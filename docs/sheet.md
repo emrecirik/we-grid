@@ -39,6 +39,8 @@ export class BudgetComponent {}
 | Freeze *(0.11.0)* | Column A stays in view while scrolling sideways; with a header row, row 1 stays at the top. |
 | Function suggestions *(0.11.0)* | Typing `=SU` (or `=TOP` in Turkish) lists matching functions with their arguments; arrows choose, Tab or Enter inserts `SUM(`, Escape closes. |
 | Find and replace *(0.14.0)* | Ctrl+F finds text in what the cells show (and in formulas), Enter / Shift+Enter walk the matches, "Match case" narrows them; Ctrl+H (or Replace…) replaces one match or all of them — undoable. |
+| Conditional formatting *(0.18.0)* | Right-click → **Conditional formatting** opens the grid's Format panel for the active cell's column — over the selected rows, or its used rows below the header row when one cell is selected. Highlight rules, top/bottom, above/below average, duplicates, colour scales, data bars and icon sets, recomputed on every change (`WeSheetData.formats`, `WeSheetFormatRule` = a `WeGridFormatRule` plus its `range`). Ranges follow inserted and deleted rows and columns. Formula rules are left out. |
+| Notes *(0.18.0)* | Right-click → **Note…** adds a note to the selected cells (`WeSheetCell.n`, up to 1000 characters): a triangle marks the corner and the note shows when the cell is pointed at. |
 | Dropdown lists *(0.17.0)* | Right-click → **Dropdown list…**, one choice per line, for the selected cells (`WeSheetCell.l`). The active cell shows an arrow (or Alt+↓) to pick a choice; typing anything else is refused with a notice, and a choice typed in another case is written as the list writes it. Paste is not checked, as in Excel. |
 | Decimal places *(0.14.0)* | `.0−` / `.00+` in the toolbar: Excel's Decrease / Increase Decimal for the selection (`WeSheetCell.d`). |
 | Export | Excel (`.xlsx`, numbers stay numbers) and CSV, of the used range. |
@@ -113,7 +115,7 @@ never inject CSS or markup. Formulas are evaluated by the formula engine — nev
 `weSheetAddress`, `weSheetParseAddress`, `weSheetRangeLabel`, `weSheetParseInput`,
 `weSheetParseNumber`, `weSheetShiftFormula`, `weSheetStats`, `weSheetSortRange`,
 `weSheetFormatValue`, `weSheetSanitize`, `weSheetEmpty`, `weSheetInsert`, `weSheetMoveReferences`,
-`weSheetAutoSum`, `weSheetFill`, `weSheetCleanList` *(0.17.0)*, `weSheetMoveSheetReferences` *(0.16.0)* — the pure functions the component is built
+`weSheetAutoSum`, `weSheetFill`, `weSheetCleanList` *(0.17.0)*, `weSheetSanitizeFormats` *(0.18.0)*, `weSheetMoveSheetReferences` *(0.16.0)* — the pure functions the component is built
 on, exported for servers and tests.
 
 ## Workbooks: several sheets *(0.14.0)*

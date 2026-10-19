@@ -48,6 +48,8 @@ export class WeGridFormatPanelComponent {
   @Input({ required: true }) column!: WeGridInternalColumn<unknown>;
   /** Every rule of the grid — the panel shows and edits the column's own */
   @Input() rules: WeGridFormatRule[] = [];
+  /** Conditional formatting only — no column style, decimals, whole-row or formula rules (the sheet's use) */
+  @Input() rulesOnly = false;
 
   @Output() styleChange = new EventEmitter<WeGridCellStyle>();
   @Output() rulesChange = new EventEmitter<WeGridFormatRule[]>();
@@ -110,7 +112,8 @@ export class WeGridFormatPanelComponent {
   }
 
   get operators(): WeGridFormatOperator[] {
-    return this.isNumeric ? NUMBER_OPERATORS : TEXT_OPERATORS;
+    const all = this.isNumeric ? NUMBER_OPERATORS : TEXT_OPERATORS;
+    return this.rulesOnly ? all.filter((o) => o !== 'formula') : all;
   }
 
   get operator(): WeGridFormatOperator {

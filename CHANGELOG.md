@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.18.0 — 2026-10-20
+
+Notes and conditional formatting in the spreadsheet. A minor release.
+
+### Added
+
+- `<we-sheet>` **notes**: right-click → *Note…* adds a note to the selected cells
+  (`WeSheetCell.n`). A triangle marks the cell's corner and the note shows when it is pointed at;
+  copy, fill and saved sheets keep it. `saveNote(text)` method; locale keys `sheetNote`,
+  `sheetNoteHint`, `sheetNoteRemove`.
+- `<we-sheet>` **conditional formatting**: right-click → *Conditional formatting* opens the grid's
+  Format panel for a range of one column — highlight rules, top/bottom, averages, duplicates,
+  colour scales, data bars and icon sets over the computed values, kept in `WeSheetData.formats`
+  (`WeSheetFormatRule`) and moved with inserted and deleted rows and columns.
+  `weSheetSanitizeFormats` util. `WeGridFormatPanelComponent` takes `rulesOnly` (no column style,
+  decimals, whole-row or formula rules).
+
 ## 0.17.0 — 2026-10-20
 
 Spreadsheet fill handle and dropdown lists. A minor release.

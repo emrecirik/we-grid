@@ -169,6 +169,44 @@ describe('WeSheetComponent', () => {
     expect(['B2', 'B3', 'B4', 'B5'].map((a) => sheet().getValue(a))).toEqual([4, 6, 8, null]);
   });
 
+  it('formats a column range conditionally through the Format panel', () => {
+    sheet().setData({ version: 1, rows: 6, cols: 3, headerRow: true, cells: { A1: { v: 'Qty' }, A2: { v: 5 }, A3: { v: 50 }, A4: { v: '=A2*20' } } });
+    sheet().select('A2');
+    sheet().openFormatPanel();
+    fixture.detectChanges();
+    expect(sheet().formatPanel?.range).toBe('A2:A4');
+    expect(el().querySelector('.we-grid-form__title')!.textContent).toContain('A2:A4');
+    expect(el().querySelector('we-grid-format-panel .we-grid-format__flags')).toBeNull();
+    sheet().onFormatRulesChange([{ id: 'r1', field: 'A', type: 'condition', operator: 'gt', value: 20, style: { fill: 'green' } }]);
+    sheet().closeFormatPanel();
+    fixture.detectChanges();
+    expect(cellEl('A2').style.background).toBe('');
+    expect(cellEl('A3').style.background).toContain('--we-grid-format-green-bg');
+    expect(cellEl('A4').style.background).toContain('--we-grid-format-green-bg');
+    sheet().setCell('A2', 99);
+    fixture.detectChanges();
+    expect(cellEl('A2').style.background).toContain('--we-grid-format-green-bg');
+    expect(sheet().getData().formats).toEqual([jasmine.objectContaining({ range: 'A2:A4', field: 'A', operator: 'gt' })]);
+  });
+
+  it('adds a note to a cell, marks it and shows it on hover', () => {
+    sheet().select('B2');
+    sheet().openListEditor('note');
+    fixture.detectChanges();
+    const editor = el().querySelector<HTMLElement>('.we-sheet__list-editor')!;
+    expect(editor.getAttribute('aria-label')).toBe('Note…');
+    editor.querySelector('textarea')!.value = '  Checked with finance  ';
+    editor.querySelector<HTMLButtonElement>('.we-sheet__list-save')!.click();
+    fixture.detectChanges();
+    expect(sheet().getData().cells['B2'].n).toBe('Checked with finance');
+    expect(cellEl('B2').querySelector('.we-sheet__note-mark')).toBeTruthy();
+    expect(cellEl('B2').getAttribute('title')).toBe('Checked with finance');
+    sheet().saveNote('');
+    fixture.detectChanges();
+    expect(sheet().getData().cells['B2']).toBeUndefined();
+    expect(cellEl('B2').hasAttribute('title')).toBeFalse();
+  });
+
   it('fills a series down from the context menu, for keyboard users', () => {
     sheet().setCell('A1', 5);
     sheet().setCell('A2', 10);

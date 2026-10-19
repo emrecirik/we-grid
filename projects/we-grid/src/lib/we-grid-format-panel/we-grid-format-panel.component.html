@@ -17,6 +17,7 @@
     </div>
 
     <div class="we-grid-format__body">
+      @if (!rulesOnly) {
       <section class="we-grid-format__section" [attr.aria-label]="locale.formatCellStyle">
         <h3 class="we-grid-format__heading">{{ locale.formatCellStyle }}</h3>
         <div class="we-grid-format__flags" role="group" [attr.aria-label]="locale.formatCellStyle">
@@ -62,8 +63,9 @@
           </div>
         }
       </section>
+      }
 
-      @if (hasDecimals) {
+      @if (hasDecimals && !rulesOnly) {
         <section class="we-grid-format__section" [attr.aria-label]="locale.formatNumber">
           <h3 class="we-grid-format__heading">{{ locale.formatNumber }}</h3>
           <div class="we-grid-format__swatch-row">
@@ -153,9 +155,11 @@
                 </label>
               }
             </div>
-            <label class="we-grid-format__check">
-              <input type="checkbox" name="applyToRow" [(ngModel)]="newApplyToRow" /> {{ locale.formatApplyToRow }}
-            </label>
+            @if (!rulesOnly) {
+              <label class="we-grid-format__check">
+                <input type="checkbox" name="applyToRow" [(ngModel)]="newApplyToRow" /> {{ locale.formatApplyToRow }}
+              </label>
+            }
           } @else if (newType === 'colorScale') {
             <div class="we-grid-format__presets" role="radiogroup" [attr.aria-label]="locale.formatTypeColorScale">
               @for (scale of scales; track scale) {

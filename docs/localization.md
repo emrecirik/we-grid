@@ -236,6 +236,10 @@ parser's own messages are English too.
 - `sheetOptions`, `formatTypeIconSet`, `formatIconSetLabels`, `formatIconSetReverse`, `sheetImportTruncated`,
   `sheetFull`
 
+## Keys added in 0.18.0
+
+- `sheetNote`, `sheetNoteHint`, `sheetNoteRemove`
+
 ## Keys added in 0.17.0
 
 - `sheetFillHandle`, `sheetFillSeries`, `sheetList`, `sheetListHint`, `sheetListRemove`, `sheetListInvalid`, `sheetListOpen`

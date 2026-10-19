@@ -20,12 +20,12 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { WeGridAlign } from '../models/we-grid-column.model';
 import { WeGridExportTable } from '../models/we-grid-export.model';
-import { WeGridCellStyle, WeGridFormatColor } from '../models/we-grid-format.model';
+import { WeGridCellStyle, WeGridFormatColor, WeGridFormatRule } from '../models/we-grid-format.model';
 import { WE_GRID_ICONS, WeGridIcons } from '../models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 import { weGridParseClipboardTable } from '../services/we-grid-clipboard.util';
 import { weGridDownloadBlob, weGridParseCsv, weGridToCsv } from '../services/we-grid-csv.util';
-import { WeGridCellCss, weGridCellStyleCss, weGridFormatBg, weGridFormatFg } from '../services/we-grid-format.util';
+import { WeGridCellCss, weGridCellStyleCss, weGridFormatBg, weGridFormatFg, weGridResolveFormats } from '../services/we-grid-format.util';
 import {
   WE_GRID_FORMULA_ALIASES,
   WE_GRID_FORMULA_FUNCTIONS,
@@ -36,8 +36,9 @@ import {
   weGridIsFormula
 } from '../services/we-grid-formula.util';
 import { weGridBuildXlsx, weGridReadXlsx } from '../services/we-grid-xlsx.util';
-import { WE_SHEET_STORE, WeSheetCell, WeSheetChart, WeSheetData, WeSheetNumberFormat, WeSheetStore } from './we-sheet.model';
+import { WE_SHEET_STORE, WeSheetCell, WeSheetChart, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat, WeSheetStore } from './we-sheet.model';
 import { WeChartComponent } from '../we-chart/we-chart.component';
+import { WeGridFormatPanelComponent } from '../we-grid-format-panel/we-grid-format-panel.component';
 import { WeChartData } from '../we-chart/we-chart.util';
 import {
   WE_SHEET_COLORS,
@@ -73,6 +74,7 @@ interface CellView {
   css: WeGridCellCss | null;
   align: WeGridAlign;
   error: boolean;
+  note: string | null;
 }
 
 const DEFAULT_WIDTH = 104;
@@ -101,7 +103,7 @@ export interface WeSheetSuggestion {
 @Component({
   selector: 'we-sheet',
   standalone: true,
-  imports: [CommonModule, FormsModule, WeChartComponent],
+  imports: [CommonModule, FormsModule, WeChartComponent, WeGridFormatPanelComponent],
   templateUrl: './we-sheet.component.html',
   styleUrls: ['./we-sheet.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -178,9 +180,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   private filling = false;
   fillRange: WeSheetRange | null = null;
   /** The dropdown-list editor (one choice per line), placed where the context menu was */
-  listEditor: { text: string; x: number; y: number } | null = null;
+  listEditor: { kind: 'list' | 'note'; text: string; x: number; y: number } | null = null;
   /** The open choices of the active cell's dropdown list */
   picker: { options: string[]; index: number; x: number; y: number } | null = null;
+  /** The conditional-formatting panel: the column it shows (as the panel expects one) and that range's rules */
+  formatPanel: { range: string; column: { field: string; defaultHeader: string; type: 'number' | 'text' }; rules: WeGridFormatRule[] } | null = null;
   private resizing: { col: number; startX: number; startWidth: number } | null = null;
   /** What this sheet last copied — pasted back as raw cells (formulas shifted) instead of text */
   private clip: { text: string; range: WeSheetRange; cells: (WeSheetCell | undefined)[][]; cut: boolean } | null = null;
@@ -699,12 +703,13 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     return this.sheet.cells[weSheetAddress(this.active.col, this.active.row)]?.l ?? null;
   }
 
-  /** Opens the list editor for the selection, where the context menu was */
-  openListEditor(): void {
+  /** Opens the list editor (or, for `'note'`, the note editor) for the selection, where the context menu was */
+  openListEditor(kind: 'list' | 'note' = 'list'): void {
     const at = this.menu ?? { x: 40, y: 40 };
     this.closeMenu();
     if (this.readonly) return;
-    this.listEditor = { text: (this.activeList ?? []).join('\n'), ...at };
+    const text = kind === 'list' ? (this.activeList ?? []).join('\n') : (this.sheet.cells[weSheetAddress(this.active.col, this.active.row)]?.n ?? '');
+    this.listEditor = { kind, text, ...at };
     this.cdr.markForCheck();
     queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLTextAreaElement>('.we-sheet__list-editor textarea')?.focus());
   }
@@ -717,6 +722,65 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       const { l: _l, ...rest } = cell;
       return list.length ? { ...rest, l: list } : rest;
     });
+  }
+
+  /** Gives the selected cells the note `text` — empty removes it */
+  saveNote(text: string): void {
+    const note = text.trim().slice(0, 1000);
+    this.closeListEditor();
+    this.updateRange((cell) => {
+      const { n: _n, ...rest } = cell;
+      return note ? { ...rest, n: note } : rest;
+    });
+  }
+
+  // ─── Conditional formatting ──────────────────────────────────────────
+
+  /**
+   * Opens the grid's Format panel for the active cell's column: over the selected rows of it, or
+   * over its used rows (below the header row) when one cell is selected
+   */
+  openFormatPanel(): void {
+    this.closeMenu();
+    if (this.readonly) return;
+    const s = this.selection;
+    const col = this.active.col;
+    const used = this.usedSize();
+    const [r1, r2] = s.r2 > s.r1 ? [s.r1, s.r2] : [this.sheet.headerRow ? 1 : 0, Math.max(used.rows - 1, this.sheet.headerRow ? 1 : 0)];
+    const range = `${weSheetAddress(col, r1)}:${weSheetAddress(col, r2)}`;
+    let numbers = 0;
+    let values = 0;
+    for (let r = r1; r <= r2; r++) {
+      const v = this.evaluator.value(col, r);
+      if (v === null || v === '') continue;
+      values++;
+      if (typeof v === 'number') numbers++;
+    }
+    const field = weGridColumnLetter(col);
+    this.formatPanel = {
+      range,
+      column: { field, defaultHeader: range, type: values > 0 && numbers * 2 >= values ? 'number' : 'text' },
+      rules: (this.sheet.formats ?? []).filter((f) => f.range === range)
+    };
+    this.cdr.markForCheck();
+  }
+
+  /** The panel's rules for its range replace that range's rules; other ranges keep theirs */
+  onFormatRulesChange(rules: WeGridFormatRule[]): void {
+    const panel = this.formatPanel;
+    if (!panel) return;
+    const own: WeSheetFormatRule[] = rules.map((r) => ({ ...r, field: panel.column.field, range: panel.range }));
+    const formats = [...(this.sheet.formats ?? []).filter((f) => f.range !== panel.range), ...own];
+    this.formatPanel = { ...panel, rules: own };
+    const next: WeSheetData = { ...this.sheet, formats };
+    if (!formats.length) delete next.formats;
+    this.commit(next);
+  }
+
+  closeFormatPanel(): void {
+    this.formatPanel = null;
+    this.scrollRef.nativeElement.focus({ preventScroll: true });
+    this.cdr.markForCheck();
   }
 
   closeListEditor(): void {
@@ -1404,6 +1468,27 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.chartData = { categories, series };
   }
 
+  /** Conditional formatting over the computed values — over the cell's own style, as in Excel */
+  private applyFormats(view: CellView[][]): void {
+    const groups = new Map<string, WeSheetFormatRule[]>();
+    for (const rule of this.sheet.formats ?? []) groups.set(rule.range, [...(groups.get(rule.range) ?? []), rule]);
+    for (const [range, rules] of groups) {
+      const [a, b] = range.split(':').map((p) => weSheetParseAddress(p));
+      if (!a || !b) continue;
+      const rows: number[] = [];
+      for (let r = Math.min(a.row, b.row); r <= Math.min(Math.max(a.row, b.row), this.sheet.rows - 1); r++) rows.push(r);
+      const field = rules[0].field;
+      const resolved = weGridResolveFormats(rows, rules, [field], (r) => {
+        const v = this.evaluator.value(a.col, r);
+        return typeof v === 'object' && v !== null && !(v instanceof Date) ? null : v;
+      });
+      for (const [r, css] of resolved) {
+        const target = view[r]?.[a.col];
+        if (target && css[field]) target.css = { ...(target.css ?? {}), ...css[field] };
+      }
+    }
+  }
+
   private rebuildView(): void {
     const view: CellView[][] = [];
     for (let r = 0; r < this.sheet.rows; r++) {
@@ -1415,10 +1500,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
         const error = typeof value === 'object' && value !== null && !(value instanceof Date);
         const numeric = typeof value === 'number' && cell?.f !== 'text';
         const css = cell?.s ? weGridCellStyleCss(cell.s) : null;
-        line.push({ text, css: css && Object.keys(css).length ? css : null, align: cell?.a ?? (numeric || error ? 'end' : 'start'), error });
+        line.push({ text, css: css && Object.keys(css).length ? css : null, align: cell?.a ?? (numeric || error ? 'end' : 'start'), error, note: cell?.n ?? null });
       }
       view.push(line);
     }
+    this.applyFormats(view);
     this.view = view;
     this.rebuildChart();
   }
@@ -1489,6 +1575,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (cell.f) out.f = cell.f;
     if (cell.d !== undefined) out.d = cell.d;
     if (cell.l?.length) out.l = cell.l;
+    if (cell.n) out.n = cell.n;
     return out;
   }
 

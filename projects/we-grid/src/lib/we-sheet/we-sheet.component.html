@@ -249,6 +249,7 @@
                 [class.we-sheet__cell--active]="c === active.col && r === active.row"
                 [class.we-sheet__cell--fill]="fillRange !== null && inFill(c, r)"
                 [class.we-sheet__cell--error]="view[r][c].error"
+                [attr.title]="view[r][c].note"
                 [attr.aria-selected]="inSelection(c, r)"
                 [style.text-align]="view[r][c].align"
                 [ngStyle]="view[r][c].css"
@@ -277,6 +278,9 @@
                   }
                 } @else {
                   {{ view[r][c].text }}
+                  @if (view[r][c].note !== null) {
+                    <span class="we-sheet__note-mark" aria-hidden="true"></span>
+                  }
                   @if (!readonly && c === active.col && r === active.row && activeList) {
                     <button
                       type="button"
@@ -333,10 +337,22 @@
       <button type="button" role="menuitem" (click)="autoSum()">Σ {{ locale.sheetAutoSum }}</button>
       <button type="button" role="menuitem" (click)="fillSeries()" [disabled]="selection.r2 === selection.r1">{{ locale.sheetFillSeries }}</button>
       <button type="button" role="menuitem" (click)="openListEditor()">{{ locale.sheetList }}</button>
+      <button type="button" role="menuitem" (click)="openListEditor('note')">{{ locale.sheetNote }}</button>
+      <button type="button" role="menuitem" (click)="openFormatPanel()">{{ locale.formatRules }}</button>
       <div class="we-sheet__menu-sep" role="separator"></div>
       <button type="button" role="menuitem" (click)="closeMenu(); sort('asc')">{{ locale.sheetSortAsc }}</button>
       <button type="button" role="menuitem" (click)="closeMenu(); sort('desc')">{{ locale.sheetSortDesc }}</button>
     </div>
+  }
+
+  @if (formatPanel) {
+    <we-grid-format-panel
+      [column]="$any(formatPanel.column)"
+      [rules]="formatPanel.rules"
+      [rulesOnly]="true"
+      (rulesChange)="onFormatRulesChange($event)"
+      (closed)="closeFormatPanel()"
+    />
   }
 
   @if (picker) {
@@ -348,15 +364,16 @@
   }
 
   @if (listEditor) {
-    <div class="we-sheet__menu we-sheet__list-editor" role="dialog" [attr.aria-label]="locale.sheetList" [style.left.px]="listEditor.x" [style.top.px]="listEditor.y" (keydown)="onListEditorKeydown($event)">
+    @let note = listEditor.kind === 'note';
+    <div class="we-sheet__menu we-sheet__list-editor" role="dialog" [attr.aria-label]="note ? locale.sheetNote : locale.sheetList" [style.left.px]="listEditor.x" [style.top.px]="listEditor.y" (keydown)="onListEditorKeydown($event)">
       <label class="we-sheet__list-label">
-        {{ locale.sheetListHint }}
-        <textarea #listText rows="6" [value]="listEditor.text" spellcheck="false"></textarea>
+        {{ note ? locale.sheetNoteHint : locale.sheetListHint }}
+        <textarea #listText rows="6" [value]="listEditor.text" [attr.spellcheck]="note"></textarea>
       </label>
       <div class="we-sheet__list-actions">
-        <button type="button" (click)="saveList('')">{{ locale.sheetListRemove }}</button>
+        <button type="button" (click)="note ? saveNote('') : saveList('')">{{ note ? locale.sheetNoteRemove : locale.sheetListRemove }}</button>
         <button type="button" (click)="closeListEditor()">{{ locale.cancel }}</button>
-        <button type="button" class="we-sheet__list-save" (click)="saveList(listText.value)">{{ locale.apply }}</button>
+        <button type="button" class="we-sheet__list-save" (click)="note ? saveNote(listText.value) : saveList(listText.value)">{{ locale.apply }}</button>
       </div>
     </div>
   }

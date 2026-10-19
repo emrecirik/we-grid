@@ -400,6 +400,30 @@
   color: var(--we-grid-on-accent-color, #fff) !important;
 }
 
+// A cell with a note: a small triangle in the top corner, as in Excel
+.we-sheet__note-mark {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-style: solid;
+  border-width: 0 0.4rem 0.4rem 0;
+  border-color: transparent var(--we-grid-warning-color, #b45309) transparent transparent;
+  pointer-events: none;
+}
+
+// Icon sets (conditional formatting) — the shape is a mask, the colour a palette variable
+.we-sheet__cell[style*='--we-grid-cell-icon']::before {
+  content: '';
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-inline-end: 0.35em;
+  vertical-align: -0.08em;
+  background: var(--we-grid-cell-icon-color, currentColor);
+  -webkit-mask: var(--we-grid-cell-icon) center / contain no-repeat;
+  mask: var(--we-grid-cell-icon) center / contain no-repeat;
+}
+
 // The fill handle — the square at the selection's corner, dragged to fill
 .we-sheet__fill {
   position: absolute;

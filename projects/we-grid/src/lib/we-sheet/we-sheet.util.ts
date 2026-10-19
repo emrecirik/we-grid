@@ -1,7 +1,7 @@
 import { WE_GRID_FORMAT_COLORS } from '../models/we-grid-format.model';
 import { WeGridFormulaError, weGridColumnIndex, weGridColumnLetter } from '../services/we-grid-formula.util';
-import { weGridSanitizeCellStyle } from '../services/we-grid-format.util';
-import { WeSheetCell, WeSheetData, WeSheetNumberFormat } from './we-sheet.model';
+import { weGridSanitizeCellStyle, weGridSanitizeFormatRules } from '../services/we-grid-format.util';
+import { WeSheetCell, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat } from './we-sheet.model';
 
 /** Limits applied to anything loaded from a store — keep a hostile record from freezing the page */
 export const WE_SHEET_MAX_ROWS = 5000;
@@ -266,6 +266,7 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
     if (typeof r['d'] === 'number' && Number.isInteger(r['d']) && r['d'] >= 0 && r['d'] <= 10) cell.d = r['d'];
     const list = Array.isArray(r['l']) ? weSheetCleanList(r['l'].filter((x): x is string => typeof x === 'string')) : [];
     if (list.length) cell.l = list;
+    if (typeof r['n'] === 'string' && r['n'].trim()) cell.n = r['n'].trim().slice(0, 1000);
     if (Object.keys(cell).length) cells[key] = cell;
   }
   const data: WeSheetData = { version: 1, rows, cols, cells };
@@ -286,7 +287,23 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
       data.chart = { range, type: type as NonNullable<WeSheetData['chart']>['type'] };
     }
   }
+  const formats = weSheetSanitizeFormats(o['formats']);
+  if (formats.length) data.formats = formats;
   return data;
+}
+
+/** Well-formed conditional format rules of a sheet: a valid grid rule over a one-column range, at most 100 */
+export function weSheetSanitizeFormats(input: unknown): WeSheetFormatRule[] {
+  if (!Array.isArray(input)) return [];
+  const out: WeSheetFormatRule[] = [];
+  for (const raw of input.slice(0, 100)) {
+    const range = (raw as { range?: unknown } | null)?.range;
+    const m = typeof range === 'string' ? /^([A-Z]{1,3})[1-9]\d{0,6}:([A-Z]{1,3})[1-9]\d{0,6}$/.exec(range) : null;
+    if (!m || m[1] !== m[2]) continue;
+    const [rule] = weGridSanitizeFormatRules([{ ...(raw as object), field: m[1] }]);
+    if (rule && rule.operator !== 'formula') out.push({ ...rule, range: range as string });
+  }
+  return out;
 }
 
 function clampInt(v: unknown, min: number, max: number): number | null {
@@ -433,6 +450,16 @@ export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number
     const range = weSheetMoveReferences(data.chart.range, axis, at, count);
     if (range.includes('#REF!')) delete out.chart;
     else out.chart = { ...data.chart, range };
+  }
+  if (data.formats) {
+    // A rule's range follows its cells; one whose cells are all gone goes with them
+    const formats: WeSheetFormatRule[] = [];
+    for (const rule of data.formats) {
+      const range = weSheetMoveReferences(rule.range, axis, at, count);
+      if (!range.includes('#REF!')) formats.push({ ...rule, range, field: range.replace(/\d.*$/, '') });
+    }
+    if (formats.length) out.formats = formats;
+    else delete out.formats;
   }
   if (axis === 'col' && data.widths) {
     const widths: Record<string, number> = {};

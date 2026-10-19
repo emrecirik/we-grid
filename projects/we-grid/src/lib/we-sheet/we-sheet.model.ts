@@ -1,6 +1,6 @@
 import { InjectionToken } from '@angular/core';
 import { Observable, of } from 'rxjs';
-import { WeGridCellStyle } from '../models/we-grid-format.model';
+import { WeGridCellStyle, WeGridFormatRule } from '../models/we-grid-format.model';
 import { WeGridAlign } from '../models/we-grid-column.model';
 
 /** How a sheet cell shows a number */
@@ -20,6 +20,8 @@ export interface WeSheetCell {
   d?: number;
   /** A dropdown list: the only values the user may type, offered under the cell (Excel's data validation list) */
   l?: string[];
+  /** A note: text shown when the cell is pointed at, marked by a corner triangle (Excel's notes) */
+  n?: string;
 }
 
 /**
@@ -42,6 +44,17 @@ export interface WeSheetData {
   freezeColumn?: boolean;
   /** A chart of a range, shown under the cells — `{ range: 'A1:C9', type: 'column' }` */
   chart?: WeSheetChart;
+  /** Conditional formatting — the grid's format rules, each over a range of one column */
+  formats?: WeSheetFormatRule[];
+}
+
+/**
+ * A conditional format rule of a sheet: the grid's `WeGridFormatRule` (its `field` is the column
+ * letter) over the cells of `range` — `'B2:B20'`, one column. Highlights, top/bottom, averages,
+ * duplicates, colour scales, data bars and icon sets work as in the grid.
+ */
+export interface WeSheetFormatRule extends WeGridFormatRule {
+  range: string;
 }
 
 /** The sheet's chart: the first column of the range gives the categories, the first row the series names when it is text */
