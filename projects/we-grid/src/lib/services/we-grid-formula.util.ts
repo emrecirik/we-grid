@@ -38,6 +38,10 @@ export interface WeGridFormulaScope {
   cell?(col: number, row: number): unknown;
   /** Rectangular range, rows of values; endRow is `Infinity` for a whole column (A:A) — the scope clamps */
   range?(startCol: number, startRow: number, endCol: number, endRow: number): unknown[][];
+  /** `Sheet2!A1` — a cell of another sheet; undefined or missing for an unknown sheet (→ #REF!) */
+  sheetCell?(sheet: string, col: number, row: number): unknown;
+  /** `'Sales data'!A1:B9` — a range of another sheet, or undefined for an unknown sheet */
+  sheetRange?(sheet: string, startCol: number, startRow: number, endCol: number, endRow: number): unknown[][] | undefined;
   /** Used by TODAY/NOW so tests are deterministic */
   now?(): Date;
 }
@@ -557,15 +561,15 @@ export const WE_GRID_FORMULA_SIGNATURES: Readonly<Record<string, string>> = {
 type Node =
   | { k: 'lit'; v: unknown }
   | { k: 'field'; name: string }
-  | { k: 'cell'; c: number; r: number }
-  | { k: 'range'; c1: number; r1: number; c2: number; r2: number }
+  | { k: 'cell'; c: number; r: number; s?: string }
+  | { k: 'range'; c1: number; r1: number; c2: number; r2: number; s?: string }
   | { k: 'neg'; a: Node }
   | { k: 'pct'; a: Node }
   | { k: 'bin'; op: string; a: Node; b: Node }
   | { k: 'call'; name: string; args: Node[] };
 
 interface Token {
-  t: 'num' | 'str' | 'word' | 'field' | 'err' | 'op' | '(' | ')' | ',' | ':' | 'end';
+  t: 'num' | 'str' | 'word' | 'field' | 'err' | 'op' | '(' | ')' | ',' | ':' | 'sheet' | 'end';
   v: string;
   pos: number;
 }
@@ -601,6 +605,27 @@ function tokenize(src: string, offset: number): Token[] {
       }
       out.push({ t: 'str', v: s, pos });
       i = j + 1;
+      continue;
+    }
+    // 'Sales data'!A1 — a quoted sheet name ('' is a quote inside it)
+    if (ch === "'") {
+      let s = '';
+      let j = i + 1;
+      for (;;) {
+        if (j >= src.length) throw new WeGridFormulaSyntaxError("Unterminated sheet name — a closing ' is missing", pos);
+        if (src[j] === "'") {
+          if (src[j + 1] === "'") {
+            s += "'";
+            j += 2;
+            continue;
+          }
+          break;
+        }
+        s += src[j++];
+      }
+      if (src[j + 1] !== '!') throw new WeGridFormulaSyntaxError("A quoted sheet name is followed by '!'", pos);
+      out.push({ t: 'sheet', v: s, pos });
+      i = j + 2;
       continue;
     }
     if (ch === '[') {
@@ -649,6 +674,12 @@ function tokenize(src: string, offset: number): Token[] {
     word.lastIndex = i;
     const w = word.exec(src);
     if (w) {
+      // Sheet2!A1 — a word right before '!' names a sheet
+      if (src[i + w[0].length] === '!') {
+        out.push({ t: 'sheet', v: w[0], pos });
+        i += w[0].length + 1;
+        continue;
+      }
       out.push({ t: 'word', v: w[0], pos });
       i += w[0].length;
       continue;
@@ -741,6 +772,12 @@ class Parser {
       }
       case 'word':
         return this.word(tok);
+      case 'sheet': {
+        const ref = this.next();
+        const node = ref.t === 'word' ? this.word(ref) : null;
+        if (!node || (node.k !== 'cell' && node.k !== 'range')) throw new WeGridFormulaSyntaxError(`Expected a cell or range after ${tok.v}!`, ref.pos);
+        return { ...node, s: tok.v };
+      }
       default:
         throw new WeGridFormulaSyntaxError(tok.t === 'end' ? 'The formula ends unexpectedly' : `Unexpected '${tok.v}'`, tok.pos);
     }
@@ -801,11 +838,16 @@ function evaluate(node: Node, scope: WeGridFormulaScope): unknown {
       return v === undefined ? null : v;
     }
     case 'cell':
+      if (node.s !== undefined) {
+        const v = scope.sheetCell?.(node.s, node.c, node.r);
+        return v === undefined ? err('#REF!') : v;
+      }
       return scope.cell ? (scope.cell(node.c, node.r) ?? null) : err('#REF!');
-    case 'range':
-      return scope.range
-        ? scope.range(Math.min(node.c1, node.c2), Math.min(node.r1, node.r2), Math.max(node.c1, node.c2), Math.max(node.r1, node.r2))
-        : err('#REF!');
+    case 'range': {
+      const box = [Math.min(node.c1, node.c2), Math.min(node.r1, node.r2), Math.max(node.c1, node.c2), Math.max(node.r1, node.r2)] as const;
+      if (node.s !== undefined) return scope.sheetRange?.(node.s, ...box) ?? err('#REF!');
+      return scope.range ? scope.range(...box) : err('#REF!');
+    }
     case 'neg': {
       const n = toNumber(evaluate(node.a, scope));
       return isErr(n) ? n : -n;
@@ -908,9 +950,15 @@ export class WeGridSheetEvaluator {
   constructor(
     private readonly raw: (col: number, row: number) => unknown,
     private readonly size: () => { cols: number; rows: number },
-    options: { now?: () => Date; field?: (name: string) => unknown } = {}
+    options: { now?: () => Date; field?: (name: string) => unknown; sheet?: (name: string) => WeGridSheetEvaluator | null } = {}
   ) {
+    const other = (name: string) => options.sheet?.(name) ?? null;
     this.scope = {
+      sheetCell: (s, c, r) => {
+        const e = other(s);
+        return e ? (e.value(c, r) ?? null) : undefined;
+      },
+      sheetRange: (s, c1, r1, c2, r2) => other(s)?.rangeValues(c1, r1, c2, r2),
       cell: (c, r) => this.value(c, r),
       range: (c1, r1, c2, r2) => {
         const { cols, rows } = this.size();
@@ -943,6 +991,18 @@ export class WeGridSheetEvaluator {
     }
     this.cache.set(key, v);
     return v;
+  }
+
+  /** Rows of values of a rectangle, clamped to the sheet — what a range reference reads */
+  rangeValues(c1: number, r1: number, c2: number, r2: number): unknown[][] {
+    const { cols, rows } = this.size();
+    const out: unknown[][] = [];
+    for (let r = r1; r <= Math.min(r2, rows - 1); r++) {
+      const line: unknown[] = [];
+      for (let c = c1; c <= Math.min(c2, cols - 1); c++) line.push(this.value(c, r));
+      out.push(line);
+    }
+    return out;
   }
 
   /** Drops every cached value — call after any edit */

@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.15.0 — 2026-10-20
+
+References between sheets. A minor release.
+
+### Added
+
+- Formulas read other sheets of a `<we-workbook>`: `=Sales!B2`, `=SUM(Sales!B2:B13)`,
+  `='Q1 sales'!A1`. Renaming a sheet rewrites the formulas that point at it; deleting it shows
+  `#REF!`. Inserting rows or columns in one sheet leaves references to other sheets alone.
+- `<we-sheet>` `resolveSheet` input — the other sheets a lone sheet's formulas may read.
+- Formula engine: `WeGridFormulaScope.sheetCell` / `sheetRange`, `WeGridSheetEvaluator`'s
+  `sheet` option and `rangeValues()`; `weSheetNameRef`, `weSheetRenameReferences`.
+
 ## 0.14.0 — 2026-10-20
 
 Workbooks, find and replace, three more languages. A minor release — new components and exports.

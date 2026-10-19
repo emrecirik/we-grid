@@ -121,3 +121,10 @@ total.evaluate({ field: (name) => row[name.toLowerCase() as keyof typeof row] })
 ```
 
 Formulas also drive `formula` [formatting rules](formatting.md).
+
+## Other sheets *(0.15.0)*
+
+In `<we-workbook>`, `Sheet2!A1`, `Sheet2!A1:B9` and `'Name with spaces'!A1` read another sheet
+(`''` for a quote inside the name). An unknown sheet gives `#REF!`. Engine scopes provide them
+through `sheetCell(sheet, col, row)` / `sheetRange(sheet, …)` on `WeGridFormulaScope`, and
+`WeGridSheetEvaluator` takes `{ sheet: name => evaluator }`.

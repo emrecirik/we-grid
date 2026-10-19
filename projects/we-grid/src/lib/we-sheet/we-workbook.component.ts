@@ -6,7 +6,7 @@ import { WE_GRID_ICONS, WeGridIcons } from '../models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 import { WeSheetComponent } from './we-sheet.component';
 import { WE_SHEET_STORE, WeSheetData, WeSheetStore } from './we-sheet.model';
-import { weSheetEmpty, weSheetSanitize } from './we-sheet.util';
+import { weSheetEmpty, weSheetRenameReferences, weSheetSanitize } from './we-sheet.util';
 
 /** A workbook: named sheets in order, like the tabs at the bottom of Excel */
 export interface WeWorkbookData {
@@ -110,6 +110,14 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
     return this.book.sheets[this.book.active].data;
   }
 
+  /** What the active sheet's formulas can read of the others — a new function whenever the book changes */
+  resolveSheet: (name: string) => WeSheetData | null = () => null;
+
+  private refreshResolver(): void {
+    const byName = new Map(this.book.sheets.map((s) => [s.name.toLocaleLowerCase(), s.data] as const));
+    this.resolveSheet = (name) => byName.get(name.toLocaleLowerCase()) ?? null;
+  }
+
   icon(key: string): SafeHtml {
     return this.sanitizer.bypassSecurityTrustHtml(this.icons[key] ?? '');
   }
@@ -172,7 +180,20 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
       this.cdr.markForCheck();
       return;
     }
-    const sheets = this.book.sheets.map((s, i) => (i === index ? { ...s, name: this.freeName(clean, index) } : s));
+    const oldName = this.book.sheets[index].name;
+    const newName = this.freeName(clean, index);
+    // Formulas that pointed at the sheet follow it to its new name, as in Excel
+    const sheets = this.book.sheets.map((s, i) => {
+      const cells: WeSheetData['cells'] = {};
+      let changed = false;
+      for (const [key, cell] of Object.entries(s.data.cells)) {
+        const v = typeof cell.v === 'string' && cell.v.startsWith('=') ? weSheetRenameReferences(cell.v, oldName, newName) : cell.v;
+        if (v !== cell.v) changed = true;
+        cells[key] = v === cell.v ? cell : { ...cell, v };
+      }
+      const data = changed ? { ...s.data, cells } : s.data;
+      return i === index ? { name: newName, data } : changed ? { ...s, data } : s;
+    });
     this.update({ ...this.book, sheets });
   }
 
@@ -202,6 +223,7 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
     if (this.book.sheets[index]?.data === data) return;
     const sheets = this.book.sheets.map((s, i) => (i === index ? { ...s, data } : s));
     this.book = { ...this.book, sheets };
+    this.refreshResolver();
     this.dataChange.emit(this.book);
     this.save$.next();
   }
@@ -212,11 +234,13 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
       sheets: [{ name: `${this.locale.workbookSheetName}1`, data: weSheetEmpty(this.rows, this.cols) }],
       active: 0
     };
+    this.refreshResolver();
     this.cdr.markForCheck();
   }
 
   private update(book: WeWorkbookData): void {
     this.book = book;
+    this.refreshResolver();
     this.dataChange.emit(book);
     this.save$.next();
     this.cdr.markForCheck();

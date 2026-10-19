@@ -99,8 +99,8 @@ export function weSheetShiftFormula(formula: string, dCol: number, dRow: number)
       i = stop;
       continue;
     }
-    if (ch === '[') {
-      const end = formula.indexOf(']', i + 1);
+    if (ch === '[' || ch === "'") {
+      const end = formula.indexOf(ch === '[' ? ']' : "'", i + 1);
       const stop = end === -1 ? formula.length : end + 1;
       out += formula.slice(i, stop);
       i = stop;
@@ -108,7 +108,8 @@ export function weSheetShiftFormula(formula: string, dCol: number, dRow: number)
     }
     const m = /^(\$?)([A-Za-z]{1,3})(\$?)(\d+)/.exec(formula.slice(i));
     const prev = i > 0 ? formula[i - 1] : '';
-    if (m && !/[A-Za-z0-9_.]/.test(prev) && !/^[A-Za-z0-9_(]/.test(formula.slice(i + m[0].length))) {
+    // `AB1!C2`: a word before '!' is a sheet name, not a reference
+    if (m && !/[A-Za-z0-9_.]/.test(prev) && !/^[A-Za-z0-9_(!]/.test(formula.slice(i + m[0].length))) {
       const col = m[1] ? weGridColumnIndex(m[2].toUpperCase()) : weGridColumnIndex(m[2].toUpperCase()) + dCol;
       const row = m[3] ? Number(m[4]) - 1 : Number(m[4]) - 1 + dRow;
       out += col < 0 || row < 0 ? '#REF!' : `${m[1]}${weGridColumnLetter(col)}${m[3]}${row + 1}`;
@@ -301,8 +302,8 @@ export function weSheetMoveReferences(formula: string, axis: 'row' | 'col', at: 
   let i = 0;
   while (i < formula.length) {
     const ch = formula[i];
-    if (ch === '"' || ch === '[') {
-      const close = formula.indexOf(ch === '"' ? '"' : ']', i + 1);
+    if (ch === '"' || ch === '[' || ch === "'") {
+      const close = formula.indexOf(ch === '[' ? ']' : ch, i + 1);
       const stop = close === -1 ? formula.length : close + 1;
       tokens.push(formula.slice(i, stop));
       i = stop;
@@ -310,6 +311,13 @@ export function weSheetMoveReferences(formula: string, axis: 'row' | 'col', at: 
     }
     const prev = i > 0 ? formula[i - 1] : '';
     const rest = formula.slice(i);
+    // A reference to another sheet (`Sales!A5`, `'Q 1'!A5:A9`) is about that sheet's rows — kept as it is
+    const qualified = /^(?:'(?:[^']|'')*'|[\p{L}\p{N}_.]+)!(\$?[A-Za-z]{1,3}\$?\d+(?::\$?[A-Za-z]{1,3}\$?\d+)?|\$?[A-Za-z]{1,3}:\$?[A-Za-z]{1,3})/u.exec(rest);
+    if (qualified && !/[A-Za-z0-9_.$]/.test(prev)) {
+      tokens.push(qualified[0]);
+      i += qualified[0].length;
+      continue;
+    }
     const m = /^(\$?)([A-Za-z]{1,3})(\$?)(\d+)/.exec(rest);
     if (m && !/[A-Za-z0-9_.]/.test(prev) && !/^[A-Za-z0-9_(]/.test(formula.slice(i + m[0].length))) {
       tokens.push({ abs: [m[1], m[3]], col: weGridColumnIndex(m[2].toUpperCase()), row: Number(m[4]) - 1, colOnly: false });
@@ -439,4 +447,45 @@ export function weSheetAutoSum(range: WeSheetRange, isNumber: (col: number, row:
   while (left > 0 && isNumber(left - 1, row)) left--;
   if (left < col) return [{ col, row, formula: `=SUM(${weSheetAddress(left, row)}:${weSheetAddress(col - 1, row)})` }];
   return [];
+}
+
+
+/** How a sheet name is written in a formula: bare when it is a plain word, else in single quotes */
+export function weSheetNameRef(name: string): string {
+  return /^[\p{L}_][\p{L}\p{N}_.]*$/u.test(name) && !/^[A-Za-z]{1,3}\d+$/.test(name) ? name : `'${name.replace(/'/g, "''")}'`;
+}
+
+/** Rewrites `Old!A1` and `'Old'!A1` to the new sheet name, as Excel does when a sheet is renamed */
+export function weSheetRenameReferences(formula: string, oldName: string, newName: string): string {
+  const target = oldName.toLocaleLowerCase();
+  let out = '';
+  let i = 0;
+  while (i < formula.length) {
+    const ch = formula[i];
+    if (ch === '"') {
+      const close = formula.indexOf('"', i + 1);
+      const stop = close === -1 ? formula.length : close + 1;
+      out += formula.slice(i, stop);
+      i = stop;
+      continue;
+    }
+    const rest = formula.slice(i);
+    const quoted = /^'((?:[^']|'')*)'!/.exec(rest);
+    const bare = quoted ? null : /^([\p{L}\p{N}_.]+)!/u.exec(rest);
+    const prev = i > 0 ? formula[i - 1] : '';
+    const name = quoted ? quoted[1].replace(/''/g, "'") : bare && !/[\p{L}\p{N}_.]/u.test(prev) ? bare[1] : null;
+    if (name !== null && name.toLocaleLowerCase() === target) {
+      out += `${weSheetNameRef(newName)}!`;
+      i += (quoted ?? bare)![0].length;
+      continue;
+    }
+    if (quoted) {
+      out += quoted[0];
+      i += quoted[0].length;
+      continue;
+    }
+    out += ch;
+    i++;
+  }
+  return out;
 }

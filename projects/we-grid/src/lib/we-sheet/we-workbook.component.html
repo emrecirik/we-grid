@@ -2,6 +2,7 @@
   <!-- Switching tabs hands the sheet another data object, which it loads (with a fresh undo history) -->
   <we-sheet
     [data]="activeSheet"
+    [resolveSheet]="resolveSheet"
     [readonly]="readonly"
     [height]="height"
     [exportFileName]="exportFileName + ' - ' + book.sheets[book.active].name"

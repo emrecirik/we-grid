@@ -118,6 +118,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   @Input() exportFileName = 'sheet';
   /** Fixed height of the scrolling area — CSS length or pixels */
   @Input() height: number | string = 420;
+  /**
+   * Other sheets a formula can read (`Sales!B2`, `'Q 1'!A1:C9`) — `<we-workbook>` passes its sheets
+   * here. Returns null for an unknown name (→ `#REF!`).
+   */
+  @Input() resolveSheet?: (name: string) => WeSheetData | null;
 
   /** Every change, with the new content */
   @Output() dataChange = new EventEmitter<WeSheetData>();
@@ -198,7 +203,34 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   ngOnChanges(changes: SimpleChanges): void {
     // Our own (dataChange) bound back into [data] carries the same object — nothing to reload then
-    if (changes['data'] && !changes['data'].firstChange && this.data && this.data !== this.sheet) this.load(this.data);
+    if (changes['data'] && !changes['data'].firstChange && this.data && this.data !== this.sheet) {
+      this.load(this.data);
+    } else if (changes['resolveSheet'] && !changes['resolveSheet'].firstChange) {
+      // Another sheet changed: recompute what refers to it
+      this.otherSheets.clear();
+      this.apply(this.sheet, false);
+    }
+  }
+
+  /** Evaluators of the other sheets, by lower-cased name — rebuilt when the resolver changes */
+  private readonly otherSheets = new Map<string, { data: WeSheetData; evaluator: WeGridSheetEvaluator } | null>();
+
+  private otherSheet(name: string): WeGridSheetEvaluator | null {
+    const key = name.toLocaleLowerCase();
+    if (!this.otherSheets.has(key)) {
+      const data = this.resolveSheet?.(name) ?? null;
+      if (!data) {
+        this.otherSheets.set(key, null);
+      } else {
+        const evaluator = new WeGridSheetEvaluator(
+          (c, r) => data.cells[weSheetAddress(c, r)]?.v ?? null,
+          () => ({ cols: data.cols, rows: data.rows }),
+          { sheet: (n) => this.otherSheet(n) }
+        );
+        this.otherSheets.set(key, { data, evaluator });
+      }
+    }
+    return this.otherSheets.get(key)?.evaluator ?? null;
   }
 
   ngOnDestroy(): void {
@@ -1093,11 +1125,12 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.apply(next);
   }
 
-  private apply(data: WeSheetData): void {
+  private apply(data: WeSheetData, emit = true): void {
     this.sheet = data;
     this.evaluator = new WeGridSheetEvaluator(
       (c, r) => this.sheet.cells[weSheetAddress(c, r)]?.v ?? null,
-      () => ({ cols: this.sheet.cols, rows: this.sheet.rows })
+      () => ({ cols: this.sheet.cols, rows: this.sheet.rows }),
+      { sheet: (name) => this.otherSheet(name) }
     );
     this.columnLetters = Array.from({ length: data.cols }, (_, i) => weGridColumnLetter(i));
     this.colIndexes = Array.from({ length: data.cols }, (_, i) => i);
@@ -1112,7 +1145,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       r2: Math.min(this.selection.r2, data.rows - 1)
     };
     this.afterSelection(false);
-    this.emitChange();
+    if (emit) this.emitChange();
   }
 
   private emitChange(): void {

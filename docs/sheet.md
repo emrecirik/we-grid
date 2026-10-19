@@ -133,5 +133,10 @@ interface WeWorkbookData {
 ```
 
 Inputs: `workbookKey`, `data` (wins over a stored workbook), `readonly`, `height`, `rows`, `cols`
-(size of a new sheet), `exportFileName`; output `dataChange`. Formulas refer to cells of their own
-sheet — references to other sheets (`Sheet2!A1`) are not supported yet.
+(size of a new sheet), `exportFileName`; output `dataChange`.
+
+*(0.15.0)* Formulas read other sheets as in Excel: `=Sales!B2`, `=SUM(Sales!B2:B13)`, and quoted
+when the name has spaces or punctuation: `='Q1 sales'!A1`. Renaming a sheet rewrites the
+formulas that point at it; deleting one turns them into `#REF!`. Copying and filling shift such
+references like any other; inserting rows in one sheet leaves references to the others alone.
+A plain `<we-sheet>` can read other sheets too: give it `[resolveSheet]="name => data"`.
