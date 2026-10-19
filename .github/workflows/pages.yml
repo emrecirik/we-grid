@@ -1,0 +1,57 @@
+# Publishes GitHub Pages: the docs/ folder (rendered by Jekyll, as the branch-based site was) plus
+# we-grid Studio, the live demo app, under /studio/. Runs on every push to main.
+name: Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build:lib
+      - run: npx ng build studio --base-href /${{ github.event.repository.name }}/studio/
+
+      - name: Render docs with Jekyll
+        uses: actions/jekyll-build-pages@v1
+        with:
+          source: ./docs
+          destination: ./_site
+
+      - name: Add the studio
+        run: |
+          sudo mkdir -p _site/studio
+          sudo cp -r dist/studio/browser/. _site/studio/
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./_site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

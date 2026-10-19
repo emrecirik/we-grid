@@ -14,6 +14,8 @@ Material, no icon font. Standalone components and directives on top of Angular C
 
 ![Order operations dashboard built with we-grid](docs/images/ecommerce-dashboard.png)
 
+**Try it live:** [we-grid Studio](https://emrecirik.github.io/we-grid/studio/) — the grid with formatting, formulas and views, and the `<we-sheet>` spreadsheet, in English or Turkish, light or dark.
+
 ## Features
 
 - Column hide/show, rename, drag-to-reorder, resize, pin (left/right), autofit-to-content —

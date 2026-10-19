@@ -1,0 +1,41 @@
+/* we-grid Studio — the Apple-style grid theme plus the page's own few tokens */
+@import '../../we-grid/styles/we-grid-theme-apple.scss';
+
+:root {
+  --studio-bg: #f5f5f7;
+  --studio-fg: #1d1d1f;
+  --studio-muted: rgba(60, 60, 67, 0.64);
+  --studio-accent: #007aff;
+  --studio-card: #ffffff;
+  --studio-separator: rgba(60, 60, 67, 0.16);
+  --studio-bar-bg: rgba(245, 245, 247, 0.8);
+  --studio-segment-bg: rgba(118, 118, 128, 0.12);
+  --studio-segment-on: #ffffff;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --studio-bg: #000000;
+  --studio-fg: #f5f5f7;
+  --studio-muted: rgba(235, 235, 245, 0.6);
+  --studio-accent: #0a84ff;
+  --studio-card: #1c1c1e;
+  --studio-separator: rgba(84, 84, 88, 0.65);
+  --studio-bar-bg: rgba(22, 22, 23, 0.8);
+  --studio-segment-bg: rgba(118, 118, 128, 0.24);
+  --studio-segment-on: #636366;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--studio-bg);
+  color: var(--studio-fg);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+we-grid,
+we-sheet {
+  font-family: inherit;
+}

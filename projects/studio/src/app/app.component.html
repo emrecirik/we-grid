@@ -1,0 +1,114 @@
+<header class="bar">
+  <div class="bar__inner">
+    <a class="brand" href="https://github.com/emrecirik/we-grid" aria-label="we-grid on GitHub">
+      <span class="brand__mark" aria-hidden="true"></span>
+      <span class="brand__name">we-grid</span>
+      <span class="brand__sub">Studio</span>
+    </a>
+
+    <nav class="segmented" role="tablist" aria-label="Studio">
+      <button type="button" role="tab" [attr.aria-selected]="tab === 'grid'" (click)="select('grid')">{{ text.tabGrid }}</button>
+      <button type="button" role="tab" [attr.aria-selected]="tab === 'sheet'" (click)="select('sheet')">{{ text.tabSheet }}</button>
+      <button type="button" role="tab" [attr.aria-selected]="tab === 'start'" (click)="select('start')">{{ text.tabStart }}</button>
+    </nav>
+
+    <div class="bar__end">
+      <div class="segmented segmented--small" role="group" [attr.aria-label]="text.language">
+        <button type="button" [attr.aria-pressed]="lang === 'en'" (click)="setLanguage('en')">EN</button>
+        <button type="button" [attr.aria-pressed]="lang === 'tr'" (click)="setLanguage('tr')">TR</button>
+      </div>
+      <div class="segmented segmented--small" role="group" [attr.aria-label]="text.themeLabel">
+        <button type="button" [attr.aria-pressed]="theme === 'light'" (click)="setTheme('light')">{{ text.light }}</button>
+        <button type="button" [attr.aria-pressed]="theme === 'dark'" (click)="setTheme('dark')">{{ text.dark }}</button>
+      </div>
+      <a class="link-btn" href="https://www.npmjs.com/package/we-grid-angular">npm</a>
+      <a class="link-btn" href="https://github.com/emrecirik/we-grid">GitHub</a>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+  <p class="tagline">{{ text.tagline }}</p>
+
+  @if (tab === 'grid') {
+    <section class="panel" role="tabpanel" [attr.aria-label]="text.tabGrid">
+      <div class="panel__head">
+        <div>
+          <h1>{{ text.gridTitle }}</h1>
+          <p class="muted">{{ text.gridIntro }}</p>
+        </div>
+      </div>
+      <we-grid
+        [gridKey]="'studio-orders-' + lang"
+        [columns]="columns"
+        [data]="orders"
+        trackByField="id"
+        [formatting]="true"
+        [formatRules]="rules"
+        [striped]="true"
+        [allowFormulaColumns]="true"
+        [savedViews]="true"
+        [grouping]="true"
+        [filterRow]="true"
+        [editable]="true"
+        editMode="form"
+        [allowAdd]="true"
+        [allowDelete]="true"
+        [exportFormats]="exportFormats"
+        [importFormats]="importFormats"
+        selectable="multi"
+        [maxHeight]="620"
+        exportFileName="orders"
+      ></we-grid>
+      <aside class="tips">
+        <h2>{{ text.tryTitle }}</h2>
+        <ul>
+          @for (tip of text.gridTips; track tip) {
+            <li>{{ tip }}</li>
+          }
+        </ul>
+      </aside>
+    </section>
+  }
+
+  @if (tab === 'sheet') {
+    <section class="panel" role="tabpanel" [attr.aria-label]="text.tabSheet">
+      <div class="panel__head">
+        <div>
+          <h1>{{ text.sheetTitle }}</h1>
+          <p class="muted">{{ text.sheetIntro }}</p>
+        </div>
+        <button type="button" class="link-btn" (click)="resetSheet()">{{ text.resetExample }}</button>
+      </div>
+      <we-sheet [sheetKey]="sheetKey" [data]="sheetData" [rows]="40" [cols]="10" [height]="520" exportFileName="budget" />
+      <aside class="tips">
+        <h2>{{ text.tryTitle }}</h2>
+        <ul>
+          @for (tip of text.sheetTips; track tip) {
+            <li>{{ tip }}</li>
+          }
+        </ul>
+      </aside>
+    </section>
+  }
+
+  @if (tab === 'start') {
+    <section class="panel panel--narrow" role="tabpanel" [attr.aria-label]="text.tabStart">
+      <h1>{{ text.startTitle }}</h1>
+      <h2>{{ text.install }}</h2>
+      <pre><code>{{ installSnippet }}</code></pre>
+      <pre><code>{{ usageSnippet }}</code></pre>
+      <pre><code>{{ themeSnippet }}</code></pre>
+      <p>
+        <a href="https://github.com/emrecirik/we-grid#documentation">{{ text.docs }}</a> ·
+        <a href="https://github.com/emrecirik/we-grid/blob/main/docs/formulas.md">Formulas</a> ·
+        <a href="https://github.com/emrecirik/we-grid/blob/main/docs/formatting.md">Formatting</a> ·
+        <a href="https://github.com/emrecirik/we-grid/blob/main/docs/sheet.md">we-sheet</a> ·
+        <a href="../gallery.html">Gallery</a>
+      </p>
+      <p class="muted">
+        <a href="https://emrecirik.github.io/we-report/">{{ text.sisterProject }}</a>
+      </p>
+    </section>
+  }
+</main>

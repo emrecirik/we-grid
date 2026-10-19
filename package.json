@@ -10,7 +10,8 @@
     "test": "ng test we-grid --watch=false --browsers=ChromeHeadless",
     "start:banking": "ng serve banking",
     "start:retail": "ng serve retail-market",
-    "start:ecommerce": "ng serve ecommerce-dashboard"
+    "start:ecommerce": "ng serve ecommerce-dashboard",
+    "start:studio": "ng serve studio"
   },
   "private": true,
   "dependencies": {
