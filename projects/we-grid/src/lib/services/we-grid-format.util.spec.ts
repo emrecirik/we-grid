@@ -101,6 +101,19 @@ describe('weGridResolveFormats', () => {
     expect(map.get(rows[1])?.['amount']['background']).toContain('55.6%');
   });
 
+  it('shows an icon by the value’s third of the range, reversible', () => {
+    const map = resolve([{ id: 'i', field: 'amount', type: 'iconSet', icons: 'arrows' }]);
+    expect(map.get(rows[2])?.['amount']['--we-grid-cell-icon-color']).toContain('green');
+    expect(map.get(rows[1])?.['amount']['--we-grid-cell-icon-color']).toContain('yellow');
+    expect(map.get(rows[0])?.['amount']['--we-grid-cell-icon-color']).toContain('red');
+    expect(map.get(rows[0])?.['amount']['--we-grid-cell-icon']).toMatch(/^url\("data:image\/svg\+xml,/);
+    const reversed = resolve([{ id: 'i', field: 'amount', type: 'iconSet', icons: 'dots', reverse: true }]);
+    expect(reversed.get(rows[0])?.['amount']['--we-grid-cell-icon-color']).toContain('green');
+    expect(weGridSanitizeFormatRules([{ id: 'x', field: 'a', type: 'iconSet', icons: 'evil', reverse: 'yes' }])).toEqual([
+      { id: 'x', field: 'a', type: 'iconSet', icons: 'arrows' }
+    ]);
+  });
+
   it('ignores rules on columns that are not shown', () => {
     expect(weGridResolveFormats(rows, [cond('gt', 0)], ['name'], read).size).toBe(0);
   });

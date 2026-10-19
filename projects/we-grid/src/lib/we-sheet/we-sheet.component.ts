@@ -126,6 +126,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   /** Every change, with the new content */
   @Output() dataChange = new EventEmitter<WeSheetData>();
+  /** Rows or columns were inserted (`count` > 0) or deleted — after the `dataChange` that carries them */
+  @Output() structureChange = new EventEmitter<{ axis: 'row' | 'col'; at: number; count: number }>();
 
   @ViewChild('scroll', { static: true }) scrollRef!: ElementRef<HTMLElement>;
   @ViewChild('editor') editorRef?: ElementRef<HTMLInputElement>;
@@ -146,6 +148,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   barText = '';
   stats: WeSheetStats = weSheetStats([]);
   openPalette: 'color' | 'fill' | null = null;
+  /** The table options menu in the toolbar */
+  optionsOpen = false;
   /** The right-click menu, at viewport coordinates */
   menu: { x: number; y: number } | null = null;
   /** Function names matching what is being typed after `=` */
@@ -170,7 +174,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   private dragging = false;
   private resizing: { col: number; startX: number; startWidth: number } | null = null;
   /** What this sheet last copied — pasted back as raw cells (formulas shifted) instead of text */
-  private clip: { text: string; range: WeSheetRange; cells: (WeSheetCell | undefined)[][] } | null = null;
+  private clip: { text: string; range: WeSheetRange; cells: (WeSheetCell | undefined)[][]; cut: boolean } | null = null;
   private readonly save$ = new Subject<void>();
   private readonly destroy$ = new Subject<void>();
 
@@ -225,7 +229,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
         const evaluator = new WeGridSheetEvaluator(
           (c, r) => data.cells[weSheetAddress(c, r)]?.v ?? null,
           () => ({ cols: data.cols, rows: data.rows }),
-          { sheet: (n) => this.otherSheet(n) }
+          { sheet: (n) => this.otherSheet(n), parseNumbers: false }
         );
         this.otherSheets.set(key, { data, evaluator });
       }
@@ -789,7 +793,19 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.closeMenu();
     if (this.readonly) return;
     this.commitEdit();
+    const size = axis === 'row' ? this.sheet.rows : this.sheet.cols;
+    const max = axis === 'row' ? WE_SHEET_MAX_ROWS : WE_SHEET_MAX_COLS;
+    const keep = max - count;
+    if (count > 0 && size + count > max && Object.keys(this.sheet.cells).some((k) => {
+      const p = weSheetParseAddress(k);
+      return !!p && (axis === 'row' ? p.row : p.col) >= keep;
+    })) {
+      this.notice = this.locale.sheetFull;
+      this.cdr.markForCheck();
+      return;
+    }
     this.commit(weSheetInsert(this.sheet, axis, at, count));
+    this.structureChange.emit({ axis, at, count });
   }
 
   /** Σ — sums the numbers above (or left of) the active cell, or under each column of a block */
@@ -844,7 +860,16 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   @HostListener('document:mousedown', ['$event'])
   onDocumentMouseDown(event: MouseEvent): void {
-    if (this.menu && !(event.target as HTMLElement).closest?.('.we-sheet__menu')) this.closeMenu();
+    const target = event.target as HTMLElement;
+    if (this.menu && !target.closest?.('.we-sheet__menu')) this.closeMenu();
+    if (this.optionsOpen && !target.closest?.('.we-sheet__palette-host')) {
+      this.optionsOpen = false;
+      this.cdr.markForCheck();
+    }
+    if (this.openPalette && !target.closest?.('.we-sheet__palette-host')) {
+      this.openPalette = null;
+      this.cdr.markForCheck();
+    }
   }
 
   // ─── Import ──────────────────────────────────────────────────────────
@@ -862,9 +887,15 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     try {
       const isXlsx = /\.xlsx$/i.test(file.name);
       const table = isXlsx ? await weGridReadXlsx(file) : weGridParseCsv(await file.text());
-      const lines = [table.headers, ...table.rows];
-      const cols = Math.max(this.sheet.cols, ...lines.map((l) => l.length));
-      let next: WeSheetData = { ...weSheetEmpty(Math.max(this.sheet.rows, lines.length + 10), cols), headerRow: true, striped: this.sheet.striped };
+      const all = [table.headers, ...table.rows];
+      const lines = all.slice(0, WE_SHEET_MAX_ROWS).map((l) => l.slice(0, WE_SHEET_MAX_COLS));
+      let cols = this.sheet.cols;
+      let truncated = lines.length < all.length;
+      for (let r = 0; r < lines.length; r++) {
+        if (all[r].length > WE_SHEET_MAX_COLS) truncated = true;
+        if (lines[r].length > cols) cols = lines[r].length;
+      }
+      let next: WeSheetData = { ...weSheetEmpty(Math.min(WE_SHEET_MAX_ROWS, Math.max(this.sheet.rows, lines.length + 10)), cols), headerRow: true, striped: this.sheet.striped };
       next = { ...next, cells: {} };
       // Excel stores numbers with a dot whatever the locale; a CSV is written in the user's own
       const separator: '.' | ',' = isXlsx ? '.' : this.decimalSeparator;
@@ -876,6 +907,10 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       );
       this.commit(next);
       this.moveTo({ col: 0, row: 0 });
+      if (truncated) {
+        this.notice = this.locale.sheetImportTruncated;
+        this.cdr.markForCheck();
+      }
     } catch {
       this.notice = this.locale.sheetImportFailed;
       this.cdr.markForCheck();
@@ -954,7 +989,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (this.readonly) return;
     const s = this.selection;
     const used = this.usedSize();
-    const block = s.r2 > s.r1 && s.r2 < this.sheet.rows - 1;
+    const block = s.r2 > s.r1 && !(s.r1 === 0 && s.r2 === this.sheet.rows - 1);
     const range: WeSheetRange = block
       ? s
       : { c1: 0, r1: this.sheet.headerRow ? 1 : 0, c2: Math.max(used.cols - 1, 0), r2: Math.max(used.rows - 1, 0) };
@@ -1012,7 +1047,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       cells.push(row);
     }
     const text = lines.join('\n');
-    this.clip = { text, range: { c1: s.c1, r1: s.r1, c2, r2 }, cells };
+    this.clip = { text, range: { c1: s.c1, r1: s.r1, c2, r2 }, cells, cut };
     event.clipboardData?.setData('text/plain', text);
     event.preventDefault();
     if (cut && !this.readonly) this.clearContents();
@@ -1034,14 +1069,16 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     for (let r = 0; r < height; r++) {
       for (let c = 0; c < widthOf(r); c++) {
         if (own) {
-          const dCol = at.col - own.range.c1;
-          const dRow = at.row - own.range.r1;
+          const dCol = own.cut ? 0 : at.col - own.range.c1;
+          const dRow = own.cut ? 0 : at.row - own.range.r1;
           this.putCell(next, at.col + c, at.row + r, this.shiftedCell(own.cells[r][c], dCol, dRow));
         } else {
           this.writeInput(next, at.col + c, at.row + r, table![r][c]);
         }
       }
     }
+    // A cut is pasted once, as in Excel
+    if (own?.cut) this.clip = null;
     this.commit(next);
     this.selection = { c1: at.col, r1: at.row, c2: at.col + Math.max(maxWidth - 1, 0), r2: at.row + Math.max(height - 1, 0) };
     this.afterSelection();
@@ -1130,7 +1167,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.evaluator = new WeGridSheetEvaluator(
       (c, r) => this.sheet.cells[weSheetAddress(c, r)]?.v ?? null,
       () => ({ cols: this.sheet.cols, rows: this.sheet.rows }),
-      { sheet: (name) => this.otherSheet(name) }
+      { sheet: (name) => this.otherSheet(name), parseNumbers: false }
     );
     this.columnLetters = Array.from({ length: data.cols }, (_, i) => weGridColumnLetter(i));
     this.colIndexes = Array.from({ length: data.cols }, (_, i) => i);
@@ -1221,7 +1258,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   private writeInput(target: WeSheetData, col: number, row: number, input: string | number | boolean | null): void {
     const key = weSheetAddress(col, row);
-    const parsed = typeof input === 'string' ? weSheetParseInput(input, this.decimalSeparator) : { value: input };
+    const asText = target.cells[key]?.f === 'text' && typeof input === 'string' && !input.startsWith('=') && !input.startsWith("'");
+    const parsed = asText ? { value: input === '' ? null : input } : typeof input === 'string' ? weSheetParseInput(input, this.decimalSeparator) : { value: input };
     const cell: WeSheetCell = { ...(target.cells[key] ?? {}) };
     if (parsed.value === null || parsed.value === undefined) delete cell.v;
     else cell.v = parsed.value;

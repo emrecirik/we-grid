@@ -7,6 +7,7 @@
     [height]="height"
     [exportFileName]="exportFileName + ' - ' + book.sheets[book.active].name"
     (dataChange)="onSheetChange(book.active, $event)"
+    (structureChange)="onStructureChange(book.active, $event)"
   />
 
   <div class="we-book__tabs" role="tablist" [attr.aria-label]="locale.workbookLabel">

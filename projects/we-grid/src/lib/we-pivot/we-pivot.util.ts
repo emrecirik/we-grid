@@ -44,7 +44,13 @@ function blank(v: unknown): boolean {
 /** A value as the key and label of a pivot group */
 function keyOf(v: unknown): string {
   if (blank(v)) return '';
-  if (v instanceof Date) return v.toISOString();
+  if (v instanceof Date) {
+    if (isNaN(v.getTime())) return '';
+    // The local calendar day (and time, when there is one) — sorts in order and reads as a label
+    const p = (n: number) => String(n).padStart(2, '0');
+    const day = `${v.getFullYear()}-${p(v.getMonth() + 1)}-${p(v.getDate())}`;
+    return v.getHours() || v.getMinutes() ? `${day} ${p(v.getHours())}:${p(v.getMinutes())}` : day;
+  }
   return String(v);
 }
 

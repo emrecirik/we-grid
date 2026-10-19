@@ -116,6 +116,18 @@ export function weSheetShiftFormula(formula: string, dCol: number, dRow: number)
       i += m[0].length;
       continue;
     }
+    const whole = /^(\$?)([A-Za-z]{1,3}):(\$?)([A-Za-z]{1,3})(?![A-Za-z0-9(])/.exec(formula.slice(i));
+    if (whole && !/[A-Za-z0-9_.$]/.test(prev)) {
+      const move = (abs: string, letters: string): string => {
+        const col = weGridColumnIndex(letters.toUpperCase()) + (abs ? 0 : dCol);
+        return col < 0 ? '#REF!' : abs + weGridColumnLetter(col);
+      };
+      const a = move(whole[1], whole[2]);
+      const b = move(whole[3], whole[4]);
+      out += a === '#REF!' || b === '#REF!' ? '#REF!' : `${a}:${b}`;
+      i += whole[0].length;
+      continue;
+    }
     out += ch;
     i++;
   }
@@ -163,7 +175,7 @@ export function weSheetStats(values: readonly unknown[]): WeSheetStats {
 /**
  * Sorts the rows of `range` by the computed value in column `byCol`: numbers before text, text in
  * the locale's order, blanks last whatever the direction. Whole cells move — content, style and
- * format. Formulas move as written.
+ * format. A moved formula's relative references move with it, as in Excel.
  */
 export function weSheetSortRange(
   data: WeSheetData,
@@ -190,7 +202,7 @@ export function weSheetSortRange(
     for (let c = range.c1; c <= range.c2; c++) {
       const from = data.cells[weSheetAddress(c, sorted[i])];
       const key = weSheetAddress(c, rows[i]);
-      if (from) cells[key] = from;
+      if (from) cells[key] = typeof from.v === 'string' && from.v.startsWith('=') ? { ...from, v: weSheetShiftFormula(from.v, 0, rows[i] - sorted[i]) } : from;
       else delete cells[key];
     }
   }
@@ -302,13 +314,6 @@ export function weSheetMoveReferences(formula: string, axis: 'row' | 'col', at: 
   let i = 0;
   while (i < formula.length) {
     const ch = formula[i];
-    if (ch === '"' || ch === '[' || ch === "'") {
-      const close = formula.indexOf(ch === '[' ? ']' : ch, i + 1);
-      const stop = close === -1 ? formula.length : close + 1;
-      tokens.push(formula.slice(i, stop));
-      i = stop;
-      continue;
-    }
     const prev = i > 0 ? formula[i - 1] : '';
     const rest = formula.slice(i);
     // A reference to another sheet (`Sales!A5`, `'Q 1'!A5:A9`) is about that sheet's rows — kept as it is
@@ -316,6 +321,13 @@ export function weSheetMoveReferences(formula: string, axis: 'row' | 'col', at: 
     if (qualified && !/[A-Za-z0-9_.$]/.test(prev)) {
       tokens.push(qualified[0]);
       i += qualified[0].length;
+      continue;
+    }
+    if (ch === '"' || ch === '[' || ch === "'") {
+      const close = formula.indexOf(ch === '[' ? ']' : ch, i + 1);
+      const stop = close === -1 ? formula.length : close + 1;
+      tokens.push(formula.slice(i, stop));
+      i = stop;
       continue;
     }
     const m = /^(\$?)([A-Za-z]{1,3})(\$?)(\d+)/.exec(rest);
@@ -415,6 +427,11 @@ export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number
     cells[weSheetAddress(col, row)] = typeof cell.v === 'string' && cell.v.startsWith('=') ? { ...cell, v: weSheetMoveReferences(cell.v, axis, at, count) } : cell;
   }
   const out: WeSheetData = { ...data, rows, cols, cells };
+  if (data.chart) {
+    const range = weSheetMoveReferences(data.chart.range, axis, at, count);
+    if (range.includes('#REF!')) delete out.chart;
+    else out.chart = { ...data.chart, range };
+  }
   if (axis === 'col' && data.widths) {
     const widths: Record<string, number> = {};
     for (const [letter, w] of Object.entries(data.widths)) {
@@ -456,6 +473,31 @@ export function weSheetNameRef(name: string): string {
 }
 
 /** Rewrites `Old!A1` and `'Old'!A1` to the new sheet name, as Excel does when a sheet is renamed */
+/**
+ * `weSheetMoveReferences` for references into the sheet `sheetName` from another sheet
+ * (`Sales!A5`, `'Q 1'!A5:A9`) — what a workbook runs over its other sheets when rows or columns of
+ * `sheetName` are inserted or deleted. A reference to deleted cells becomes `#REF!`.
+ */
+export function weSheetMoveSheetReferences(formula: string, sheetName: string, axis: 'row' | 'col', at: number, delta: number): string {
+  if (delta === 0) return formula;
+  const target = sheetName.toLocaleLowerCase();
+  const ref = /(^|[^\p{L}\p{N}_.$'])('(?:[^']|'')*'|[\p{L}\p{N}_.]+)!(\$?[A-Za-z]{1,3}\$?\d+(?::\$?[A-Za-z]{1,3}\$?\d+)?(?![A-Za-z0-9(])|\$?[A-Za-z]{1,3}:\$?[A-Za-z]{1,3}(?![A-Za-z0-9(]))/gu;
+  // Odd parts are text in quotes — left alone
+  return formula
+    .split(/("(?:[^"]|"")*")/)
+    .map((part, i) =>
+      i % 2
+        ? part
+        : part.replace(ref, (all: string, lead: string, name: string, cells: string) => {
+            const plain = name.startsWith("'") ? name.slice(1, -1).replace(/''/g, "'") : name;
+            if (plain.toLocaleLowerCase() !== target) return all;
+            const moved = weSheetMoveReferences(cells, axis, at, delta);
+            return lead + (moved.includes('#REF!') ? '#REF!' : `${name}!${moved}`);
+          })
+    )
+    .join('');
+}
+
 export function weSheetRenameReferences(formula: string, oldName: string, newName: string): string {
   const target = oldName.toLocaleLowerCase();
   let out = '';

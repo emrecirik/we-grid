@@ -230,3 +230,8 @@ parser's own messages are English too.
   `sheetFindCount(current, total)`, `sheetFindNone`, `sheetReplaced(count)`
 - `<we-workbook>`: `workbookLabel`, `workbookSheetName`, `workbookAdd`, `workbookRename`,
   `workbookRenameHint`, `workbookDuplicate`, `workbookDelete`
+
+## Keys added in 0.16.0
+
+- `sheetOptions`, `formatTypeIconSet`, `formatIconSetLabels`, `formatIconSetReverse`, `sheetImportTruncated`,
+  `sheetFull`

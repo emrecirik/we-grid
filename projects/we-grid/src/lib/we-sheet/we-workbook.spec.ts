@@ -55,6 +55,22 @@ describe('WeWorkbookComponent', () => {
     expect(tabs()).toEqual(['Budget', 'Budget2']);
   });
 
+  it('moves other sheets’ references when rows are inserted into a sheet', () => {
+    sheet().setCell('B1', 5);
+    book().addSheet();
+    fixture.detectChanges();
+    sheet().setCell('A1', '=Sheet1!B1');
+    book().activate(0);
+    fixture.detectChanges();
+    sheet().select('A1');
+    sheet().insertRows('before');
+    fixture.detectChanges();
+    expect(book().getData().sheets[1].data.cells['A1'].v).toBe('=Sheet1!B2');
+    book().activate(1);
+    fixture.detectChanges();
+    expect(sheet().getValue('A1')).toBe(5);
+  });
+
   it('keeps each sheet’s cells and saves the workbook under one key', async () => {
     sheet().setCell('A1', 'first');
     book().addSheet();

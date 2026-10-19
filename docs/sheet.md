@@ -59,6 +59,7 @@ All formula functions, their Turkish names and the error values are listed in
 | Output | |
 |---|---|
 | `dataChange` | `WeSheetData` after every change |
+| `structureChange` | `{ axis, at, count }` after rows or columns are inserted (`count` > 0) or deleted *(0.16.0)* — `<we-workbook>` uses it to move the other sheets' references |
 
 Public methods: `getData()`, `setData(data)`, `getValue('B3')`, `setCell('C2', '=A2*B2')`,
 `select('A1:C5')`, `selectionLabel`, `sort('asc' \| 'desc')`, `fillDown()`, `undo()`, `redo()`,

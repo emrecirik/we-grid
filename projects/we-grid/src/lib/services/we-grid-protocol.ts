@@ -114,8 +114,12 @@ export class WeGridProtocolClient {
   }
 
   private layoutKey(key: string): string {
-    // Grid keys such as "orders::views" fit the protocol's key rules; anything else is hex-encoded
-    const safe = LAYOUT_KEY.test(key) ? key : `x-${Array.from(new TextEncoder().encode(key), (b) => b.toString(16).padStart(2, '0')).join('').slice(0, 98)}`;
+    // Grid keys such as "orders::views" fit the protocol's key rules; anything else is hex-encoded,
+    // and a key too long for that keeps its first 32 bytes plus a hash of the whole key
+    if (LAYOUT_KEY.test(key)) return encodeURIComponent(key);
+    const bytes = new TextEncoder().encode(key);
+    const hex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+    const safe = bytes.length <= 49 ? `x-${hex(bytes)}` : `x-${hex(bytes.slice(0, 32))}-${hash53(key, 1).toString(16)}${hash53(key, 2).toString(16)}`;
     return encodeURIComponent(safe);
   }
 
@@ -287,4 +291,18 @@ export class WeSheetProtocolStore implements WeSheetStore {
   save(sheetKey: string, data: WeSheetData): Observable<void> {
     return from(this.client.putLayout(this.prefix + sheetKey, data));
   }
+}
+
+/** cyrb53 — a fast 53-bit string hash; two seeds make collisions between layout keys negligible */
+function hash53(text: string, seed: number): number {
+  let h1 = 0xdeadbeef ^ seed;
+  let h2 = 0x41c6ce57 ^ seed;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return 4294967296 * (2097151 & h2) + (h1 >>> 0);
 }

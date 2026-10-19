@@ -281,7 +281,7 @@ Several sheets behind tabs — inputs `workbookKey`, `data` (`WeWorkbookData`), 
   `WeGridRowsPasteEvent<T>`, `WeGridPastedRow<T>` — see [row-editing.md](row-editing.md)
 - `WeGridSavedView`, `WeGridViewShareEvent` — see [saved-views.md](saved-views.md) (0.9.0 adds `striped`, `formatRules`, `formulaColumns`)
 - `WeGridFormatRule`, `WeGridFormatOperator`, `WeGridCellStyle`, `WeGridFormatColor`, `WE_GRID_FORMAT_COLORS`,
-  `WeGridFormatPreset` / `WE_GRID_FORMAT_PRESETS`, `WeGridFormatScalePreset` / `WE_GRID_FORMAT_SCALES` *(0.9.0)*
+  `WeGridFormatPreset` / `WE_GRID_FORMAT_PRESETS`, `WeGridFormatScalePreset` / `WE_GRID_FORMAT_SCALES` *(0.9.0)*, `WeGridFormatIconSet` *(0.16.0)*
   — see [formatting.md](formatting.md)
 - `WeGridFormulaColumn` *(0.9.0)* — a user formula column (`field` starting with `fx:`, `header`, `formula`, `type?`);
   `WeGridLayout` gains `striped`, `formatRules`, `formulaColumns` and `WeGridColumnLayout` gains `style`

@@ -131,8 +131,8 @@ function toNumber(v: unknown): number | WeGridFormulaError {
   if (v instanceof Date) return toSerial(v);
   if (typeof v === 'string') {
     const s = v.trim();
-    const n = Number(s);
-    if (s !== '' && Number.isFinite(n)) return n;
+    // Decimal notation only — Number() would also read "0x1A", "0b11" and "Infinity"
+    if (/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s)) return Number(s);
   }
   return err('#VALUE!');
 }
@@ -212,6 +212,8 @@ interface FnDef {
   lazy?: boolean;
   /** Direct error arguments are passed in instead of short-circuiting (COUNT ignores them, COUNTA counts them) */
   errors?: boolean;
+  /** A cell reference argument counts like a one-cell range — text in it is skipped, as in Excel's SUM(A1) */
+  refs?: boolean;
   fn: (args: any[], scope: WeGridFormulaScope) => unknown;
 }
 
@@ -336,7 +338,7 @@ function formatText(v: unknown, fmt: unknown): unknown {
   const percent = f.endsWith('%');
   if (percent) n *= 100;
   const decimals = (f.split('.')[1] ?? '').replace(/[^0#]/g, '').length;
-  const [int, frac] = Math.abs(n).toFixed(decimals).split('.');
+  const [int, frac] = Math.abs(roundBy(n, decimals, 'round') as number).toFixed(decimals).split('.');
   const grouped = f.includes(',') ? int.replace(/\B(?=(\d{3})+(?!\d))/g, ',') : int;
   return (n < 0 ? '-' : '') + grouped + (frac ? '.' + frac : '') + (percent ? '%' : '');
 }
@@ -352,10 +354,10 @@ function lookupApprox(list: unknown[], value: unknown, descending: boolean): num
 }
 
 const FUNCTIONS: Record<string, FnDef> = {
-  SUM: { fn: a => { const n = numbersOf(a); return isErr(n) ? n : clean(n.reduce((s, x) => s + x, 0)); } },
-  AVERAGE: { fn: a => { const n = numbersOf(a); return isErr(n) ? n : n.length ? clean(n.reduce((s, x) => s + x, 0) / n.length) : err('#DIV/0!'); } },
-  MIN: { fn: a => { const n = numbersOf(a); return isErr(n) ? n : n.length ? Math.min(...n) : 0; } },
-  MAX: { fn: a => { const n = numbersOf(a); return isErr(n) ? n : n.length ? Math.max(...n) : 0; } },
+  SUM: { refs: true, fn: a => { const n = numbersOf(a); return isErr(n) ? n : clean(n.reduce((s, x) => s + x, 0)); } },
+  AVERAGE: { refs: true, fn: a => { const n = numbersOf(a); return isErr(n) ? n : n.length ? clean(n.reduce((s, x) => s + x, 0) / n.length) : err('#DIV/0!'); } },
+  MIN: { refs: true, fn: a => { const n = numbersOf(a); return isErr(n) ? n : n.length ? n.reduce((m, x) => (x < m ? x : m)) : 0; } },
+  MAX: { refs: true, fn: a => { const n = numbersOf(a); return isErr(n) ? n : n.length ? n.reduce((m, x) => (x > m ? x : m)) : 0; } },
   COUNT: {
     errors: true,
     fn: a =>
@@ -464,7 +466,7 @@ const FUNCTIONS: Record<string, FnDef> = {
       if (isErr(col)) return col;
       if (isErr(approx)) return approx;
       if (col < 1) return err('#VALUE!');
-      if (col > Math.max(...rows.map(r => r.length))) return err('#REF!');
+      if (rows.every(r => col > r.length)) return err('#REF!');
       const first = rows.map(r => r[0]);
       const i = approx ? lookupApprox(first, value, false) : first.findIndex(x => compare(x, value) === 0);
       return i < 0 ? err('#N/A') : rows[i][col - 1] ?? null;
@@ -862,7 +864,10 @@ function evaluate(node: Node, scope: WeGridFormulaScope): unknown {
       const def = FUNCTIONS[node.name];
       if (!def) return err('#NAME?');
       if (def.lazy) return def.fn(node.args.map(a => () => evaluate(a, scope)), scope);
-      const args = node.args.map(a => evaluate(a, scope));
+      const args = node.args.map(a => {
+        const v = evaluate(a, scope);
+        return def.refs && a.k === 'cell' && !isErr(v) ? [[v]] : v;
+      });
       if (!def.errors) {
         const e = args.find(isErr);
         if (e) return e;
@@ -946,12 +951,20 @@ export class WeGridSheetEvaluator {
   private readonly cache = new Map<string, unknown>();
   private readonly pending = new Set<string>();
   private readonly scope: WeGridFormulaScope;
+  private readonly parseNumbers: boolean;
 
   constructor(
     private readonly raw: (col: number, row: number) => unknown,
     private readonly size: () => { cols: number; rows: number },
-    options: { now?: () => Date; field?: (name: string) => unknown; sheet?: (name: string) => WeGridSheetEvaluator | null } = {}
+    options: {
+      now?: () => Date;
+      field?: (name: string) => unknown;
+      sheet?: (name: string) => WeGridSheetEvaluator | null;
+      /** Reads text such as "12" as a number (the default); false when the inputs are typed already */
+      parseNumbers?: boolean;
+    } = {}
   ) {
+    this.parseNumbers = options.parseNumbers !== false;
     const other = (name: string) => options.sheet?.(name) ?? null;
     this.scope = {
       sheetCell: (s, c, r) => {
@@ -1021,8 +1034,9 @@ export class WeGridSheetEvaluator {
     if (typeof raw === 'string') {
       const s = raw.trim();
       if (s === '') return null;
-      const n = Number(s);
-      return Number.isFinite(n) ? n : raw;
+      if (!this.parseNumbers) return raw;
+      const n = toNumber(s);
+      return typeof n === 'number' ? n : raw;
     }
     return raw ?? null;
   }

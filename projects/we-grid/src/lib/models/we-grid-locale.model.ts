@@ -228,6 +228,9 @@ export interface WeGridLocale {
   formatTypeCondition: string;
   formatTypeColorScale: string;
   formatTypeDataBar: string;
+  formatTypeIconSet: string;
+  formatIconSetLabels: Record<'arrows' | 'dots', string>;
+  formatIconSetReverse: string;
   formatOperatorLabels: Record<WeGridFormatOperator, string>;
   formatValue: string;
   formatValueAnd: string;
@@ -293,8 +296,13 @@ export interface WeGridLocale {
   sheetAutoSum: string;
   sheetImport: string;
   sheetImportFailed: string;
+  /** The imported file was larger than a sheet holds */
+  sheetImportTruncated: string;
+  /** An insert would push content off a full sheet */
+  sheetFull: string;
   sheetFreezeColumn: string;
   sheetSuggestions: string;
+  sheetOptions: string;
 
   // ─── <we-pivot> ───
   pivotLabel: string;
@@ -531,6 +539,9 @@ export const weGridLocaleEn: WeGridLocale = {
   formatTypeCondition: 'Highlight cells',
   formatTypeColorScale: 'Colour scale',
   formatTypeDataBar: 'Data bar',
+  formatTypeIconSet: 'Icon set',
+  formatIconSetLabels: { arrows: 'Arrows', dots: 'Traffic lights' },
+  formatIconSetReverse: 'Low values are good',
   formatOperatorLabels: {
     gt: 'Greater than',
     gte: 'Greater than or equal to',
@@ -624,8 +635,11 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetAutoSum: 'AutoSum',
   sheetImport: 'Open Excel or CSV',
   sheetImportFailed: 'The file could not be read',
+  sheetImportTruncated: 'The file is larger than a sheet holds — only what fits was imported',
+  sheetFull: 'The sheet is full — clear its last rows or columns first',
   sheetFreezeColumn: 'Freeze first column',
   sheetSuggestions: 'Functions',
+  sheetOptions: 'Table options',
   pivotLabel: 'Pivot table',
   pivotRows: 'Rows',
   pivotColumns: 'Columns',
@@ -867,6 +881,9 @@ export const weGridLocaleTr: WeGridLocale = {
   formatTypeCondition: 'Hücreleri vurgula',
   formatTypeColorScale: 'Renk skalası',
   formatTypeDataBar: 'Veri çubuğu',
+  formatTypeIconSet: 'Simge kümesi',
+  formatIconSetLabels: { arrows: 'Oklar', dots: 'Trafik ışıkları' },
+  formatIconSetReverse: 'Düşük değerler iyi',
   formatOperatorLabels: {
     gt: 'Büyüktür',
     gte: 'Büyük veya eşittir',
@@ -960,8 +977,11 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetAutoSum: 'Otomatik Toplam',
   sheetImport: 'Excel ya da CSV aç',
   sheetImportFailed: 'Dosya okunamadı',
+  sheetImportTruncated: 'Dosya bir sayfaya sığmayacak kadar büyük — yalnızca sığan kısmı alındı',
+  sheetFull: 'Sayfa dolu — önce son satırları veya sütunları boşaltın',
   sheetFreezeColumn: 'İlk kolonu dondur',
   sheetSuggestions: 'Fonksiyonlar',
+  sheetOptions: 'Tablo seçenekleri',
   pivotLabel: 'Pivot tablo',
   pivotRows: 'Satırlar',
   pivotColumns: 'Kolonlar',

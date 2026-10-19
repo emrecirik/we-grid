@@ -149,3 +149,11 @@ references — a shared link cannot inject styles.
 For number and percent columns the Format panel has **Decimal places**: fewer, more (0 to 6) or
 automatic. The choice is the column's `format` (`'3-3'`), saved with the layout and in views like
 the rest of the panel; currency columns keep their currency's decimals.
+
+## Icon sets (0.16.0)
+
+`{ id, field, type: 'iconSet', icons: 'arrows' }` puts ▲ ► ▼ (or, with `'dots'`, traffic lights)
+before each number: green for the top third of the column's range, yellow for the middle, red for
+the bottom — `reverse: true` when low is good (costs, delays). The shapes are CSS masks and the
+colours the palette's `--we-grid-format-green/yellow/red-fg`, so dark mode and your theme apply.
+In a macro: `ICONSET [Total] ARROWS` or `ICONSET [Delay] DOTS REVERSE`.

@@ -65,6 +65,8 @@ export type WeGridFormatOperator =
  * - `'colorScale'` — shades every numeric cell between `colors[0]` (lowest) and the last colour
  *   (highest), through `colors[1]` when three are given
  * - `'dataBar'` — draws a bar in `color` whose length is the value's share of the column's range
+ * - `'iconSet'` *(0.16.0)* — an arrow or dot before the value: green for the top third of the
+ *   column's range, yellow for the middle, red for the bottom (`reverse` swaps green and red)
  *
  * Rules are evaluated over the rows the grid currently shows, so a filter changes what "top 10" or
  * "above average" means — as in Excel. When several rules style the same cell, the first one in the
@@ -74,7 +76,7 @@ export interface WeGridFormatRule {
   /** Unique per grid — the format panel generates one */
   id: string;
   field: string;
-  type: 'condition' | 'colorScale' | 'dataBar';
+  type: 'condition' | 'colorScale' | 'dataBar' | 'iconSet';
   operator?: WeGridFormatOperator;
   value?: string | number | null;
   value2?: string | number | null;
@@ -85,7 +87,14 @@ export interface WeGridFormatRule {
   colors?: WeGridFormatColor[];
   /** `'dataBar'`: the bar colour */
   color?: WeGridFormatColor;
+  /** `'iconSet'`: arrows (▲ ► ▼) or dots, by the value's place in the column's range — top third, middle, bottom */
+  icons?: WeGridFormatIconSet;
+  /** `'iconSet'`: low values are good (green) and high ones bad */
+  reverse?: boolean;
 }
+
+/** The icon sets a rule can show — see WeGridFormatRule.icons */
+export type WeGridFormatIconSet = 'arrows' | 'dots';
 
 /** The ready-made styles the format panel offers for a highlight rule, as in Excel */
 export type WeGridFormatPreset = 'redFill' | 'yellowFill' | 'greenFill' | 'blueFill' | 'redText' | 'bold';

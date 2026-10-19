@@ -59,3 +59,14 @@ describe('wePivot', () => {
     expect(p.rows.map((r) => r[p.columns[1].field])).toEqual([3, 2]);
   });
 });
+
+describe('wePivot dates', () => {
+  it('groups dates by the local day and leaves invalid dates blank', () => {
+    const rows = [{ d: new Date(2024, 0, 15), n: 1 }, { d: new Date(2024, 0, 15), n: 2 }, { d: new Date('nope'), n: 4 }];
+    const p = wePivot(rows, { rows: ['d'], columns: [], values: [{ field: 'n', aggregate: 'sum' }] }, [{ field: 'd', header: 'Day', type: 'date' }, { field: 'n', header: 'N', type: 'number' }], labels);
+    expect(p.rows.map((r) => [r['r:d'], r[p.columns[1].field]])).toEqual([
+      ['2024-01-15', 3],
+      ['(Empty)', 4]
+    ]);
+  });
+});

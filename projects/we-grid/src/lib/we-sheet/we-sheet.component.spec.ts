@@ -116,6 +116,36 @@ describe('WeSheetComponent', () => {
     expect(sheet().getValue('B2')).toBe(12);
   });
 
+  it('keeps text-formatted input as text', () => {
+    sheet().select('A1');
+    sheet().setFormat('text');
+    sheet().setCell('A1', '0012');
+    expect(sheet().getValue('A1')).toBe('0012');
+    sheet().setCell('A2', "'007");
+    expect(sheet().getValue('A2')).toBe('007');
+  });
+
+  it('pastes a cut without shifting its references, and only once', () => {
+    sheet().setCell('A1', 4);
+    sheet().setCell('C1', '=A1');
+    sheet().select('C1');
+    const scroll = el().querySelector('.we-sheet__scroll')!;
+    const data = new DataTransfer();
+    scroll.dispatchEvent(new ClipboardEvent('cut', { clipboardData: data, bubbles: true, cancelable: true }));
+    sheet().select('C3');
+    scroll.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    expect(sheet().getData().cells['C3'].v).toBe('=A1');
+    expect(sheet().getData().cells['C1']).toBeUndefined();
+  });
+
+  it('refuses to insert rows that would push content off a full sheet', () => {
+    sheet().setData({ version: 1, rows: 5000, cols: 2, cells: { A1: { v: 1 }, A5000: { v: 'last' } } });
+    sheet().select('A1');
+    sheet().insertRows('before');
+    expect(sheet().getValue('A5000')).toBe('last');
+    expect(sheet().getValue('A1')).toBe(1);
+  });
+
   it('sorts the used rows below the header row', () => {
     sheet().setData({ version: 1, rows: 6, cols: 4, headerRow: true, cells: { A1: { v: 'Name' }, A2: { v: 'b' }, A3: { v: 'c' }, A4: { v: 'a' } } });
     sheet().select('A2');

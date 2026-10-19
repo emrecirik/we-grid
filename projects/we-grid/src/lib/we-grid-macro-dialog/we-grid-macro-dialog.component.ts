@@ -19,6 +19,7 @@ const CHEAT_SHEET = [
   'HIGHLIGHT [Column] TOP 10 | DUPLICATES | ABOVE AVERAGE',
   'HIGHLIGHT ROWS WHERE [Qty] > [Stock] RED',
   'DATABAR [Column] BLUE · COLORSCALE [Column] RED YELLOW GREEN',
+  'ICONSET [Column] ARROWS | DOTS [REVERSE]',
   'SET [Column] = formula WHERE condition',
   'DENSITY COMPACT · ZEBRA ON',
   'VIEW "Name" · EXPORT XLSX | CSV | PDF',

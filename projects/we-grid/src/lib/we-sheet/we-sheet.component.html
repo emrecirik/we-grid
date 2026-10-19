@@ -86,25 +86,26 @@
         </button>
       </div>
 
-      <div class="we-sheet__group">
-        <button type="button" class="we-sheet__btn we-sheet__btn--text" [attr.aria-pressed]="!!sheet.headerRow" (click)="toggleHeaderRow()" [title]="locale.sheetHeaderRow">
-          <span [innerHTML]="icon('table')" aria-hidden="true"></span> {{ locale.sheetHeaderRow }}
+      <div class="we-sheet__group we-sheet__palette-host">
+        <button type="button" class="we-sheet__btn" [attr.aria-expanded]="optionsOpen" aria-haspopup="menu" (click)="optionsOpen = !optionsOpen" [attr.aria-label]="locale.sheetOptions" [title]="locale.sheetOptions">
+          <span [innerHTML]="icon('listSettings')" aria-hidden="true"></span>
         </button>
-        <button type="button" class="we-sheet__btn we-sheet__btn--text" [attr.aria-pressed]="!!sheet.striped" (click)="toggleStriped()" [title]="locale.stripedRows">
-          <span [innerHTML]="icon('stripes')" aria-hidden="true"></span> {{ locale.stripedRows }}
-        </button>
-        <button type="button" class="we-sheet__btn" [attr.aria-pressed]="!!sheet.freezeColumn" (click)="toggleFreezeColumn()" [attr.aria-label]="locale.sheetFreezeColumn" [title]="locale.sheetFreezeColumn">
-          <span [innerHTML]="icon('pin')" aria-hidden="true"></span>
-        </button>
-      </div>
-
-      <div class="we-sheet__group">
-        <button type="button" class="we-sheet__btn" (click)="addRow()" [attr.aria-label]="locale.sheetAddRow" [title]="locale.sheetAddRow">
-          <span [innerHTML]="icon('plus')" aria-hidden="true"></span><span class="we-sheet__btn-sub">1</span>
-        </button>
-        <button type="button" class="we-sheet__btn" (click)="addColumn()" [attr.aria-label]="locale.sheetAddColumn" [title]="locale.sheetAddColumn">
-          <span [innerHTML]="icon('plus')" aria-hidden="true"></span><span class="we-sheet__btn-sub">A</span>
-        </button>
+        @if (optionsOpen) {
+          <div class="we-sheet__options" role="menu" [attr.aria-label]="locale.sheetOptions" (keydown.escape)="optionsOpen = false">
+            <button type="button" role="menuitemcheckbox" [attr.aria-checked]="!!sheet.headerRow" (click)="toggleHeaderRow()">
+              <span class="we-sheet__check" [innerHTML]="sheet.headerRow ? icon('check') : ''" aria-hidden="true"></span>{{ locale.sheetHeaderRow }}
+            </button>
+            <button type="button" role="menuitemcheckbox" [attr.aria-checked]="!!sheet.striped" (click)="toggleStriped()">
+              <span class="we-sheet__check" [innerHTML]="sheet.striped ? icon('check') : ''" aria-hidden="true"></span>{{ locale.stripedRows }}
+            </button>
+            <button type="button" role="menuitemcheckbox" [attr.aria-checked]="!!sheet.freezeColumn" (click)="toggleFreezeColumn()">
+              <span class="we-sheet__check" [innerHTML]="sheet.freezeColumn ? icon('check') : ''" aria-hidden="true"></span>{{ locale.sheetFreezeColumn }}
+            </button>
+            <div class="we-sheet__menu-sep" role="separator"></div>
+            <button type="button" role="menuitem" (click)="optionsOpen = false; addRow()"><span class="we-sheet__check"></span>{{ locale.sheetAddRow }}</button>
+            <button type="button" role="menuitem" (click)="optionsOpen = false; addColumn()"><span class="we-sheet__check"></span>{{ locale.sheetAddColumn }}</button>
+          </div>
+        }
       </div>
     }
 

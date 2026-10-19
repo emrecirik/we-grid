@@ -2,6 +2,54 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.16.0 — 2026-10-20
+
+Icon sets and a tidier sheet toolbar. A minor release.
+
+### Added
+
+- Conditional formatting **icon sets** (`type: 'iconSet'`, `icons: 'arrows' | 'dots'`, `reverse`):
+  an arrow or traffic light before the value by its third of the column's range — in the Format
+  panel, in rules from code and in macros (`ICONSET [Column] ARROWS | DOTS [REVERSE]`). Drawn as a
+  CSS mask coloured from the palette, so it follows the theme. Locale keys `formatTypeIconSet`,
+  `formatIconSetLabels`, `formatIconSetReverse`.
+
+### Changed
+
+- `<we-sheet>`: header row, zebra rows, freeze first column, add row and add column moved from the
+  toolbar into a **Table options** menu, so the toolbar fits on one line. Locale key `sheetOptions`.
+- `WeGridSheetEvaluator` reads text as a number in decimal notation only (`"0x10"`, `"0b11"`,
+  `"Infinity"` stay text), and takes `parseNumbers: false` for inputs that are typed already.
+- Macro numbers are the numbers the grid shows: `FILTER [Pct] > 25` on a percent column is 25 %,
+  not 2500 %; the recorder writes them the same way. `weGridDiffViews` takes an optional `scaleOf`.
+
+### Fixed
+
+- `<we-sheet>`: sorting moves each formula's relative references with its row, as Excel does
+  (`=A2*10` sorted to row 1 reads `=A1*10`, not another row's value).
+- `<we-sheet>`: text stays text — `'007` and anything typed into a Text-formatted cell are no longer
+  read back as numbers.
+- `<we-workbook>`: inserting or deleting rows or columns moves the other sheets' references to that
+  sheet (`=Sales!B1` becomes `=Sales!B2`); quoted references (`'Q 1'!A5`) to another sheet are no
+  longer moved when this sheet changes. New `weSheetMoveSheetReferences` and `(structureChange)`.
+- `<we-sheet>`: cut + paste keeps the cells' references as they were (copy + paste still shifts
+  them); a whole-column reference (`=SUM(A:A)`) shifts when copied sideways; the chart range
+  follows inserted and deleted rows; a whole-column selection sorts the used rows.
+- `<we-sheet>`: importing a file larger than a sheet keeps what fits and says so, instead of
+  growing past the limits; inserting rows or columns on a full sheet is refused with a notice
+  instead of dropping the last ones. Locale keys `sheetImportTruncated`, `sheetFull`.
+- Formulas: `MIN`/`MAX`/`VLOOKUP` over very large ranges no longer overflow the stack;
+  `SUM`/`AVERAGE`/`MIN`/`MAX` skip text in a cell reference (`=SUM(A1,A2)` with a label in A1),
+  as Excel does; `TEXT(1.005,"0.00")` rounds like `ROUND` (`1.01`).
+- Macros: `FILTER [Active] = TRUE` on a boolean column filters instead of doing nothing; the
+  recorder writes a one-sided range as `>` / `<` rather than an unreadable `BETWEEN 5 AND undefined`.
+- Protocol layout store: long layout keys that share their first 49 bytes no longer map to the
+  same URL (the hex form keeps 32 bytes plus a hash of the whole key). Keys up to 49 bytes keep
+  their old URL.
+- `<we-pivot>`: dates group by the local day (`2024-01-15`, not the UTC instant), invalid dates
+  count as blank instead of failing the pivot.
+- `<we-workbook>`: arrow keys between tabs move focus with the selection again.
+
 ## 0.15.0 — 2026-10-20
 
 References between sheets. A minor release.

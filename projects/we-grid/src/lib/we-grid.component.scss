@@ -1377,3 +1377,16 @@
     outline: none;
   }
 }
+
+// Icon sets (format rules of type 'iconSet') — the shape is a mask, the colour a palette variable
+.we-grid__row td[style*='--we-grid-cell-icon']::before {
+  content: '';
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  margin-inline-end: 0.35em;
+  vertical-align: -0.08em;
+  background: var(--we-grid-cell-icon-color, currentColor);
+  -webkit-mask: var(--we-grid-cell-icon) center / contain no-repeat;
+  mask: var(--we-grid-cell-icon) center / contain no-repeat;
+}

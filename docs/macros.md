@@ -72,12 +72,16 @@ English and case-insensitive. Text values go in double quotes (`""` for a quote 
 | `HIGHLIGHT [Column] > 1000 GREEN BOLD ROW` | A conditional format rule: `> >= < <= = <>`, `CONTAINS`, `BETWEEN a AND b`, `TOP n`, `BOTTOM n`, `ABOVE AVERAGE`, `BELOW AVERAGE`, `DUPLICATES`, `UNIQUE`, `EMPTY` — then a palette colour (fill and text), `BOLD`, `ITALIC`, `ROW` for the whole row. Yellow when no style is given |
 | `HIGHLIGHT ROWS WHERE [Qty] > [Stock] RED` | A row rule on any formula |
 | `DATABAR [Column] BLUE` · `COLORSCALE [Column] RED YELLOW GREEN` | Data bars and two- or three-colour scales |
+| `ICONSET [Column] ARROWS` · `ICONSET [Column] DOTS REVERSE` | Icon sets (0.16.0) |
 | `CLEAR FORMATS` · `CLEAR FORMATS [Column]` | Removes format rules |
 | `SET [Column] = formula WHERE condition` | Writes a formula's result into a column, for the rows shown (and matching the optional `WHERE`). Goes through `(rowsPaste)` like a paste — or straight into the rows when nobody listens. Read-only and formula columns refuse |
 | `VIEW "Name"` | Applies a saved view |
 | `EXPORT XLSX` / `CSV` / `PDF` | Exports, as the toolbar would |
 | `RUN name` | Calls `macroCommands[name](grid)` and waits for it |
 | `MESSAGE "Done"` | Shows a notice |
+
+Numbers are written as the grid shows them: `FILTER [Margin] > 25` on a percent column means 25 %
+(and the recorder writes it that way) *(0.16.0)*.
 
 Palette colours: `RED ORANGE YELLOW GREEN TEAL BLUE PURPLE PINK GRAY`. Formulas use the formula
 engine — every function in [formulas.md](formulas.md), English or Turkish names.

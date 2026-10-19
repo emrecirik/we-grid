@@ -127,4 +127,6 @@ Formulas also drive `formula` [formatting rules](formatting.md).
 In `<we-workbook>`, `Sheet2!A1`, `Sheet2!A1:B9` and `'Name with spaces'!A1` read another sheet
 (`''` for a quote inside the name). An unknown sheet gives `#REF!`. Engine scopes provide them
 through `sheetCell(sheet, col, row)` / `sheetRange(sheet, …)` on `WeGridFormulaScope`, and
-`WeGridSheetEvaluator` takes `{ sheet: name => evaluator }`.
+`WeGridSheetEvaluator` takes `{ sheet: name => evaluator }`. *(0.16.0)* `parseNumbers: false` keeps
+text inputs such as `"007"` as text, for inputs that are typed already (as `<we-sheet>`'s are); by
+default text in decimal notation reads as a number — `"0x10"` and `"Infinity"` no longer do.

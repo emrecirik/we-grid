@@ -6,7 +6,7 @@ import { WE_GRID_ICONS, WeGridIcons } from '../models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 import { WeSheetComponent } from './we-sheet.component';
 import { WE_SHEET_STORE, WeSheetData, WeSheetStore } from './we-sheet.model';
-import { weSheetEmpty, weSheetRenameReferences, weSheetSanitize } from './we-sheet.util';
+import { weSheetEmpty, weSheetMoveSheetReferences, weSheetRenameReferences, weSheetSanitize } from './we-sheet.util';
 
 /** A workbook: named sheets in order, like the tabs at the bottom of Excel */
 export interface WeWorkbookData {
@@ -183,18 +183,30 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
     const oldName = this.book.sheets[index].name;
     const newName = this.freeName(clean, index);
     // Formulas that pointed at the sheet follow it to its new name, as in Excel
-    const sheets = this.book.sheets.map((s, i) => {
+    const sheets = this.rewriteFormulas((f) => weSheetRenameReferences(f, oldName, newName)).map((s, i) => (i === index ? { ...s, name: newName } : s));
+    this.update({ ...this.book, sheets });
+  }
+
+  /** Rows or columns of the active sheet moved — the other sheets' references to it follow */
+  onStructureChange(index: number, change: { axis: 'row' | 'col'; at: number; count: number }): void {
+    const name = this.book.sheets[index].name;
+    const sheets = this.rewriteFormulas((f) => weSheetMoveSheetReferences(f, name, change.axis, change.at, change.count), index);
+    if (sheets.some((s, i) => s !== this.book.sheets[i])) this.update({ ...this.book, sheets });
+  }
+
+  /** Every sheet with `map` run over its formulas (but the sheet `except`); unchanged sheets stay the same objects */
+  private rewriteFormulas(map: (formula: string) => string, except = -1): WeWorkbookData['sheets'] {
+    return this.book.sheets.map((s, i) => {
+      if (i === except) return s;
       const cells: WeSheetData['cells'] = {};
       let changed = false;
       for (const [key, cell] of Object.entries(s.data.cells)) {
-        const v = typeof cell.v === 'string' && cell.v.startsWith('=') ? weSheetRenameReferences(cell.v, oldName, newName) : cell.v;
+        const v = typeof cell.v === 'string' && cell.v.startsWith('=') ? map(cell.v) : cell.v;
         if (v !== cell.v) changed = true;
         cells[key] = v === cell.v ? cell : { ...cell, v };
       }
-      const data = changed ? { ...s.data, cells } : s.data;
-      return i === index ? { name: newName, data } : changed ? { ...s, data } : s;
+      return changed ? { ...s, data: { ...s.data, cells } } : s;
     });
-    this.update({ ...this.book, sheets });
   }
 
   onTabKeydown(event: KeyboardEvent, index: number): void {
@@ -203,7 +215,8 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
       if (event.altKey || event.ctrlKey) this.moveSheet(index, event.key === 'ArrowRight' ? 1 : -1);
       else this.activate(next);
       event.preventDefault();
-      queueMicrotask(() => (event.currentTarget as HTMLElement | null)?.parentElement?.querySelectorAll<HTMLElement>('[role="tab"]')[this.book.active]?.focus());
+      const tab = event.currentTarget as HTMLElement | null;
+      queueMicrotask(() => tab?.parentElement?.querySelectorAll<HTMLElement>('[role="tab"]')[this.book.active]?.focus());
     } else if (event.key === 'F2') {
       this.startRename(index);
       event.preventDefault();

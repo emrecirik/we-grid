@@ -4,6 +4,7 @@ import {
   weSheetAutoSum,
   weSheetInsert,
   weSheetMoveReferences,
+  weSheetMoveSheetReferences,
   weSheetEmpty,
   weSheetFormatValue,
   weSheetNormalize,
@@ -136,5 +137,35 @@ describe('we-sheet structure', () => {
       { col: 1, row: 3, formula: '=SUM(B1:B3)' }
     ]);
     expect(weSheetAutoSum({ c1: 4, r1: 0, c2: 4, r2: 0 }, isNumber)).toEqual([]);
+  });
+});
+
+describe('we-sheet references (0.16.0 fixes)', () => {
+  it('moves a sorted row formula with its row', () => {
+    const data = { ...weSheetEmpty(5, 3), cells: { A1: { v: 1 }, A2: { v: 3 }, A3: { v: 2 }, B1: { v: '=A1*10' }, B2: { v: '=A2*10' }, B3: { v: '=A3*10' } } };
+    const values: Record<string, number> = { A1: 1, A2: 3, A3: 2 };
+    const sorted = weSheetSortRange(data, { c1: 0, r1: 0, c2: 1, r2: 2 }, 0, 'desc', (c, r) => (c === 0 ? values[weSheetAddress(c, r)] : null), 'en');
+    expect(['B1', 'B2', 'B3'].map((a) => sorted.cells[a].v)).toEqual(['=A1*10', '=A2*10', '=A3*10']);
+    expect(['A1', 'A2', 'A3'].map((a) => sorted.cells[a].v)).toEqual([3, 2, 1]);
+  });
+
+  it('leaves quoted references to another sheet alone when this sheet changes', () => {
+    expect(weSheetMoveReferences("='Q 1'!A5+Sales!A5+A5", 'row', 0, 1)).toBe("='Q 1'!A5+Sales!A5+A6");
+  });
+
+  it('moves references into a sheet from the other sheets', () => {
+    expect(weSheetMoveSheetReferences("=Sales!B1+'q 1'!A1:A3+B1+\"Sales!B1\"", 'Sales', 'row', 0, 1)).toBe("=Sales!B2+'q 1'!A1:A3+B1+\"Sales!B1\"");
+    expect(weSheetMoveSheetReferences("='Q 1'!A1:A3*2", 'q 1', 'row', 1, 1)).toBe("='Q 1'!A1:A4*2");
+    expect(weSheetMoveSheetReferences('=Sales!B2', 'Sales', 'row', 1, -1)).toBe('=#REF!');
+  });
+
+  it('shifts whole-column references when copied sideways', () => {
+    expect(weSheetShiftFormula('=SUM(A:A)+$B:$B', 1, 3)).toBe('=SUM(B:B)+$B:$B');
+  });
+
+  it('keeps the chart on its cells when rows are inserted, and drops it when they are deleted', () => {
+    const data = { ...weSheetEmpty(5, 3), chart: { range: 'A1:B2', type: 'column' as const } };
+    expect(weSheetInsert(data, 'row', 0, 1).chart?.range).toBe('A2:B3');
+    expect(weSheetInsert(data, 'row', 0, -2).chart).toBeUndefined();
   });
 });

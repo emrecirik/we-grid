@@ -86,7 +86,9 @@ describe('WeGridComponent — toolbar, header menu button and empty template', (
       '.cdk-overlay-container{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:1000}' +
       '.cdk-overlay-connected-position-bounding-box{position:absolute;display:flex;flex-direction:column}' +
       '.cdk-overlay-pane{position:absolute;pointer-events:auto;display:flex;max-width:100%;max-height:100%}' +
-      '.cdk-overlay-backdrop{position:absolute;inset:0;pointer-events:auto}';
+      '.cdk-overlay-backdrop{position:absolute;inset:0;pointer-events:auto}' +
+      // The jasmine reporter's results line grows as specs run and would push the grid down the page
+      '.jasmine_html-reporter{display:none}';
     document.head.appendChild(overlayCss);
   });
   afterAll(() => overlayCss.remove());

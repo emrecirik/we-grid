@@ -124,3 +124,15 @@ describe('we-grid protocol client', () => {
     ]);
   });
 });
+
+describe('we-grid protocol layout keys', () => {
+  it('gives long keys that share a beginning different URLs within the 100-character limit', async () => {
+    const { fn, calls } = fakeFetch(() => ({ status: 204 }));
+    const client = new WeGridProtocolClient({ baseUrl: 'http://x', fetch: fn });
+    await client.putLayout('grid:user@example.com:department-reports:orders-2024', {});
+    await client.putLayout('grid:user@example.com:department-reports:orders-2025', {});
+    const keys = calls.map((c) => decodeURIComponent(c.url.split('/v1/layouts/')[1]));
+    expect(keys[0]).not.toBe(keys[1]);
+    expect(keys.every((k) => k.length <= 100 && /^[A-Za-z0-9._:-]+$/.test(k))).toBeTrue();
+  });
+});

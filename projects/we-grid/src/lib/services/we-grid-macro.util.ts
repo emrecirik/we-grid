@@ -4,6 +4,7 @@ import { WE_GRID_FORMAT_COLORS, WeGridCellStyle, WeGridFormatColor, WeGridFormat
 import { WeGridMacro, WeGridMacroError, WeGridMacroFilterOperator, WeGridMacroLine, WeGridMacroStep } from '../models/we-grid-macro.model';
 import { WeGridSavedView } from '../models/we-grid-view.model';
 import { weGridTryCompileFormula } from './we-grid-formula.util';
+import { weGridToInputNumber } from './we-grid-value.util';
 
 const MAX_LINES = 500;
 const MAX_MACROS = 50;
@@ -205,6 +206,14 @@ function parseLine(c: Cursor): WeGridMacroStep {
       const color = c.word();
       if (!COLORS.has(color)) throw new Error(`unknown colour — use ${[...COLORS].join(', ')}`);
       step = { op: 'format', rule: { field, type: 'dataBar', color: color.toLowerCase() as WeGridFormatColor } };
+      break;
+    }
+    case 'ICONSET': {
+      const field = c.field();
+      const set = c.done ? 'ARROWS' : c.word();
+      if (set !== 'ARROWS' && set !== 'DOTS') throw new Error('ICONSET needs ARROWS or DOTS');
+      const reverse = c.accept('REVERSE');
+      step = { op: 'format', rule: { field, type: 'iconSet', icons: set === 'DOTS' ? 'dots' : 'arrows', ...(reverse ? { reverse: true } : {}) } };
       break;
     }
     case 'COLORSCALE': {
@@ -463,6 +472,7 @@ function stepText(step: WeGridMacroStep): string {
 function ruleText(rule: Omit<WeGridFormatRule, 'id'>): string {
   if (rule.type === 'dataBar') return `DATABAR [${rule.field}] ${(rule.color ?? 'blue').toUpperCase()}`;
   if (rule.type === 'colorScale') return `COLORSCALE [${rule.field}] ${(rule.colors ?? []).map((c) => c.toUpperCase()).join(' ')}`;
+  if (rule.type === 'iconSet') return `ICONSET [${rule.field}] ${(rule.icons ?? 'arrows').toUpperCase()}${rule.reverse ? ' REVERSE' : ''}`;
   const style = styleWords(rule.style, rule.applyTo === 'row' && rule.operator !== 'formula');
   const tail = style ? ` ${style}` : '';
   const op = rule.operator ?? 'eq';
@@ -495,9 +505,15 @@ function ruleText(rule: Omit<WeGridFormatRule, 'id'>): string {
 
 /**
  * The steps that turn the grid from `before` into `after` — what the macro recorder writes when
- * recording stops. Columns are named by their header, as a user would type them.
+ * recording stops. Columns are named by their header, as a user would type them, and numbers as
+ * the user sees them (`scaleOf` gives a column's input scale — 100 for a percent column).
  */
-export function weGridDiffViews(before: WeGridSavedView, after: WeGridSavedView, headerOf: (field: string) => string): WeGridMacroStep[] {
+export function weGridDiffViews(
+  before: WeGridSavedView,
+  after: WeGridSavedView,
+  headerOf: (field: string) => string,
+  scaleOf: (field: string) => number = () => 1
+): WeGridMacroStep[] {
   const steps: WeGridMacroStep[] = [];
   const name = headerOf;
 
@@ -510,16 +526,22 @@ export function weGridDiffViews(before: WeGridSavedView, after: WeGridSavedView,
   if (JSON.stringify(before.filters ?? []) !== JSON.stringify(after.filters ?? [])) {
     steps.push({ op: 'clearFilters' });
     for (const f of after.filters ?? []) {
+      const oneSided = f.operator === 'between' && (f.value === null || f.value === undefined || f.value2 === null || f.value2 === undefined);
+      // shortcut: a one-sided range is written as > or <, which leaves out the boundary value itself — add >= / <= to FILTER if that matters
       const operator: WeGridMacroFilterOperator =
         f.operator === 'contains' ? 'contains' :
         f.operator === 'startsWith' ? 'startsWith' :
+        oneSided ? (f.value === null || f.value === undefined ? '<' : '>') :
         f.operator === 'between' ? 'between' :
         f.operator === 'in' ? 'in' :
         f.operator === 'gt' || f.operator === 'after' ? '>' :
         f.operator === 'lt' || f.operator === 'before' ? '<' : '=';
-      const raw = operator === 'in' ? (f.value as unknown[]) : operator === 'between' ? [f.value, f.value2] : [f.value];
-      const values = raw.filter((v): v is string | number | boolean => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean');
-      if (values.length) steps.push({ op: 'filter', field: name(f.field), operator, values });
+      const raw = operator === 'in' ? (f.value as unknown[]) : operator === 'between' ? [f.value, f.value2] : operator === '<' && oneSided ? [f.value2] : [f.value];
+      const scale = scaleOf(f.field);
+      const values = raw
+        .filter((v): v is string | number | boolean => typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean')
+        .map((v) => (typeof v === 'number' ? (weGridToInputNumber(v, scale) as number) : v));
+      if (operator === 'between' ? values.length === 2 : values.length) steps.push({ op: 'filter', field: name(f.field), operator, values });
     }
   }
 

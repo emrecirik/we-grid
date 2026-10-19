@@ -68,6 +68,9 @@ export class WeGridFormatPanelComponent {
   newPreset: WeGridFormatPreset = 'redFill';
   newScale: WeGridFormatScalePreset = 'redYellowGreen';
   newBarColor: WeGridFormatColor = 'blue';
+  newIcons: 'arrows' | 'dots' = 'arrows';
+  readonly iconSets: ('arrows' | 'dots')[] = ['arrows', 'dots'];
+  newReverse = false;
   newApplyToRow = false;
 
   constructor(
@@ -176,6 +179,9 @@ export class WeGridFormatPanelComponent {
       if (this.newApplyToRow) rule.applyTo = 'row';
     } else if (this.newType === 'colorScale') {
       rule.colors = [...WE_GRID_FORMAT_SCALES[this.newScale]];
+    } else if (this.newType === 'iconSet') {
+      rule.icons = this.newIcons;
+      if (this.newReverse) rule.reverse = true;
     } else {
       rule.color = this.newBarColor;
     }
@@ -207,6 +213,7 @@ export class WeGridFormatPanelComponent {
   describe(rule: WeGridFormatRule): string {
     if (rule.type === 'colorScale') return this.locale.formatTypeColorScale;
     if (rule.type === 'dataBar') return this.locale.formatTypeDataBar;
+    if (rule.type === 'iconSet') return `${this.locale.formatTypeIconSet} · ${this.locale.formatIconSetLabels[rule.icons ?? 'arrows']}`;
     const op = rule.operator ?? 'eq';
     const label = this.locale.formatOperatorLabels[op];
     if (NO_VALUE.has(op)) return label;

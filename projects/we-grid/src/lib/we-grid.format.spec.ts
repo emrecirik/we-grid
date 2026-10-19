@@ -124,6 +124,14 @@ describe('WeGridComponent — formatting', () => {
     expect(cell(1, 1).style.background).toBe('');
   });
 
+  it('draws icon sets through CSS variables on the cell', () => {
+    host.grid.onFormatRulesChange([{ id: 'i', field: 'amount', type: 'iconSet', icons: 'arrows' }]);
+    fixture.detectChanges();
+    expect(cell(1, 1).style.getPropertyValue('--we-grid-cell-icon')).toContain('data:image/svg+xml');
+    expect(cell(1, 1).style.getPropertyValue('--we-grid-cell-icon-color')).toContain('--we-grid-format-green-fg');
+    expect(getComputedStyle(cell(1, 1), '::before').width).not.toBe('auto');
+  });
+
   it('evaluates formula rules against the row', () => {
     host.grid.onFormatRulesChange([{ id: 'f', field: 'name', type: 'condition', operator: 'formula', value: '=[Amount] < 50', style: { color: 'blue' } }]);
     fixture.detectChanges();

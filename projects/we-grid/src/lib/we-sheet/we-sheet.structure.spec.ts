@@ -130,6 +130,17 @@ describe('WeSheetComponent — structure, AutoSum, suggestions, import', () => {
     expect(el().querySelector('we-chart')).toBeNull();
   });
 
+  it('toggles table options from the toolbar menu', () => {
+    el().querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!.click();
+    fixture.detectChanges();
+    const items = Array.from(el().querySelectorAll<HTMLButtonElement>('.we-sheet__options button'));
+    expect(items.length).toBe(5);
+    items[0].click();
+    fixture.detectChanges();
+    expect(sheet.getData().headerRow).toBeTrue();
+    expect(el().querySelector('.we-sheet__options [aria-checked="true"]')).toBeTruthy();
+  });
+
   it('freezes the first column', () => {
     sheet.toggleFreezeColumn();
     fixture.detectChanges();

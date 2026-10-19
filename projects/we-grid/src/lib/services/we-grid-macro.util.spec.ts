@@ -104,6 +104,31 @@ describe('we-grid macro scripts', () => {
     );
   });
 
+  it('records numbers as the user sees them and one-sided ranges as comparisons', () => {
+    const base: WeGridSavedView = { name: 'a', columns: [], sort: null, filters: [], groupField: null };
+    const after: WeGridSavedView = {
+      ...base,
+      filters: [
+        { field: 'pct', operator: 'gt', value: 0.25 },
+        { field: 'qty', operator: 'between', value: 5, value2: null },
+        { field: 'qty2', operator: 'between', value: null, value2: 9 }
+      ]
+    };
+    const script = weGridMacroScript(weGridDiffViews(base, after, (f) => f, (f) => (f === 'pct' ? 100 : 1)));
+    expect(script).toBe(['CLEAR FILTERS', 'FILTER [pct] > 25', 'FILTER [qty] > 5', 'FILTER [qty2] < 9'].join('\n'));
+    expect(weGridParseMacro(script).errors).toEqual([]);
+  });
+
+  it('reads and writes icon sets', () => {
+    const { lines, errors } = weGridParseMacro('ICONSET [Total] DOTS REVERSE\nICONSET [Qty]');
+    expect(errors).toEqual([]);
+    expect(lines.map((l) => l.step)).toEqual([
+      { op: 'format', rule: { field: 'Total', type: 'iconSet', icons: 'dots', reverse: true } },
+      { op: 'format', rule: { field: 'Qty', type: 'iconSet', icons: 'arrows' } }
+    ]);
+    expect(weGridMacroScript(lines.map((l) => l.step))).toBe('ICONSET [Total] DOTS REVERSE\nICONSET [Qty] ARROWS');
+  });
+
   it('sanitises stored macros', () => {
     expect(
       weGridSanitizeMacros([{ id: 'm1', name: ' Daily ', script: 'SORT [A] ASC', pinned: true, evil: 1 }, { id: 'm1', name: 'dup', script: '' }, { name: 'x' }, 7])

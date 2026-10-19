@@ -94,6 +94,7 @@ export function studioRules(lang: StudioLanguage): WeGridFormatRule[] {
     { id: 'bar', field: 'total', type: 'dataBar', color: 'blue' },
     { id: 'disc', field: 'discount', type: 'condition', operator: 'gte', value: 0.1, style: { fill: 'green', color: 'green' } },
     { id: 'ret', field: 'status', type: 'condition', operator: 'eq', value: lang === 'tr' ? 'İade' : 'Returned', style: { fill: 'red', color: 'red' } },
+    { id: 'trend', field: 'qty', type: 'iconSet', icons: 'arrows' },
     { id: 'bulk', field: 'qty', type: 'condition', operator: 'top', value: 10, style: { bold: true, color: 'purple' } }
   ];
 }

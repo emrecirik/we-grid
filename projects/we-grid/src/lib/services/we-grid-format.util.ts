@@ -1,4 +1,4 @@
-import { WE_GRID_FORMAT_COLORS, WeGridCellStyle, WeGridFormatColor, WeGridFormatOperator, WeGridFormatRule } from '../models/we-grid-format.model';
+import { WE_GRID_FORMAT_COLORS, WeGridCellStyle, WeGridFormatColor, WeGridFormatIconSet, WeGridFormatOperator, WeGridFormatRule } from '../models/we-grid-format.model';
 
 /** Inline CSS for one cell, ready for `[ngStyle]` — only `var(--we-grid-format-*)` colours, never a literal */
 export type WeGridCellCss = Record<string, string>;
@@ -97,6 +97,7 @@ export function weGridResolveFormats<T>(
     const cellStyles = new Map<string, WeGridCellStyle>();
     const rowStyle: WeGridCellStyle = {};
     const extras = new Map<string, WeGridCellCss>();
+    const icons = new Map<string, WeGridCellCss>();
     for (let i = active.length - 1; i >= 0; i--) {
       const rule = active[i];
       const value = read(row, rule.field);
@@ -107,6 +108,9 @@ export function weGridResolveFormats<T>(
       } else if (rule.type === 'dataBar') {
         const css = dataBarCss(rule, value, s);
         if (css) extras.set(rule.field, { ...(extras.get(rule.field) ?? {}), ...css });
+      } else if (rule.type === 'iconSet') {
+        const css = iconCss(rule, value, s);
+        if (css) icons.set(rule.field, css);
       } else if (rule.style && matches(rule, value, row, s, formula)) {
         if (rule.applyTo === 'row') Object.assign(rowStyle, definedOnly(rule.style));
         else cellStyles.set(rule.field, { ...(cellStyles.get(rule.field) ?? {}), ...definedOnly(rule.style) });
@@ -117,6 +121,7 @@ export function weGridResolveFormats<T>(
       const css = weGridCellStyleCss({ ...(columnStyles.get(field) ?? {}), ...rowStyle, ...cellStyle });
       // A colour scale or bar beats the column's fill, a matching rule's fill beats both
       if (!cellStyle.fill && !rowStyle.fill) Object.assign(css, extras.get(field));
+      Object.assign(css, icons.get(field));
       if (Object.keys(css).length) cells[field] = css;
     }
     if (Object.keys(cells).length) result.set(row, cells);
@@ -242,6 +247,27 @@ function dataBarCss(rule: WeGridFormatRule, value: unknown, s: RuleStats): WeGri
   return { background: `linear-gradient(to right, ${bar} ${pct}%, transparent ${pct}%), var(--we-grid-bg, #fff)` };
 }
 
+/** Colourless shapes, used as a CSS mask so the colour comes from the theme */
+const ICON_SHAPES: Record<WeGridFormatIconSet, [string, string, string]> = {
+  arrows: ['M8 2 14 9H10V14H6V9H2Z', 'M14 8 7 2V6H2V10H7V14Z', 'M8 14 2 7H6V2H10V7H14Z'],
+  dots: ['M8 2A6 6 0 1 0 8 14A6 6 0 1 0 8 2Z', 'M8 2A6 6 0 1 0 8 14A6 6 0 1 0 8 2Z', 'M8 2A6 6 0 1 0 8 14A6 6 0 1 0 8 2Z']
+};
+
+function iconMask(path: string): string {
+  return `url("data:image/svg+xml,${encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><path d='${path}'/></svg>`)}")`;
+}
+
+function iconCss(rule: WeGridFormatRule, value: unknown, s: RuleStats): WeGridCellCss | null {
+  const n = toNumber(value);
+  const set = rule.icons === 'dots' ? 'dots' : 'arrows';
+  if (n === null || !Number.isFinite(s.min)) return null;
+  const t = s.max === s.min ? 1 : (n - s.min) / (s.max - s.min);
+  const level = t >= 2 / 3 ? 0 : t >= 1 / 3 ? 1 : 2;
+  const colors: WeGridFormatColor[] = rule.reverse ? ['red', 'yellow', 'green'] : ['green', 'yellow', 'red'];
+  // Read by the `--we-grid-cell-icon` rule in the grid's stylesheet, which draws the icon before the text
+  return { '--we-grid-cell-icon': iconMask(ICON_SHAPES[set][level]), '--we-grid-cell-icon-color': weGridFormatFg(colors[level]) };
+}
+
 /** `share` of `a` mixed into `b`, as CSS */
 function mixColors(a: string, b: string, share: number): string {
   const pct = Math.round(Math.min(1, Math.max(0, share)) * 100);
@@ -301,7 +327,7 @@ export function weGridSanitizeFormatRules(input: unknown): WeGridFormatRule[] {
   for (const item of input.slice(0, MAX_RULES)) {
     if (!isRecord(item) || typeof item['id'] !== 'string' || typeof item['field'] !== 'string') continue;
     const type = item['type'];
-    if (type !== 'condition' && type !== 'colorScale' && type !== 'dataBar') continue;
+    if (type !== 'condition' && type !== 'colorScale' && type !== 'dataBar' && type !== 'iconSet') continue;
     const rule: WeGridFormatRule = { id: item['id'].slice(0, 100), field: item['field'], type };
     if (type === 'condition') {
       if (!OPERATORS.has(item['operator'] as WeGridFormatOperator)) continue;
@@ -319,6 +345,10 @@ export function weGridSanitizeFormatRules(input: unknown): WeGridFormatRule[] {
     if (type === 'dataBar') {
       if (!isFormatColor(item['color'])) continue;
       rule.color = item['color'];
+    }
+    if (type === 'iconSet') {
+      rule.icons = item['icons'] === 'dots' ? 'dots' : 'arrows';
+      if (item['reverse'] === true) rule.reverse = true;
     }
     for (const key of ['value', 'value2'] as const) {
       const v = item[key];

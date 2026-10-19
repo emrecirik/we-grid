@@ -114,6 +114,7 @@
               @if (isNumeric) {
                 <option value="colorScale">{{ locale.formatTypeColorScale }}</option>
                 <option value="dataBar">{{ locale.formatTypeDataBar }}</option>
+                <option value="iconSet">{{ locale.formatTypeIconSet }}</option>
               }
             </select>
           </label>
@@ -165,6 +166,18 @@
                 </label>
               }
             </div>
+          } @else if (newType === 'iconSet') {
+            <div class="we-grid-format__presets" role="radiogroup" [attr.aria-label]="locale.formatTypeIconSet">
+              @for (set of iconSets; track set) {
+                <label class="we-grid-format__preset">
+                  <input type="radio" name="icons" [value]="set" [(ngModel)]="newIcons" />
+                  {{ locale.formatIconSetLabels[set] }}
+                </label>
+              }
+            </div>
+            <label class="we-grid-format__check">
+              <input type="checkbox" name="reverse" [(ngModel)]="newReverse" /> {{ locale.formatIconSetReverse }}
+            </label>
           } @else {
             <div class="we-grid-format__swatch-row" role="radiogroup" [attr.aria-label]="locale.formatBarColor">
               <span class="we-grid-format__label">{{ locale.formatBarColor }}</span>

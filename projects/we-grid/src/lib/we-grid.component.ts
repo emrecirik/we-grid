@@ -1747,9 +1747,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** A script comparison in the column's own filter terms — text equality, number and date ranges */
   private macroFilter(col: WeGridInternalColumn<T>, operator: string, values: (string | number | boolean)[]): WeGridColumnFilterState {
     const kind = weGridValueKind(col.type);
+    if (kind === 'boolean') {
+      const b = values[0];
+      return { field: col.field, operator: 'eq', value: b === true || String(b).toLowerCase() === 'true' ? 'true' : 'false' };
+    }
+    // Scripts write numbers as the user sees them: 25 for 25 %, 12.5 for a minor-units 1250
     const scale = this.inputScale(col);
     const v = (x: string | number | boolean | undefined): string | number | boolean | null =>
-      x === undefined ? null : typeof x === 'number' ? Math.round(x * scale * 1e6) / 1e6 : x;
+      x === undefined ? null : typeof x === 'number' ? weGridFromInputNumber(x, scale) : x;
     const map: Record<string, WeGridFilterOperator> =
       kind === 'date' ? { '=': 'eq', '>': 'after', '<': 'before' } : kind === 'number' ? { '=': 'eq', '>': 'gt', '<': 'lt' } : { '=': 'equals', '>': 'gt', '<': 'lt' };
     const op = (map[operator] ?? operator) as WeGridFilterOperator;
@@ -1791,7 +1796,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (!this.recording) return '';
     const { before, extra } = this.recording;
     this.recording = null;
-    const steps = [...weGridDiffViews(before, this.getCurrentView('after'), (f) => this.headerForField(f)), ...extra];
+    const steps = [...weGridDiffViews(before, this.getCurrentView('after'), (f) => this.headerForField(f), (f) => {
+      const col = this.internalColumns.find((c) => c.field === f);
+      return col ? this.inputScale(col) : 1;
+    }), ...extra];
     const script = weGridMacroScript(steps);
     this.openMacroDialog(null, script);
     return script;

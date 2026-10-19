@@ -272,3 +272,33 @@ describe('formula helpers', () => {
     expect(weGridFormulaValueToText(null)).toBe('');
   });
 });
+
+describe('formula edge cases (0.16.0 fixes)', () => {
+  it('takes MIN and MAX of a range too large to spread onto the stack', () => {
+    const big = Array.from({ length: 300000 }, (_, i) => i - 7);
+    expect(calc('=MAX(A1:A300000)', { range: () => big.map(n => [n]) })).toBe(299992);
+    expect(calc('=MIN(A1:A300000)', { range: () => big.map(n => [n]) })).toBe(-7);
+  });
+
+  it('skips text in a cell reference to SUM, AVERAGE, MIN and MAX, as Excel does', () => {
+    const s = sheet([['label', 5, '=SUM(A1,B1)', '=AVERAGE(A1,B1)', '=MAX(A1,B1)']]);
+    expect([s.value(2, 0), s.value(3, 0), s.value(4, 0)]).toEqual([5, 5, 5]);
+    expect(code(calc('=SUM("abc", 1)'))).toBe('#VALUE!');
+  });
+
+  it('rounds TEXT the way ROUND does', () => {
+    expect(calc('=TEXT(1.005, "0.00")')).toBe('1.01');
+    expect(calc('=ROUND(1.005, 2)')).toBe(1.01);
+  });
+
+  it('reads decimal notation only, and leaves typed text alone with parseNumbers off', () => {
+    const s = sheet([['0x10', '=A1+1', '12']]);
+    expect(s.value(0, 0)).toBe('0x10');
+    expect(code(s.value(1, 0))).toBe('#VALUE!');
+    expect(s.value(2, 0)).toBe(12);
+    expect(calc('="1.5e2"+0')).toBe(150);
+    const rows = [['007', '=A1&"!"']];
+    const typed = new WeGridSheetEvaluator((c, r) => rows[r]?.[c], () => ({ rows: 1, cols: 2 }), { parseNumbers: false });
+    expect([typed.value(0, 0), typed.value(1, 0)]).toEqual(['007', '007!']);
+  });
+});
