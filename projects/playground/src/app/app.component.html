@@ -367,4 +367,34 @@
       </ng-template>
     </we-grid>
   </section>
+
+  <section class="demo">
+    <h2>14. Spreadsheet formatting and formula columns</h2>
+    <p class="demo__hint">
+      <code>[formatting]="true"</code> adds <em>Format…</em> and <em>Zebra rows</em> to the column menu;
+      <code>[allowFormulaColumns]="true"</code> adds <em>Add formula column…</em>. Total and Level are
+      <code>formula</code> columns; the rules give a data bar, a colour scale and a row highlight.
+    </p>
+    <we-grid
+      gridKey="playground-sheet"
+      [columns]="sheetColumns"
+      [data]="sheetData"
+      trackByField="id"
+      [striped]="true"
+      [formatting]="true"
+      [formatRules]="sheetRules"
+      [allowFormulaColumns]="true"
+      [savedViews]="true"
+      [maxHeight]="420"
+    ></we-grid>
+  </section>
+
+  <section class="demo">
+    <h2>15. <code>&lt;we-sheet&gt;</code> — a spreadsheet</h2>
+    <p class="demo__hint">
+      Type values or formulas (<code>=SUM(D2:D5)</code>), select with the mouse or Shift+arrows, copy and paste with Excel,
+      Ctrl+Z / Ctrl+Y, Ctrl+D fills down. The status bar sums the selection. Saved to localStorage under <code>sheetKey</code>.
+    </p>
+    <we-sheet sheetKey="playground-sheet" [data]="sheetDemo" exportFileName="products" />
+  </section>
 </div>

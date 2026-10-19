@@ -26,6 +26,7 @@ export * from './lib/models/we-grid-empty.model';
 export * from './lib/models/we-grid-events.model';
 export * from './lib/models/we-grid-export.model';
 export * from './lib/models/we-grid-filter.model';
+export * from './lib/models/we-grid-format.model';
 export * from './lib/models/we-grid-group.model';
 export * from './lib/models/we-grid-icons.model';
 export * from './lib/models/we-grid-internal.model';
@@ -48,9 +49,16 @@ export * from './lib/services/we-grid-pdf.util';
 export * from './lib/services/we-grid-xlsx.util';
 
 export * from './lib/services/we-grid-filter.util';
+export * from './lib/services/we-grid-format.util';
+export * from './lib/services/we-grid-formula.util';
 export * from './lib/services/we-grid-layout-merge';
 export * from './lib/services/we-grid-summary.util';
 export * from './lib/services/we-grid-value.util';
 export * from './lib/services/we-grid-view.util';
 export * from './lib/services/we-grid-clipboard.util';
 export * from './lib/services/we-grid-interactive.util';
+
+// <we-sheet> — a small spreadsheet built on the same formula engine, palette and exporters
+export * from './lib/we-sheet/we-sheet.component';
+export * from './lib/we-sheet/we-sheet.model';
+export * from './lib/we-sheet/we-sheet.util';

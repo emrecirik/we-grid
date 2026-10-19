@@ -4,6 +4,7 @@
   [class.we-grid--comfortable]="density === 'comfortable'"
   [class.we-grid--clickable]="rowClick.observed"
   [class.we-grid--th-menu-hover]="headerMenuButton === 'hover'"
+  [class.we-grid--striped]="stripedActive"
 >
   @if (toolbar !== 'none') {
     <div class="we-grid__toolbar">
@@ -631,6 +632,7 @@
                 class="we-grid__row"
                 [class.we-grid__row--selected]="isSelected(item.row)"
                 [class.we-grid__row--editing]="isEditingRow(item.row)"
+                [class.we-grid__row--alt]="stripedActive && item.index % 2 === 1"
                 [ngClass]="rowClassFor(item.row, item.index, item.tree)"
                 [attr.id]="item.tree ? rowDomId(item.row) : null"
                 [attr.data-we-grid-row-key]="item.tree ? rowKeyAttr(item.row) : null"
@@ -681,6 +683,7 @@
                     [attr.title]="col.wrap || getCellTemplate(col) ? null : formatCell(item.row, col)"
                     [class.we-grid__td--active]="isActiveCell(item.row, col)"
                     [class.we-grid__td--overflow]="col.allowOverflow"
+                    [ngStyle]="cellCss(item.row, col)"
                     [style.padding-inline-start]="isTreeCell(item, col) ? treeIndent(item.tree) : null"
                     (click)="onCellClick($event, item.row, col)"
                     (dblclick)="onCellDblClick($event, col)"
@@ -925,6 +928,27 @@
       (valueChange)="onFormValueChange($event)"
       (save)="commitEdit()"
       (cancel)="cancelEdit()"
+    />
+  }
+
+  @if (formatPanelColumn; as formatCol) {
+    <we-grid-format-panel
+      [column]="$any(formatCol)"
+      [rules]="activeFormatRules"
+      (styleChange)="onFormatStyleChange($event)"
+      (rulesChange)="onFormatRulesChange($event)"
+      (closed)="closeFormatPanel()"
+    />
+  }
+
+  @if (formulaDialog) {
+    <we-grid-formula-dialog
+      [column]="formulaDialog.column"
+      [fieldNames]="formulaDialog.fieldNames"
+      [usedFields]="formulaDialog.usedFields"
+      [preview]="previewFormula"
+      (save)="saveFormulaColumn($event)"
+      (cancel)="closeFormulaDialog()"
     />
   }
 

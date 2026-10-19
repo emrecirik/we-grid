@@ -1,0 +1,180 @@
+<div class="we-grid-form__backdrop" (click)="closed.emit()">
+  <div
+    class="we-grid-form we-grid-format"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="we-grid-format-title"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+    (keydown)="onKeydown($event)"
+  >
+    <div class="we-grid-form__header">
+      <h2 id="we-grid-format-title" class="we-grid-form__title">{{ title }}</h2>
+      <button type="button" class="we-grid-form__close" (click)="closed.emit()" [attr.aria-label]="locale.close" [title]="locale.close">
+        <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <div class="we-grid-format__body">
+      <section class="we-grid-format__section" [attr.aria-label]="locale.formatCellStyle">
+        <h3 class="we-grid-format__heading">{{ locale.formatCellStyle }}</h3>
+        <div class="we-grid-format__flags" role="group" [attr.aria-label]="locale.formatCellStyle">
+          @for (flag of flags; track flag) {
+            <button
+              type="button"
+              class="we-grid-format__flag"
+              [class.we-grid-format__flag--on]="!!style[flag]"
+              [ngClass]="'we-grid-format__flag--' + flag"
+              [attr.aria-pressed]="!!style[flag]"
+              [attr.aria-label]="flag === 'bold' ? locale.formatBold : flag === 'italic' ? locale.formatItalic : flag === 'underline' ? locale.formatUnderline : locale.formatStrike"
+              [title]="flag === 'bold' ? locale.formatBold : flag === 'italic' ? locale.formatItalic : flag === 'underline' ? locale.formatUnderline : locale.formatStrike"
+              (click)="toggleFlag(flag)"
+            >{{ locale.formatFlagGlyphs[flag] }}</button>
+          }
+        </div>
+
+        @for (key of ['color', 'fill']; track key) {
+          <div class="we-grid-format__swatch-row" role="radiogroup" [attr.aria-label]="key === 'color' ? locale.formatTextColor : locale.formatFill">
+            <span class="we-grid-format__label">{{ key === 'color' ? locale.formatTextColor : locale.formatFill }}</span>
+            <button
+              type="button"
+              role="radio"
+              class="we-grid-format__swatch we-grid-format__swatch--none"
+              [attr.aria-checked]="!$any(style)[key]"
+              [attr.aria-label]="locale.formatNoColor"
+              [title]="locale.formatNoColor"
+              (click)="setColor($any(key), null)"
+            ></button>
+            @for (color of colors; track color) {
+              <button
+                type="button"
+                role="radio"
+                class="we-grid-format__swatch"
+                [style.background]="key === 'color' ? fg(color) : bg(color)"
+                [style.border-color]="fg(color)"
+                [attr.aria-checked]="$any(style)[key] === color"
+                [attr.aria-label]="locale.formatColorNames[color]"
+                [title]="locale.formatColorNames[color]"
+                (click)="setColor($any(key), color)"
+              ></button>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="we-grid-format__section" [attr.aria-label]="locale.formatRules">
+        <h3 class="we-grid-format__heading">{{ locale.formatRules }}</h3>
+        <ul class="we-grid-format__rules">
+          @for (rule of columnRules; track rule.id; let first = $first) {
+            <li class="we-grid-format__rule">
+              <span class="we-grid-format__rule-sample" [ngStyle]="$any(ruleCss(rule))">123</span>
+              <span class="we-grid-format__rule-text">
+                {{ describe(rule) }}
+                @if (rule.applyTo === 'row') {
+                  <span class="we-grid-format__rule-note">· {{ locale.formatApplyToRow }}</span>
+                }
+              </span>
+              <button type="button" class="we-grid-format__icon-btn" [disabled]="first" (click)="raise(rule)" [attr.aria-label]="locale.formatRaisePriority" [title]="locale.formatRaisePriority">
+                <span [innerHTML]="icon('arrowUp')" aria-hidden="true"></span>
+              </button>
+              <button type="button" class="we-grid-format__icon-btn" (click)="deleteRule(rule)" [attr.aria-label]="locale.formatDeleteRule" [title]="locale.formatDeleteRule">
+                <span [innerHTML]="icon('trash')" aria-hidden="true"></span>
+              </button>
+            </li>
+          } @empty {
+            <li class="we-grid-format__empty">{{ locale.formatNoRules }}</li>
+          }
+        </ul>
+
+        <form class="we-grid-format__add" (submit)="$event.preventDefault(); addRule()">
+          <label class="we-grid-format__field">
+            <span class="we-grid-format__label">{{ locale.formatRuleType }}</span>
+            <select class="we-grid-format__input" name="type" [(ngModel)]="newType">
+              <option value="condition">{{ locale.formatTypeCondition }}</option>
+              @if (isNumeric) {
+                <option value="colorScale">{{ locale.formatTypeColorScale }}</option>
+                <option value="dataBar">{{ locale.formatTypeDataBar }}</option>
+              }
+            </select>
+          </label>
+
+          @if (newType === 'condition') {
+            <div class="we-grid-format__field">
+              <span class="we-grid-format__label" aria-hidden="true"></span>
+              <select class="we-grid-format__input" name="operator" [attr.aria-label]="locale.formatRuleType" [ngModel]="operator" (ngModelChange)="onOperatorChange($event)">
+                @for (op of operators; track op) {
+                  <option [value]="op">{{ locale.formatOperatorLabels[op] }}</option>
+                }
+              </select>
+            </div>
+            @if (needsValue) {
+              <div class="we-grid-format__values">
+                <input
+                  class="we-grid-format__input"
+                  name="value"
+                  [type]="operator === 'top' || operator === 'bottom' ? 'number' : 'text'"
+                  [(ngModel)]="newValue"
+                  [placeholder]="operator === 'formula' ? locale.formatFormulaHint : locale.formatValue"
+                  [attr.aria-label]="locale.formatValue"
+                />
+                @if (needsSecondValue) {
+                  <span>{{ locale.formatValueAnd }}</span>
+                  <input class="we-grid-format__input" name="value2" type="text" [(ngModel)]="newValue2" [attr.aria-label]="locale.formatValue" />
+                }
+              </div>
+            }
+            <div class="we-grid-format__presets" role="radiogroup" [attr.aria-label]="locale.formatStyle">
+              <span class="we-grid-format__label">{{ locale.formatStyle }}</span>
+              @for (preset of presets; track preset) {
+                <label class="we-grid-format__preset">
+                  <input type="radio" name="preset" [value]="preset" [(ngModel)]="newPreset" />
+                  <span class="we-grid-format__preset-sample" [ngStyle]="presetCss(preset)">{{ locale.formatPresetLabels[preset] }}</span>
+                </label>
+              }
+            </div>
+            <label class="we-grid-format__check">
+              <input type="checkbox" name="applyToRow" [(ngModel)]="newApplyToRow" /> {{ locale.formatApplyToRow }}
+            </label>
+          } @else if (newType === 'colorScale') {
+            <div class="we-grid-format__presets" role="radiogroup" [attr.aria-label]="locale.formatTypeColorScale">
+              @for (scale of scales; track scale) {
+                <label class="we-grid-format__preset">
+                  <input type="radio" name="scale" [value]="scale" [(ngModel)]="newScale" />
+                  <span class="we-grid-format__scale" [style.background]="scaleCss(scale)"></span>
+                  {{ locale.formatScaleLabels[scale] }}
+                </label>
+              }
+            </div>
+          } @else {
+            <div class="we-grid-format__swatch-row" role="radiogroup" [attr.aria-label]="locale.formatBarColor">
+              <span class="we-grid-format__label">{{ locale.formatBarColor }}</span>
+              @for (color of colors; track color) {
+                <button
+                  type="button"
+                  role="radio"
+                  class="we-grid-format__swatch"
+                  [style.background]="fg(color)"
+                  [style.border-color]="fg(color)"
+                  [attr.aria-checked]="newBarColor === color"
+                  [attr.aria-label]="locale.formatColorNames[color]"
+                  [title]="locale.formatColorNames[color]"
+                  (click)="newBarColor = color"
+                ></button>
+              }
+            </div>
+          }
+
+          <button type="submit" class="we-grid-form__btn we-grid-form__btn--primary" [disabled]="!canAdd">
+            <span [innerHTML]="icon('plus')" aria-hidden="true"></span> {{ locale.formatAddRule }}
+          </button>
+        </form>
+      </section>
+    </div>
+
+    <div class="we-grid-form__footer">
+      <button type="button" class="we-grid-form__btn" [disabled]="columnRules.length === 0" (click)="clearRules()">{{ locale.formatClearRules }}</button>
+      <button type="button" class="we-grid-form__btn we-grid-form__btn--primary" (click)="closed.emit()">{{ locale.close }}</button>
+    </div>
+  </div>
+</div>

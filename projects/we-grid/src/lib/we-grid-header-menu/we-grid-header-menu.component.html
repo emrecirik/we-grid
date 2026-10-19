@@ -246,6 +246,36 @@
     }
   }
 
+  @if (allowFormulaColumns) {
+    <div class="we-grid-menu__divider"></div>
+    <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'add-formula-column' })">
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('function')"></span> {{ locale.addFormulaColumn }}
+    </button>
+    @if (column?.userFormula) {
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'edit-formula-column', field: column!.field })">
+        <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('pencil')"></span> {{ locale.editFormulaColumn }}
+      </button>
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'delete-formula-column', field: column!.field })">
+        <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('trash')"></span> {{ locale.deleteFormulaColumn }}
+      </button>
+    }
+  }
+
+  @if (formatting) {
+    <div class="we-grid-menu__divider"></div>
+    @if (column) {
+      <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" (click)="emit({ type: 'format', field: column.field })">
+        <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('palette')"></span> {{ locale.formatColumn }}
+      </button>
+    }
+    <button #menuItem type="button" role="menuitemcheckbox" class="we-grid-menu__item" [attr.aria-checked]="striped" (click)="emit({ type: 'toggle-striped' })">
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="icon('stripes')"></span> {{ locale.stripedRows }}
+      @if (striped) {
+        <span class="we-grid-menu__check" aria-hidden="true" [innerHTML]="icon('check')"></span>
+      }
+    </button>
+  }
+
   <div class="we-grid-menu__divider"></div>
 
   <button #menuItem type="button" role="menuitem" class="we-grid-menu__item" [attr.aria-expanded]="densityOpen" (click)="densityOpen = !densityOpen">

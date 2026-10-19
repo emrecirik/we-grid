@@ -60,6 +60,11 @@ default theme to your global styles:
 - Inline row create/update/delete with a `done` callback per commit, built for a real backend
 - Localizable UI text (`WE_GRID_LOCALE`) and swappable inline-SVG icons (`WE_GRID_ICONS`)
 - Theming through plain CSS custom properties (`--we-grid-*`), light and dark
+- Excel-style formatting the user controls — cell styles, conditional rules, colour scales, data
+  bars, zebra rows — and formula columns (`=[Price] * [Qty]`, 40-odd Excel functions, no `eval`)
+- `<we-sheet>`: a spreadsheet with A1 formulas, a formula bar, Excel copy/paste, undo, number
+  formats, sorting and Excel/CSV export
+- An optional Apple-style theme (`styles/we-grid-theme-apple.scss`)
 
 ![The Status column opened into a checklist of order statuses, two of them ticked](https://raw.githubusercontent.com/emrecirik/we-grid/main/docs/images/checklist-filter.png)
 
@@ -78,6 +83,9 @@ Full docs, screenshots and three runnable sample applications live in the reposi
 - [Server-side paging/sorting/filtering — filtering 3,000 rows when 20 are loaded](https://github.com/emrecirik/we-grid/blob/main/docs/server-side.md)
 - [Export and import (CSV / Excel / PDF)](https://github.com/emrecirik/we-grid/blob/main/docs/export-import.md)
 - [Inline row editing](https://github.com/emrecirik/we-grid/blob/main/docs/row-editing.md)
+- [Formatting](https://github.com/emrecirik/we-grid/blob/main/docs/formatting.md)
+- [Formulas](https://github.com/emrecirik/we-grid/blob/main/docs/formulas.md)
+- [Spreadsheet `<we-sheet>`](https://github.com/emrecirik/we-grid/blob/main/docs/sheet.md)
 - [Theming](https://github.com/emrecirik/we-grid/blob/main/docs/theming.md)
 - [Localization](https://github.com/emrecirik/we-grid/blob/main/docs/localization.md)
 

@@ -7,8 +7,10 @@ import {
 } from '../models/we-grid-column.model';
 import { weGridDefaultEditor } from '../models/we-grid-edit.model';
 import { WeGridInternalColumn } from '../models/we-grid-internal.model';
-import { WeGridLayout } from '../models/we-grid-layout.model';
+import { WeGridFormulaColumn, WeGridLayout } from '../models/we-grid-layout.model';
 import { WeGridRowEventName } from '../models/we-grid-events.model';
+import { WeGridFormatRule } from '../models/we-grid-format.model';
+import { weGridSanitizeCellStyle, weGridSanitizeFormatRules } from './we-grid-format.util';
 
 /** Default column width used when the developer doesn't supply `width` and it isn't in the saved layout either */
 export const WE_GRID_DEFAULT_COLUMN_WIDTH = 150;
@@ -19,6 +21,9 @@ export interface WeGridMergedLayout<T> {
   sort: { field: string; direction: WeGridSortDirection } | null;
   pageSize: number | undefined;
   filterRowVisible: boolean | undefined;
+  striped: boolean | undefined;
+  formatRules: WeGridFormatRule[] | undefined;
+  formulaColumns: WeGridFormulaColumn[] | undefined;
 }
 
 /**
@@ -99,6 +104,9 @@ export function mergeGridLayout<T>(
           ? 'none'
           : def.groupSummary,
       summary,
+      formula: def.formula,
+      userFormula: !!(def as { userFormula?: boolean }).userFormula,
+      style: savedCol?.style ? (weGridSanitizeCellStyle(savedCol.style) ?? {}) : def.cellStyle,
       filterable: def.filterable ?? true,
       filterOperators: def.filterOperators,
       headerFilterMode: def.headerFilterMode ?? (type === 'custom' ? 'operator' : defaultHeaderFilterMode),
@@ -110,7 +118,7 @@ export function mergeGridLayout<T>(
       displayValue: def.displayValue,
       // A 'custom' column renders through a consumer template, so the grid can't know what its
       // value looks like — it stays read-only unless the developer opts in explicitly.
-      editable: def.editable ?? type !== 'custom',
+      editable: def.editable ?? (type !== 'custom' && !def.formula),
       editor: def.editor ?? weGridDefaultEditor(type),
       editorOptions: def.editorOptions,
       required: def.required ?? false,
@@ -127,7 +135,10 @@ export function mergeGridLayout<T>(
     density: useSaved ? saved?.density : undefined,
     sort: useSaved ? (saved?.sort ?? null) : null,
     pageSize: useSaved ? saved?.pageSize : undefined,
-    filterRowVisible: useSaved ? saved?.filterRowVisible : undefined
+    filterRowVisible: useSaved ? saved?.filterRowVisible : undefined,
+    striped: useSaved ? saved?.striped : undefined,
+    formatRules: useSaved && saved?.formatRules ? weGridSanitizeFormatRules(saved.formatRules) : undefined,
+    formulaColumns: useSaved && saved?.formulaColumns ? weGridSanitizeFormulaColumns(saved.formulaColumns) : undefined
   };
 }
 
@@ -157,7 +168,9 @@ export function toColumnLayout<T>(columns: WeGridInternalColumn<T>[], columnDefs
       wrap: c.wrap,
       pinned: c.pinned,
       headerOverride: c.headerOverride ?? undefined,
-      summary: c.summary !== defaultSummary ? c.summary : undefined
+      summary: c.summary !== defaultSummary ? c.summary : undefined,
+      // Same rule as summary: only a choice that differs from the developer's default is written
+      style: JSON.stringify(c.style ?? {}) !== JSON.stringify(defByField.get(c.field)?.cellStyle ?? {}) ? (c.style ?? {}) : undefined
     };
   });
 }
@@ -189,4 +202,22 @@ function placeOrderLockedColumns<T>(merged: WeGridInternalColumn<T>[], columnDef
     rest.splice(Math.min(Math.max(position(col), 0), rest.length), 0, col);
   }
   merged.splice(0, merged.length, ...rest);
+}
+
+const FORMULA_COLUMN_TYPES = new Set(['text', 'number', 'integer', 'currency', 'percent', 'date', 'boolean']);
+
+/** Rebuilds the user's formula columns from untrusted input — a stored layout or a shared view */
+export function weGridSanitizeFormulaColumns(input: unknown): WeGridFormulaColumn[] {
+  if (!Array.isArray(input)) return [];
+  const columns: WeGridFormulaColumn[] = [];
+  for (const item of input.slice(0, 50)) {
+    if (typeof item !== 'object' || item === null) continue;
+    const { field, header, formula, type } = item as Record<string, unknown>;
+    if (typeof field !== 'string' || !field.startsWith('fx:') || typeof formula !== 'string' || typeof header !== 'string') continue;
+    if (columns.some((c) => c.field === field)) continue;
+    const column: WeGridFormulaColumn = { field: field.slice(0, 50), header: header.slice(0, 100), formula: formula.slice(0, 2000) };
+    if (typeof type === 'string' && FORMULA_COLUMN_TYPES.has(type)) column.type = type as WeGridFormulaColumn['type'];
+    columns.push(column);
+  }
+  return columns;
 }

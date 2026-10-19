@@ -1,0 +1,81 @@
+<div class="we-grid-form__backdrop" (click)="cancel.emit()">
+  <div
+    class="we-grid-form we-grid-fx"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="we-grid-fx-title"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+    (keydown)="onKeydown($event)"
+  >
+    <div class="we-grid-form__header">
+      <h2 id="we-grid-fx-title" class="we-grid-form__title">{{ title }}</h2>
+      <button type="button" class="we-grid-form__close" (click)="cancel.emit()" [attr.aria-label]="locale.close" [title]="locale.close">
+        <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <form class="we-grid-form__body" (submit)="submit($event)" novalidate>
+      <div class="we-grid-fx__fields">
+        <label class="we-grid-form__field">
+          <span class="we-grid-form__label">{{ locale.formulaColumnName }}</span>
+          <input class="we-grid-fx__input" name="name" maxlength="100" [(ngModel)]="name" [placeholder]="locale.formulaDefaultName" cdkFocusInitial />
+        </label>
+
+        <label class="we-grid-form__field">
+          <span class="we-grid-form__label">{{ locale.formulaLabel }}</span>
+          <textarea
+            #formulaInput
+            class="we-grid-fx__input we-grid-fx__formula"
+            name="formula"
+            rows="3"
+            maxlength="2000"
+            spellcheck="false"
+            [(ngModel)]="formula"
+            [placeholder]="locale.formulaPlaceholder"
+            [attr.aria-invalid]="!!error"
+            aria-describedby="we-grid-fx-status"
+          ></textarea>
+        </label>
+
+        <div id="we-grid-fx-status" class="we-grid-fx__status" aria-live="polite">
+          @if (error) {
+            <span class="we-grid-fx__error"><span [innerHTML]="icon('warning')" aria-hidden="true"></span> {{ error }}</span>
+          } @else if (previewText) {
+            <span class="we-grid-fx__preview">{{ locale.formulaPreview }}: <strong>{{ previewText }}</strong></span>
+          }
+        </div>
+
+        <div class="we-grid-fx__chips" role="group" [attr.aria-label]="locale.formulaInsertColumn">
+          <span class="we-grid-fx__chips-label">{{ locale.formulaInsertColumn }}</span>
+          @for (field of fieldNames; track field) {
+            <button type="button" class="we-grid-fx__chip" (click)="insertColumn(field)">{{ field }}</button>
+          }
+        </div>
+        <div class="we-grid-fx__chips" role="group" [attr.aria-label]="locale.formulaInsertFunction">
+          <span class="we-grid-fx__chips-label">{{ locale.formulaInsertFunction }}</span>
+          @for (fn of functions; track fn) {
+            <button type="button" class="we-grid-fx__chip we-grid-fx__chip--fn" (click)="insertFunction(fn)">{{ fn }}</button>
+          }
+        </div>
+
+        <label class="we-grid-form__field">
+          <span class="we-grid-form__label">{{ locale.formulaResultType }}</span>
+          <select class="we-grid-fx__input" name="type" [(ngModel)]="type">
+            @for (t of types; track t) {
+              <option [value]="t">{{ locale.formulaTypeLabels[t] }}</option>
+            }
+          </select>
+        </label>
+      </div>
+
+      <div class="we-grid-form__footer">
+        <button type="button" class="we-grid-form__btn" (click)="cancel.emit()">{{ locale.cancelEdit }}</button>
+        <button type="submit" class="we-grid-form__btn we-grid-form__btn--primary" [disabled]="!canSave">
+          <span [innerHTML]="icon('save')" aria-hidden="true"></span> {{ locale.formulaSave }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

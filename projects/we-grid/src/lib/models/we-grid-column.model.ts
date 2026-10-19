@@ -3,6 +3,7 @@ import { WeGridEditorOption, WeGridEditorType } from './we-grid-edit.model';
 import { WeGridRowEventName } from './we-grid-events.model';
 import { WeGridTreeInfo } from './we-grid-tree.model';
 import { WeGridFilterOperator } from './we-grid-filter.model';
+import { WeGridCellStyle } from './we-grid-format.model';
 
 /**
  * Column data type — cell rendering, default formatting, filtering, editing, export and import are
@@ -253,6 +254,20 @@ export interface WeGridColumnDef<T> {
    * silently re-enables a total the user turned off.
    */
   summary?: WeGridSummaryFunction;
+  /**
+   * Base text style of the column's cells — bold, italic, a text colour and a fill from the theme's
+   * format palette. With the grid's `formatting` input on, the user can change it from the column
+   * menu's Format panel; their choice is saved with the layout and wins over this default.
+   */
+  cellStyle?: WeGridCellStyle;
+  /**
+   * Makes this a computed column: an Excel formula evaluated for every row, such as
+   * `=[Price] * [Qty]` or `=IF([Stock] < 10, "Reorder", "OK")`. `[Name]` reads another column of the
+   * same row by its field or its header. The result is what the cell shows, sorts, filters, sums and
+   * exports by; an error shows its Excel code (`#DIV/0!`, `#NAME?` …). Formula columns are read-only.
+   * See docs/formulas.md for the functions.
+   */
+  formula?: string;
   /**
    * What this column shows in group headers and group footers while rows are grouped — independent
    * of `summary`, which drives the grand summary row. Left out, groups use `summary` and, when the

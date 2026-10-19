@@ -1,6 +1,7 @@
 import { WeGridDensity, WeGridSortDirection } from './we-grid-column.model';
 import { WeGridColumnFilterState } from './we-grid-filter.model';
-import { WeGridColumnLayout } from './we-grid-layout.model';
+import { WeGridColumnLayout, WeGridFormulaColumn } from './we-grid-layout.model';
+import { WeGridFormatRule } from './we-grid-format.model';
 
 /**
  * A named snapshot of how the user looks at the grid — the column layout plus the filters, the
@@ -18,6 +19,9 @@ export interface WeGridSavedView {
   /** Every grouping level, outermost first — only written when more than one field is grouped */
   groupFields?: string[];
   filterRowVisible?: boolean;
+  striped?: boolean;
+  formatRules?: WeGridFormatRule[];
+  formulaColumns?: WeGridFormulaColumn[];
 }
 
 /** Emitted by `(viewShare)` — bind it to build the link yourself instead of the grid's default */

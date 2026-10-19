@@ -54,6 +54,10 @@ export class WeGridHeaderMenuComponent implements OnInit {
   /** Tree mode: offers "Expand all" / "Collapse all" — the way back when the tree column is hidden */
   @Input() treeMode = false;
   @Input() treeAllExpanded = false;
+  /** Offers the Format panel and the zebra switch — the grid's `formatting` input */
+  @Input() formatting = false;
+  @Input() striped = false;
+  @Input() allowFormulaColumns = false;
 
   @Output() action = new EventEmitter<WeGridMenuAction>();
 

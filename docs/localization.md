@@ -151,3 +151,27 @@ from the injected `WeGridLocale`.
   `treeRowsShown(count)`
 - Row detail: `detailRegionLabel(label)`
 - Grouping: `addToGrouping`, `removeFromGrouping`, `expandAllGroups`, `collapseAllGroups`
+
+## Keys added in 0.9.0
+
+- Formatting (`formatting` input): `formatColumn`, `formatPanelTitle(header)`, `stripedRows`,
+  `formatCellStyle`, `formatBold`, `formatItalic`, `formatUnderline`, `formatStrike`,
+  `formatTextColor`, `formatFill`, `formatNoColor`, `formatColorNames` (one name per palette colour),
+  `formatRules`, `formatNoRules`, `formatAddRule`, `formatRuleType`, `formatTypeCondition`,
+  `formatTypeColorScale`, `formatTypeDataBar`, `formatOperatorLabels` (one label per operator),
+  `formatValue`, `formatValueAnd`, `formatTopCount`, `formatFormulaHint`, `formatStyle`,
+  `formatPresetLabels`, `formatScaleLabels`, `formatApplyToRow`, `formatBarColor`,
+  `formatDeleteRule`, `formatRaisePriority`, `formatClearRules`
+- Formula columns (`allowFormulaColumns` input): `addFormulaColumn`, `editFormulaColumn`,
+  `deleteFormulaColumn`, `formulaDialogNew`, `formulaDialogEdit`, `formulaColumnName`,
+  `formulaDefaultName`, `formulaLabel`, `formulaPlaceholder`, `formulaResultType`,
+  `formulaTypeLabels`, `formulaInsertColumn`, `formulaInsertFunction`, `formulaPreview`,
+  `formulaSyntaxError(position)`, `formulaSave`
+- Style button letters: `formatFlagGlyphs` (`B I U S` in English, `K T A Ü` in Turkish, as Office shows them)
+- `<we-sheet>`: `sheetLabel`, `sheetToolbar`, `sheetNameBox`, `sheetFormulaBar`, `sheetUndo`,
+  `sheetRedo`, `sheetAlignStart`, `sheetAlignCenter`, `sheetAlignEnd`, `sheetNumberFormat`,
+  `sheetFormatLabels`, `sheetSortAsc`, `sheetSortDesc`, `sheetFillDown`, `sheetClearFormat`,
+  `sheetHeaderRow`, `sheetAddRow`, `sheetAddColumn`, `sheetSelectAll`, `sheetCellLabel(address, text)`
+
+Formula function names are not locale keys: the engine accepts English and Turkish Excel names at
+once — see [formulas.md](formulas.md#functions).

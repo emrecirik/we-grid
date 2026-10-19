@@ -5,6 +5,7 @@
     "entryFile": "src/public-api.ts"
   },
   "assets": [
-    "./styles/we-grid-theme.scss"
+    "./styles/we-grid-theme.scss",
+    "./styles/we-grid-theme-apple.scss"
   ]
 }

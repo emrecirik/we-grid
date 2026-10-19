@@ -23,4 +23,11 @@ export type WeGridMenuAction =
   | { type: 'group-by'; field: string }
   | { type: 'clear-grouping' }
   | { type: 'quick-filter'; field: string; value: unknown }
-  | { type: 'show-all-columns' };
+  | { type: 'show-all-columns' }
+  // ─── Formatting (shown when formatting=true) ───
+  | { type: 'format'; field: string }
+  | { type: 'toggle-striped' }
+  // ─── User formula columns (shown when allowFormulaColumns=true) ───
+  | { type: 'add-formula-column' }
+  | { type: 'edit-formula-column'; field: string }
+  | { type: 'delete-formula-column'; field: string };

@@ -55,6 +55,10 @@
 | `groupBy` *(0.7.0)* | `string[] \| null` | — | Grouping levels, outermost first — see [grouping.md](grouping.md). |
 | `groupSummaryPosition` *(0.7.0)* | `'header' \| 'footer' \| 'both'` | `'header'` | Where group summaries appear. |
 | `groupAutoSummary` *(0.7.0)* | `boolean` | `false` | Every numeric column adds up per group without a summary of its own. |
+| `striped` *(0.9.0)* | `boolean` | `false` | Zebra rows, tinted with `--we-grid-stripe-bg`. With `formatting` on, the user's own choice is saved and wins — see [formatting.md](formatting.md). |
+| `formatting` *(0.9.0)* | `boolean` | `false` | Adds **Format…** (cell style, conditional rules, colour scales, data bars) and **Zebra rows** to the column menu; saved with the layout and views — see [formatting.md](formatting.md). |
+| `formatRules` *(0.9.0)* | `WeGridFormatRule[]` | `[]` | Conditional formatting the grid starts with. Replaced by the user's list once they edit the rules. |
+| `allowFormulaColumns` *(0.9.0)* | `boolean` | `false` | Adds **Add formula column…** to the column menu: the user's own Excel-formula columns, saved with the layout and views — see [formulas.md](formulas.md). |
 | `autoFitColumns` | `boolean` | `true` | Fits every column without an explicit `width` (on its definition or in the saved layout) to its content once, when the first rows arrive. Paging doesn't refit. The automatic fit stops at 400px unless the column sets `maxWidth`; it isn't saved as a layout change. |
 
 ### Outputs
@@ -140,6 +144,13 @@ stored pin / position. A record whose `version` differs from `layoutVersion` is 
 Bump `layoutVersion` when a column's `field` is renamed or a field starts to mean something else.
 Adding or removing a column needs no bump.
 
+## `<we-sheet>` (`WeSheetComponent`) *(0.9.0)*
+
+A spreadsheet component — inputs `sheetKey`, `data`, `rows`, `cols`, `readonly`, `exportFileName`,
+`height`; output `dataChange`; token `WE_SHEET_STORE` (`WeSheetStore`, default
+`LocalStorageSheetStore`); models `WeSheetData`, `WeSheetCell`, `WeSheetNumberFormat`. Full
+reference in [sheet.md](sheet.md).
+
 ## Directives
 
 - **`WeGridCellDirective<T>`** (`[weGridCell]`) — custom cell template, selector value = column
@@ -193,6 +204,8 @@ Adding or removing a column needs no bump.
   | `fixed` *(0.7.0)* | `lockVisible` + `lockRename` + `lockPinned` + `lockOrder`; an explicit sub-flag wins. |
   | `childField` / `treeValue` *(0.7.0)* | Tree mode — how child rows read the column. See [tree.md](tree.md#values-per-level). |
   | `groupSummary` *(0.7.0)* | The column's function in group headers/footers, independent of `summary`. See [grouping.md](grouping.md#group-summaries). |
+  | `cellStyle` *(0.9.0)* | `WeGridCellStyle` — the column's base style (bold, italic, palette text colour and fill). The user's Format panel choice wins. See [formatting.md](formatting.md). |
+  | `formula` *(0.9.0)* | An Excel formula, e.g. `'=[Price] * [Qty]'` — a computed, read-only column that sorts, filters, sums and exports by its result. See [formulas.md](formulas.md). |
 - `WeGridColumnType` = `'text' | 'number' | 'integer' | 'date' | 'datetime' | 'time' | 'currency' | 'percent' | 'boolean' | 'email' | 'url' | 'phone' | 'custom'` — see [column-types.md](column-types.md)
 - `WeGridValueKind` = `'text' | 'number' | 'date' | 'boolean'` and `weGridValueKind(type)` — the family a type filters, sums and edits like
 - `WeGridValueFormatter<T>` = `(value: unknown, row: T | null) => string`
@@ -235,7 +248,12 @@ Adding or removing a column needs no bump.
 - `WeGridEditorType`, `WeGridEditorOption`, `WeGridCommitFn`, `WeGridRowEditEvent<T>`,
   `WeGridRowDeleteEvent<T>`, `WeGridEditState<T>`, `WE_GRID_NEW_ROW_KEY`, `WeGridEditMode`,
   `WeGridRowsPasteEvent<T>`, `WeGridPastedRow<T>` — see [row-editing.md](row-editing.md)
-- `WeGridSavedView`, `WeGridViewShareEvent` — see [saved-views.md](saved-views.md)
+- `WeGridSavedView`, `WeGridViewShareEvent` — see [saved-views.md](saved-views.md) (0.9.0 adds `striped`, `formatRules`, `formulaColumns`)
+- `WeGridFormatRule`, `WeGridFormatOperator`, `WeGridCellStyle`, `WeGridFormatColor`, `WE_GRID_FORMAT_COLORS`,
+  `WeGridFormatPreset` / `WE_GRID_FORMAT_PRESETS`, `WeGridFormatScalePreset` / `WE_GRID_FORMAT_SCALES` *(0.9.0)*
+  — see [formatting.md](formatting.md)
+- `WeGridFormulaColumn` *(0.9.0)* — a user formula column (`field` starting with `fx:`, `header`, `formula`, `type?`);
+  `WeGridLayout` gains `striped`, `formatRules`, `formulaColumns` and `WeGridColumnLayout` gains `style`
 
 ## Utilities / services
 
@@ -272,3 +290,10 @@ Adding or removing a column needs no bump.
   `buildWeGridSummaryText(rows, col, scope, overrideValue?, locale?, valueOf?)`, `weGridSummaryLabel(fn, scope, locale?)`
   — `valueOf: (row, field) => unknown` replaces the plain field read (the tree uses it)
 - `weGridQuickFilterValueToInputString(value, type)` — a date's local calendar day as `yyyy-MM-dd`
+- `weGridResolveFormats(rows, rules, fields, read, columnStyles?, formula?)`, `weGridCellStyleCss(style)`,
+  `weGridFormatFg(colour)` / `weGridFormatBg(colour)`, `weGridSanitizeFormatRules(input)`,
+  `weGridSanitizeCellStyle(input)` *(0.9.0)* — see [formatting.md](formatting.md)
+- `weGridCompileFormula(source)`, `weGridTryCompileFormula(source)`, `WeGridSheetEvaluator`,
+  `WeGridFormulaError`, `WeGridFormulaSyntaxError`, `WeGridFormulaScope`, `WE_GRID_FORMULA_FUNCTIONS`,
+  `weGridIsFormula`, `weGridColumnLetter`, `weGridColumnIndex`, `weGridFormulaValueToText`,
+  `weGridSanitizeFormulaColumns(input)` *(0.9.0)* — see [formulas.md](formulas.md)

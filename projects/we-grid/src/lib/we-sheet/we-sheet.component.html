@@ -1,0 +1,222 @@
+<div class="we-sheet" [class.we-sheet--striped]="sheet.striped" [class.we-sheet--readonly]="readonly">
+  <div class="we-sheet__toolbar" role="toolbar" [attr.aria-label]="locale.sheetToolbar">
+    @if (!readonly) {
+      <div class="we-sheet__group">
+        <button type="button" class="we-sheet__btn" [disabled]="!canUndo" (click)="undo()" [attr.aria-label]="locale.sheetUndo" [title]="locale.sheetUndo + ' (Ctrl+Z)'">
+          <span [innerHTML]="icon('undo')" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="we-sheet__btn" [disabled]="!canRedo" (click)="redo()" [attr.aria-label]="locale.sheetRedo" [title]="locale.sheetRedo + ' (Ctrl+Y)'">
+          <span [innerHTML]="icon('redo')" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div class="we-sheet__group">
+        <button type="button" class="we-sheet__btn we-sheet__btn--bold" [attr.aria-pressed]="!!activeStyle.bold" (click)="toggleFlag('bold')" [attr.aria-label]="locale.formatBold" [title]="locale.formatBold + ' (Ctrl+B)'">{{ locale.formatFlagGlyphs.bold }}</button>
+        <button type="button" class="we-sheet__btn we-sheet__btn--italic" [attr.aria-pressed]="!!activeStyle.italic" (click)="toggleFlag('italic')" [attr.aria-label]="locale.formatItalic" [title]="locale.formatItalic + ' (Ctrl+I)'">{{ locale.formatFlagGlyphs.italic }}</button>
+        <button type="button" class="we-sheet__btn we-sheet__btn--underline" [attr.aria-pressed]="!!activeStyle.underline" (click)="toggleFlag('underline')" [attr.aria-label]="locale.formatUnderline" [title]="locale.formatUnderline + ' (Ctrl+U)'">{{ locale.formatFlagGlyphs.underline }}</button>
+        <button type="button" class="we-sheet__btn we-sheet__btn--strike" [attr.aria-pressed]="!!activeStyle.strike" (click)="toggleFlag('strike')" [attr.aria-label]="locale.formatStrike" [title]="locale.formatStrike">{{ locale.formatFlagGlyphs.strike }}</button>
+      </div>
+
+      <div class="we-sheet__group we-sheet__palette-host">
+        <button type="button" class="we-sheet__btn" [attr.aria-expanded]="openPalette === 'color'" (click)="openPalette = openPalette === 'color' ? null : 'color'" [attr.aria-label]="locale.formatTextColor" [title]="locale.formatTextColor">
+          <span class="we-sheet__swatch-a" [style.border-bottom-color]="activeStyle.color ? fg(activeStyle.color) : null">A</span>
+        </button>
+        <button type="button" class="we-sheet__btn" [attr.aria-expanded]="openPalette === 'fill'" (click)="openPalette = openPalette === 'fill' ? null : 'fill'" [attr.aria-label]="locale.formatFill" [title]="locale.formatFill">
+          <span class="we-sheet__swatch-fill" [style.background]="activeStyle.fill ? bg(activeStyle.fill) : null" [style.border-color]="activeStyle.fill ? fg(activeStyle.fill) : null"></span>
+        </button>
+        @if (openPalette) {
+          <div class="we-sheet__palette" role="radiogroup" [attr.aria-label]="openPalette === 'color' ? locale.formatTextColor : locale.formatFill" (keydown.escape)="openPalette = null">
+            <button type="button" role="radio" class="we-sheet__dot we-sheet__dot--none" [attr.aria-checked]="!activeStyle[openPalette]" (click)="setColor(openPalette, null)" [attr.aria-label]="locale.formatNoColor" [title]="locale.formatNoColor"></button>
+            @for (color of colors; track color) {
+              <button
+                type="button"
+                role="radio"
+                class="we-sheet__dot"
+                [style.background]="openPalette === 'color' ? fg(color) : bg(color)"
+                [style.border-color]="fg(color)"
+                [attr.aria-checked]="activeStyle[openPalette] === color"
+                (click)="setColor(openPalette, color)"
+                [attr.aria-label]="locale.formatColorNames[color]"
+                [title]="locale.formatColorNames[color]"
+              ></button>
+            }
+          </div>
+        }
+      </div>
+
+      <div class="we-sheet__group">
+        <button type="button" class="we-sheet__btn" [attr.aria-pressed]="activeCell?.a === 'start'" (click)="setAlign('start')" [attr.aria-label]="locale.sheetAlignStart" [title]="locale.sheetAlignStart">
+          <span [innerHTML]="icon('alignStart')" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="we-sheet__btn" [attr.aria-pressed]="activeCell?.a === 'center'" (click)="setAlign('center')" [attr.aria-label]="locale.sheetAlignCenter" [title]="locale.sheetAlignCenter">
+          <span [innerHTML]="icon('alignCenter')" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="we-sheet__btn" [attr.aria-pressed]="activeCell?.a === 'end'" (click)="setAlign('end')" [attr.aria-label]="locale.sheetAlignEnd" [title]="locale.sheetAlignEnd">
+          <span [innerHTML]="icon('alignEnd')" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <select class="we-sheet__select" [ngModel]="activeCell?.f ?? 'general'" (ngModelChange)="setFormat($event)" [attr.aria-label]="locale.sheetNumberFormat" [title]="locale.sheetNumberFormat">
+        @for (f of formats; track f) {
+          <option [value]="f">{{ locale.sheetFormatLabels[f] }}</option>
+        }
+      </select>
+
+      <div class="we-sheet__group">
+        <button type="button" class="we-sheet__btn" (click)="sort('asc')" [attr.aria-label]="locale.sheetSortAsc" [title]="locale.sheetSortAsc">
+          <span [innerHTML]="icon('sortAsc')" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="we-sheet__btn" (click)="sort('desc')" [attr.aria-label]="locale.sheetSortDesc" [title]="locale.sheetSortDesc">
+          <span [innerHTML]="icon('sortDesc')" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="we-sheet__btn" (click)="fillDown()" [attr.aria-label]="locale.sheetFillDown" [title]="locale.sheetFillDown + ' (Ctrl+D)'">
+          <span [innerHTML]="icon('fillDown')" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="we-sheet__btn" (click)="clearFormatting()" [attr.aria-label]="locale.sheetClearFormat" [title]="locale.sheetClearFormat">
+          <span [innerHTML]="icon('eraser')" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div class="we-sheet__group">
+        <button type="button" class="we-sheet__btn we-sheet__btn--text" [attr.aria-pressed]="!!sheet.headerRow" (click)="toggleHeaderRow()" [title]="locale.sheetHeaderRow">
+          <span [innerHTML]="icon('table')" aria-hidden="true"></span> {{ locale.sheetHeaderRow }}
+        </button>
+        <button type="button" class="we-sheet__btn we-sheet__btn--text" [attr.aria-pressed]="!!sheet.striped" (click)="toggleStriped()" [title]="locale.stripedRows">
+          <span [innerHTML]="icon('stripes')" aria-hidden="true"></span> {{ locale.stripedRows }}
+        </button>
+      </div>
+
+      <div class="we-sheet__group">
+        <button type="button" class="we-sheet__btn" (click)="addRow()" [attr.aria-label]="locale.sheetAddRow" [title]="locale.sheetAddRow">
+          <span [innerHTML]="icon('plus')" aria-hidden="true"></span><span class="we-sheet__btn-sub">1</span>
+        </button>
+        <button type="button" class="we-sheet__btn" (click)="addColumn()" [attr.aria-label]="locale.sheetAddColumn" [title]="locale.sheetAddColumn">
+          <span [innerHTML]="icon('plus')" aria-hidden="true"></span><span class="we-sheet__btn-sub">A</span>
+        </button>
+      </div>
+    }
+
+    <ng-content select="[weSheetToolbar]"></ng-content>
+
+    <div class="we-sheet__group we-sheet__group--end">
+      <button type="button" class="we-sheet__btn we-sheet__btn--text" (click)="exportAs('xlsx')" [attr.aria-label]="locale.exportButton + ': ' + locale.exportExcel" [title]="locale.exportButton + ': ' + locale.exportExcel">
+        <span [innerHTML]="icon('download')" aria-hidden="true"></span> {{ locale.exportExcel }}
+      </button>
+      <button type="button" class="we-sheet__btn we-sheet__btn--text" (click)="exportAs('csv')" [attr.aria-label]="locale.exportButton + ': ' + locale.exportCsv" [title]="locale.exportButton + ': ' + locale.exportCsv">{{ locale.exportCsv }}</button>
+    </div>
+  </div>
+
+  <div class="we-sheet__bar">
+    <input
+      #nameBox
+      class="we-sheet__name"
+      [value]="selectionLabel"
+      (keydown.enter)="onNameBoxEnter(nameBox)"
+      [attr.aria-label]="locale.sheetNameBox"
+      spellcheck="false"
+    />
+    <span class="we-sheet__fx" aria-hidden="true" [innerHTML]="icon('function')"></span>
+    <input
+      class="we-sheet__formula"
+      [value]="editing ? editing.text : barText"
+      [readOnly]="readonly"
+      (focus)="onBarFocus()"
+      (input)="onBarInput($any($event.target).value)"
+      (keydown)="onBarKeydown($event)"
+      (blur)="onBarBlur()"
+      [attr.aria-label]="locale.sheetFormulaBar"
+      spellcheck="false"
+    />
+  </div>
+
+  <div
+    #scroll
+    class="we-sheet__scroll"
+    tabindex="0"
+    [style.height]="heightCss"
+    (keydown)="onGridKeydown($event)"
+    (copy)="onCopy($event)"
+    (cut)="onCopy($event, true)"
+    (paste)="onPaste($event)"
+  >
+    <table class="we-sheet__table" role="grid" [attr.aria-label]="locale.sheetLabel" aria-multiselectable="true" [attr.aria-rowcount]="sheet.rows + 1" [attr.aria-colcount]="sheet.cols + 1">
+      <colgroup>
+        <col class="we-sheet__col-rowhead" />
+        @for (c of colIndexes; track c) {
+          <col [style.width.px]="width(c)" />
+        }
+      </colgroup>
+      <thead>
+        <tr role="row">
+          <th class="we-sheet__corner" role="columnheader">
+            <button type="button" class="we-sheet__corner-btn" (click)="selectAll()" [attr.aria-label]="locale.sheetSelectAll" [title]="locale.sheetSelectAll" tabindex="-1"></button>
+          </th>
+          @for (c of colIndexes; track c) {
+            <th
+              role="columnheader"
+              class="we-sheet__colhead"
+              [class.we-sheet__head--on]="c >= selection.c1 && c <= selection.c2"
+              (click)="onColumnHeaderClick($event, c)"
+            >
+              {{ columnLetters[c] }}
+              <span class="we-sheet__resize" (mousedown)="onResizeStart($event, c)" aria-hidden="true"></span>
+            </th>
+          }
+        </tr>
+      </thead>
+      <tbody>
+        @for (r of rowNumbers; track r) {
+          <tr role="row" [class.we-sheet__row--alt]="sheet.striped && r % 2 === (sheet.headerRow ? 0 : 1)" [class.we-sheet__row--header]="sheet.headerRow && r === 0">
+            <th role="rowheader" class="we-sheet__rowhead" [class.we-sheet__head--on]="r >= selection.r1 && r <= selection.r2" (click)="onRowHeaderClick($event, r)">{{ r + 1 }}</th>
+            @for (c of colIndexes; track c) {
+              <td
+                role="gridcell"
+                class="we-sheet__cell"
+                [attr.data-cell]="columnLetters[c] + (r + 1)"
+                [class.we-sheet__cell--sel]="inSelection(c, r)"
+                [class.we-sheet__cell--active]="c === active.col && r === active.row"
+                [class.we-sheet__cell--error]="view[r][c].error"
+                [attr.aria-selected]="inSelection(c, r)"
+                [style.text-align]="view[r][c].align"
+                [ngStyle]="view[r][c].css"
+                (mousedown)="onCellMouseDown($event, c, r)"
+                (mouseenter)="onCellMouseEnter(c, r)"
+                (dblclick)="onCellDblClick(c, r)"
+              >
+                @if (editing && !editing.fromBar && editing.col === c && editing.row === r) {
+                  <input
+                    #editor
+                    class="we-sheet__editor"
+                    [value]="editing.text"
+                    (input)="onEditorInput($any($event.target).value)"
+                    (keydown)="onEditorKeydown($event)"
+                    (blur)="commitEdit()"
+                    (mousedown)="$event.stopPropagation()"
+                    [attr.aria-label]="columnLetters[c] + (r + 1)"
+                    spellcheck="false"
+                  />
+                } @else {
+                  {{ view[r][c].text }}
+                }
+              </td>
+            }
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <div class="we-sheet__status" aria-live="polite">
+    @if (hasStats) {
+      @if (stats.numbers > 0) {
+        <span>{{ locale.average }}: <strong>{{ formatStat(stats.average) }}</strong></span>
+        <span>{{ locale.min }}: <strong>{{ formatStat(stats.min) }}</strong></span>
+        <span>{{ locale.max }}: <strong>{{ formatStat(stats.max) }}</strong></span>
+      }
+      <span>{{ locale.count }}: <strong>{{ stats.count }}</strong></span>
+      @if (stats.numbers > 0) {
+        <span>{{ locale.sum }}: <strong>{{ formatStat(stats.sum) }}</strong></span>
+      }
+    }
+  </div>
+</div>

@@ -67,7 +67,7 @@ import {
 } from './models/we-grid-column.model';
 import { WeGridInternalColumn, WeGridRenderItem, weGridDisplayHeader } from './models/we-grid-internal.model';
 import { WeGridScrollToRowOptions, WeGridTreeExpandEvent, WeGridTreeInfo, WeGridTreeNode } from './models/we-grid-tree.model';
-import { WeGridLayout, WeGridLayoutStore, WE_GRID_LAYOUT_STORE } from './models/we-grid-layout.model';
+import { WeGridFormulaColumn, WeGridLayout, WeGridLayoutStore, WE_GRID_LAYOUT_STORE } from './models/we-grid-layout.model';
 import { WeGridMenuAction } from './models/we-grid-menu-action.model';
 import {
   WeGridChecklistOption,
@@ -148,6 +148,11 @@ import { WeGridHeaderMenuComponent } from './we-grid-header-menu/we-grid-header-
 import { WeGridCellEditorComponent } from './we-grid-cell-editor/we-grid-cell-editor.component';
 import { WeGridEditFormChange, WeGridEditFormComponent } from './we-grid-edit-form/we-grid-edit-form.component';
 import { WeGridFilterPopoverAction, WeGridFilterPopoverComponent } from './we-grid-filter-popover/we-grid-filter-popover.component';
+import { WeGridFormatPanelComponent } from './we-grid-format-panel/we-grid-format-panel.component';
+import { WeGridFormulaDialogComponent } from './we-grid-formula-dialog/we-grid-formula-dialog.component';
+import { WeGridCellStyle, WeGridFormatRule } from './models/we-grid-format.model';
+import { WeGridCellCss, weGridResolveFormats } from './services/we-grid-format.util';
+import { WeGridFormulaError, weGridTryCompileFormula } from './services/we-grid-formula.util';
 
 type WeGridMenuOrigin = HTMLElement | { x: number; y: number };
 
@@ -207,7 +212,7 @@ let weGridOpenMenuCloser: (() => void) | null = null;
 @Component({
   selector: 'we-grid',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule, WeGridCellEditorComponent, WeGridEditFormComponent],
+  imports: [CommonModule, FormsModule, DragDropModule, WeGridCellEditorComponent, WeGridEditFormComponent, WeGridFormatPanelComponent, WeGridFormulaDialogComponent],
   templateUrl: './we-grid.component.html',
   styleUrls: ['./we-grid.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -492,6 +497,24 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * columns don't jump; a saved or dragged width always wins.
    */
   @Input() autoFitColumns = true;
+  /** Zebra rows — every other row tinted with `--we-grid-stripe-bg`. With `formatting` on the user can switch it from the menu. */
+  @Input() striped = false;
+  /**
+   * Lets the user format the grid like a spreadsheet: a Format panel in the column menu (bold,
+   * colours, conditional formatting rules, colour scales, data bars) and a Zebra rows switch. Their
+   * choices are saved with the layout and with saved views.
+   */
+  @Input() formatting = false;
+  /**
+   * Conditional formatting rules the grid starts with — see WeGridFormatRule. Once the user edits
+   * the rules in the Format panel, their list is saved and replaces this one.
+   */
+  @Input() formatRules: WeGridFormatRule[] = [];
+  /**
+   * Lets the user add their own computed columns from the column menu ("Add formula column…") with
+   * Excel formulas over the other columns. They are saved with the layout and with saved views.
+   */
+  @Input() allowFormulaColumns = false;
 
   @Output() pageChange = new EventEmitter<WeGridPageChange>();
   @Output() sortChange = new EventEmitter<WeGridSortChange>();
@@ -569,6 +592,18 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   renderColumns: WeGridInternalColumn<T>[] = [];
   displayData: T[] = [];
   density: WeGridDensity = 'normal';
+  /** The user's zebra choice and rules — undefined until they make one, so the inputs decide */
+  private userStriped: boolean | undefined;
+  private userFormatRules: WeGridFormatRule[] | undefined;
+  /** Formula columns the user added — see allowFormulaColumns */
+  userFormulaColumns: WeGridFormulaColumn[] = [];
+  /** The formula dialog: null when closed, `{}` for a new column, the column when editing */
+  formulaDialog: { column: WeGridFormulaColumn | null; fieldNames: string[]; usedFields: string[] } | null = null;
+  private formulaValues = new WeakMap<object, Map<string, unknown>>();
+  private readonly formulaEvaluating = new Set<string>();
+  /** Field whose Format panel is open */
+  formatPanelField: string | null = null;
+  private formatCache: { items: unknown; rules: unknown; columns: unknown; map: Map<T, Record<string, WeGridCellCss>> } | null = null;
   selectedKeys = new Set<unknown>();
   /** Keys of expanded rows — NOT persisted, resets when the page changes */
   expandedKeys = new Set<unknown>();
@@ -1019,7 +1054,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       // draft to whichever row happens to land on the same key on the new page.
       this.edit = null;
     }
-    if (changes['rowStateVersion']) this.warnRowStateVersionLiteral(changes['rowStateVersion']);
+    if (changes['rowStateVersion']) {
+      this.warnRowStateVersionLiteral(changes['rowStateVersion']);
+      this.formatCache = null;
+    }
     if (changes['detailSticky'] && !changes['detailSticky'].firstChange) this.syncViewportObserver();
     if (changes['groupBy'] && this.internalColumns.length > 0) this.setGrouping(this.groupBy ?? [], false);
     if ((changes['groupSummaryPosition'] && !changes['groupSummaryPosition'].firstChange) || changes['groupAutoSummary']) this.rebuildRenderItems();
@@ -1068,10 +1106,13 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       .load(this.gridKey)
       .pipe(takeUntil(this.destroy$))
       .subscribe((saved) => {
-        const merged = mergeGridLayout(this.columns, saved, this.layoutVersion, this.headerFilterMode);
+        const merged = mergeGridLayout(this.columnDefs, saved, this.layoutVersion, this.headerFilterMode);
         this.internalColumns = merged.columns;
         if (merged.density) this.density = merged.density;
         this.filterRowVisible = merged.filterRowVisible ?? false;
+        this.userStriped = merged.striped;
+        this.userFormatRules = merged.formatRules;
+        if (merged.formulaColumns?.length) this.applyFormulaColumns(merged.formulaColumns, saved);
         this.recomputeRenderColumns();
         if (this.groupBy?.length && this.groupFields.length === 0) this.groupFields = this.validGroupFields(this.groupBy);
         this.refreshDisplayData();
@@ -1090,9 +1131,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       gridKey: this.gridKey,
       version: this.layoutVersion,
       density: this.density,
-      columns: toColumnLayout(this.internalColumns, this.columns)
+      columns: toColumnLayout(this.internalColumns, this.columnDefs)
     };
-    const merged = mergeGridLayout(this.columns, synthetic, this.layoutVersion, this.headerFilterMode);
+    const merged = mergeGridLayout(this.columnDefs, synthetic, this.layoutVersion, this.headerFilterMode);
     this.internalColumns = merged.columns;
     this.recomputeRenderColumns();
   }
@@ -1135,8 +1176,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       gridKey: this.gridKey,
       version: this.layoutVersion,
       density: this.density,
-      columns: toColumnLayout(this.internalColumns, this.columns),
-      filterRowVisible: this.filterRowVisible
+      columns: toColumnLayout(this.internalColumns, this.columnDefs),
+      filterRowVisible: this.filterRowVisible,
+      ...(this.userStriped !== undefined ? { striped: this.userStriped } : {}),
+      ...(this.userFormatRules ? { formatRules: this.userFormatRules } : {}),
+      ...(this.userFormulaColumns.length ? { formulaColumns: this.userFormulaColumns } : {})
     };
   }
 
@@ -1160,7 +1204,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** Cached per column so the template view is updated, not rebuilt, on every check */
   headerContext(col: WeGridInternalColumn<T>): WeGridHeaderContext<T> {
-    const def = this.columns.find((d) => d.field === col.field) ?? ({ field: col.field, header: col.defaultHeader } as WeGridColumnDef<T>);
+    const def = this.columnDefs.find((d) => d.field === col.field) ?? ({ field: col.field, header: col.defaultHeader } as WeGridColumnDef<T>);
     const title = weGridDisplayHeader(col);
     const cached = this.headerContextCache.get(col.field);
     if (cached && cached.column === def && cached.title === title) return cached;
@@ -1276,8 +1320,182 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return context;
   }
 
+  // ─── Formatting ────────────────────────────────────────────────────────
+  get stripedActive(): boolean {
+    return this.userStriped ?? this.striped;
+  }
+
+  get activeFormatRules(): WeGridFormatRule[] {
+    return this.userFormatRules ?? this.formatRules;
+  }
+
+  get formatPanelColumn(): WeGridInternalColumn<T> | null {
+    return this.internalColumns.find((c) => c.field === this.formatPanelField) ?? null;
+  }
+
+  /**
+   * The cell's formatting — column style, conditional rules, colour scale, data bar — or null.
+   * Resolved for all shown rows at once and cached until the rows, the rules or the columns change.
+   */
+  cellCss(row: T, col: WeGridInternalColumn<T>): WeGridCellCss | null {
+    const rules = this.activeFormatRules;
+    const cache = this.formatCache;
+    if (!cache || cache.items !== this.renderItems || cache.rules !== rules || cache.columns !== this.renderColumns) {
+      const rows = this.renderItems.flatMap((item) => (item.kind === 'row' ? [item.row] : []));
+      const styles = new Map<string, WeGridCellStyle>();
+      for (const c of this.renderColumns) if (c.style) styles.set(c.field, c.style);
+      const map = weGridResolveFormats(rows, rules, this.renderColumns.map((c) => c.field), this.readCellValue, styles, this.evaluateRowFormula);
+      this.formatCache = { items: this.renderItems, rules, columns: this.renderColumns, map };
+    }
+    return this.formatCache!.map.get(row)?.[col.field] ?? null;
+  }
+
+  /** `[Name]` in a formula rule reads the row's value of the column with that field or header */
+  private readonly evaluateRowFormula = (source: string, row: T): unknown => {
+    const compiled = weGridTryCompileFormula(source);
+    if ('error' in compiled) return new WeGridFormulaError('#ERROR!');
+    return compiled.formula.evaluate({
+      field: (name) => {
+        const col = this.columnByRef(name);
+        return col ? this.cellValue(row, col) : undefined;
+      }
+    });
+  };
+
+  /** The developer's columns plus the formula columns the user added */
+  get columnDefs(): WeGridColumnDef<T>[] {
+    if (this.userFormulaColumns.length === 0) return this.columns;
+    const added = this.userFormulaColumns.map(
+      (c) => ({ field: c.field, header: c.header, formula: c.formula, type: c.type ?? 'number', align: 'end', userFormula: true }) as WeGridColumnDef<T>
+    );
+    return [...this.columns, ...added];
+  }
+
+  /** The column a formula's `[Name]` means — its field or its header, case-insensitively */
+  private columnByRef(name: string): WeGridInternalColumn<T> | undefined {
+    const key = name.trim().toLocaleLowerCase();
+    return (
+      this.internalColumns.find((c) => c.field.toLocaleLowerCase() === key) ??
+      this.internalColumns.find((c) => weGridDisplayHeader(c).toLocaleLowerCase() === key || c.defaultHeader.toLocaleLowerCase() === key)
+    );
+  }
+
+  /** A formula column's value for the row — cached per row object, `#CIRC!` when columns refer to each other */
+  private formulaValue(row: T, col: WeGridInternalColumn<T>): unknown {
+    const rowKey = row as unknown as object;
+    let values = this.formulaValues.get(rowKey);
+    if (values?.has(col.field)) return values.get(col.field);
+    if (this.formulaEvaluating.has(col.field)) return new WeGridFormulaError('#CIRC!');
+    const compiled = weGridTryCompileFormula(col.formula ?? '');
+    let value: unknown;
+    if ('error' in compiled) {
+      value = new WeGridFormulaError('#ERROR!');
+    } else {
+      this.formulaEvaluating.add(col.field);
+      try {
+        value = compiled.formula.evaluate({
+          field: (name) => {
+            const ref = this.columnByRef(name);
+            return ref ? this.cellValue(row, ref) : new WeGridFormulaError('#NAME?');
+          }
+        });
+      } finally {
+        this.formulaEvaluating.delete(col.field);
+      }
+    }
+    if (!values) this.formulaValues.set(rowKey, (values = new Map()));
+    values.set(col.field, value);
+    return value;
+  }
+
+  private clearFormulaValues(): void {
+    this.formulaValues = new WeakMap();
+    this.formatCache = null;
+  }
+
+  /** Puts the user's formula columns in and re-merges, keeping their saved layout (width, order …) */
+  private applyFormulaColumns(columns: WeGridFormulaColumn[], saved: WeGridLayout | null): void {
+    this.userFormulaColumns = columns;
+    this.clearFormulaValues();
+    this.internalColumns = mergeGridLayout(this.columnDefs, saved, this.layoutVersion, this.headerFilterMode).columns;
+  }
+
+  openFormulaDialog(column: WeGridFormulaColumn | null): void {
+    // Worked out once: a getter would hand the dialog a new array on every check
+    const fieldNames = this.internalColumns.filter((c) => c.field !== column?.field && c.type !== 'custom').map((c) => weGridDisplayHeader(c));
+    this.formulaDialog = { column, fieldNames, usedFields: this.internalColumns.map((c) => c.field) };
+    this.cdr.markForCheck();
+  }
+
+  closeFormulaDialog(): void {
+    this.formulaDialog = null;
+    this.cdr.markForCheck();
+  }
+
+  /** Adds or replaces a user formula column, keeping every column's current layout */
+  saveFormulaColumn(column: WeGridFormulaColumn): void {
+    const exists = this.userFormulaColumns.some((c) => c.field === column.field);
+    const snapshot = this.buildLayoutSnapshot();
+    this.userFormulaColumns = exists
+      ? this.userFormulaColumns.map((c) => (c.field === column.field ? column : c))
+      : [...this.userFormulaColumns, column];
+    this.clearFormulaValues();
+    this.internalColumns = mergeGridLayout(this.columnDefs, snapshot, this.layoutVersion, this.headerFilterMode).columns;
+    this.formulaDialog = null;
+    this.recomputeRenderColumns();
+    this.refreshDisplayData();
+    this.scheduleLayoutSave();
+    this.cdr.markForCheck();
+  }
+
+  deleteFormulaColumn(field: string): void {
+    const snapshot = this.buildLayoutSnapshot();
+    this.userFormulaColumns = this.userFormulaColumns.filter((c) => c.field !== field);
+    this.filterState.delete(field);
+    this.clearFormulaValues();
+    this.internalColumns = mergeGridLayout(this.columnDefs, snapshot, this.layoutVersion, this.headerFilterMode).columns;
+    this.recomputeRenderColumns();
+    this.refreshDisplayData();
+    this.scheduleLayoutSave();
+    this.cdr.markForCheck();
+  }
+
+  /** The formula's result on the first shown row — the dialog's live preview */
+  readonly previewFormula = (formula: string, type: WeGridFormulaColumn['type']): string => {
+    const row = this.displayData[0];
+    if (row === undefined) return '';
+    const probe = { field: 'fx:preview', formula, type: type ?? 'number' } as WeGridInternalColumn<T>;
+    this.formulaValues.get(row as unknown as object)?.delete('fx:preview');
+    const value = this.formulaValue(row, probe);
+    this.formulaValues.get(row as unknown as object)?.delete('fx:preview');
+    if (value instanceof WeGridFormulaError) return value.code;
+    return formatWeGridColumnValue(value, { ...probe, minorUnits: false, format: undefined } as WeGridInternalColumn<T>, this.valueFormatOptions(), row);
+  };
+
+  onFormatStyleChange(style: WeGridCellStyle): void {
+    const col = this.formatPanelColumn;
+    if (!col) return;
+    col.style = style;
+    this.formatCache = null;
+    this.scheduleLayoutSave();
+    this.cdr.markForCheck();
+  }
+
+  onFormatRulesChange(rules: WeGridFormatRule[]): void {
+    this.userFormatRules = rules;
+    this.scheduleLayoutSave();
+    this.cdr.markForCheck();
+  }
+
+  closeFormatPanel(): void {
+    this.formatPanelField = null;
+    this.cdr.markForCheck();
+  }
+
   formatCell(row: T, col: WeGridInternalColumn<T>): string {
-    return formatWeGridColumnValue(this.cellValue(row, col), col, this.valueFormatOptions(), row);
+    const value = this.cellValue(row, col);
+    if (value instanceof WeGridFormulaError) return value.code;
+    return formatWeGridColumnValue(value, col, this.valueFormatOptions(), row);
   }
 
   /**
@@ -1285,6 +1503,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * tree mode `treeValue` wins, then `childField` on child rows, then the field.
    */
   cellValue(row: T, col: WeGridInternalColumn<T>): unknown {
+    if (col.formula) return this.formulaValue(row, col);
     if (!this.treeActive) return getNestedValue(row, col.field);
     const tree = this.treeInfoByRow.get(row);
     if (!tree) return getNestedValue(row, col.field);
@@ -1379,6 +1598,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   private refreshDisplayData(): void {
+    // Rows may have been edited in place (paste, inline edit) — computed values are worked out again
+    this.clearFormulaValues();
     if (this.treeActive) {
       this.refreshTree();
       this.autoFitPendingColumns();
@@ -1394,7 +1615,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     // local comparison rules can differ, causing rows to be lost).
     const source =
       this.hasActiveFilters && !this.isServerFilter
-        ? applyWeGridFilters(this.data, this.filterState, this.internalColumns, this.locale)
+        ? applyWeGridFilters(this.data, this.filterState, this.internalColumns, this.locale, this.readCellValue)
         : this.data;
 
     if (this.isServerSort || !this.clientSort) {
@@ -1407,8 +1628,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const { field, direction } = this.clientSort;
     const copy = [...source];
     copy.sort((a, b) => {
-      const va = getNestedValue(a, field);
-      const vb = getNestedValue(b, field);
+      const va = this.readCellValue(a, field) as never;
+      const vb = this.readCellValue(b, field) as never;
       if (va == null && vb == null) return 0;
       if (va == null) return direction === 'asc' ? -1 : 1;
       if (vb == null) return direction === 'asc' ? 1 : -1;
@@ -1458,6 +1679,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * for state the grid cannot see changing. Template views are updated in place, never rebuilt.
    */
   refreshRows(): void {
+    this.formatCache = null;
     this.cdr.markForCheck();
   }
 
@@ -1495,7 +1717,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** Builds a column's summary cell text — null when 'none' (nothing at all is printed in the cell) */
   summaryCellText(col: WeGridInternalColumn<T>): string | null {
     const scope = this.serverSide ? 'server' : 'client';
-    if (!this.treeActive) return buildWeGridSummaryText(this.displayData, col, scope, this.summaryValues?.[col.field], this.locale);
+    if (!this.treeActive) return buildWeGridSummaryText(this.displayData, col, scope, this.summaryValues?.[col.field], this.locale, this.readCellValue);
     return buildWeGridSummaryText(this.treeSummaryRows, col, scope, this.summaryValues?.[col.field], this.locale, this.readCellValue);
   }
 
@@ -2010,7 +2232,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     // "Draft") would end up as two separate groups with the same visible heading, which is confusing.
     const buckets = new Map<string, T[]>();
     for (const row of rows) {
-      const raw = getNestedValue(row, field);
+      const raw = this.readCellValue(row, field);
       const isEmptyRaw = raw === null || raw === undefined || raw === '';
       const key = isEmptyRaw ? ' EMPTY' : col?.displayValue ? col.displayValue(row) : String(raw);
       const bucket = buckets.get(key);
@@ -2026,7 +2248,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
           : col?.displayValue
             ? col.displayValue(bucketRows[0])
             : col
-              ? this.formatColumnValue(col, getNestedValue(bucketRows[0], field))
+              ? this.formatColumnValue(col, this.readCellValue(bucketRows[0], field))
               : key;
         // The outermost level keeps its plain key, so a collapsed group from before survives
         const path = level === 0 ? key : `${parentPath}\u001f${key}`;
@@ -2193,7 +2415,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     for (const col of this.internalColumns) {
       const fn = this.groupSummaryFunction(col);
       if (fn === 'none') continue;
-      const text = buildWeGridSummaryText(rows, { ...col, summary: fn }, 'client', undefined, this.locale);
+      const text = buildWeGridSummaryText(rows, { ...col, summary: fn }, 'client', undefined, this.locale, this.readCellValue);
       if (text) parts.push(`${weGridDisplayHeader(col)} ${text}`);
     }
     return parts.length ? parts.join(' · ') : null;
@@ -2208,7 +2430,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       { ...col, summary: fn },
       'client',
       undefined,
-      this.locale
+      this.locale,
+      this.readCellValue
     );
   }
 
@@ -2835,7 +3058,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         numberScale: col.type === 'currency' && col.minorUnits ? this.inputScale(col) : 1
       })),
       rows: rows.map((row) => {
-        const values = columns.map((col) => this.cellValue(row, col));
+        const values = columns.map((col) => {
+          const value = this.cellValue(row, col);
+          return value instanceof WeGridFormulaError ? value.code : value;
+        });
         const text = columns.map((col) => (col.displayValue ? col.displayValue(row) : this.formatCell(row, col)));
         // Tree mode: two spaces per level in front of the first column keep the hierarchy readable
         const level = this.treeActive ? (this.treeInfoByRow.get(row)?.level ?? 0) : 0;
@@ -3186,7 +3412,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   getCurrentView(name: string): WeGridSavedView {
     return {
       name,
-      columns: toColumnLayout(this.internalColumns, this.columns),
+      columns: toColumnLayout(this.internalColumns, this.columnDefs),
       density: this.density,
       sort: this.currentSort?.direction ? { ...this.currentSort } : null,
       filters: Array.from(this.filterState.values())
@@ -3194,7 +3420,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         .map((f) => ({ ...f })),
       groupField: this.groupField,
       ...(this.groupFields.length > 1 ? { groupFields: [...this.groupFields] } : {}),
-      filterRowVisible: this.filterRowVisible
+      filterRowVisible: this.filterRowVisible,
+      ...(this.formatting ? { striped: this.stripedActive, formatRules: [...this.activeFormatRules] } : {}),
+      ...(this.userFormulaColumns.length ? { formulaColumns: [...this.userFormulaColumns] } : {})
     };
   }
 
@@ -3226,10 +3454,16 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * `(groupChange)` just as if the user had made the changes by hand.
    */
   applyView(view: WeGridSavedView): void {
+    if (view.formulaColumns) {
+      this.userFormulaColumns = view.formulaColumns;
+      this.clearFormulaValues();
+    }
     const synthetic: WeGridLayout = { gridKey: this.gridKey, version: this.layoutVersion, columns: view.columns };
-    this.internalColumns = mergeGridLayout(this.columns, synthetic, this.layoutVersion, this.headerFilterMode).columns;
+    this.internalColumns = mergeGridLayout(this.columnDefs, synthetic, this.layoutVersion, this.headerFilterMode).columns;
     if (view.density) this.density = view.density;
     if (view.filterRowVisible !== undefined) this.filterRowVisible = view.filterRowVisible;
+    if (view.striped !== undefined) this.userStriped = view.striped;
+    if (view.formatRules) this.userFormatRules = view.formatRules;
 
     const filtersBefore = this.activeFilterSignature();
     this.filterState.clear();
@@ -3756,6 +3990,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     componentRef.setInput('enableGrouping', this.grouping && !this.treeActive);
     componentRef.setInput('treeMode', this.treeActive);
     componentRef.setInput('treeAllExpanded', this.treeActive && this.treeAllExpanded);
+    componentRef.setInput('formatting', this.formatting);
+    componentRef.setInput('allowFormulaColumns', this.allowFormulaColumns);
+    componentRef.setInput('striped', this.stripedActive);
     componentRef.setInput('groupField', this.groupField);
     componentRef.setInput('groupFields', this.groupFields);
     componentRef.setInput('cellValue', cellCtx?.value);
@@ -3870,6 +4107,22 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       case 'density':
         this.density = action.density;
         break;
+      case 'toggle-striped':
+        this.userStriped = !this.stripedActive;
+        break;
+      case 'format':
+        this.formatPanelField = action.field;
+        this.cdr.markForCheck();
+        return;
+      case 'add-formula-column':
+        this.openFormulaDialog(null);
+        return;
+      case 'edit-formula-column':
+        this.openFormulaDialog(this.userFormulaColumns.find((c) => c.field === action.field) ?? null);
+        return;
+      case 'delete-formula-column':
+        this.deleteFormulaColumn(action.field);
+        return;
       case 'summary': {
         const col = this.internalColumns.find((c) => c.field === action.field);
         if (col) col.summary = action.summary;
@@ -3923,9 +4176,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   private resetLayout(): void {
     this.layoutStore.reset(this.gridKey).pipe(takeUntil(this.destroy$)).subscribe();
-    const merged = mergeGridLayout(this.columns, null, this.layoutVersion, this.headerFilterMode);
+    const merged = mergeGridLayout(this.columnDefs, null, this.layoutVersion, this.headerFilterMode);
     this.internalColumns = merged.columns;
     this.density = 'normal';
+    this.userStriped = undefined;
+    this.userFormatRules = undefined;
+    this.userFormulaColumns = [];
+    this.clearFormulaValues();
+    this.formatPanelField = null;
     this.clientSort = null;
     this.filterRowVisible = false;
     const hadActiveFilter = this.hasActiveFilters;

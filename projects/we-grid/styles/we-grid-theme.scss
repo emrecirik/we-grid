@@ -45,6 +45,26 @@
   --we-grid-detail-inset-left: 0px;
   --we-grid-th-menu-btn-idle-opacity: 0;
   --we-grid-th-menu-btn-hover-opacity: 0.5;
+  --we-grid-stripe-bg: rgba(0, 0, 0, 0.025);
+  // Formatting palette — the colours a user picks for text, fills, colour scales and data bars
+  --we-grid-format-red-fg: #c41e16;
+  --we-grid-format-red-bg: #ffe5e3;
+  --we-grid-format-orange-fg: #b35900;
+  --we-grid-format-orange-bg: #ffedd9;
+  --we-grid-format-yellow-fg: #8a6d00;
+  --we-grid-format-yellow-bg: #fff6cc;
+  --we-grid-format-green-fg: #1e7a35;
+  --we-grid-format-green-bg: #e1f6e6;
+  --we-grid-format-teal-fg: #0b7285;
+  --we-grid-format-teal-bg: #dcf3f7;
+  --we-grid-format-blue-fg: #0a5cc2;
+  --we-grid-format-blue-bg: #e0edff;
+  --we-grid-format-purple-fg: #7e3bb0;
+  --we-grid-format-purple-bg: #f1e6fb;
+  --we-grid-format-pink-fg: #b5235f;
+  --we-grid-format-pink-bg: #fde4ee;
+  --we-grid-format-gray-fg: #545961;
+  --we-grid-format-gray-bg: #eceef1;
   // Print / PDF export. The exported document is rendered in its own window and never inherits
   // this page's stylesheet, so the grid copies these values into it (see we-grid-pdf.util.ts).
   // Paper is light whatever the screen theme is, which is why the dark blocks repeat the same
@@ -86,6 +106,26 @@
     --we-grid-detail-inset-left: 0px;
     --we-grid-th-menu-btn-idle-opacity: 0;
     --we-grid-th-menu-btn-hover-opacity: 0.5;
+    --we-grid-stripe-bg: rgba(255, 255, 255, 0.025);
+    // Formatting palette — the colours a user picks for text, fills, colour scales and data bars
+    --we-grid-format-red-fg: #ff8a80;
+    --we-grid-format-red-bg: rgba(255, 69, 58, 0.22);
+    --we-grid-format-orange-fg: #ffb35c;
+    --we-grid-format-orange-bg: rgba(255, 159, 10, 0.22);
+    --we-grid-format-yellow-fg: #ffd95c;
+    --we-grid-format-yellow-bg: rgba(255, 214, 10, 0.2);
+    --we-grid-format-green-fg: #6fdc8c;
+    --we-grid-format-green-bg: rgba(48, 209, 88, 0.2);
+    --we-grid-format-teal-fg: #6fd3e3;
+    --we-grid-format-teal-bg: rgba(64, 200, 224, 0.2);
+    --we-grid-format-blue-fg: #8ab8ff;
+    --we-grid-format-blue-bg: rgba(10, 132, 255, 0.24);
+    --we-grid-format-purple-fg: #d29cff;
+    --we-grid-format-purple-bg: rgba(191, 90, 242, 0.22);
+    --we-grid-format-pink-fg: #ff8cb8;
+    --we-grid-format-pink-bg: rgba(255, 55, 95, 0.22);
+    --we-grid-format-gray-fg: #b0b4bc;
+    --we-grid-format-gray-bg: rgba(255, 255, 255, 0.1);
     // Print / PDF export — the same paper values as the light theme, see the :root block above
     --we-grid-print-color: #212529;
     --we-grid-print-bg: #ffffff;
@@ -124,6 +164,26 @@
   --we-grid-detail-inset-left: 0px;
   --we-grid-th-menu-btn-idle-opacity: 0;
   --we-grid-th-menu-btn-hover-opacity: 0.5;
+  --we-grid-stripe-bg: rgba(255, 255, 255, 0.025);
+  // Formatting palette — the colours a user picks for text, fills, colour scales and data bars
+  --we-grid-format-red-fg: #ff8a80;
+  --we-grid-format-red-bg: rgba(255, 69, 58, 0.22);
+  --we-grid-format-orange-fg: #ffb35c;
+  --we-grid-format-orange-bg: rgba(255, 159, 10, 0.22);
+  --we-grid-format-yellow-fg: #ffd95c;
+  --we-grid-format-yellow-bg: rgba(255, 214, 10, 0.2);
+  --we-grid-format-green-fg: #6fdc8c;
+  --we-grid-format-green-bg: rgba(48, 209, 88, 0.2);
+  --we-grid-format-teal-fg: #6fd3e3;
+  --we-grid-format-teal-bg: rgba(64, 200, 224, 0.2);
+  --we-grid-format-blue-fg: #8ab8ff;
+  --we-grid-format-blue-bg: rgba(10, 132, 255, 0.24);
+  --we-grid-format-purple-fg: #d29cff;
+  --we-grid-format-purple-bg: rgba(191, 90, 242, 0.22);
+  --we-grid-format-pink-fg: #ff8cb8;
+  --we-grid-format-pink-bg: rgba(255, 55, 95, 0.22);
+  --we-grid-format-gray-fg: #b0b4bc;
+  --we-grid-format-gray-bg: rgba(255, 255, 255, 0.1);
   // Print / PDF export — the same paper values as the light theme, see the :root block above
   --we-grid-print-color: #212529;
   --we-grid-print-bg: #ffffff;

@@ -1,7 +1,8 @@
 import { InjectionToken } from '@angular/core';
 import { Observable } from 'rxjs';
-import { WeGridDensity, WeGridPinned, WeGridSortDirection, WeGridSummaryFunction } from './we-grid-column.model';
+import { WeGridColumnType, WeGridDensity, WeGridPinned, WeGridSortDirection, WeGridSummaryFunction } from './we-grid-column.model';
 import { WeGridSavedView } from './we-grid-view.model';
+import { WeGridCellStyle, WeGridFormatRule } from './we-grid-format.model';
 import { LocalStorageGridLayoutStore } from '../services/local-storage-grid-layout-store';
 
 /** Customizations the user has made to a column */
@@ -16,6 +17,17 @@ export interface WeGridColumnLayout {
   headerOverride?: string;
   /** Summary function the user chose from the column header context menu — 'none' if omitted */
   summary?: WeGridSummaryFunction;
+  /** Base cell style the user chose in the format panel — `{}` when they cleared the developer's default */
+  style?: WeGridCellStyle;
+}
+
+/** A computed column the user added — its `field` always starts with `fx:` so it never shadows a data field */
+export interface WeGridFormulaColumn {
+  field: string;
+  header: string;
+  /** See WeGridColumnDef.formula */
+  formula: string;
+  type?: Extract<WeGridColumnType, 'text' | 'number' | 'integer' | 'currency' | 'percent' | 'date' | 'boolean'>;
 }
 
 /** The full grid layout persisted to localStorage/backend */
@@ -35,6 +47,12 @@ export interface WeGridLayout {
    * open/closed preference is remembered.
    */
   filterRowVisible?: boolean;
+  /** Zebra rows switched on or off by the user — absent means the grid's `striped` input decides */
+  striped?: boolean;
+  /** The user's conditional formatting rules — absent means the grid's `formatRules` input applies */
+  formatRules?: WeGridFormatRule[];
+  /** Formula columns the user added from the column menu (`allowFormulaColumns`) */
+  formulaColumns?: WeGridFormulaColumn[];
   /**
    * Saved views. Only ever set on the separate record the grid keeps them in, under the key
    * `<gridKey>::views` (columns is empty there) — so resetting the layout never deletes them.

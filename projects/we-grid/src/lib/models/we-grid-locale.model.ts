@@ -1,4 +1,5 @@
 import { InjectionToken } from '@angular/core';
+import { WeGridFormatColor, WeGridFormatOperator, WeGridFormatPreset, WeGridFormatScalePreset } from './we-grid-format.model';
 
 /**
  * All user-facing text used by we-grid. Grouped roughly by which part of the UI they belong to
@@ -202,6 +203,86 @@ export interface WeGridLocale {
   removeFromGrouping: string;
   expandAllGroups: string;
   collapseAllGroups: string;
+
+  // ─── Formatting (the grid's `formatting` input) ───
+  formatColumn: string;
+  /** Title of the format panel — `header` is the column's header text */
+  formatPanelTitle: (header: string) => string;
+  stripedRows: string;
+  formatCellStyle: string;
+  formatBold: string;
+  formatItalic: string;
+  formatUnderline: string;
+  formatStrike: string;
+  /** The letters on the bold / italic / underline / strikethrough buttons */
+  formatFlagGlyphs: Record<'bold' | 'italic' | 'underline' | 'strike', string>;
+  formatTextColor: string;
+  formatFill: string;
+  formatNoColor: string;
+  /** Names of the palette colours — read out on the colour swatches */
+  formatColorNames: Record<WeGridFormatColor, string>;
+  formatRules: string;
+  formatNoRules: string;
+  formatAddRule: string;
+  formatRuleType: string;
+  formatTypeCondition: string;
+  formatTypeColorScale: string;
+  formatTypeDataBar: string;
+  formatOperatorLabels: Record<WeGridFormatOperator, string>;
+  formatValue: string;
+  formatValueAnd: string;
+  formatTopCount: string;
+  formatFormulaHint: string;
+  formatStyle: string;
+  formatPresetLabels: Record<WeGridFormatPreset, string>;
+  formatScaleLabels: Record<WeGridFormatScalePreset, string>;
+  formatApplyToRow: string;
+  formatBarColor: string;
+  formatDeleteRule: string;
+  formatRaisePriority: string;
+  formatClearRules: string;
+
+  // ─── Formula columns (the grid's `allowFormulaColumns` input) ───
+  addFormulaColumn: string;
+  editFormulaColumn: string;
+  deleteFormulaColumn: string;
+  formulaDialogNew: string;
+  formulaDialogEdit: string;
+  formulaColumnName: string;
+  formulaDefaultName: string;
+  formulaLabel: string;
+  formulaPlaceholder: string;
+  formulaResultType: string;
+  formulaTypeLabels: Record<'text' | 'number' | 'integer' | 'currency' | 'percent' | 'date' | 'boolean', string>;
+  formulaInsertColumn: string;
+  formulaInsertFunction: string;
+  formulaPreview: string;
+  /** A formula that cannot be read — `position` is 1-based */
+  formulaSyntaxError: (position: number) => string;
+  formulaSave: string;
+
+  // ─── <we-sheet> ───
+  sheetLabel: string;
+  sheetToolbar: string;
+  sheetNameBox: string;
+  sheetFormulaBar: string;
+  sheetUndo: string;
+  sheetRedo: string;
+  sheetAlignStart: string;
+  sheetAlignCenter: string;
+  sheetAlignEnd: string;
+  sheetNumberFormat: string;
+  sheetFormatLabels: Record<'general' | 'number' | 'integer' | 'currency' | 'percent' | 'date' | 'text', string>;
+  sheetSortAsc: string;
+  sheetSortDesc: string;
+  sheetFillDown: string;
+  sheetClearFormat: string;
+  sheetHeaderRow: string;
+  sheetAddRow: string;
+  sheetAddColumn: string;
+  sheetSelectAll: string;
+  /** Read out for a cell — `address` is like B3 */
+  sheetCellLabel: (address: string, text: string) => string;
 }
 
 export const weGridLocaleEn: WeGridLocale = {
@@ -334,7 +415,110 @@ export const weGridLocaleEn: WeGridLocale = {
   addToGrouping: 'Add to grouping',
   removeFromGrouping: 'Remove from grouping',
   expandAllGroups: 'Expand all groups',
-  collapseAllGroups: 'Collapse all groups'
+  collapseAllGroups: 'Collapse all groups',
+  formatColumn: 'Format…',
+  formatPanelTitle: (header) => `Format “${header}”`,
+  stripedRows: 'Zebra rows',
+  formatCellStyle: 'Cell style',
+  formatBold: 'Bold',
+  formatItalic: 'Italic',
+  formatUnderline: 'Underline',
+  formatStrike: 'Strikethrough',
+  formatFlagGlyphs: { bold: 'B', italic: 'I', underline: 'U', strike: 'S' },
+  formatTextColor: 'Text colour',
+  formatFill: 'Fill',
+  formatNoColor: 'None',
+  formatColorNames: { red: 'Red', orange: 'Orange', yellow: 'Yellow', green: 'Green', teal: 'Teal', blue: 'Blue', purple: 'Purple', pink: 'Pink', gray: 'Grey' },
+  formatRules: 'Conditional formatting',
+  formatNoRules: 'No rules yet — add one to highlight values automatically.',
+  formatAddRule: 'Add rule',
+  formatRuleType: 'Rule',
+  formatTypeCondition: 'Highlight cells',
+  formatTypeColorScale: 'Colour scale',
+  formatTypeDataBar: 'Data bar',
+  formatOperatorLabels: {
+    gt: 'Greater than',
+    gte: 'Greater than or equal to',
+    lt: 'Less than',
+    lte: 'Less than or equal to',
+    eq: 'Equal to',
+    neq: 'Not equal to',
+    between: 'Between',
+    notBetween: 'Not between',
+    contains: 'Text contains',
+    notContains: 'Text does not contain',
+    startsWith: 'Text starts with',
+    endsWith: 'Text ends with',
+    empty: 'Is empty',
+    notEmpty: 'Is not empty',
+    top: 'Top',
+    bottom: 'Bottom',
+    aboveAverage: 'Above average',
+    belowAverage: 'Below average',
+    duplicate: 'Duplicate values',
+    unique: 'Unique values',
+    formula: 'Formula is true'
+  },
+  formatValue: 'Value',
+  formatValueAnd: 'and',
+  formatTopCount: 'items',
+  formatFormulaHint: 'For example =[Amount] > [Limit]',
+  formatStyle: 'Style',
+  formatPresetLabels: {
+    redFill: 'Light red fill with dark red text',
+    yellowFill: 'Yellow fill with dark yellow text',
+    greenFill: 'Green fill with dark green text',
+    blueFill: 'Blue fill with dark blue text',
+    redText: 'Red text',
+    bold: 'Bold text'
+  },
+  formatScaleLabels: {
+    redGreen: 'Red to green',
+    greenRed: 'Green to red',
+    redYellowGreen: 'Red, yellow, green',
+    grayBlue: 'Grey to blue'
+  },
+  formatApplyToRow: 'Apply to the entire row',
+  formatBarColor: 'Bar colour',
+  formatDeleteRule: 'Delete rule',
+  formatRaisePriority: 'Move up (higher priority)',
+  formatClearRules: 'Clear all rules',
+  addFormulaColumn: 'Add formula column…',
+  editFormulaColumn: 'Edit formula…',
+  deleteFormulaColumn: 'Delete column',
+  formulaDialogNew: 'New formula column',
+  formulaDialogEdit: 'Edit formula column',
+  formulaColumnName: 'Column name',
+  formulaDefaultName: 'Calculation',
+  formulaLabel: 'Formula',
+  formulaPlaceholder: '=[Price] * [Quantity]',
+  formulaResultType: 'Result type',
+  formulaTypeLabels: { text: 'Text', number: 'Number', integer: 'Whole number', currency: 'Currency', percent: 'Percent', date: 'Date', boolean: 'Yes / No' },
+  formulaInsertColumn: 'Insert a column',
+  formulaInsertFunction: 'Insert a function',
+  formulaPreview: 'Result on the first row',
+  formulaSyntaxError: (position) => `The formula cannot be read at character ${position}`,
+  formulaSave: 'Save column',
+  sheetLabel: 'Spreadsheet',
+  sheetToolbar: 'Spreadsheet tools',
+  sheetNameBox: 'Cell address',
+  sheetFormulaBar: 'Cell contents',
+  sheetUndo: 'Undo',
+  sheetRedo: 'Redo',
+  sheetAlignStart: 'Align left',
+  sheetAlignCenter: 'Centre',
+  sheetAlignEnd: 'Align right',
+  sheetNumberFormat: 'Number format',
+  sheetFormatLabels: { general: 'General', number: 'Number', integer: 'Whole number', currency: 'Currency', percent: 'Percent', date: 'Date', text: 'Text' },
+  sheetSortAsc: 'Sort A → Z',
+  sheetSortDesc: 'Sort Z → A',
+  sheetFillDown: 'Fill down',
+  sheetClearFormat: 'Clear formatting',
+  sheetHeaderRow: 'Header row',
+  sheetAddRow: 'Add row',
+  sheetAddColumn: 'Add column',
+  sheetSelectAll: 'Select all',
+  sheetCellLabel: (address, text) => (text ? `${address}, ${text}` : `${address}, empty`)
 };
 
 /**
@@ -485,7 +669,110 @@ export const weGridLocaleTr: WeGridLocale = {
   addToGrouping: 'Gruplamaya Ekle',
   removeFromGrouping: 'Gruplamadan Çıkar',
   expandAllGroups: 'Tüm Grupları Aç',
-  collapseAllGroups: 'Tüm Grupları Kapat'
+  collapseAllGroups: 'Tüm Grupları Kapat',
+  formatColumn: 'Biçimlendir…',
+  formatPanelTitle: (header) => `“${header}” Biçimi`,
+  stripedRows: 'Zebra Satırlar',
+  formatCellStyle: 'Hücre stili',
+  formatBold: 'Kalın',
+  formatItalic: 'İtalik',
+  formatUnderline: 'Altı çizili',
+  formatStrike: 'Üstü çizili',
+  formatFlagGlyphs: { bold: 'K', italic: 'T', underline: 'A', strike: 'Ü' },
+  formatTextColor: 'Metin rengi',
+  formatFill: 'Dolgu',
+  formatNoColor: 'Yok',
+  formatColorNames: { red: 'Kırmızı', orange: 'Turuncu', yellow: 'Sarı', green: 'Yeşil', teal: 'Camgöbeği', blue: 'Mavi', purple: 'Mor', pink: 'Pembe', gray: 'Gri' },
+  formatRules: 'Koşullu biçimlendirme',
+  formatNoRules: 'Henüz kural yok — değerleri otomatik vurgulamak için bir kural ekleyin.',
+  formatAddRule: 'Kural ekle',
+  formatRuleType: 'Kural',
+  formatTypeCondition: 'Hücreleri vurgula',
+  formatTypeColorScale: 'Renk skalası',
+  formatTypeDataBar: 'Veri çubuğu',
+  formatOperatorLabels: {
+    gt: 'Büyüktür',
+    gte: 'Büyük veya eşittir',
+    lt: 'Küçüktür',
+    lte: 'Küçük veya eşittir',
+    eq: 'Eşittir',
+    neq: 'Eşit değildir',
+    between: 'Arasında',
+    notBetween: 'Arasında değil',
+    contains: 'Metin içerir',
+    notContains: 'Metin içermez',
+    startsWith: 'Metin ile başlar',
+    endsWith: 'Metin ile biter',
+    empty: 'Boş',
+    notEmpty: 'Boş değil',
+    top: 'En büyük',
+    bottom: 'En küçük',
+    aboveAverage: 'Ortalamanın üstünde',
+    belowAverage: 'Ortalamanın altında',
+    duplicate: 'Yinelenen değerler',
+    unique: 'Benzersiz değerler',
+    formula: 'Formül doğruysa'
+  },
+  formatValue: 'Değer',
+  formatValueAnd: 've',
+  formatTopCount: 'öğe',
+  formatFormulaHint: 'Örneğin =[Tutar] > [Limit]',
+  formatStyle: 'Stil',
+  formatPresetLabels: {
+    redFill: 'Açık kırmızı dolgu, koyu kırmızı metin',
+    yellowFill: 'Sarı dolgu, koyu sarı metin',
+    greenFill: 'Yeşil dolgu, koyu yeşil metin',
+    blueFill: 'Mavi dolgu, koyu mavi metin',
+    redText: 'Kırmızı metin',
+    bold: 'Kalın metin'
+  },
+  formatScaleLabels: {
+    redGreen: 'Kırmızıdan yeşile',
+    greenRed: 'Yeşilden kırmızıya',
+    redYellowGreen: 'Kırmızı, sarı, yeşil',
+    grayBlue: 'Griden maviye'
+  },
+  formatApplyToRow: 'Tüm satıra uygula',
+  formatBarColor: 'Çubuk rengi',
+  formatDeleteRule: 'Kuralı sil',
+  formatRaisePriority: 'Yukarı taşı (öncelik)',
+  formatClearRules: 'Tüm kuralları temizle',
+  addFormulaColumn: 'Formül Kolonu Ekle…',
+  editFormulaColumn: 'Formülü Düzenle…',
+  deleteFormulaColumn: 'Kolonu Sil',
+  formulaDialogNew: 'Yeni formül kolonu',
+  formulaDialogEdit: 'Formül kolonunu düzenle',
+  formulaColumnName: 'Kolon adı',
+  formulaDefaultName: 'Hesaplama',
+  formulaLabel: 'Formül',
+  formulaPlaceholder: '=[Fiyat] * [Adet]',
+  formulaResultType: 'Sonuç türü',
+  formulaTypeLabels: { text: 'Metin', number: 'Sayı', integer: 'Tam sayı', currency: 'Para', percent: 'Yüzde', date: 'Tarih', boolean: 'Evet / Hayır' },
+  formulaInsertColumn: 'Kolon ekle',
+  formulaInsertFunction: 'Fonksiyon ekle',
+  formulaPreview: 'İlk satırdaki sonuç',
+  formulaSyntaxError: (position) => `Formül ${position}. karakterde okunamıyor`,
+  formulaSave: 'Kolonu kaydet',
+  sheetLabel: 'Tablo',
+  sheetToolbar: 'Tablo araçları',
+  sheetNameBox: 'Hücre adresi',
+  sheetFormulaBar: 'Hücre içeriği',
+  sheetUndo: 'Geri al',
+  sheetRedo: 'Yinele',
+  sheetAlignStart: 'Sola hizala',
+  sheetAlignCenter: 'Ortala',
+  sheetAlignEnd: 'Sağa hizala',
+  sheetNumberFormat: 'Sayı biçimi',
+  sheetFormatLabels: { general: 'Genel', number: 'Sayı', integer: 'Tam sayı', currency: 'Para', percent: 'Yüzde', date: 'Tarih', text: 'Metin' },
+  sheetSortAsc: 'A → Z sırala',
+  sheetSortDesc: 'Z → A sırala',
+  sheetFillDown: 'Aşağı doldur',
+  sheetClearFormat: 'Biçimi temizle',
+  sheetHeaderRow: 'Başlık satırı',
+  sheetAddRow: 'Satır ekle',
+  sheetAddColumn: 'Kolon ekle',
+  sheetSelectAll: 'Tümünü seç',
+  sheetCellLabel: (address, text) => (text ? `${address}, ${text}` : `${address}, boş`)
 };
 
 /**

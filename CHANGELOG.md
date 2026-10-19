@@ -2,6 +2,52 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.9.0 — 2026-10-19
+
+Spreadsheet features: formatting the user controls, Excel formula columns and a spreadsheet
+component. A minor release —
+every new feature is opt-in; with the new inputs at their defaults the markup and styles are those of
+0.8.0.
+
+### Added
+
+- Grid `formatting` — **Format…** in the column menu opens a panel with the column's cell style
+  (bold, italic, underline, strikethrough, a text colour and a fill from a nine-colour palette) and
+  its conditional formatting rules: highlight cells (comparisons, between, text, empty, top/bottom
+  n, above/below average, duplicate/unique, formula), colour scales and data bars, for the cell or
+  the whole row, in priority order. Every change applies at once. See docs/formatting.md.
+- Grid `striped` — zebra rows; with `formatting` on the user switches them from the menu.
+- Grid `formatRules` (`WeGridFormatRule`) and column `cellStyle` (`WeGridCellStyle`) — formatting
+  from code; the user's own choices are saved and win.
+- Column `formula` — a computed, read-only column written as an Excel formula
+  (`=[Price] * [Quantity]`); it sorts, filters, groups, sums and exports by its result, errors show
+  their Excel code. See docs/formulas.md.
+- Grid `allowFormulaColumns` — **Add formula column…** in the column menu: a dialog with column and
+  function inserts, a syntax check and a live preview; the user's columns (`fx:` fields) can be
+  edited and deleted.
+- A formula engine with no dependency and no `eval`: 40-odd functions with English and Turkish
+  Excel names, `,` or `;` separators, Excel error values, `#CIRC!` for loops, and a spreadsheet
+  evaluator (`WeGridSheetEvaluator`, A1 references and ranges). Exported:
+  `weGridCompileFormula`, `weGridTryCompileFormula` and friends.
+- Formatting and formula columns are saved in the layout (`striped`, `formatRules`,
+  `formulaColumns`, column `style`) and in saved views; stored and shared values are sanitised —
+  colours are palette names, never CSS.
+- `styles/we-grid-theme-apple.scss` — an optional Apple Human Interface Guidelines theme (the
+  we-report look), shipped in the package next to the default theme.
+- CSS `--we-grid-stripe-bg` and `--we-grid-format-<colour>-fg` / `-bg` for the nine palette colours.
+- `<we-sheet>` (`WeSheetComponent`) — a spreadsheet: A1 cells with values and formulas, a formula
+  bar and name box, range selection, Excel-compatible copy and paste (relative references shift),
+  undo/redo, palette styles, alignment, number formats, sorting, fill down, header and zebra rows,
+  a status bar with sum/average/count of the selection, Excel/CSV export, and persistence through
+  `WE_SHEET_STORE` (localStorage by default) or `[data]`/`(dataChange)`. See docs/sheet.md.
+- Locale keys for the Format panel, the formula dialog and the sheet, in English and Turkish.
+
+### Changed
+
+- Client-side sorting, filtering, grouping and summaries read a column through the grid's cell
+  value instead of the raw field, so formula columns take part. For ordinary columns the value is
+  the same and nothing changes.
+
 ## 0.8.0 — 2026-10-03
 
 Four opt-in pieces for screens that bring their own chrome around the grid — a minor release: nothing

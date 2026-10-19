@@ -42,6 +42,8 @@ you can theme it two ways:
 | `--we-grid-detail-inset-left` | Where a sticky detail starts from the scroll area's edge (0.7.0, default `0`) |
 | `--we-grid-th-menu-btn-idle-opacity` | With `headerMenuButton="hover"`: the header ⚙ button at rest (0.8.0, default `0`) |
 | `--we-grid-th-menu-btn-hover-opacity` | With `headerMenuButton="hover"`: the button while its header is hovered or focused (0.8.0, default `0.5`) |
+| `--we-grid-stripe-bg` | Zebra rows (`striped`) (0.9.0) |
+| `--we-grid-format-<colour>-fg` / `--we-grid-format-<colour>-bg` | The formatting palette — text colour / fill for `red`, `orange`, `yellow`, `green`, `teal`, `blue`, `purple`, `pink`, `gray`; also colour scales and data bars. See [formatting.md](formatting.md) (0.9.0) |
 
 ### Set by you, never by the library (0.7.0)
 
@@ -68,6 +70,20 @@ The `--we-grid-print-*` variables are read off the live grid element and copied 
 standalone print document, which inherits nothing from your page's stylesheet. The bundled theme
 gives them the same light values in both themes — paper is light whatever the screen is doing — so
 override them only if you actually want a differently styled export.
+
+## Apple theme (0.9.0)
+
+`styles/we-grid-theme-apple.scss` is a second, complete theme that follows Apple's Human Interface
+Guidelines — the same look as the sister project [we-report](https://github.com/emrecirik/we-report):
+hairline separators, system blue as the one accent, soft translucent menus and larger corner radii,
+in light and dark. Import it **instead of** the default theme:
+
+```json
+"styles": ["node_modules/we-grid-angular/styles/we-grid-theme-apple.scss", "src/styles.scss"]
+```
+
+It defines exactly the same properties in the same three blocks, so your own overrides work on top
+of either file.
 
 ## Dark mode
 

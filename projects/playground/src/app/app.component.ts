@@ -20,7 +20,10 @@ import {
   WeGridHeaderDirective,
   WeGridRowsPasteEvent,
   WeGridSortChange,
-  WeGridTreeInfo
+  WeGridTreeInfo,
+  WeGridFormatRule,
+  WeSheetComponent,
+  WeSheetData
 } from 'we-grid-angular';
 
 interface Product {
@@ -122,7 +125,7 @@ const ORDER_TREE: OrderNode[] = Array.from({ length: 40 }, (_, o) => {
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [CommonModule, WeGridComponent, WeGridCellDirective, WeGridRowDetailDirective, WeGridHeaderDirective, WeGridEmptyDirective],
+  imports: [WeSheetComponent, CommonModule, WeGridComponent, WeGridCellDirective, WeGridRowDetailDirective, WeGridHeaderDirective, WeGridEmptyDirective],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -500,4 +503,42 @@ export class AppComponent {
     this.chromeData = needle ? ORDER_TREE.filter((o) => (o.customer ?? '').toLowerCase().includes(needle)) : ORDER_TREE;
   }
 
+
+  // ─── 14. Spreadsheet formatting and formula columns ──────────────
+  sheetColumns: WeGridColumnDef<Product & { qty: number }>[] = [
+    { field: 'code', header: 'Code', width: 110 },
+    { field: 'name', header: 'Name', width: 160, cellStyle: { bold: true } },
+    { field: 'category', header: 'Category', width: 130 },
+    { field: 'price', header: 'Price', type: 'currency', width: 110 },
+    { field: 'qty', header: 'Qty', type: 'integer', width: 80 },
+    { field: 'total', header: 'Total', type: 'currency', width: 130, formula: '=[Price] * [Qty]', summary: 'sum' },
+    { field: 'level', header: 'Level', width: 110, formula: '=IF([Total] > 2000, "High", IF([Total] > 500, "Mid", "Low"))' }
+  ];
+  sheetData = ALL_PRODUCTS.slice(0, 24).map((p, i) => ({ ...p, qty: (i * 7) % 23 }));
+  sheetRules: WeGridFormatRule[] = [
+    { id: 'r1', field: 'total', type: 'dataBar', color: 'blue' },
+    { id: 'r2', field: 'qty', type: 'condition', operator: 'eq', value: 0, style: { fill: 'red', color: 'red' }, applyTo: 'row' },
+    { id: 'r3', field: 'price', type: 'colorScale', colors: ['green', 'yellow', 'red'] },
+    { id: 'r4', field: 'level', type: 'condition', operator: 'eq', value: 'High', style: { bold: true, color: 'green' } }
+  ];
+
+  // ─── 15. <we-sheet> ───────────────────────────────────────────────
+  sheetDemo: WeSheetData = {
+    version: 1,
+    rows: 30,
+    cols: 8,
+    headerRow: true,
+    striped: true,
+    widths: { A: 150 },
+    cells: {
+      A1: { v: 'Product' }, B1: { v: 'Price' }, C1: { v: 'Qty' }, D1: { v: 'Total' }, E1: { v: 'VAT 20%' },
+      A2: { v: 'Road bike' }, B2: { v: 1250, f: 'currency' }, C2: { v: 2 }, D2: { v: '=B2*C2', f: 'currency' }, E2: { v: '=ROUND(D2*0.2, 2)', f: 'currency' },
+      A3: { v: 'Helmet' }, B3: { v: 89.9, f: 'currency' }, C3: { v: 5 }, D3: { v: '=B3*C3', f: 'currency' }, E3: { v: '=ROUND(D3*0.2, 2)', f: 'currency' },
+      A4: { v: 'Bottle cage' }, B4: { v: 12.5, f: 'currency' }, C4: { v: 12 }, D4: { v: '=B4*C4', f: 'currency' }, E4: { v: '=ROUND(D4*0.2, 2)', f: 'currency' },
+      A5: { v: 'Lights' }, B5: { v: 39, f: 'currency' }, C5: { v: 0 }, D5: { v: '=B5*C5', f: 'currency' }, E5: { v: '=ROUND(D5*0.2, 2)', f: 'currency' },
+      A7: { v: 'Total', s: { bold: true } }, D7: { v: '=SUM(D2:D5)', f: 'currency', s: { bold: true, fill: 'green', color: 'green' } },
+      E7: { v: '=SUM(E2:E5)', f: 'currency', s: { bold: true } },
+      A8: { v: 'Biggest line' }, D8: { v: '=INDEX(A2:A5, MATCH(MAX(D2:D5), D2:D5, 0))' }
+    }
+  };
 }

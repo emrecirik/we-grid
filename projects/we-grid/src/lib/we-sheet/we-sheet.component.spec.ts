@@ -1,0 +1,169 @@
+import { Component, ViewChild } from '@angular/core';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Observable, of } from 'rxjs';
+import { WeSheetComponent } from './we-sheet.component';
+import { WE_SHEET_STORE, WeSheetData, WeSheetStore } from './we-sheet.model';
+
+class MemorySheetStore implements WeSheetStore {
+  saved = new Map<string, WeSheetData>();
+  load(key: string): Observable<WeSheetData | null> {
+    return of(this.saved.get(key) ?? null);
+  }
+  save(key: string, data: WeSheetData): Observable<void> {
+    this.saved.set(key, data);
+    return of(undefined);
+  }
+}
+
+@Component({
+  standalone: true,
+  imports: [WeSheetComponent],
+  template: `<we-sheet [sheetKey]="key" [rows]="6" [cols]="4" (dataChange)="changes = changes + 1" />`
+})
+class SheetHostComponent {
+  key = 'spec-sheet';
+  changes = 0;
+  @ViewChild(WeSheetComponent) sheet!: WeSheetComponent;
+}
+
+describe('WeSheetComponent', () => {
+  let fixture: ComponentFixture<SheetHostComponent>;
+  let host: SheetHostComponent;
+  let store: MemorySheetStore;
+  const sheet = () => host.sheet;
+  const el = (): HTMLElement => fixture.nativeElement.querySelector('we-sheet');
+  const cellEl = (address: string): HTMLElement => el().querySelector(`[data-cell="${address}"]`)!;
+  const text = (address: string) => cellEl(address).textContent!.trim();
+  const key = (k: string, init: KeyboardEventInit = {}) => {
+    const target = (document.activeElement as HTMLElement) ?? el();
+    target.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }));
+    fixture.detectChanges();
+  };
+  const click = (address: string, shiftKey = false) => {
+    cellEl(address).dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, shiftKey }));
+    document.dispatchEvent(new MouseEvent('mouseup'));
+    fixture.detectChanges();
+  };
+
+  beforeEach(() => {
+    store = new MemorySheetStore();
+    TestBed.configureTestingModule({ imports: [SheetHostComponent], providers: [{ provide: WE_SHEET_STORE, useValue: store }] });
+    fixture = TestBed.createComponent(SheetHostComponent);
+    host = fixture.componentInstance;
+    fixture.detectChanges();
+  });
+
+  it('renders an empty sheet of the requested size', () => {
+    expect(el().querySelectorAll('td').length).toBe(24);
+    expect(el().querySelector('.we-sheet__name')!.getAttribute('value') ?? (el().querySelector('.we-sheet__name') as HTMLInputElement).value).toBe('A1');
+  });
+
+  it('evaluates formulas and recalculates when an input changes', () => {
+    sheet().setCell('A1', '2');
+    sheet().setCell('A2', '3');
+    sheet().setCell('A3', '=SUM(A1:A2)*10');
+    fixture.detectChanges();
+    expect(text('A3')).toBe('50');
+    sheet().setCell('A1', '7');
+    fixture.detectChanges();
+    expect(text('A3')).toBe('100');
+    sheet().setCell('B1', '=1/0');
+    fixture.detectChanges();
+    expect(text('B1')).toBe('#DIV/0!');
+  });
+
+  it('types into the active cell, commits with Enter and moves down', () => {
+    click('B2');
+    el().querySelector<HTMLElement>('.we-sheet__scroll')!.focus();
+    key('4');
+    const editor = el().querySelector<HTMLInputElement>('.we-sheet__editor')!;
+    expect(editor.value).toBe('4');
+    editor.value = '42';
+    editor.dispatchEvent(new Event('input'));
+    editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fixture.detectChanges();
+    expect(sheet().getValue('B2')).toBe(42);
+    expect(sheet().selectionLabel).toBe('B3');
+  });
+
+  it('undoes and redoes edits', () => {
+    sheet().setCell('A1', 'one');
+    sheet().setCell('A1', 'two');
+    sheet().undo();
+    expect(sheet().getValue('A1')).toBe('one');
+    sheet().redo();
+    expect(sheet().getValue('A1')).toBe('two');
+  });
+
+  it('selects a range with Shift and shows its statistics', () => {
+    sheet().setCell('A1', '1');
+    sheet().setCell('A2', '2');
+    sheet().setCell('A3', '3');
+    fixture.detectChanges();
+    click('A1');
+    click('A3', true);
+    expect(sheet().selectionLabel).toBe('A1:A3');
+    expect(el().querySelector('.we-sheet__status')!.textContent).toContain('6');
+  });
+
+  it('fills down with relative references shifted', () => {
+    sheet().setCell('A1', '5');
+    sheet().setCell('A2', '6');
+    sheet().setCell('B1', '=A1*2');
+    sheet().select('B1:B2');
+    sheet().fillDown();
+    expect(sheet().getData().cells['B2'].v).toBe('=A2*2');
+    expect(sheet().getValue('B2')).toBe(12);
+  });
+
+  it('sorts the used rows below the header row', () => {
+    sheet().setData({ version: 1, rows: 6, cols: 4, headerRow: true, cells: { A1: { v: 'Name' }, A2: { v: 'b' }, A3: { v: 'c' }, A4: { v: 'a' } } });
+    sheet().select('A2');
+    sheet().sort('asc');
+    expect(['A1', 'A2', 'A3', 'A4'].map((a) => sheet().getValue(a))).toEqual(['Name', 'a', 'b', 'c']);
+  });
+
+  it('pastes a table copied from another program as typed values', () => {
+    sheet().select('B2');
+    const data = new DataTransfer();
+    data.setData('text/plain', 'x\t1.5\n=B3\t');
+    el().querySelector('.we-sheet__scroll')!.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    expect(sheet().getValue('B2')).toBe('x');
+    expect(sheet().getValue('C2')).toBe(1.5);
+    expect(sheet().getData().cells['B3'].v).toBe('=B3');
+    expect(sheet().getValue('B3')).toEqual(jasmine.objectContaining({ code: '#CIRC!' }));
+  });
+
+  it('styles the selection from the toolbar and keeps the style in the data', () => {
+    sheet().setCell('A1', 'x');
+    sheet().select('A1');
+    el().querySelector<HTMLButtonElement>('.we-sheet__btn--bold')!.click();
+    fixture.detectChanges();
+    expect(sheet().getData().cells['A1'].s).toEqual({ bold: true });
+    expect(cellEl('A1').style.fontWeight).toBe('600');
+  });
+
+  it('saves through the store and restores from it', async () => {
+    sheet().setCell('A1', 'kept');
+    await new Promise((r) => setTimeout(r, 450));
+    expect(store.saved.get('spec-sheet')?.cells['A1'].v).toBe('kept');
+    expect(host.changes).toBeGreaterThan(0);
+
+    const again = TestBed.createComponent(SheetHostComponent);
+    again.detectChanges();
+    expect(again.componentInstance.sheet.getValue('A1')).toBe('kept');
+  });
+
+  it('exports the used range with row 1 as the header', () => {
+    sheet().setData({ version: 1, rows: 6, cols: 4, headerRow: true, cells: { A1: { v: 'Qty' }, B1: { v: 'Name' }, A2: { v: 2 }, B2: { v: 'x' }, A3: { v: '=A2*2' } } });
+    const table = sheet().buildExportTable();
+    expect(table.columns.map((c) => [c.header, c.type])).toEqual([
+      ['Qty', 'number'],
+      ['Name', 'text']
+    ]);
+    expect(table.rows.map((r) => r.values)).toEqual([
+      [2, 'x'],
+      [4, null]
+    ]);
+  });
+});

@@ -886,6 +886,14 @@
   }
 }
 
+// Zebra rows (`striped`). The tint is layered over the row's opaque base so pinned cells stay opaque.
+// Hover, selection and editing are declared after this and win over it.
+.we-grid__row--alt td {
+  background:
+    linear-gradient(var(--we-grid-stripe-bg, rgba(0, 0, 0, 0.025)), var(--we-grid-stripe-bg, rgba(0, 0, 0, 0.025))),
+    var(--we-grid-row-bg, var(--we-grid-bg, #fff));
+}
+
 .we-grid--clickable .we-grid__row {
   cursor: pointer;
 }

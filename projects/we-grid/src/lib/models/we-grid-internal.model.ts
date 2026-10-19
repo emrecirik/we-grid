@@ -16,6 +16,7 @@ import { WeGridFilterOperator } from './we-grid-filter.model';
 import { WeGridRowEventName } from './we-grid-events.model';
 import { WeGridTreeInfo } from './we-grid-tree.model';
 import { WeGridGroupSection } from './we-grid-group.model';
+import { WeGridCellStyle } from './we-grid-format.model';
 
 /**
  * The merged result of the `columns` input with a saved `WeGridLayout`.
@@ -75,6 +76,12 @@ export interface WeGridInternalColumn<T> {
   groupSummary: WeGridSummaryFunction | undefined;
   /** Subtotal (summary row) function — chosen by the user from the header menu, persisted */
   summary: WeGridSummaryFunction;
+  /** Base cell style — the user's choice from the format panel, else WeGridColumnDef.cellStyle */
+  style: WeGridCellStyle | undefined;
+  /** See WeGridColumnDef.formula */
+  formula: string | undefined;
+  /** A formula column the user added from the column menu (it lives in the layout, not in `columns`) */
+  userFormula: boolean;
   /** Whether editable in the filter row — see WeGridColumnDef.filterable */
   filterable: boolean;
   /** Operators offered in the filter row/popover — see WeGridColumnDef.filterOperators */

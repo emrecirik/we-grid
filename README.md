@@ -35,6 +35,14 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - **Paste a range from Excel / Google Sheets** onto the grid: every cell converted to its column's
   type (`₺1.234,56`, `12,5%`, `evet`), extra rows become new rows, one `(rowsPaste)` batch event
 - **Saved views**: named snapshots of columns, filters, sort and grouping, shareable as a link
+- **Excel-style formatting** the user controls: bold and colours per column, conditional rules
+  (greater than, between, top 10, above average, duplicates, formula), colour scales, data bars and
+  zebra rows — saved with the layout and with views
+- **Formula columns**: `=[Price] * [Quantity]`, `IF`, `ROUND`, `VLOOKUP` and 40-odd Excel functions
+  (English or Turkish names), in the column definition or added by the user from the column menu —
+  no `eval`
+- **`<we-sheet>`**, a spreadsheet in the same package: A1 formulas, a formula bar, copy and paste
+  with Excel, undo, styles, number formats, sorting, fill down and a sum/average status bar ([docs](docs/sheet.md))
 - **Multi-level grouping** with record counts and group summaries — automatic sums for numeric
   columns, per-column functions, in the group header or in a footer row under the columns
 - **Tree rows**: children in the same columns as their parent, indented and collapsible, with
@@ -52,7 +60,8 @@ Material, no icon font. Standalone components and directives on top of Angular C
   SVG — no icon font dependency)
 - Export to CSV, Excel (`.xlsx`) and PDF, and import from CSV/Excel — no runtime dependency added
 - Inline row create/update/delete with a `done` callback per commit, built for a real backend
-- Theming via plain CSS custom properties (`--we-grid-*`), light/dark out of the box
+- Theming via plain CSS custom properties (`--we-grid-*`), light/dark out of the box, plus an
+  optional Apple-style theme (`we-grid-theme-apple.scss`)
 
 ## Installation
 
@@ -231,10 +240,13 @@ npm run start:ecommerce           # then any sample app
 - [Export and import (CSV / Excel / PDF)](docs/export-import.md)
 - [Inline row editing](docs/row-editing.md) — also the record form and spreadsheet paste
 - [Saved views](docs/saved-views.md)
+- [Formatting](docs/formatting.md) — cell styles, conditional rules, colour scales, data bars, zebra rows
+- [Formulas](docs/formulas.md) — formula columns and the function reference
 - [Grouping and group summaries](docs/grouping.md)
 - [Tree rows](docs/tree.md)
 - [Row detail](docs/row-detail.md)
 - [Interactive cell templates](docs/cell-templates.md)
+- [Spreadsheet component `<we-sheet>`](docs/sheet.md)
 - [Theming](docs/theming.md)
 - [Localization](docs/localization.md)
 - [Can I use this from React?](docs/react.md)

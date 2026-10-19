@@ -1,6 +1,8 @@
 import { WeGridColumnLayout } from '../models/we-grid-layout.model';
 import { WeGridColumnFilterState, WeGridFilterOperator } from '../models/we-grid-filter.model';
 import { WeGridSavedView } from '../models/we-grid-view.model';
+import { weGridSanitizeCellStyle, weGridSanitizeFormatRules } from './we-grid-format.util';
+import { weGridSanitizeFormulaColumns } from './we-grid-layout-merge';
 
 /** A shared token longer than this is refused outright — no real view comes close */
 const MAX_TOKEN_LENGTH = 20000;
@@ -74,6 +76,9 @@ export function weGridSanitizeView(input: unknown): WeGridSavedView | null {
     view.groupFields = groupFields.slice(0, 10);
   }
   if (typeof input['filterRowVisible'] === 'boolean') view.filterRowVisible = input['filterRowVisible'];
+  if (typeof input['striped'] === 'boolean') view.striped = input['striped'];
+  if (Array.isArray(input['formatRules'])) view.formatRules = weGridSanitizeFormatRules(input['formatRules']);
+  if (Array.isArray(input['formulaColumns'])) view.formulaColumns = weGridSanitizeFormulaColumns(input['formulaColumns']);
   return view;
 }
 
@@ -94,6 +99,7 @@ function sanitizeColumn(input: unknown): WeGridColumnLayout | null {
   if (typeof input['summary'] === 'string' && SUMMARIES.has(input['summary'])) {
     column.summary = input['summary'] as WeGridColumnLayout['summary'];
   }
+  if (isRecord(input['style'])) column.style = weGridSanitizeCellStyle(input['style']) ?? {};
   return column;
 }
 
