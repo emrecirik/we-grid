@@ -124,3 +124,10 @@ const myIcons: WeGridIcons = {
 
 If you omit a key, that icon renders empty — always provide a complete map (start from
 `weGridDefaultIcons` and override individual entries if you only want to swap a few).
+
+## Chart colours (0.12.0)
+
+`--we-grid-chart-1` … `--we-grid-chart-8` are the series colours of `<we-chart>` (and the pivot
+and sheet charts), used in that fixed order. Both theme files define them for light and dark; if
+you replace them, keep neighbours distinguishable for colour-blind readers — check them with a
+colour-vision simulator, not by eye — and keep the chart's table view available.

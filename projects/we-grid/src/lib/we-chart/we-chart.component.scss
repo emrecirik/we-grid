@@ -1,0 +1,208 @@
+:host {
+  display: block;
+  min-width: 0;
+}
+
+.we-chart {
+  margin: 0;
+  padding: 0.75rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-bg, #fff);
+  color: var(--we-grid-font-color, #212529);
+  font-size: var(--we-grid-font-size, 0.8125rem);
+}
+
+.we-chart__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.4rem;
+}
+
+.we-chart__title {
+  font-weight: 600;
+}
+
+.we-chart__toggle {
+  margin-inline-start: auto;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--we-grid-muted-color, #878a99);
+  font: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: 1px;
+  }
+}
+
+.we-chart__plot {
+  position: relative;
+  overflow: hidden;
+
+  svg {
+    display: block;
+    max-width: 100%;
+  }
+}
+
+.we-chart__grid {
+  stroke: var(--we-grid-border-color, #dee2e6);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.we-chart__axis {
+  stroke: var(--we-grid-muted-color, #878a99);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.we-chart__tick {
+  fill: var(--we-grid-muted-color, #878a99);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.we-chart__mark {
+  transition: opacity 120ms ease;
+}
+
+// The 2px surface gap between slices
+.we-chart__mark--slice {
+  stroke: var(--we-grid-bg, #fff);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.we-chart__mark--dim {
+  opacity: 0.45;
+}
+
+.we-chart__line {
+  fill: none;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.we-chart__area {
+  fill-opacity: 0.1;
+  stroke: none;
+}
+
+// Markers carry a 2px ring in the surface colour
+.we-chart__dot {
+  stroke: var(--we-grid-bg, #fff);
+  stroke-width: 2;
+}
+
+.we-chart__crosshair {
+  stroke: var(--we-grid-muted-color, #878a99);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+  pointer-events: none;
+}
+
+.we-chart__hit {
+  fill: transparent;
+}
+
+.we-chart__tip {
+  position: absolute;
+  z-index: 2;
+  min-width: 9rem;
+  max-width: 16rem;
+  padding: 0.45rem 0.6rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-menu-bg, #fff);
+  color: var(--we-grid-menu-color, #212529);
+  box-shadow: var(--we-grid-menu-shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+  transform: translate(-50%, calc(-100% - 8px));
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.we-chart__tip-title {
+  margin-bottom: 0.25rem;
+  font-weight: 600;
+}
+
+.we-chart__tip-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.we-chart__tip-value {
+  margin-inline-start: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.we-chart__muted {
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-chart__key {
+  flex: none;
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: 0.15rem;
+}
+
+.we-chart__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 1rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--we-grid-muted-color, #878a99);
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+}
+
+.we-chart__empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-chart__table-wrap {
+  overflow: auto;
+}
+
+.we-chart__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    padding: 0.3rem 0.5rem;
+    border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+    text-align: end;
+  }
+
+  th[scope='row'],
+  thead th:first-child {
+    text-align: start;
+  }
+
+  thead th {
+    color: var(--we-grid-muted-color, #878a99);
+    font-weight: 600;
+  }
+}

@@ -73,6 +73,9 @@
         <button type="button" class="we-sheet__btn" (click)="fillDown()" [attr.aria-label]="locale.sheetFillDown" [title]="locale.sheetFillDown + ' (Ctrl+D)'">
           <span [innerHTML]="icon('fillDown')" aria-hidden="true"></span>
         </button>
+        <button type="button" class="we-sheet__btn" (click)="insertChart()" [attr.aria-label]="locale.chartInsert" [title]="locale.chartInsert">
+          <span [innerHTML]="icon('chart')" aria-hidden="true"></span>
+        </button>
         <button type="button" class="we-sheet__btn" (click)="clearFormatting()" [attr.aria-label]="locale.sheetClearFormat" [title]="locale.sheetClearFormat">
           <span [innerHTML]="icon('eraser')" aria-hidden="true"></span>
         </button>
@@ -228,6 +231,23 @@
       </tbody>
     </table>
   </div>
+
+  @if (chartData && sheet.chart) {
+    <div class="we-sheet__chart">
+      <div class="we-sheet__chart-bar" role="group" [attr.aria-label]="locale.chartLabel">
+        <span class="we-sheet__chart-range">{{ sheet.chart.range }}</span>
+        @for (t of chartTypes; track t) {
+          <button type="button" class="we-sheet__btn we-sheet__btn--text" [attr.aria-pressed]="sheet.chart.type === t" (click)="setChartType(t)" [disabled]="readonly">{{ locale.chartTypeLabels[t] }}</button>
+        }
+        @if (!readonly) {
+          <button type="button" class="we-sheet__btn" (click)="removeChart()" [attr.aria-label]="locale.chartRemove" [title]="locale.chartRemove">
+            <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+          </button>
+        }
+      </div>
+      <we-chart [type]="sheet.chart.type" [data]="chartData" [height]="280" />
+    </div>
+  }
 
   @if (menu) {
     <div class="we-sheet__menu" role="menu" [style.left.px]="menu.x" [style.top.px]="menu.y" (keydown)="onMenuKeydown($event)" [attr.aria-label]="locale.sheetLabel">

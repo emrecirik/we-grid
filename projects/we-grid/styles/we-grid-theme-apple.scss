@@ -39,6 +39,15 @@
   --we-grid-th-menu-btn-idle-opacity: 0;
   --we-grid-th-menu-btn-hover-opacity: 0.5;
   --we-grid-stripe-bg: rgba(118, 118, 128, 0.05);
+  // Chart series, in this fixed order — validated for colour-vision deficiencies on the grid surface
+  --we-grid-chart-1: #2a78d6;
+  --we-grid-chart-2: #eb6834;
+  --we-grid-chart-3: #1baf7a;
+  --we-grid-chart-4: #eda100;
+  --we-grid-chart-5: #e87ba4;
+  --we-grid-chart-6: #008300;
+  --we-grid-chart-7: #4a3aa7;
+  --we-grid-chart-8: #e34948;
   // Formatting palette — the colours a user picks for text, fills, colour scales and data bars
   --we-grid-format-red-fg: #c41e16;
   --we-grid-format-red-bg: #ffe5e3;
@@ -100,6 +109,15 @@
     --we-grid-th-menu-btn-idle-opacity: 0;
     --we-grid-th-menu-btn-hover-opacity: 0.5;
     --we-grid-stripe-bg: rgba(118, 118, 128, 0.1);
+    // Chart series, in this fixed order — validated for colour-vision deficiencies on the grid surface
+    --we-grid-chart-1: #3987e5;
+    --we-grid-chart-2: #d95926;
+    --we-grid-chart-3: #199e70;
+    --we-grid-chart-4: #c98500;
+    --we-grid-chart-5: #d55181;
+    --we-grid-chart-6: #008300;
+    --we-grid-chart-7: #9085e9;
+    --we-grid-chart-8: #e66767;
     // Formatting palette — the colours a user picks for text, fills, colour scales and data bars
     --we-grid-format-red-fg: #ff8a80;
     --we-grid-format-red-bg: rgba(255, 69, 58, 0.22);
@@ -158,6 +176,15 @@
   --we-grid-th-menu-btn-idle-opacity: 0;
   --we-grid-th-menu-btn-hover-opacity: 0.5;
   --we-grid-stripe-bg: rgba(118, 118, 128, 0.1);
+  // Chart series, in this fixed order — validated for colour-vision deficiencies on the grid surface
+  --we-grid-chart-1: #3987e5;
+  --we-grid-chart-2: #d95926;
+  --we-grid-chart-3: #199e70;
+  --we-grid-chart-4: #c98500;
+  --we-grid-chart-5: #d55181;
+  --we-grid-chart-6: #008300;
+  --we-grid-chart-7: #9085e9;
+  --we-grid-chart-8: #e66767;
   // Formatting palette — the colours a user picks for text, fills, colour scales and data bars
   --we-grid-format-red-fg: #ff8a80;
   --we-grid-format-red-bg: rgba(255, 69, 58, 0.22);

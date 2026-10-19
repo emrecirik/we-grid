@@ -91,6 +91,24 @@ describe('WePivotComponent', () => {
     expect(grid().displayData.map((r) => r[grid().internalColumns[1].field])).toEqual([14, 30]);
   });
 
+  it('charts the pivot rows from its chart buttons, without the total column', () => {
+    host.pivot.add('columns', 'year');
+    fixture.detectChanges();
+    const buttons = Array.from(el().querySelectorAll<HTMLButtonElement>('.we-pivot__chart-btn'));
+    buttons.find((b) => b.textContent?.includes('Line'))!.click();
+    fixture.detectChanges();
+    expect(host.pivot.chart).toBe('line');
+    expect(el().querySelector('we-chart')).toBeTruthy();
+    expect(host.pivot.chartData.categories).toEqual(['Ankara', 'Izmir']);
+    expect(host.pivot.chartData.series.map((s) => [s.name, s.values])).toEqual([
+      ['2025', [null, 10]],
+      ['2026', [7, 5]]
+    ]);
+    buttons[0].click();
+    fixture.detectChanges();
+    expect(el().querySelector('we-chart')).toBeNull();
+  });
+
   it('groups by the outer row fields for subtotals and swaps rows and columns', () => {
     host.pivot.add('rows', 'year');
     fixture.detectChanges();

@@ -142,7 +142,7 @@ export function studioBudget(lang: StudioLanguage): WeSheetData {
     cells[`${col}${total}`] = { v: `=SUM(${col}2:${col}${rows.length + 1})`, f: 'currency', s: { bold: true } };
   }
   cells[`E${total}`] = { v: `=D${total}/B${total}`, f: 'percent', s: { bold: true, fill: 'yellow', color: 'yellow' } };
-  return { version: 1, rows: 40, cols: 10, headerRow: true, striped: true, widths: { A: 190, F: 90 }, cells };
+  return { version: 1, rows: 40, cols: 10, headerRow: true, striped: true, widths: { A: 190, F: 90 }, cells, chart: { range: `A1:C${rows.length + 1}`, type: 'column' } };
 }
 
 export function studioMacros(lang: StudioLanguage): WeGridMacro[] {

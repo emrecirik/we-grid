@@ -1,0 +1,124 @@
+<figure class="we-chart" [attr.aria-label]="title || locale.chartLabel">
+  <figcaption class="we-chart__head">
+    @if (title) {
+      <span class="we-chart__title">{{ title }}</span>
+    }
+    <button type="button" class="we-chart__toggle" [attr.aria-pressed]="showTable" (click)="toggleTable()">
+      {{ showTable ? locale.chartShowChart : locale.chartShowTable }}
+    </button>
+  </figcaption>
+
+  @if (!shown.categories.length) {
+    <p class="we-chart__empty" [style.height.px]="height">{{ locale.chartNoData }}</p>
+  } @else if (showTable) {
+    <div class="we-chart__table-wrap" [style.max-height.px]="height + 40">
+      <table class="we-chart__table">
+        <thead>
+          <tr>
+            <th scope="col"></th>
+            @for (s of shown.series; track $index) {
+              <th scope="col">{{ s.name }}</th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of shown.categories; track $index; let ci = $index) {
+            <tr>
+              <th scope="row">{{ c }}</th>
+              @for (s of shown.series; track $index) {
+                <td>{{ format(s.values[ci]) }}</td>
+              }
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  } @else {
+    <div class="we-chart__plot" (mouseleave)="hover = null">
+      <svg [attr.viewBox]="'0 0 ' + width + ' ' + height" [attr.width]="width" [attr.height]="height" role="img" [attr.aria-label]="title || locale.chartLabel">
+        @if (!isPie) {
+          @for (t of ticks; track t.value) {
+            @if (horizontal) {
+              <line class="we-chart__grid" [attr.x1]="t.pos" [attr.x2]="t.pos" [attr.y1]="plot.top" [attr.y2]="plot.bottom" />
+              <text class="we-chart__tick" [attr.x]="t.pos" [attr.y]="plot.bottom + 16" text-anchor="middle">{{ t.label }}</text>
+            } @else {
+              <line class="we-chart__grid" [attr.x1]="plot.left" [attr.x2]="plot.right" [attr.y1]="t.pos" [attr.y2]="t.pos" />
+              <text class="we-chart__tick" [attr.x]="plot.left - 6" [attr.y]="t.pos + 4" text-anchor="end">{{ t.label }}</text>
+            }
+          }
+          @for (l of xLabels; track $index) {
+            @if (horizontal) {
+              <text class="we-chart__tick" [attr.x]="plot.left - 6" [attr.y]="l.pos + 4" text-anchor="end">{{ l.text }}</text>
+            } @else {
+              <text class="we-chart__tick" [attr.x]="l.pos" [attr.y]="plot.bottom + 18" text-anchor="middle">{{ l.text }}</text>
+            }
+          }
+          @if (horizontal) {
+            <line class="we-chart__axis" [attr.x1]="baseline" [attr.x2]="baseline" [attr.y1]="plot.top" [attr.y2]="plot.bottom" />
+          } @else {
+            <line class="we-chart__axis" [attr.x1]="plot.left" [attr.x2]="plot.right" [attr.y1]="baseline" [attr.y2]="baseline" />
+          }
+        }
+
+        @for (m of marks; track $index) {
+          <path
+            class="we-chart__mark"
+            [class.we-chart__mark--slice]="isPie"
+            [class.we-chart__mark--dim]="hover && hover.category !== m.category"
+            [attr.d]="m.d"
+            [style.fill]="m.color"
+          />
+        }
+        @for (l of lines; track l.series) {
+          @if (l.area) {
+            <path class="we-chart__area" [attr.d]="l.area" [style.fill]="l.color" />
+          }
+          <path class="we-chart__line" [attr.d]="l.d" [style.stroke]="l.color" />
+        }
+        @for (d of dots; track $index) {
+          <circle class="we-chart__dot" [attr.cx]="d.x" [attr.cy]="d.y" r="4" [style.fill]="d.color" />
+        }
+        @if (hover && !isPie && !horizontal && (type === 'line' || type === 'area')) {
+          <line class="we-chart__crosshair" [attr.x1]="hover.x" [attr.x2]="hover.x" [attr.y1]="plot.top" [attr.y2]="plot.bottom" />
+        }
+
+        @for (h of hits; track $index) {
+          @if (isPie) {
+            <circle class="we-chart__hit" [attr.cx]="h.x" [attr.cy]="h.y" r="22" (mouseenter)="onHit(h)" />
+          } @else {
+            <rect class="we-chart__hit" [attr.x]="h.x" [attr.y]="h.y" [attr.width]="h.w" [attr.height]="h.h" (mouseenter)="onHit(h)" />
+          }
+        }
+      </svg>
+
+      @if (hover) {
+        <div class="we-chart__tip" role="tooltip" [style.left.px]="hover.x" [style.top.px]="hover.y">
+          <div class="we-chart__tip-title">{{ shown.categories[hover.category] }}</div>
+          @if (isPie) {
+            <div class="we-chart__tip-row">
+              <span class="we-chart__key" [style.background]="color(hover.category)"></span>
+              <span>{{ format(shown.series[0].values[hover.category]) }}</span>
+              <span class="we-chart__muted">{{ share(shown.series[0].values[hover.category]) }}</span>
+            </div>
+          } @else {
+            @for (s of shown.series; track $index; let i = $index) {
+              <div class="we-chart__tip-row">
+                <span class="we-chart__key" [style.background]="color(i)"></span>
+                <span class="we-chart__muted">{{ s.name }}</span>
+                <span class="we-chart__tip-value">{{ format(s.values[hover.category]) }}</span>
+              </div>
+            }
+          }
+        </div>
+      }
+    </div>
+
+    @if (legend.length) {
+      <ul class="we-chart__legend" [attr.aria-label]="locale.chartLegend">
+        @for (item of legend; track $index) {
+          <li><span class="we-chart__key" [style.background]="item.color"></span>{{ item.label }}</li>
+        }
+      </ul>
+    }
+  }
+</figure>

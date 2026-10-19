@@ -1020,6 +1020,13 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       .subscribe(() => this.emitFilterChange());
     this.loadLayout();
     if (this.savedViews) this.loadViews();
+    if (typeof document !== 'undefined') {
+      // Outside the zone: neither event needs change detection
+      this.ngZone.runOutsideAngular(() => {
+        document.addEventListener('pointerdown', this.onDocumentPointerDown, true);
+        document.addEventListener('copy', this.onDocumentCopy);
+      });
+    }
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -1120,6 +1127,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   ngOnDestroy(): void {
+    if (typeof document !== 'undefined') {
+      document.removeEventListener('pointerdown', this.onDocumentPointerDown, true);
+      document.removeEventListener('copy', this.onDocumentCopy);
+    }
     this.closeHeaderMenu();
     this.closeFilterPopover();
     this.hideHeaderHint();
@@ -3852,6 +3863,45 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (!view) return;
     this.applyView(view);
     this.newViewName = view.name;
+  }
+
+  // ─── Copying to Excel ────────────────────────────────────────────────
+  /** Whether the last pointer press was inside this grid — Ctrl+C then copies from it */
+  private copyArmed = false;
+  private readonly onDocumentPointerDown = (event: PointerEvent): void => {
+    this.copyArmed = this.elementRef.nativeElement.contains(event.target as Node);
+  };
+  private readonly onDocumentCopy = (event: ClipboardEvent): void => {
+    if (!this.copyArmed || this.edit) return;
+    const target = event.target as HTMLElement | null;
+    // Text the user selected, or a text box, is copied by the browser as usual
+    if (target?.closest?.('textarea, select, [contenteditable="true"], input:not([type="checkbox"]):not([type="radio"])')) return;
+    if (typeof window !== 'undefined' && window.getSelection()?.toString()) return;
+    const text = this.copyText();
+    if (text === null) return;
+    event.clipboardData?.setData('text/plain', text);
+    event.preventDefault();
+  };
+
+  /**
+   * What Ctrl+C copies, as tab-separated text Excel and Google Sheets paste as cells: the selected
+   * rows with a header line, else the active cell. Null when there is nothing to copy.
+   */
+  copyText(): string | null {
+    const cell = (text: string) => (/[\t\n"]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text);
+    const columns = this.renderColumns;
+    if (this.selectedKeys.size > 0) {
+      const rows = this.visibleRowsInOrder.filter((row) => this.selectedKeys.has(this.rowKey(row)));
+      if (rows.length === 0) return null;
+      const lines = [columns.map((c) => cell(weGridDisplayHeader(c))).join('\t')];
+      for (const row of rows) lines.push(columns.map((c) => cell(this.formatCell(row, c))).join('\t'));
+      return lines.join('\n');
+    }
+    const active = this.activeCell;
+    if (!active) return null;
+    const row = this.visibleRowsInOrder.find((r) => this.rowKey(r) === active.key);
+    const col = columns.find((c) => c.field === active.field);
+    return row !== undefined && col ? this.formatCell(row, col) : null;
   }
 
   // ─── Pasting a spreadsheet range ─────────────────────────────────────

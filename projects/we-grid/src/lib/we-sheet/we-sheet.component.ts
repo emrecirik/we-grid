@@ -36,7 +36,9 @@ import {
   weGridIsFormula
 } from '../services/we-grid-formula.util';
 import { weGridBuildXlsx, weGridReadXlsx } from '../services/we-grid-xlsx.util';
-import { WE_SHEET_STORE, WeSheetCell, WeSheetData, WeSheetNumberFormat, WeSheetStore } from './we-sheet.model';
+import { WE_SHEET_STORE, WeSheetCell, WeSheetChart, WeSheetData, WeSheetNumberFormat, WeSheetStore } from './we-sheet.model';
+import { WeChartComponent } from '../we-chart/we-chart.component';
+import { WeChartData } from '../we-chart/we-chart.util';
 import {
   WE_SHEET_COLORS,
   WE_SHEET_MAX_COLS,
@@ -97,7 +99,7 @@ export interface WeSheetSuggestion {
 @Component({
   selector: 'we-sheet',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, WeChartComponent],
   templateUrl: './we-sheet.component.html',
   styleUrls: ['./we-sheet.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -147,6 +149,9 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** Where the suggestions list sits — under the cell editor or under the formula bar */
   suggestionsFor: 'cell' | 'bar' = 'cell';
   notice: string | null = null;
+  /** The chart's data, worked out from its range after every change */
+  chartData: WeChartData | null = null;
+  readonly chartTypes: WeSheetChart['type'][] = ['column', 'bar', 'line', 'area', 'pie', 'donut'];
 
   readonly colors = WE_SHEET_COLORS;
   readonly formats: WeSheetNumberFormat[] = ['general', 'number', 'integer', 'currency', 'percent', 'date', 'text'];
@@ -588,6 +593,25 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.commit({ ...this.sheet, striped: !this.sheet.striped || undefined });
   }
 
+  /** Charts the selection (or replaces the chart's type when one exists and nothing new is selected) */
+  insertChart(type: WeSheetChart['type'] = 'column'): void {
+    const s = this.selection;
+    const single = s.r1 === s.r2 && s.c1 === s.c2;
+    const used = this.usedSize();
+    const range = single ? `A1:${weSheetAddress(used.cols - 1, used.rows - 1)}` : this.selectionLabel;
+    this.commit({ ...this.sheet, chart: { range, type } });
+  }
+
+  setChartType(type: WeSheetChart['type']): void {
+    if (this.sheet.chart) this.commit({ ...this.sheet, chart: { ...this.sheet.chart, type } });
+  }
+
+  removeChart(): void {
+    if (!this.sheet.chart) return;
+    const { chart: _chart, ...rest } = this.sheet;
+    this.commit(rest as WeSheetData);
+  }
+
   toggleFreezeColumn(): void {
     this.commit({ ...this.sheet, freezeColumn: !this.sheet.freezeColumn || undefined });
   }
@@ -984,6 +1008,35 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.save$.next();
   }
 
+  /** First column: categories; first row: series names when it holds text; numbers in between */
+  private rebuildChart(): void {
+    const chart = this.sheet.chart;
+    const [a, b] = (chart?.range ?? '').split(':').map((x) => weSheetParseAddress(x));
+    if (!chart || !a || !b) {
+      this.chartData = null;
+      return;
+    }
+    const r = weSheetNormalize(a, b);
+    const text = (c: number, row: number) => this.view[row]?.[c]?.text ?? '';
+    const headerIsText = r.r2 > r.r1 && Array.from({ length: r.c2 - r.c1 }, (_, i) => this.evaluator.value(r.c1 + 1 + i, r.r1)).every((v) => typeof v !== 'number');
+    const firstRow = headerIsText ? r.r1 + 1 : r.r1;
+    const categoryIsText = r.c2 > r.c1;
+    const firstCol = categoryIsText ? r.c1 + 1 : r.c1;
+    const categories: string[] = [];
+    for (let row = firstRow; row <= r.r2; row++) categories.push(categoryIsText ? text(r.c1, row) : String(row + 1));
+    const series = [];
+    for (let c = firstCol; c <= r.c2; c++) {
+      series.push({
+        name: headerIsText ? text(c, r.r1) : weGridColumnLetter(c),
+        values: categories.map((_, i) => {
+          const v = this.evaluator.value(c, firstRow + i);
+          return typeof v === 'number' && Number.isFinite(v) ? v : null;
+        })
+      });
+    }
+    this.chartData = { categories, series };
+  }
+
   private rebuildView(): void {
     const view: CellView[][] = [];
     for (let r = 0; r < this.sheet.rows; r++) {
@@ -1000,6 +1053,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       view.push(line);
     }
     this.view = view;
+    this.rebuildChart();
   }
 
   private rawText(col: number, row: number): string {

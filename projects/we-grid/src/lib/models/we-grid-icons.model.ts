@@ -60,6 +60,7 @@ export const weGridDefaultIcons: WeGridIcons = {
   record: svg('<circle cx="12" cy="12" r="6"/>'),
   stop: svg('<rect x="6" y="6" width="12" height="12" rx="1.5"/>'),
   macro: svg('<path d="M4 4h16v16H4V4Zm2 2v12h12V6H6Zm2 2.5L11.5 12 8 15.5 6.6 14.1 8.7 12 6.6 9.9 8 8.5ZM12 14h6v2h-6v-2Z"/>'),
+  chart: svg('<path d="M4 20V4h2v14h14v2H4Zm4-4V9h2.5v7H8Zm4.5 0V6H15v10h-2.5Zm4.5 0v-4h2.5v4H17Z"/>'),
   palette: svg('<path d="M12 3a9 9 0 0 0 0 18c1.1 0 1.8-.8 1.8-1.8 0-.5-.2-.9-.5-1.2-.3-.3-.5-.7-.5-1.2 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4C21 6.6 17 3 12 3Zm-5.5 9a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3-4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm3 4a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/>'),
   stripes: svg('<path d="M3 4h18v4H3V4Zm0 6h18v1.5H3V10Zm0 3.5h18v4H3v-4Zm0 6h18V21H3v-1.5Z"/>'),
   arrowUp: svg('<path d="M11 20V7.8l-5.6 5.6L4 12l8-8 8 8-1.4 1.4L13 7.8V20h-2Z"/>'),

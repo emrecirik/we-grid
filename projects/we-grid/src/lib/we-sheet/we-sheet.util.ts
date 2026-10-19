@@ -9,6 +9,7 @@ export const WE_SHEET_MAX_COLS = 200;
 const MAX_CELLS = 200_000;
 const MAX_TEXT = 32_767;
 const FORMATS = new Set<WeSheetNumberFormat>(['general', 'number', 'integer', 'currency', 'percent', 'date', 'text']);
+const CHART_TYPES = new Set(['column', 'bar', 'line', 'area', 'pie', 'donut']);
 
 /** A rectangle of cells, 0-based and inclusive, always with c1 <= c2 and r1 <= r2 */
 export interface WeSheetRange {
@@ -261,6 +262,13 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
   if (o['headerRow'] === true) data.headerRow = true;
   if (o['striped'] === true) data.striped = true;
   if (o['freezeColumn'] === true) data.freezeColumn = true;
+  const chart = o['chart'];
+  if (typeof chart === 'object' && chart !== null) {
+    const { range, type } = chart as Record<string, unknown>;
+    if (typeof range === 'string' && /^[A-Z]{1,3}[1-9]\d{0,6}:[A-Z]{1,3}[1-9]\d{0,6}$/.test(range) && typeof type === 'string' && CHART_TYPES.has(type)) {
+      data.chart = { range, type: type as NonNullable<WeSheetData['chart']>['type'] };
+    }
+  }
   return data;
 }
 

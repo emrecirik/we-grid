@@ -195,3 +195,8 @@ parser's own messages are English too.
   `sheetAutoSum`, `sheetImport`, `sheetImportFailed`, `sheetFreezeColumn`, `sheetSuggestions`
 - `<we-pivot>`: `pivotLabel`, `pivotRows`, `pivotColumns`, `pivotValues`, `pivotAddField`,
   `pivotRemove(field)`, `pivotAggregate`, `pivotTotal`, `pivotTruncated`, `pivotSwap`
+
+## Keys added in 0.12.0
+
+- `<we-chart>`: `chartLabel`, `chartShowTable`, `chartShowChart`, `chartNoData`, `chartOther`,
+  `chartLegend`, `chartTypeLabels`, `chartStacked`, `chartInsert`, `chartRemove`

@@ -48,10 +48,25 @@
       </select>
     </div>
 
+    <div class="we-pivot__charts" role="group" [attr.aria-label]="locale.chartLabel">
+      <button type="button" class="we-pivot__chart-btn" [attr.aria-pressed]="chart === null" (click)="setChart(null)" [title]="locale.pivotLabel">
+        <span [innerHTML]="icon('table')" aria-hidden="true"></span>
+      </button>
+      @for (t of chartTypes; track t) {
+        <button type="button" class="we-pivot__chart-btn" [attr.aria-pressed]="chart === t" (click)="setChart(t)" [title]="locale.chartTypeLabels[t]">
+          {{ locale.chartTypeLabels[t] }}
+        </button>
+      }
+    </div>
+
     <button type="button" class="we-pivot__swap" (click)="swap()" [attr.aria-label]="locale.pivotSwap" [title]="locale.pivotSwap">
       <span [innerHTML]="icon('arrowLeftRight')" aria-hidden="true"></span>
     </button>
   </div>
+
+  @if (chart) {
+    <we-chart [type]="chart" [data]="chartData" [title]="locale.pivotLabel" [height]="320" />
+  }
 
   @if (result.truncated) {
     <p class="we-pivot__note" role="status">{{ locale.pivotTruncated }}</p>

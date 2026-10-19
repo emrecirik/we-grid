@@ -125,6 +125,8 @@
 - `renderItems: WeGridRenderItem<T>[]` — the flattened list the body renders
 - Formatting and formulas *(0.9.0)*: `stripedActive`, `activeFormatRules`, `userFormulaColumns`,
   `saveFormulaColumn(column)`, `deleteFormulaColumn(field)`, `cellValue(row, col)` (formula-aware)
+- `copyText()` *(0.12.0)* — what Ctrl+C puts on the clipboard: the selected rows with a header line,
+  else the active cell, tab-separated
 - Macros *(0.10.0)*: `runMacro(macroOrId)`, `runScript(script)` (both resolve with the problems met),
   `startRecording()`, `stopRecording()`, `isRecording`, `openMacroDialog(macro?)`, `allMacros`,
   `pinnedMacros`, `userMacros`, `saveMacro(macro)`, `deleteMacro(macro)` — see [macros.md](macros.md)
@@ -163,8 +165,14 @@ reference in [sheet.md](sheet.md).
 ## `<we-pivot>` (`WePivotComponent`) *(0.11.0)*
 
 A pivot table — inputs `data`, `fields`, `config` (`WePivotConfig`, two-way), `gridKey`,
-`exportFormats`, `maxHeight`, `maxColumns`; output `configChange`; `wePivot()` for the table
+`exportFormats`, `maxHeight`, `maxColumns`, `chart` (`WeChartType | null`, 0.12.0); outputs `configChange`,
+`chartChange` (0.12.0); `wePivot()` for the table
 without the component. Full reference in [pivot.md](pivot.md).
+
+## `<we-chart>` (`WeChartComponent`) *(0.12.0)*
+
+Column, bar, line, area, pie and donut charts — inputs `type`, `data` (`WeChartData`), `stacked`,
+`title`, `height`, `valueFormatter`, `showTable`. Full reference in [charts.md](charts.md).
 
 ## Directives
 

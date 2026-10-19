@@ -69,3 +69,7 @@ export * from './lib/we-sheet/we-sheet.util';
 // <we-pivot> — a pivot table over any rows, rendered by the grid
 export * from './lib/we-pivot/we-pivot.component';
 export * from './lib/we-pivot/we-pivot.util';
+
+// <we-chart> — column, bar, line, area, pie and donut charts in SVG
+export * from './lib/we-chart/we-chart.component';
+export * from './lib/we-chart/we-chart.util';

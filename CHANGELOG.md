@@ -2,6 +2,30 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.12.0 — 2026-10-20
+
+Charts. A minor release — new component and exports.
+
+### Added
+
+- `<we-chart>` (`WeChartComponent`) — column, bar, line, area, pie and donut charts in plain SVG:
+  stacking, a legend for two or more series, hover tooltips with every value of a category, a
+  crosshair on line and area charts, round axis numbers in the locale's compact notation, and a
+  **Show as table** view. See docs/charts.md.
+- CSS `--we-grid-chart-1` … `--we-grid-chart-8` in both themes — a fixed series order checked for
+  colour-vision deficiencies on the light and dark surfaces; more than eight series fold into
+  "Other".
+- `<we-pivot>`: chart buttons (`chart` input, `chartChange` output) — the pivot as a chart above
+  the table.
+- `<we-sheet>`: a chart of the selection, saved with the sheet (`WeSheetData.chart`), live as cells
+  change, with its type switchable from the bar above it.
+- Grid: **Ctrl+C copies** the selected rows — with a header line — or the active cell, as cells
+  Excel and Google Sheets paste straight into columns (`copyText()` returns the same text). Only
+  when the grid was the last thing pressed and no text is selected, so ordinary copying is
+  unaffected.
+- `weChartFromRows`, `weChartTicks`, `weChartFold`, `weChartArc`, `weChartBarPath`,
+  `weChartColor`; locale keys `chartLabel` … `chartRemove`.
+
 ## 0.11.0 — 2026-10-20
 
 Data sources, pivot tables and a fuller spreadsheet. A minor release — new components and exports;

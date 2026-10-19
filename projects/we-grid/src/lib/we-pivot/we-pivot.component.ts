@@ -10,6 +10,8 @@ import { WeGridComponent } from '../we-grid.component';
 import { WeGridFormulaError, weGridTryCompileFormula } from '../services/we-grid-formula.util';
 import { getNestedValue } from '../services/we-grid-value.util';
 import { WePivotAggregate, WePivotConfig, WePivotResult, wePivot } from './we-pivot.util';
+import { WeChartComponent } from '../we-chart/we-chart.component';
+import { WeChartData, WeChartType } from '../we-chart/we-chart.util';
 
 type Zone = 'rows' | 'columns' | 'values';
 
@@ -21,7 +23,7 @@ type Zone = 'rows' | 'columns' | 'values';
 @Component({
   selector: 'we-pivot',
   standalone: true,
-  imports: [CommonModule, FormsModule, WeGridComponent],
+  imports: [CommonModule, FormsModule, WeGridComponent, WeChartComponent],
   templateUrl: './we-pivot.component.html',
   styleUrls: ['./we-pivot.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -39,7 +41,14 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges 
   /** Most value columns before the rest are left out */
   @Input() maxColumns = 200;
 
+  /** Shows the pivot as a chart above the table — null for none; the user switches it */
+  @Input() chart: WeChartType | null = null;
+
   @Output() configChange = new EventEmitter<WePivotConfig>();
+  @Output() chartChange = new EventEmitter<WeChartType | null>();
+
+  readonly chartTypes: WeChartType[] = ['column', 'bar', 'line', 'area', 'pie', 'donut'];
+  chartData: WeChartData = { categories: [], series: [] };
 
   result: WePivotResult = { columns: [], rows: [], groupBy: [], truncated: false };
   readonly aggregates: WePivotAggregate[] = ['sum', 'count', 'avg', 'min', 'max'];
@@ -108,6 +117,11 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges 
     this.update({ ...this.config, values: this.config.values.map((v, i) => (i === index ? { ...v, aggregate } : v)) });
   }
 
+  setChart(type: WeChartType | null): void {
+    this.chart = type;
+    this.chartChange.emit(type);
+  }
+
   swap(): void {
     this.update({ ...this.config, rows: this.config.columns, columns: this.config.rows });
   }
@@ -149,5 +163,12 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges 
       this.locale.intlLocale,
       this.maxColumns
     );
+    // The chart plots the value cells (not the row totals): one category per pivot row
+    const valueColumns = this.result.columns.filter((c) => c.field.startsWith('c:'));
+    const labelFields = this.result.columns.filter((c) => c.field.startsWith('r:')).map((c) => c.field);
+    this.chartData = {
+      categories: this.result.rows.map((r) => labelFields.map((f) => String(r[f] ?? '')).join(' · ') || this.locale.pivotTotal),
+      series: valueColumns.map((c) => ({ name: c.header, values: this.result.rows.map((r) => (typeof r[c.field] === 'number' ? (r[c.field] as number) : null)) }))
+    };
   }
 }

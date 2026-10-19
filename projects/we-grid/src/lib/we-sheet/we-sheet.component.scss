@@ -488,3 +488,22 @@
   margin-inline-end: auto;
   color: var(--we-grid-danger-color, #f06548);
 }
+
+.we-sheet__chart {
+  padding: 0.5rem;
+  border-top: 1px solid var(--we-grid-border-color, #dee2e6);
+}
+
+.we-sheet__chart-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.4rem;
+}
+
+.we-sheet__chart-range {
+  margin-inline-end: 0.5rem;
+  color: var(--we-grid-muted-color, #878a99);
+  font-variant-numeric: tabular-nums;
+}

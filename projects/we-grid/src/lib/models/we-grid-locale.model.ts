@@ -308,6 +308,18 @@ export interface WeGridLocale {
   pivotTruncated: string;
   pivotSwap: string;
 
+  // ─── <we-chart> ───
+  chartLabel: string;
+  chartShowTable: string;
+  chartShowChart: string;
+  chartNoData: string;
+  chartOther: string;
+  chartLegend: string;
+  chartTypeLabels: Record<'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut', string>;
+  chartStacked: string;
+  chartInsert: string;
+  chartRemove: string;
+
   // ─── Macros (the grid's `allowMacros` / `macros` inputs) ───
   macrosButton: string;
   macroRun: string;
@@ -594,6 +606,16 @@ export const weGridLocaleEn: WeGridLocale = {
   pivotTotal: 'Total',
   pivotTruncated: 'Only the first columns are shown — use fewer column fields.',
   pivotSwap: 'Swap rows and columns',
+  chartLabel: 'Chart',
+  chartShowTable: 'Show as table',
+  chartShowChart: 'Show chart',
+  chartNoData: 'Nothing to chart yet',
+  chartOther: 'Other',
+  chartLegend: 'Legend',
+  chartTypeLabels: { column: 'Column', bar: 'Bar', line: 'Line', area: 'Area', pie: 'Pie', donut: 'Donut' },
+  chartStacked: 'Stacked',
+  chartInsert: 'Chart',
+  chartRemove: 'Remove chart',
   macrosButton: 'Macros',
   macroRun: 'Run',
   macroEdit: 'Edit',
@@ -896,6 +918,16 @@ export const weGridLocaleTr: WeGridLocale = {
   pivotTotal: 'Toplam',
   pivotTruncated: 'Yalnızca ilk kolonlar gösteriliyor — daha az kolon alanı kullanın.',
   pivotSwap: 'Satırlarla kolonları değiştir',
+  chartLabel: 'Grafik',
+  chartShowTable: 'Tablo olarak göster',
+  chartShowChart: 'Grafiği göster',
+  chartNoData: 'Henüz gösterilecek veri yok',
+  chartOther: 'Diğer',
+  chartLegend: 'Açıklama',
+  chartTypeLabels: { column: 'Sütun', bar: 'Çubuk', line: 'Çizgi', area: 'Alan', pie: 'Pasta', donut: 'Halka' },
+  chartStacked: 'Yığılmış',
+  chartInsert: 'Grafik',
+  chartRemove: 'Grafiği kaldır',
   macrosButton: 'Makrolar',
   macroRun: 'Çalıştır',
   macroEdit: 'Düzenle',

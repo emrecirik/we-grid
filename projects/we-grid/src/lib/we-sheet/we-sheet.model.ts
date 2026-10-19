@@ -36,6 +36,14 @@ export interface WeSheetData {
   striped?: boolean;
   /** Column A stays in view while scrolling sideways */
   freezeColumn?: boolean;
+  /** A chart of a range, shown under the cells — `{ range: 'A1:C9', type: 'column' }` */
+  chart?: WeSheetChart;
+}
+
+/** The sheet's chart: the first column of the range gives the categories, the first row the series names when it is text */
+export interface WeSheetChart {
+  range: string;
+  type: 'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut';
 }
 
 /** Persistence for `<we-sheet sheetKey="…">` — the same dependency-inversion contract as `WeGridLayoutStore` */

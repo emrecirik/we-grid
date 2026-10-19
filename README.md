@@ -45,6 +45,7 @@ Material, no icon font. Standalone components and directives on top of Angular C
   no `eval`
 - **Macros**: scripts like `FILTER [Status] = "Open"` / `GROUP BY [City]` / `SET [Price] = [Price] * 1.1` run from toolbar buttons, a recorder that writes them for you, and your own TypeScript commands — no `eval` ([docs](docs/macros.md))
 - **Your database in a few lines**: a client for the we-report data protocol with ready backends in **.NET, Spring Boot, Node.js, Python, Go and PHP** — server-side paging, filtering and checklist values, and layouts/views/sheets saved on the server ([docs](docs/data-sources.md))
+- **`<we-chart>`** column, bar, line, area, pie and donut charts in plain SVG — and charts straight from the pivot table and the spreadsheet ([docs](docs/charts.md))
 - **`<we-pivot>`** pivot tables: rows, columns and sum/count/average/min/max values from chips, with subtotals, totals and export ([docs](docs/pivot.md))
 - **`<we-sheet>`**, a spreadsheet in the same package: A1 formulas, a formula bar, copy and paste
   with Excel, undo, styles, number formats, sorting, fill down and a sum/average status bar ([docs](docs/sheet.md))
@@ -253,6 +254,7 @@ npm run start:ecommerce           # then any sample app
 - [Interactive cell templates](docs/cell-templates.md)
 - [Data sources and backends](docs/data-sources.md) — .NET, Java, Node.js, Python, Go, PHP
 - [Macros](docs/macros.md) — the script language, the recorder, commands
+- [Charts `<we-chart>`](docs/charts.md)
 - [Pivot tables `<we-pivot>`](docs/pivot.md)
 - [Spreadsheet component `<we-sheet>`](docs/sheet.md)
 - [Theming](docs/theming.md)

@@ -110,6 +110,26 @@ describe('WeSheetComponent — structure, AutoSum, suggestions, import', () => {
     expect(sheet.getValue('A1')).toBe(1);
   });
 
+  it('charts the selection and keeps the chart with the sheet', () => {
+    sheet.setData({
+      version: 1,
+      rows: 8,
+      cols: 4,
+      cells: { A1: { v: 'Month' }, B1: { v: 'Sales' }, A2: { v: 'Jan' }, B2: { v: 10 }, A3: { v: 'Feb' }, B3: { v: '=B2*2' } }
+    });
+    sheet.select('A1:B3');
+    sheet.insertChart('line');
+    fixture.detectChanges();
+    expect(sheet.getData().chart).toEqual({ range: 'A1:B3', type: 'line' });
+    expect(sheet.chartData).toEqual({ categories: ['Jan', 'Feb'], series: [{ name: 'Sales', values: [10, 20] }] });
+    expect(el().querySelector('we-chart')).toBeTruthy();
+    sheet.setCell('B2', '5');
+    expect(sheet.chartData?.series[0].values).toEqual([5, 10]);
+    sheet.removeChart();
+    fixture.detectChanges();
+    expect(el().querySelector('we-chart')).toBeNull();
+  });
+
   it('freezes the first column', () => {
     sheet.toggleFreezeColumn();
     fixture.detectChanges();
