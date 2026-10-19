@@ -518,7 +518,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.cdr.detectChanges();
     const el = this.editorRef?.nativeElement;
     if (el) {
-      el.focus();
+      // The cell is already in view — focusing must not scroll the page
+      el.focus({ preventScroll: true });
       el.setSelectionRange(el.value.length, el.value.length);
     }
   }

@@ -20,6 +20,8 @@ export interface WeGridColumnLayout {
   summary?: WeGridSummaryFunction;
   /** Base cell style the user chose in the format panel — `{}` when they cleared the developer's default */
   style?: WeGridCellStyle;
+  /** Number format the user chose (decimal places, `'2-2'`) — see WeGridColumnDef.format */
+  format?: string;
 }
 
 /** A computed column the user added — its `field` always starts with `fx:` so it never shadows a data field */

@@ -51,6 +51,8 @@ export class WeGridFormatPanelComponent {
 
   @Output() styleChange = new EventEmitter<WeGridCellStyle>();
   @Output() rulesChange = new EventEmitter<WeGridFormatRule[]>();
+  /** Decimal places as a column format (`'2-2'`), or undefined for the column's default */
+  @Output() numberFormatChange = new EventEmitter<string | undefined>();
   @Output() closed = new EventEmitter<void>();
 
   readonly colors = WE_GRID_FORMAT_COLORS;
@@ -85,6 +87,23 @@ export class WeGridFormatPanelComponent {
   get isNumeric(): boolean {
     const kind = weGridValueKind(this.column.type);
     return kind === 'number' || kind === 'date';
+  }
+
+  /** Decimal places apply to plain numbers and percentages — currency follows its currency */
+  get hasDecimals(): boolean {
+    return this.column.type === 'number' || this.column.type === 'percent';
+  }
+
+  /** The column's fixed decimal places, or null while it formats automatically */
+  get decimals(): number | null {
+    const m = /^(\d)-(\d)$/.exec(this.column.format ?? '');
+    return m ? Number(m[2]) : null;
+  }
+
+  changeDecimals(delta: number): void {
+    const current = this.decimals ?? (this.column.type === 'percent' ? 1 : 2);
+    const next = Math.max(0, Math.min(6, current + delta));
+    this.numberFormatChange.emit(`${next}-${next}`);
   }
 
   get operators(): WeGridFormatOperator[] {

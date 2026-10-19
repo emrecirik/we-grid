@@ -36,6 +36,7 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - **Record form** (`editMode="form"`) alongside in-place row editing — same events, same validation
 - **Paste a range from Excel / Google Sheets** onto the grid: every cell converted to its column's
   type (`₺1.234,56`, `12,5%`, `evet`), extra rows become new rows, one `(rowsPaste)` batch event
+- **Search** every visible column from the toolbar, as shown on screen
 - **Saved views**: named snapshots of columns, filters, sort and grouping, shareable as a link
 - **Excel-style formatting** the user controls: bold and colours per column, conditional rules
   (greater than, between, top 10, above average, duplicates, formula), colour scales, data bars and

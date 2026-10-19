@@ -63,6 +63,25 @@
         }
       </section>
 
+      @if (hasDecimals) {
+        <section class="we-grid-format__section" [attr.aria-label]="locale.formatNumber">
+          <h3 class="we-grid-format__heading">{{ locale.formatNumber }}</h3>
+          <div class="we-grid-format__swatch-row">
+            <span class="we-grid-format__label">{{ locale.formatDecimals }}</span>
+            <div class="we-grid-format__flags" role="group" [attr.aria-label]="locale.formatDecimals">
+              <button type="button" class="we-grid-format__flag" (click)="changeDecimals(-1)" [disabled]="decimals === 0" [attr.aria-label]="locale.formatDecimalsFewer" [title]="locale.formatDecimalsFewer">−</button>
+              <span class="we-grid-format__decimals" aria-live="polite">{{ decimals === null ? locale.formatDecimalsAuto : decimals }}</span>
+              <button type="button" class="we-grid-format__flag" (click)="changeDecimals(1)" [disabled]="decimals === 6" [attr.aria-label]="locale.formatDecimalsMore" [title]="locale.formatDecimalsMore">+</button>
+            </div>
+            @if (decimals !== null) {
+              <button type="button" class="we-grid-format__icon-btn" (click)="numberFormatChange.emit(undefined)" [attr.aria-label]="locale.formatDecimalsAuto" [title]="locale.formatDecimalsAuto">
+                <span [innerHTML]="icon('restart')" aria-hidden="true"></span>
+              </button>
+            }
+          </div>
+        </section>
+      }
+
       <section class="we-grid-format__section" [attr.aria-label]="locale.formatRules">
         <h3 class="we-grid-format__heading">{{ locale.formatRules }}</h3>
         <ul class="we-grid-format__rules">

@@ -59,6 +59,8 @@
 | `formatting` *(0.9.0)* | `boolean` | `false` | Adds **Format…** (cell style, conditional rules, colour scales, data bars) and **Zebra rows** to the column menu; saved with the layout and views — see [formatting.md](formatting.md). |
 | `formatRules` *(0.9.0)* | `WeGridFormatRule[]` | `[]` | Conditional formatting the grid starts with. Replaced by the user's list once they edit the rules. |
 | `allowFormulaColumns` *(0.9.0)* | `boolean` | `false` | Adds **Add formula column…** to the column menu: the user's own Excel-formula columns, saved with the layout and views — see [formulas.md](formulas.md). |
+| `search` *(0.13.0)* | `boolean` | `false` | A toolbar search box: rows containing every typed word in any visible column (as shown on screen). Server-side with server filtering, or with `(searchChange)` bound, the text is emitted instead. |
+| `searchDebounceMs` *(0.13.0)* | `number` | `250` | Delay before the search applies. |
 | `macros` *(0.10.0)* | `WeGridMacro[]` | `[]` | Macros the grid offers — run from the Macros panel or as pinned toolbar buttons. See [macros.md](macros.md). |
 | `allowMacros` *(0.10.0)* | `boolean` | `false` | Users record, write, edit, pin and delete their own macros, saved with the layout. |
 | `macroCommands` *(0.10.0)* | `Record<string, WeGridMacroCommand<T>>` | `{}` | Your TypeScript steps, called from a script with `RUN name`. |
@@ -85,6 +87,7 @@
 | `treeExpandChange` *(0.7.0)* | `WeGridTreeExpandEvent<T>` | `{ row, expanded, source: 'user' \| 'api' }` |
 | `detailToggle` *(0.7.0)* | `WeGridDetailToggleEvent<T>` | `{ row, open, source: 'user' \| 'api' }` |
 | `groupFieldsChange` *(0.7.0)* | `string[]` | Every grouping change, all levels. |
+| `searchChange` *(0.13.0)* | `string` | The search box's text, debounced. |
 | `macroRun` *(0.10.0)* | `{ macro: WeGridMacro; errors: WeGridMacroError[] }` | After a macro ran, with the problems it met. |
 
 ### Notable public members

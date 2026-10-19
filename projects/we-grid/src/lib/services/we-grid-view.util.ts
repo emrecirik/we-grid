@@ -100,6 +100,7 @@ function sanitizeColumn(input: unknown): WeGridColumnLayout | null {
     column.summary = input['summary'] as WeGridColumnLayout['summary'];
   }
   if (isRecord(input['style'])) column.style = weGridSanitizeCellStyle(input['style']) ?? {};
+  if (typeof input['format'] === 'string' && /^\d-\d$/.test(input['format'])) column.format = input['format'];
   return column;
 }
 

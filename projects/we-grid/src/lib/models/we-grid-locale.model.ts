@@ -320,6 +320,15 @@ export interface WeGridLocale {
   chartInsert: string;
   chartRemove: string;
 
+  // ─── Search and number format ───
+  searchPlaceholder: string;
+  searchClear: string;
+  formatNumber: string;
+  formatDecimals: string;
+  formatDecimalsMore: string;
+  formatDecimalsFewer: string;
+  formatDecimalsAuto: string;
+
   // ─── Macros (the grid's `allowMacros` / `macros` inputs) ───
   macrosButton: string;
   macroRun: string;
@@ -616,6 +625,13 @@ export const weGridLocaleEn: WeGridLocale = {
   chartStacked: 'Stacked',
   chartInsert: 'Chart',
   chartRemove: 'Remove chart',
+  searchPlaceholder: 'Search',
+  searchClear: 'Clear search',
+  formatNumber: 'Number',
+  formatDecimals: 'Decimal places',
+  formatDecimalsMore: 'More decimal places',
+  formatDecimalsFewer: 'Fewer decimal places',
+  formatDecimalsAuto: 'Automatic',
   macrosButton: 'Macros',
   macroRun: 'Run',
   macroEdit: 'Edit',
@@ -928,6 +944,13 @@ export const weGridLocaleTr: WeGridLocale = {
   chartStacked: 'Yığılmış',
   chartInsert: 'Grafik',
   chartRemove: 'Grafiği kaldır',
+  searchPlaceholder: 'Ara',
+  searchClear: 'Aramayı temizle',
+  formatNumber: 'Sayı',
+  formatDecimals: 'Ondalık basamak',
+  formatDecimalsMore: 'Ondalık artır',
+  formatDecimalsFewer: 'Ondalık azalt',
+  formatDecimalsAuto: 'Otomatik',
   macrosButton: 'Makrolar',
   macroRun: 'Çalıştır',
   macroEdit: 'Düzenle',

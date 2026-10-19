@@ -1321,3 +1321,59 @@
   justify-content: flex-start;
   gap: 0.45rem;
 }
+
+// ─── Toolbar search ───────────────────────────────────────────────────
+.we-grid__search {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-inline-end: auto;
+  min-width: 12rem;
+  max-width: 20rem;
+  flex: 1 1 12rem;
+  padding: 0 0.45rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 999px;
+  background: var(--we-grid-bg, #fff);
+  color: var(--we-grid-muted-color, #878a99);
+
+  &:focus-within {
+    border-color: var(--we-grid-accent-color, #405189);
+    box-shadow: 0 0 0 3px var(--we-grid-row-selected-bg, rgba(64, 81, 137, 0.1));
+  }
+}
+
+.we-grid__search-icon {
+  display: inline-flex;
+}
+
+.we-grid__search-input {
+  flex: 1;
+  min-width: 0;
+  padding: 0.3rem 0;
+  border: none;
+  background: transparent;
+  color: var(--we-grid-font-color, #212529);
+  font: inherit;
+  outline: none;
+
+  &::-webkit-search-cancel-button {
+    display: none;
+  }
+}
+
+.we-grid__search-clear {
+  display: inline-flex;
+  padding: 0.15rem;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.035));
+    outline: none;
+  }
+}

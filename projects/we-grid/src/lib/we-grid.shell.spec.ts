@@ -91,6 +91,9 @@ describe('WeGridComponent — toolbar, header menu button and empty template', (
   });
   afterAll(() => overlayCss.remove());
 
+  // Specs run in random order; one that scrolled the page would make the menus flip upwards
+  beforeEach(() => window.scrollTo(0, 0));
+
   beforeEach(async () => {
     localStorage.clear();
     await TestBed.configureTestingModule({ imports: [ShellHostComponent] }).compileComponents();

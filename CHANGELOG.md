@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.13.0 — 2026-10-20
+
+Search and decimal places. A minor release — opt-in; with the new input off the markup is that of
+0.12.
+
+### Added
+
+- Grid `search` (and `searchDebounceMs`, `(searchChange)`, `setSearch()`, `clearSearch()`) — a
+  search box in the toolbar that keeps the rows containing every typed word in any visible column,
+  as shown on screen (formatted numbers, dates, formula results). On a server-side grid with server
+  filtering, or with `(searchChange)` bound, the text goes to you instead.
+- Format panel: **decimal places** for number and percent columns (fewer / more / automatic),
+  saved with the layout (`WeGridColumnLayout.format`) and in views.
+- Locale keys `searchPlaceholder`, `searchClear`, `formatNumber`, `formatDecimals`,
+  `formatDecimalsMore`, `formatDecimalsFewer`, `formatDecimalsAuto`.
+
 ## 0.12.1 — 2026-10-20
 
 ### Fixed

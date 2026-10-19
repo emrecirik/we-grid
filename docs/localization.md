@@ -200,3 +200,8 @@ parser's own messages are English too.
 
 - `<we-chart>`: `chartLabel`, `chartShowTable`, `chartShowChart`, `chartNoData`, `chartOther`,
   `chartLegend`, `chartTypeLabels`, `chartStacked`, `chartInsert`, `chartRemove`
+
+## Keys added in 0.13.0
+
+- `searchPlaceholder`, `searchClear`, `formatNumber`, `formatDecimals`, `formatDecimalsMore`,
+  `formatDecimalsFewer`, `formatDecimalsAuto`

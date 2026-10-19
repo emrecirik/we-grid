@@ -8,6 +8,25 @@
 >
   @if (toolbar !== 'none') {
     <div class="we-grid__toolbar">
+      @if (search) {
+        <label class="we-grid__search">
+          <span class="we-grid__search-icon" [innerHTML]="icon('search')" aria-hidden="true"></span>
+          <input
+            type="search"
+            class="we-grid__search-input"
+            [value]="searchInput"
+            (input)="onSearchInput($any($event.target).value)"
+            (keydown.escape)="clearSearch()"
+            [placeholder]="locale.searchPlaceholder"
+            [attr.aria-label]="locale.searchPlaceholder"
+          />
+          @if (searchInput) {
+            <button type="button" class="we-grid__search-clear" (click)="clearSearch()" [attr.aria-label]="locale.searchClear" [title]="locale.searchClear">
+              <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+            </button>
+          }
+        </label>
+      }
       @if (groupFields.length > 1) {
         <span class="we-grid__group-chip we-grid__group-chip--levels" role="group" [attr.aria-label]="locale.groupingLabel">
           <span [innerHTML]="icon('stack')" aria-hidden="true"></span>
@@ -1001,6 +1020,7 @@
       [rules]="activeFormatRules"
       (styleChange)="onFormatStyleChange($event)"
       (rulesChange)="onFormatRulesChange($event)"
+      (numberFormatChange)="onFormatNumberChange($event)"
       (closed)="closeFormatPanel()"
     />
   }

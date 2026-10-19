@@ -527,6 +527,13 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Input() allowMacros = false;
   /** Your own TypeScript steps, called from a script with `RUN name` */
   @Input() macroCommands: Record<string, WeGridMacroCommand<T>> = {};
+  /**
+   * A search box in the toolbar that finds text in every visible column, as the user types. On a
+   * server-side grid with server filtering (or with `(searchChange)` bound) the text is handed to
+   * you instead and the rows are left alone.
+   */
+  @Input() search = false;
+  @Input() searchDebounceMs = 250;
 
   @Output() pageChange = new EventEmitter<WeGridPageChange>();
   @Output() sortChange = new EventEmitter<WeGridSortChange>();
@@ -592,6 +599,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Output() refresh = new EventEmitter<void>();
   /** After a macro ran — with the problems it met, if any */
   @Output() macroRun = new EventEmitter<{ macro: WeGridMacro; errors: WeGridMacroError[] }>();
+  /** The search box's text, debounced — for searching on the server */
+  @Output() searchChange = new EventEmitter<string>();
 
   @ContentChildren(WeGridCellDirective) cellTemplateDirectives!: QueryList<WeGridCellDirective<T>>;
   @ContentChild(WeGridRowDetailDirective) rowDetailDirective?: WeGridRowDetailDirective<T>;
@@ -623,6 +632,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** While recording: the grid as it was when recording started, plus steps the diff can't see */
   private recording: { before: WeGridSavedView; extra: WeGridMacroStep[] } | null = null;
   macroRunning = false;
+  /** What the toolbar search box holds — applied after `searchDebounceMs` */
+  searchInput = '';
+  searchText = '';
+  private readonly search$ = new Subject<string>();
   /** Field whose Format panel is open */
   formatPanelField: string | null = null;
   private formatCache: { items: unknown; rules: unknown; columns: unknown; map: Map<T, Record<string, WeGridCellCss>> } | null = null;
@@ -789,6 +802,41 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   get isServerSort(): boolean {
     if (!this.serverSide || this.sortMode === 'client') return false;
     return this.sortMode === 'server' || this.sortChange.observed;
+  }
+
+  /** Whether the search box's text goes to the server instead of filtering the loaded rows */
+  get isServerSearch(): boolean {
+    return this.serverSide && (this.isServerFilter || this.searchChange.observed);
+  }
+
+  onSearchInput(text: string): void {
+    this.searchInput = text;
+    this.search$.next(text);
+  }
+
+  /** Searches every visible column now — what the toolbar box does after its debounce */
+  setSearch(text: string): void {
+    const next = text.trim();
+    this.searchInput = text;
+    if (next === this.searchText) return;
+    this.searchText = next;
+    this.searchChange.emit(next);
+    this.refreshDisplayData();
+    this.cdr.markForCheck();
+  }
+
+  clearSearch(): void {
+    this.setSearch('');
+  }
+
+  /** Rows whose shown text in any visible column contains every word of `text`, case-insensitively */
+  private searchRows(rows: T[], text: string): T[] {
+    const words = text.toLocaleLowerCase(this.locale.intlLocale).split(/\s+/).filter(Boolean);
+    const columns = this.renderColumns;
+    return rows.filter((row) => {
+      const hay = columns.map((c) => this.formatCell(row, c)).join('\u0001').toLocaleLowerCase(this.locale.intlLocale);
+      return words.every((w) => hay.includes(w));
+    });
   }
 
   /** Whether filtering is really happening on the server — see isServerSort */
@@ -1020,6 +1068,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       .subscribe(() => this.emitFilterChange());
     this.loadLayout();
     if (this.savedViews) this.loadViews();
+    this.search$.pipe(debounceTime(Math.max(0, this.searchDebounceMs)), takeUntil(this.destroy$)).subscribe((text) => this.setSearch(text));
     if (typeof document !== 'undefined') {
       // Outside the zone: neither event needs change detection
       this.ngZone.runOutsideAngular(() => {
@@ -1801,6 +1850,16 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.cdr.markForCheck();
   }
 
+  onFormatNumberChange(format: string | undefined): void {
+    const col = this.formatPanelColumn;
+    if (!col) return;
+    col.format = format ?? this.columnDefs.find((d) => d.field === col.field)?.format;
+    this.renderColumns = [...this.renderColumns];
+    this.formatCache = null;
+    this.scheduleLayoutSave();
+    this.cdr.markForCheck();
+  }
+
   onFormatRulesChange(rules: WeGridFormatRule[]): void {
     this.userFormatRules = rules;
     this.scheduleLayoutSave();
@@ -1933,10 +1992,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     // If isServerFilter is true, the backend already returns filtered data — filtering again here
     // would double-apply it (especially with operators like 'contains', where the backend and the
     // local comparison rules can differ, causing rows to be lost).
-    const source =
+    const filtered =
       this.hasActiveFilters && !this.isServerFilter
         ? applyWeGridFilters(this.data, this.filterState, this.internalColumns, this.locale, this.readCellValue)
         : this.data;
+    const source = this.searchText && !this.isServerSearch ? this.searchRows(filtered, this.searchText) : filtered;
 
     if (this.isServerSort || !this.clientSort) {
       this.displayData = source;

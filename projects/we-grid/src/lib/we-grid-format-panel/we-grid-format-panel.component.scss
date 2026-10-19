@@ -240,3 +240,13 @@
   height: 1rem;
   border-radius: var(--we-grid-radius, 0.25rem);
 }
+
+.we-grid-format__decimals {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 5rem;
+  padding: 0 0.5rem;
+  border-inline-end: 1px solid var(--we-grid-border-color, #dee2e6);
+  font-variant-numeric: tabular-nums;
+}

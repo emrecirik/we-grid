@@ -86,7 +86,7 @@ export function mergeGridLayout<T>(
       pinned: savedCol && !lockPinned ? savedCol.pinned : (def.pinned ?? null),
       // the real value is computed in recomputeRenderColumns() — this is just a valid starting point
       pinnedOffset: 0,
-      format: def.format,
+      format: typeof savedCol?.format === 'string' && /^\d-\d$/.test(savedCol.format) ? savedCol.format : def.format,
       minorUnits: def.minorUnits ?? false,
       formatter: def.formatter,
       cellTemplate: def.cellTemplate,
@@ -175,7 +175,8 @@ export function toColumnLayout<T>(columns: WeGridInternalColumn<T>[], columnDefs
       headerOverride: c.headerOverride ?? undefined,
       summary: c.summary !== defaultSummary ? c.summary : undefined,
       // Same rule as summary: only a choice that differs from the developer's default is written
-      style: JSON.stringify(c.style ?? {}) !== JSON.stringify(defByField.get(c.field)?.cellStyle ?? {}) ? (c.style ?? {}) : undefined
+      style: JSON.stringify(c.style ?? {}) !== JSON.stringify(defByField.get(c.field)?.cellStyle ?? {}) ? (c.style ?? {}) : undefined,
+      format: c.format !== defByField.get(c.field)?.format ? c.format : undefined
     };
   });
 }

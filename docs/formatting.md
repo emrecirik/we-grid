@@ -143,3 +143,9 @@ references — a shared link cannot inject styles.
 `<colour>` is each of the nine palette names. All are defined for light and dark in
 `we-grid-theme.scss` — see [theming.md](theming.md). Colour scales and data bars use CSS
 `color-mix()`, available in every current browser.
+
+## Decimal places (0.13.0)
+
+For number and percent columns the Format panel has **Decimal places**: fewer, more (0 to 6) or
+automatic. The choice is the column's `format` (`'3-3'`), saved with the layout and in views like
+the rest of the panel; currency columns keep their currency's decimals.
