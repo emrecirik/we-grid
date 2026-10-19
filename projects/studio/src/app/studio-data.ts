@@ -1,4 +1,4 @@
-import { WeGridColumnDef, WeGridFormatRule, WeGridMacro, WeSheetData } from 'we-grid-angular';
+import { WeGridColumnDef, WeGridFormatRule, WeGridMacro, WeSheetData, WeWorkbookData } from 'we-grid-angular';
 import { StudioLanguage } from './studio-text';
 
 /** A fictional sales order — every value comes from a seeded generator */
@@ -158,4 +158,38 @@ export function studioMacros(lang: StudioLanguage): WeGridMacro[] {
     { id: 'city', name: 'By city', pinned: true, script: 'CLEAR FILTERS\nGROUP BY [City], [Category]\nSORT [Total] DESC' },
     { id: 'reset', name: 'Reset', script: 'CLEAR FILTERS\nUNGROUP\nCLEAR SORT\nMESSAGE "The grid is back to normal"' }
   ];
+}
+
+/** A second sheet: monthly sales with a line chart */
+function studioMonthly(lang: StudioLanguage): WeSheetData {
+  const tr = lang === 'tr';
+  const months = tr ? ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz'] : ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+  const online = [42, 48, 51, 63, 71, 78];
+  const stores = [55, 52, 58, 57, 61, 66];
+  const cells: WeSheetData['cells'] = {
+    A1: { v: tr ? 'Ay' : 'Month' },
+    B1: { v: tr ? 'Online' : 'Online' },
+    C1: { v: tr ? 'Mağaza' : 'Stores' },
+    D1: { v: tr ? 'Toplam' : 'Total' }
+  };
+  months.forEach((m, i) => {
+    const r = i + 2;
+    cells[`A${r}`] = { v: m };
+    cells[`B${r}`] = { v: online[i] * 1000, f: 'currency', d: 0 };
+    cells[`C${r}`] = { v: stores[i] * 1000, f: 'currency', d: 0 };
+    cells[`D${r}`] = { v: `=B${r}+C${r}`, f: 'currency', d: 0, s: { bold: true } };
+  });
+  return { version: 1, rows: 30, cols: 8, headerRow: true, striped: true, cells, chart: { range: 'A1:C7', type: 'line' } };
+}
+
+export function studioWorkbook(lang: StudioLanguage): WeWorkbookData {
+  const tr = lang === 'tr';
+  return {
+    version: 1,
+    sheets: [
+      { name: tr ? 'Bütçe' : 'Budget', data: studioBudget(lang) },
+      { name: tr ? 'Satışlar' : 'Sales', data: studioMonthly(lang) }
+    ],
+    active: 0
+  };
 }

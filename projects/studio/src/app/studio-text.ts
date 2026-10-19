@@ -35,6 +35,7 @@ const en = {
     'Tick values in a header filter, group by City from its menu, then save the result as a View.',
     'Double-click a row to edit it; paste rows straight from Excel with Ctrl+V.',
     'Press a macro button (Top sellers, By city) — or Macros → Record, use the grid, Stop, and save your own.',
+    'Type in the search box to find text in every column; tick rows and press Ctrl+C to paste them into Excel.',
     'Export to Excel, CSV or PDF from the toolbar.'
   ],
   sheetTitle: 'Budget',
@@ -43,7 +44,8 @@ const en = {
     'Click a cell and type: a number, text or a formula such as =SUM(B2:B8).',
     'Select a block with the mouse or Shift+arrows — the status bar adds it up.',
     'Copy a table from Excel or Google Sheets and paste it here.',
-    'Ctrl+D fills a formula down, Ctrl+Z undoes, the toolbar styles and formats cells.'
+    'Ctrl+D fills a formula down, Ctrl+Z undoes, the toolbar styles and formats cells.',
+    'Right-click for insert/delete rows and columns, Σ sums, Ctrl+F finds and replaces, the chart button charts a selection.'
   ],
   tabData: 'Your database',
   tabPivot: 'Pivot',
@@ -93,6 +95,7 @@ const tr: typeof en = {
     'Başlık filtresinde değer seçin, menüden Şehir’e göre gruplayın ve sonucu Görünüm olarak kaydedin.',
     'Bir satırı düzenlemek için çift tıklayın; Excel’den satırları Ctrl+V ile doğrudan yapıştırın.',
     'Bir makro butonuna basın (En çok satanlar, Şehre göre) — ya da Makrolar → Kaydet, tabloyu kullanın, Durdurun ve kendi makronuzu kaydedin.',
+    'Arama kutusuna yazarak tüm kolonlarda arayın; satırları seçip Ctrl+C ile Excel’e yapıştırın.',
     'Araç çubuğundan Excel, CSV ya da PDF olarak dışa aktarın.'
   ],
   sheetTitle: 'Bütçe',
@@ -101,7 +104,8 @@ const tr: typeof en = {
     'Bir hücreye tıklayıp yazın: sayı, metin ya da =TOPLA(B2:B8) gibi bir formül.',
     'Fareyle ya da Shift+ok tuşlarıyla bir alan seçin — durum çubuğu toplamı gösterir.',
     'Excel ya da Google E-Tablolar’dan bir tablo kopyalayıp buraya yapıştırın.',
-    'Ctrl+D formülü aşağı doldurur, Ctrl+Z geri alır; araç çubuğu hücreleri biçimlendirir.'
+    'Ctrl+D formülü aşağı doldurur, Ctrl+Z geri alır; araç çubuğu hücreleri biçimlendirir.',
+    'Sağ tıkla satır/kolon ekleyip silin, Σ toplasın, Ctrl+F bulup değiştirsin, grafik düğmesi seçimi grafiğe çevirsin.'
   ],
   tabData: 'Veritabanınız',
   tabPivot: 'Pivot',

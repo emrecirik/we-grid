@@ -33,6 +33,7 @@ export * from './lib/models/we-grid-icons.model';
 export * from './lib/models/we-grid-internal.model';
 export * from './lib/models/we-grid-layout.model';
 export * from './lib/models/we-grid-locale.model';
+export * from './lib/models/we-grid-locale-extra.model';
 export * from './lib/models/we-grid-menu-action.model';
 export * from './lib/models/we-grid-row-detail.model';
 export * from './lib/models/we-grid-view.model';
@@ -63,6 +64,7 @@ export * from './lib/services/we-grid-interactive.util';
 
 // <we-sheet> — a small spreadsheet built on the same formula engine, palette and exporters
 export * from './lib/we-sheet/we-sheet.component';
+export * from './lib/we-sheet/we-workbook.component';
 export * from './lib/we-sheet/we-sheet.model';
 export * from './lib/we-sheet/we-sheet.util';
 

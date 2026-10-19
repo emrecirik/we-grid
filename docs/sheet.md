@@ -37,6 +37,8 @@ export class BudgetComponent {}
 | Open a file *(0.11.0)* | Excel (`.xlsx`) or CSV into the sheet from A1, with row 1 as the header — undoable. |
 | Freeze *(0.11.0)* | Column A stays in view while scrolling sideways; with a header row, row 1 stays at the top. |
 | Function suggestions *(0.11.0)* | Typing `=SU` (or `=TOP` in Turkish) lists matching functions with their arguments; arrows choose, Tab or Enter inserts `SUM(`, Escape closes. |
+| Find and replace *(0.14.0)* | Ctrl+F finds text in what the cells show (and in formulas), Enter / Shift+Enter walk the matches, "Match case" narrows them; Ctrl+H (or Replace…) replaces one match or all of them — undoable. |
+| Decimal places *(0.14.0)* | `.0−` / `.00+` in the toolbar: Excel's Decrease / Increase Decimal for the selection (`WeSheetCell.d`). |
 | Export | Excel (`.xlsx`, numbers stay numbers) and CSV, of the used range. |
 
 All formula functions, their Turkish names and the error values are listed in
@@ -62,6 +64,8 @@ Public methods: `getData()`, `setData(data)`, `getValue('B3')`, `setCell('C2', '
 `select('A1:C5')`, `selectionLabel`, `sort('asc' \| 'desc')`, `fillDown()`, `undo()`, `redo()`,
 `addRow()`, `addColumn()`, `insertRows('before' \| 'after')`, `insertColumns('before' \| 'after')`,
 `deleteRows()`, `deleteColumns()`, `autoSum()`, `toggleFreezeColumn()`, `openImport()`,
+`openFind(withReplace?)`, `findNext(step?)`, `replaceOne()`, `replaceAll()`, `changeDecimals(delta)`,
+`insertChart(type?)`, `setChartType(type)`, `removeChart()`,
 `exportAs('xlsx' \| 'csv')`, `buildExportTable()`.
 
 Content projected with the `weSheetToolbar` attribute is placed in the toolbar — your own buttons
@@ -108,3 +112,26 @@ never inject CSS or markup. Formulas are evaluated by the formula engine — nev
 `weSheetFormatValue`, `weSheetSanitize`, `weSheetEmpty`, `weSheetInsert`, `weSheetMoveReferences`,
 `weSheetAutoSum` — the pure functions the component is built
 on, exported for servers and tests.
+
+## Workbooks: several sheets *(0.14.0)*
+
+`<we-workbook>` puts sheets behind tabs, as at the bottom of an Excel window — add one with **+**,
+rename with a double-click (or F2), duplicate, delete, and move them with the arrows (or
+Ctrl+← / Ctrl+→ on a tab). The whole workbook is one JSON object saved under `workbookKey`
+through `WE_SHEET_STORE`:
+
+```html
+<we-workbook workbookKey="planning-2027" exportFileName="planning" />
+```
+
+```ts
+interface WeWorkbookData {
+  version: 1;
+  sheets: { name: string; data: WeSheetData }[];
+  active: number;
+}
+```
+
+Inputs: `workbookKey`, `data` (wins over a stored workbook), `readonly`, `height`, `rows`, `cols`
+(size of a new sheet), `exportFileName`; output `dataChange`. Formulas refer to cells of their own
+sheet — references to other sheets (`Sheet2!A1`) are not supported yet.

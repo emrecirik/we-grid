@@ -177,6 +177,11 @@ without the component. Full reference in [pivot.md](pivot.md).
 Column, bar, line, area, pie and donut charts — inputs `type`, `data` (`WeChartData`), `stacked`,
 `title`, `height`, `valueFormatter`, `showTable`. Full reference in [charts.md](charts.md).
 
+## `<we-workbook>` (`WeWorkbookComponent`) *(0.14.0)*
+
+Several sheets behind tabs — inputs `workbookKey`, `data` (`WeWorkbookData`), `readonly`, `height`,
+`rows`, `cols`, `exportFileName`; output `dataChange`. See [sheet.md](sheet.md#workbooks-several-sheets-0140).
+
 ## Directives
 
 - **`WeGridCellDirective<T>`** (`[weGridCell]`) — custom cell template, selector value = column

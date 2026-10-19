@@ -1,19 +1,19 @@
 import { Component, OnInit } from '@angular/core';
-import { WeGridComponent, WeGridExportFormat, WeGridImportFormat, WePivotComponent, WePivotConfig, WeSheetComponent, WeSheetData } from 'we-grid-angular';
+import { WeGridComponent, WeGridExportFormat, WeGridImportFormat, WePivotComponent, WePivotConfig, WeWorkbookComponent, WeWorkbookData } from 'we-grid-angular';
 import { DataTabComponent } from './data-tab.component';
-import { studioBudget, studioColumns, studioMacros, studioOrders, studioRules } from './studio-data';
+import { studioWorkbook, studioColumns, studioMacros, studioOrders, studioRules } from './studio-data';
 import { STUDIO_TEXT, StudioLanguage, saveStudioLanguage, studioLanguage } from './studio-text';
 
 type Tab = 'grid' | 'sheet' | 'pivot' | 'data' | 'start';
 type Theme = 'light' | 'dark';
 
 const THEME_KEY = 'we-grid-studio:theme';
-const SHEET_KEY = 'studio-budget';
+const SHEET_KEY = 'studio-book';
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [WeGridComponent, WeSheetComponent, WePivotComponent, DataTabComponent],
+  imports: [WeGridComponent, WeWorkbookComponent, WePivotComponent, DataTabComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -28,8 +28,8 @@ export class AppComponent implements OnInit {
   readonly exportFormats: WeGridExportFormat[] = ['xlsx', 'csv', 'pdf'];
   readonly importFormats: WeGridImportFormat[] = ['xlsx', 'csv'];
   readonly sheetKey = `${SHEET_KEY}-${this.lang}`;
-  /** The example budget — only handed to the sheet while nothing is saved, so the user's edits survive a reload */
-  sheetData: WeSheetData | null = null;
+  /** The example workbook — only handed over while nothing is saved, so the user's edits survive a reload */
+  sheetData: WeWorkbookData | null = null;
   tab: Tab = 'grid';
   theme: Theme = 'light';
 
@@ -57,7 +57,7 @@ export class OrdersComponent {
     if (hash === 'sheet' || hash === 'start' || hash === 'grid' || hash === 'data' || hash === 'pivot') this.tab = hash;
     this.theme = this.read(THEME_KEY) === 'dark' ? 'dark' : this.read(THEME_KEY) === 'light' ? 'light' : matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     this.applyTheme();
-    if (this.read(`we-sheet:${this.sheetKey}`) === null) this.sheetData = studioBudget(this.lang);
+    if (this.read(`we-sheet:book:${this.sheetKey}`) === null) this.sheetData = studioWorkbook(this.lang);
   }
 
   select(tab: Tab): void {
@@ -79,11 +79,11 @@ export class OrdersComponent {
 
   resetSheet(): void {
     try {
-      localStorage.removeItem(`we-sheet:${this.sheetKey}`);
+      localStorage.removeItem(`we-sheet:book:${this.sheetKey}`);
     } catch {
       // storage blocked — nothing was saved either
     }
-    this.sheetData = studioBudget(this.lang);
+    this.sheetData = studioWorkbook(this.lang);
   }
 
   private applyTheme(): void {

@@ -1,0 +1,92 @@
+:host {
+  display: block;
+}
+
+.we-book {
+  display: flex;
+  flex-direction: column;
+}
+
+.we-book__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem;
+  margin-top: -1px;
+  padding: 0.3rem 0.4rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-top: none;
+  border-radius: 0 0 var(--we-grid-radius, 0.25rem) var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-header-bg, #f3f6f9);
+  font-size: var(--we-grid-font-size, 0.8125rem);
+}
+
+.we-book__tab {
+  padding: 0.3rem 0.8rem;
+  border: none;
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: transparent;
+  color: var(--we-grid-muted-color, #878a99);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.035));
+  }
+
+  &[aria-selected='true'] {
+    background: var(--we-grid-bg, #fff);
+    color: var(--we-grid-accent-color, #405189);
+    font-weight: 600;
+    box-shadow: 0 0 0 1px var(--we-grid-border-color, #dee2e6);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: 1px;
+  }
+}
+
+.we-book__rename {
+  width: 9rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--we-grid-accent-color, #405189);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-bg, #fff);
+  color: var(--we-grid-font-color, #212529);
+  font: inherit;
+  outline: none;
+}
+
+.we-book__icon {
+  display: inline-flex;
+  padding: 0.3rem;
+  border: none;
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: transparent;
+  color: var(--we-grid-font-color, #212529);
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.035));
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: 1px;
+  }
+}
+
+.we-book__spacer {
+  flex: 1;
+}
+
+.we-book__flip {
+  display: inline-flex;
+  transform: scaleX(-1);
+}

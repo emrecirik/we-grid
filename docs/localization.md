@@ -22,6 +22,23 @@ providers: [
 You can also provide it at a route or component level (`providers: [...]` on a route or an
 `@Component`) if only part of your app needs a different language.
 
+## German, French and Spanish
+
+`weGridLocaleDe`, `weGridLocaleFr` and `weGridLocaleEs` are provided the same way. They format with
+`de-DE`, `fr-FR` and `es-ES` and show a currency column without `format` in euros (`intlCurrency:
+'EUR'`); override it as shown below for Turkish if your data is in another currency.
+
+```ts
+import { WE_GRID_LOCALE, weGridLocaleDe } from 'we-grid-angular'; // or weGridLocaleFr, weGridLocaleEs
+
+providers: [
+  { provide: WE_GRID_LOCALE, useValue: weGridLocaleDe }
+]
+```
+
+Plurals and the summary row's labels follow each language's grammar — "Seitensumme" /
+"Gesamtsumme", "Somme de la page" / "Somme globale", "Suma de la página" / "Suma total".
+
 ## Providing your own language
 
 Implement the `WeGridLocale` interface (see `we-grid-locale.model.ts` for every field, grouped by
@@ -205,3 +222,11 @@ parser's own messages are English too.
 
 - `searchPlaceholder`, `searchClear`, `formatNumber`, `formatDecimals`, `formatDecimalsMore`,
   `formatDecimalsFewer`, `formatDecimalsAuto`
+
+## Keys added in 0.14.0
+
+- `<we-sheet>` find and replace: `sheetFind`, `sheetReplaceWith`, `sheetFindNext`,
+  `sheetFindPrevious`, `sheetReplace`, `sheetReplaceAll`, `sheetMatchCase`,
+  `sheetFindCount(current, total)`, `sheetFindNone`, `sheetReplaced(count)`
+- `<we-workbook>`: `workbookLabel`, `workbookSheetName`, `workbookAdd`, `workbookRename`,
+  `workbookRenameHint`, `workbookDuplicate`, `workbookDelete`

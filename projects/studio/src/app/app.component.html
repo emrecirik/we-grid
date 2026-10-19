@@ -85,7 +85,7 @@
         </div>
         <button type="button" class="link-btn" (click)="resetSheet()">{{ text.resetExample }}</button>
       </div>
-      <we-sheet [sheetKey]="sheetKey" [data]="sheetData" [rows]="40" [cols]="10" [height]="520" exportFileName="budget" />
+      <we-workbook [workbookKey]="sheetKey" [data]="sheetData" [rows]="40" [cols]="10" [height]="520" exportFileName="budget" />
       <aside class="tips">
         <h2>{{ text.tryTitle }}</h2>
         <ul>

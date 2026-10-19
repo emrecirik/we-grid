@@ -507,3 +507,57 @@
   color: var(--we-grid-muted-color, #878a99);
   font-variant-numeric: tabular-nums;
 }
+
+.we-sheet__find {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+  background: var(--we-grid-header-bg, #f3f6f9);
+}
+
+.we-sheet__find-input {
+  width: 12rem;
+  height: 1.75rem;
+  padding: 0 0.6rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 999px;
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font: inherit;
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: -1px;
+  }
+}
+
+.we-sheet__find-count {
+  min-width: 5rem;
+  color: var(--we-grid-muted-color, #878a99);
+  font-variant-numeric: tabular-nums;
+}
+
+.we-sheet__find-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--we-grid-muted-color, #878a99);
+  cursor: pointer;
+}
+
+.we-sheet__find-close {
+  margin-inline-start: auto;
+}
+
+.we-sheet__flip-up {
+  display: inline-flex;
+  transform: rotate(-90deg);
+}
+
+.we-sheet__flip-down {
+  display: inline-flex;
+  transform: rotate(90deg);
+}

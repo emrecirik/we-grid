@@ -16,6 +16,8 @@ export interface WeSheetCell {
   a?: WeGridAlign;
   /** Number format — `general` when omitted */
   f?: WeSheetNumberFormat;
+  /** Fixed decimal places (0-10) for number, currency and percent formats */
+  d?: number;
 }
 
 /**

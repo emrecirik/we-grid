@@ -149,6 +149,9 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** Where the suggestions list sits — under the cell editor or under the formula bar */
   suggestionsFor: 'cell' | 'bar' = 'cell';
   notice: string | null = null;
+  /** The find bar — open with Ctrl+F (find) or Ctrl+H (find and replace) */
+  find: { text: string; replace: string; withReplace: boolean; matchCase: boolean; index: number } | null = null;
+  findMatches: { col: number; row: number }[] = [];
   /** The chart's data, worked out from its range after every change */
   chartData: WeChartData | null = null;
   readonly chartTypes: WeSheetChart['type'][] = ['column', 'bar', 'line', 'area', 'pie', 'donut'];
@@ -397,6 +400,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const key = event.key;
     if (mod) {
       const lower = key.toLowerCase();
+      if (lower === 'f' || lower === 'h') {
+        this.openFind(lower === 'h');
+        event.preventDefault();
+        return;
+      }
       const handled =
         lower === 'z' ? (event.shiftKey ? this.redo() : this.undo(), true) :
         lower === 'y' ? (this.redo(), true) :
@@ -576,6 +584,109 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   setAlign(align: WeGridAlign): void {
     this.updateRange((cell) => ({ ...cell, a: cell.a === align ? undefined : align }));
+  }
+
+  /** One decimal place more or fewer for the selection — Excel's Increase / Decrease Decimal */
+  changeDecimals(delta: number): void {
+    const current = this.activeCell?.d ?? (this.activeCell?.f === 'percent' || this.activeCell?.f === 'integer' ? 0 : 2);
+    const next = Math.max(0, Math.min(10, current + delta));
+    this.updateRange((cell) => ({ ...cell, d: next, f: cell.f === undefined || cell.f === 'general' || cell.f === 'integer' ? 'number' : cell.f }));
+  }
+
+  // ─── Find and replace ────────────────────────────────────────────────
+
+  openFind(withReplace = false): void {
+    this.commitEdit();
+    this.find = { text: this.find?.text ?? '', replace: this.find?.replace ?? '', withReplace, matchCase: this.find?.matchCase ?? false, index: 0 };
+    this.refreshMatches();
+    this.cdr.markForCheck();
+    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLInputElement>('.we-sheet__find-input')?.focus());
+  }
+
+  closeFind(): void {
+    this.find = null;
+    this.findMatches = [];
+    this.scrollRef.nativeElement.focus({ preventScroll: true });
+    this.cdr.markForCheck();
+  }
+
+  onFindInput(text: string): void {
+    if (!this.find) return;
+    this.find.text = text;
+    this.find.index = 0;
+    this.refreshMatches();
+    if (this.findMatches.length) this.moveTo(this.findMatches[0]);
+  }
+
+  setMatchCase(on: boolean): void {
+    if (!this.find) return;
+    this.find.matchCase = on;
+    this.refreshMatches();
+  }
+
+  findNext(step = 1): void {
+    if (!this.find || !this.findMatches.length) return;
+    const n = this.findMatches.length;
+    this.find.index = (this.find.index + step + n) % n;
+    this.moveTo(this.findMatches[this.find.index]);
+  }
+
+  onFindKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      this.findNext(event.shiftKey ? -1 : 1);
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      this.closeFind();
+    }
+  }
+
+  /** Replaces the text in the current match, then moves on to the next one */
+  replaceOne(): void {
+    const f = this.find;
+    if (!f || this.readonly || !this.findMatches.length) return;
+    const at = this.findMatches[f.index];
+    const next = this.cloneForEdit(0, 0);
+    this.writeInput(next, at.col, at.row, this.replaceIn(this.rawText(at.col, at.row)));
+    this.commit(next);
+    this.refreshMatches();
+    if (this.findMatches.length) {
+      f.index = Math.min(f.index, this.findMatches.length - 1);
+      this.moveTo(this.findMatches[f.index]);
+    }
+  }
+
+  replaceAll(): void {
+    const f = this.find;
+    if (!f || this.readonly || !this.findMatches.length) return;
+    const next = this.cloneForEdit(0, 0);
+    const count = this.findMatches.length;
+    for (const at of this.findMatches) this.writeInput(next, at.col, at.row, this.replaceIn(this.rawText(at.col, at.row)));
+    this.commit(next);
+    this.refreshMatches();
+    this.notice = this.locale.sheetReplaced(count);
+  }
+
+  /** Cells whose shown text (or, for formulas, the formula) contains the search text */
+  private refreshMatches(): void {
+    const f = this.find;
+    this.findMatches = [];
+    if (!f || !f.text) return;
+    const needle = f.matchCase ? f.text : f.text.toLocaleLowerCase(this.locale.intlLocale);
+    const norm = (t: string) => (f.matchCase ? t : t.toLocaleLowerCase(this.locale.intlLocale));
+    for (let r = 0; r < this.sheet.rows; r++) {
+      for (let c = 0; c < this.sheet.cols; c++) {
+        const shown = this.view[r]?.[c]?.text ?? '';
+        const raw = this.rawText(c, r);
+        if (norm(shown).includes(needle) || (raw.startsWith('=') && norm(raw).includes(needle))) this.findMatches.push({ col: c, row: r });
+      }
+    }
+  }
+
+  private replaceIn(text: string): string {
+    const f = this.find!;
+    const escaped = f.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return text.replace(new RegExp(escaped, f.matchCase ? 'g' : 'gi'), () => f.replace);
   }
 
   setFormat(format: WeSheetNumberFormat): void {
@@ -1045,7 +1156,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       for (let c = 0; c < this.sheet.cols; c++) {
         const cell = this.sheet.cells[weSheetAddress(c, r)];
         const value = this.evaluator.value(c, r);
-        const text = weSheetFormatValue(value, cell?.f, this.locale.intlLocale, this.currency);
+        const text = weSheetFormatValue(value, cell?.f, this.locale.intlLocale, this.currency, cell?.d);
         const error = typeof value === 'object' && value !== null && !(value instanceof Date);
         const numeric = typeof value === 'number' && cell?.f !== 'text';
         const css = cell?.s ? weGridCellStyleCss(cell.s) : null;
@@ -1120,6 +1231,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (s) out.s = s;
     if (cell.a) out.a = cell.a;
     if (cell.f) out.f = cell.f;
+    if (cell.d !== undefined) out.d = cell.d;
     return out;
   }
 

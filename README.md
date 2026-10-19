@@ -5,6 +5,7 @@
 [![CI](https://github.com/emrecirik/we-grid/actions/workflows/ci.yml/badge.svg)](https://github.com/emrecirik/we-grid/actions/workflows/ci.yml)
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Angular 18-22](https://img.shields.io/badge/Angular-18%20%E2%80%93%2022-dd0031.svg)](https://angular.dev)
+[![Languages](https://img.shields.io/badge/UI-EN%20%C2%B7%20TR%20%C2%B7%20DE%20%C2%B7%20FR%20%C2%B7%20ES-5b5bd6.svg)](docs/localization.md)
 [![No CSS framework](https://img.shields.io/badge/CSS%20framework-none-success.svg)](docs/theming.md)
 
 [Türkçe](README.tr.md)
@@ -49,7 +50,7 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - **`<we-chart>`** column, bar, line, area, pie and donut charts in plain SVG — and charts straight from the pivot table and the spreadsheet ([docs](docs/charts.md))
 - **`<we-pivot>`** pivot tables: rows, columns and sum/count/average/min/max values from chips, with subtotals, totals and export ([docs](docs/pivot.md))
 - **`<we-sheet>`**, a spreadsheet in the same package: A1 formulas, a formula bar, copy and paste
-  with Excel, undo, styles, number formats, sorting, fill down and a sum/average status bar ([docs](docs/sheet.md))
+  with Excel, undo, styles, number formats, sorting, fill down, find and replace, a sum/average status bar and multi-sheet **`<we-workbook>`** ([docs](docs/sheet.md))
 - **Multi-level grouping** with record counts and group summaries — automatic sums for numeric
   columns, per-column functions, in the group header or in a footer row under the columns
 - **Tree rows**: children in the same columns as their parent, indented and collapsible, with

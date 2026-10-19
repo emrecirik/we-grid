@@ -1,0 +1,62 @@
+<div class="we-book" [attr.aria-label]="locale.workbookLabel" role="region">
+  <!-- Switching tabs hands the sheet another data object, which it loads (with a fresh undo history) -->
+  <we-sheet
+    [data]="activeSheet"
+    [readonly]="readonly"
+    [height]="height"
+    [exportFileName]="exportFileName + ' - ' + book.sheets[book.active].name"
+    (dataChange)="onSheetChange(book.active, $event)"
+  />
+
+  <div class="we-book__tabs" role="tablist" [attr.aria-label]="locale.workbookLabel">
+    @for (s of book.sheets; track $index; let i = $index) {
+      @if (renaming === i) {
+        <input
+          #rename
+          class="we-book__rename"
+          [value]="s.name"
+          maxlength="60"
+          (keydown)="onRenameKeydown($event, i)"
+          (blur)="finishRename(i, rename.value)"
+          [attr.aria-label]="locale.workbookRename"
+          spellcheck="false"
+        />
+      } @else {
+        <button
+          type="button"
+          role="tab"
+          class="we-book__tab"
+          [attr.aria-selected]="i === book.active"
+          [attr.tabindex]="i === book.active ? 0 : -1"
+          (click)="activate(i)"
+          (dblclick)="startRename(i)"
+          (keydown)="onTabKeydown($event, i)"
+          [title]="locale.workbookRenameHint"
+        >
+          {{ s.name }}
+        </button>
+      }
+    }
+    @if (!readonly) {
+      <button type="button" class="we-book__icon" (click)="addSheet()" [attr.aria-label]="locale.workbookAdd" [title]="locale.workbookAdd">
+        <span [innerHTML]="icon('plus')" aria-hidden="true"></span>
+      </button>
+      <span class="we-book__spacer"></span>
+      <button type="button" class="we-book__icon" (click)="moveSheet(book.active, -1)" [disabled]="book.active === 0" [attr.aria-label]="locale.moveColumnLeft" [title]="locale.moveColumnLeft">
+        <span class="we-book__flip" [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="we-book__icon" (click)="moveSheet(book.active, 1)" [disabled]="book.active === book.sheets.length - 1" [attr.aria-label]="locale.moveColumnRight" [title]="locale.moveColumnRight">
+        <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="we-book__icon" (click)="startRename(book.active)" [attr.aria-label]="locale.workbookRename" [title]="locale.workbookRename">
+        <span [innerHTML]="icon('pencil')" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="we-book__icon" (click)="duplicateSheet()" [attr.aria-label]="locale.workbookDuplicate" [title]="locale.workbookDuplicate">
+        <span [innerHTML]="icon('stack')" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="we-book__icon" (click)="deleteSheet()" [disabled]="book.sheets.length <= 1" [attr.aria-label]="locale.workbookDelete" [title]="locale.workbookDelete">
+        <span [innerHTML]="icon('trash')" aria-hidden="true"></span>
+      </button>
+    }
+  </div>
+</div>

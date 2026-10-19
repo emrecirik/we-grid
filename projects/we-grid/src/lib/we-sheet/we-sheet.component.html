@@ -56,6 +56,11 @@
         </button>
       </div>
 
+      <div class="we-sheet__group">
+        <button type="button" class="we-sheet__btn we-sheet__btn--text" (click)="changeDecimals(-1)" [attr.aria-label]="locale.formatDecimalsFewer" [title]="locale.formatDecimalsFewer">.0−</button>
+        <button type="button" class="we-sheet__btn we-sheet__btn--text" (click)="changeDecimals(1)" [attr.aria-label]="locale.formatDecimalsMore" [title]="locale.formatDecimalsMore">.00+</button>
+      </div>
+
       <select class="we-sheet__select" [ngModel]="activeCell?.f ?? 'general'" (ngModelChange)="setFormat($event)" [attr.aria-label]="locale.sheetNumberFormat" [title]="locale.sheetNumberFormat">
         @for (f of formats; track f) {
           <option [value]="f">{{ locale.sheetFormatLabels[f] }}</option>
@@ -106,6 +111,9 @@
     <ng-content select="[weSheetToolbar]"></ng-content>
 
     <div class="we-sheet__group we-sheet__group--end">
+      <button type="button" class="we-sheet__btn" [attr.aria-pressed]="!!find" (click)="find ? closeFind() : openFind()" [attr.aria-label]="locale.sheetFind" [title]="locale.sheetFind + ' (Ctrl+F)'">
+        <span [innerHTML]="icon('search')" aria-hidden="true"></span>
+      </button>
       @if (!readonly) {
         <button type="button" class="we-sheet__btn" (click)="openImport()" [attr.aria-label]="locale.sheetImport" [title]="locale.sheetImport">
           <span [innerHTML]="icon('upload')" aria-hidden="true"></span>
@@ -141,6 +149,50 @@
       spellcheck="false"
     />
   </div>
+
+  @if (find) {
+    <div class="we-sheet__find" role="search" [attr.aria-label]="locale.sheetFind">
+      <input
+        class="we-sheet__find-input"
+        [value]="find.text"
+        (input)="onFindInput($any($event.target).value)"
+        (keydown)="onFindKeydown($event)"
+        [placeholder]="locale.sheetFind"
+        [attr.aria-label]="locale.sheetFind"
+        spellcheck="false"
+      />
+      <span class="we-sheet__find-count" aria-live="polite">{{ find.text ? (findMatches.length ? locale.sheetFindCount(find.index + 1, findMatches.length) : locale.sheetFindNone) : '' }}</span>
+      <button type="button" class="we-sheet__btn" (click)="findNext(-1)" [disabled]="!findMatches.length" [attr.aria-label]="locale.sheetFindPrevious" [title]="locale.sheetFindPrevious">
+        <span class="we-sheet__flip-up" [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="we-sheet__btn" (click)="findNext(1)" [disabled]="!findMatches.length" [attr.aria-label]="locale.sheetFindNext" [title]="locale.sheetFindNext">
+        <span class="we-sheet__flip-down" [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+      </button>
+      <label class="we-sheet__find-check">
+        <input type="checkbox" [checked]="find.matchCase" (change)="setMatchCase($any($event.target).checked)" /> {{ locale.sheetMatchCase }}
+      </label>
+      @if (!readonly) {
+        @if (find.withReplace) {
+          <input
+            class="we-sheet__find-input"
+            [value]="find.replace"
+            (input)="find.replace = $any($event.target).value"
+            (keydown.escape)="closeFind()"
+            [placeholder]="locale.sheetReplaceWith"
+            [attr.aria-label]="locale.sheetReplaceWith"
+            spellcheck="false"
+          />
+          <button type="button" class="we-sheet__btn we-sheet__btn--text" (click)="replaceOne()" [disabled]="!findMatches.length">{{ locale.sheetReplace }}</button>
+          <button type="button" class="we-sheet__btn we-sheet__btn--text" (click)="replaceAll()" [disabled]="!findMatches.length">{{ locale.sheetReplaceAll }}</button>
+        } @else {
+          <button type="button" class="we-sheet__btn we-sheet__btn--text" (click)="find.withReplace = true">{{ locale.sheetReplace }}…</button>
+        }
+      }
+      <button type="button" class="we-sheet__btn we-sheet__find-close" (click)="closeFind()" [attr.aria-label]="locale.close" [title]="locale.close">
+        <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+      </button>
+    </div>
+  }
 
   @if (suggestions.length && suggestionsFor === 'bar') {
     <ng-container *ngTemplateOutlet="suggestionList; context: { $implicit: 'bar' }"></ng-container>

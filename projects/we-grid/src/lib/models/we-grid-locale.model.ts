@@ -329,6 +329,27 @@ export interface WeGridLocale {
   formatDecimalsFewer: string;
   formatDecimalsAuto: string;
 
+  // ─── <we-sheet> find and replace ───
+  sheetFind: string;
+  sheetReplaceWith: string;
+  sheetFindNext: string;
+  sheetFindPrevious: string;
+  sheetReplace: string;
+  sheetReplaceAll: string;
+  sheetMatchCase: string;
+  /** `current` of `total` matches */
+  sheetFindCount: (current: number, total: number) => string;
+  sheetFindNone: string;
+  sheetReplaced: (count: number) => string;
+  workbookLabel: string;
+  /** Name of a new sheet — numbered: Sheet1, Sheet2 … */
+  workbookSheetName: string;
+  workbookAdd: string;
+  workbookRename: string;
+  workbookRenameHint: string;
+  workbookDuplicate: string;
+  workbookDelete: string;
+
   // ─── Macros (the grid's `allowMacros` / `macros` inputs) ───
   macrosButton: string;
   macroRun: string;
@@ -632,6 +653,23 @@ export const weGridLocaleEn: WeGridLocale = {
   formatDecimalsMore: 'More decimal places',
   formatDecimalsFewer: 'Fewer decimal places',
   formatDecimalsAuto: 'Automatic',
+  sheetFind: 'Find',
+  sheetReplaceWith: 'Replace with',
+  sheetFindNext: 'Next',
+  sheetFindPrevious: 'Previous',
+  sheetReplace: 'Replace',
+  sheetReplaceAll: 'Replace all',
+  sheetMatchCase: 'Match case',
+  sheetFindCount: (current, total) => `${current} of ${total}`,
+  sheetFindNone: 'No matches',
+  sheetReplaced: (count) => `${count} ${count === 1 ? 'cell' : 'cells'} replaced`,
+  workbookLabel: 'Workbook',
+  workbookSheetName: 'Sheet',
+  workbookAdd: 'Add sheet',
+  workbookRename: 'Rename sheet',
+  workbookRenameHint: 'Double-click to rename',
+  workbookDuplicate: 'Duplicate sheet',
+  workbookDelete: 'Delete sheet',
   macrosButton: 'Macros',
   macroRun: 'Run',
   macroEdit: 'Edit',
@@ -951,6 +989,23 @@ export const weGridLocaleTr: WeGridLocale = {
   formatDecimalsMore: 'Ondalık artır',
   formatDecimalsFewer: 'Ondalık azalt',
   formatDecimalsAuto: 'Otomatik',
+  sheetFind: 'Bul',
+  sheetReplaceWith: 'Yeni değer',
+  sheetFindNext: 'Sonraki',
+  sheetFindPrevious: 'Önceki',
+  sheetReplace: 'Değiştir',
+  sheetReplaceAll: 'Tümünü değiştir',
+  sheetMatchCase: 'Büyük/küçük harf duyarlı',
+  sheetFindCount: (current, total) => `${current} / ${total}`,
+  sheetFindNone: 'Eşleşme yok',
+  sheetReplaced: (count) => `${count} hücre değiştirildi`,
+  workbookLabel: 'Çalışma kitabı',
+  workbookSheetName: 'Sayfa',
+  workbookAdd: 'Sayfa ekle',
+  workbookRename: 'Sayfayı yeniden adlandır',
+  workbookRenameHint: 'Yeniden adlandırmak için çift tıklayın',
+  workbookDuplicate: 'Sayfayı çoğalt',
+  workbookDelete: 'Sayfayı sil',
   macrosButton: 'Makrolar',
   macroRun: 'Çalıştır',
   macroEdit: 'Düzenle',

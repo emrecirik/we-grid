@@ -197,7 +197,7 @@ export function weSheetSortRange(
 }
 
 /** Formats a computed value for display — errors show their code */
-export function weSheetFormatValue(value: unknown, format: WeSheetNumberFormat | undefined, intlLocale: string, currency: string): string {
+export function weSheetFormatValue(value: unknown, format: WeSheetNumberFormat | undefined, intlLocale: string, currency: string, decimals?: number): string {
   if (value === null || value === undefined) return '';
   if (value instanceof WeGridFormulaError) return value.code;
   if (value instanceof Date) {
@@ -206,15 +206,16 @@ export function weSheetFormatValue(value: unknown, format: WeSheetNumberFormat |
   if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
   if (typeof value !== 'number') return String(value);
   if (!Number.isFinite(value)) return '#NUM!';
+  const fixed = decimals !== undefined && decimals >= 0 && decimals <= 10 ? { minimumFractionDigits: decimals, maximumFractionDigits: decimals } : null;
   switch (format ?? 'general') {
     case 'number':
-      return new Intl.NumberFormat(intlLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+      return new Intl.NumberFormat(intlLocale, fixed ?? { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
     case 'integer':
       return new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 0 }).format(value);
     case 'currency':
-      return new Intl.NumberFormat(intlLocale, { style: 'currency', currency }).format(value);
+      return new Intl.NumberFormat(intlLocale, { style: 'currency', currency, ...(fixed ?? {}) }).format(value);
     case 'percent':
-      return new Intl.NumberFormat(intlLocale, { style: 'percent', maximumFractionDigits: 2 }).format(value);
+      return new Intl.NumberFormat(intlLocale, { style: 'percent', ...(fixed ?? { maximumFractionDigits: 2 }) }).format(value);
     case 'date': {
       // Excel serial date — day 1 is 1900-01-01 (with Excel's 1900 leap-year quirk)
       const ms = Date.UTC(1899, 11, 30) + Math.round(value) * 86400000;
@@ -223,7 +224,7 @@ export function weSheetFormatValue(value: unknown, format: WeSheetNumberFormat |
     case 'text':
       return String(value);
     default:
-      return new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 10, useGrouping: false }).format(value);
+      return new Intl.NumberFormat(intlLocale, fixed ? { ...fixed, useGrouping: false } : { maximumFractionDigits: 10, useGrouping: false }).format(value);
   }
 }
 
@@ -249,6 +250,7 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
     if (s) cell.s = s;
     if (r['a'] === 'start' || r['a'] === 'center' || r['a'] === 'end') cell.a = r['a'];
     if (FORMATS.has(r['f'] as WeSheetNumberFormat)) cell.f = r['f'] as WeSheetNumberFormat;
+    if (typeof r['d'] === 'number' && Number.isInteger(r['d']) && r['d'] >= 0 && r['d'] <= 10) cell.d = r['d'];
     if (Object.keys(cell).length) cells[key] = cell;
   }
   const data: WeSheetData = { version: 1, rows, cols, cells };

@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.14.0 — 2026-10-20
+
+Workbooks, find and replace, three more languages. A minor release — new components and exports.
+
+### Added
+
+- `<we-workbook>` (`WeWorkbookComponent`) — several sheets behind tabs, like Excel: add, rename
+  (double-click or F2), duplicate, delete and reorder (Ctrl+←/→) sheets, all saved together under
+  one `workbookKey` through `WE_SHEET_STORE`; `WeWorkbookData`, `weWorkbookSanitize`. See
+  docs/sheet.md.
+- `<we-sheet>`: **find and replace** — Ctrl+F finds text in what the cells show and in formulas,
+  Enter / Shift+Enter walk the matches, "Match case"; Ctrl+H replaces one match or all, undoably.
+- `<we-sheet>`: Decrease / Increase **decimal places** for the selection (`WeSheetCell.d`), also
+  applied to currency and percent formats.
+- German, French and Spanish UI translations: `weGridLocaleDe`, `weGridLocaleFr`,
+  `weGridLocaleEs`.
+- Locale keys `sheetFind` … `sheetReplaced` and `workbookLabel` … `workbookDelete`.
+
+### Fixed
+
+- `<we-sheet>`: opening the cell editor no longer scrolls the page.
+
 ## 0.13.0 — 2026-10-20
 
 Search and decimal places. A minor release — opt-in; with the new input off the markup is that of
