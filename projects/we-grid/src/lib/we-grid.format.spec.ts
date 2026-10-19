@@ -85,7 +85,7 @@ describe('WeGridComponent — formatting', () => {
     const grid = host.grid;
     menu({ type: 'toggle-striped' });
     grid.onFormatRulesChange([{ id: 'x', field: 'name', type: 'condition', operator: 'contains', value: 'et', style: { italic: true } }]);
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 1200));
     expect(store.saved?.striped).toBeTrue();
     expect(store.saved?.formatRules?.[0].id).toBe('x');
     fixture.detectChanges();

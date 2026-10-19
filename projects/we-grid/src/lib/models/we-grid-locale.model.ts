@@ -283,6 +283,35 @@ export interface WeGridLocale {
   sheetSelectAll: string;
   /** Read out for a cell — `address` is like B3 */
   sheetCellLabel: (address: string, text: string) => string;
+
+  // ─── Macros (the grid's `allowMacros` / `macros` inputs) ───
+  macrosButton: string;
+  macroRun: string;
+  macroEdit: string;
+  macroDelete: string;
+  macroPin: string;
+  macroNew: string;
+  macroRecord: string;
+  macroStopRecording: string;
+  macroRecording: string;
+  macroNoMacros: string;
+  macroDialogNew: string;
+  macroDialogEdit: string;
+  macroName: string;
+  macroDefaultName: string;
+  macroScript: string;
+  macroHelp: string;
+  macroSave: string;
+  macroTryRun: string;
+  /** A script problem — `line` is 1-based */
+  macroLineError: (line: number, message: string) => string;
+  macroDone: (name: string) => string;
+  macroFailed: (name: string, problems: number) => string;
+  macroUnknownColumn: (name: string) => string;
+  macroUnknownView: (name: string) => string;
+  macroUnknownCommand: (name: string) => string;
+  macroReadOnlyColumn: (name: string) => string;
+  macroRowsUpdated: (count: number) => string;
 }
 
 export const weGridLocaleEn: WeGridLocale = {
@@ -518,7 +547,33 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetAddRow: 'Add row',
   sheetAddColumn: 'Add column',
   sheetSelectAll: 'Select all',
-  sheetCellLabel: (address, text) => (text ? `${address}, ${text}` : `${address}, empty`)
+  sheetCellLabel: (address, text) => (text ? `${address}, ${text}` : `${address}, empty`),
+  macrosButton: 'Macros',
+  macroRun: 'Run',
+  macroEdit: 'Edit',
+  macroDelete: 'Delete',
+  macroPin: 'Show on the toolbar',
+  macroNew: 'New macro',
+  macroRecord: 'Record',
+  macroStopRecording: 'Stop recording',
+  macroRecording: 'Recording — use the grid, then stop',
+  macroNoMacros: 'No macros yet. Record one, or write a script.',
+  macroDialogNew: 'New macro',
+  macroDialogEdit: 'Edit macro',
+  macroName: 'Name',
+  macroDefaultName: 'My macro',
+  macroScript: 'Steps',
+  macroHelp: 'Steps you can use',
+  macroSave: 'Save macro',
+  macroTryRun: 'Run now',
+  macroLineError: (line, message) => `Line ${line}: ${message}`,
+  macroDone: (name) => `“${name}” ran`,
+  macroFailed: (name, problems) => `“${name}” ran with ${problems} ${problems === 1 ? 'problem' : 'problems'}`,
+  macroUnknownColumn: (name) => `there is no column called ${name}`,
+  macroUnknownView: (name) => `there is no view called ${name}`,
+  macroUnknownCommand: (name) => `there is no command called ${name}`,
+  macroReadOnlyColumn: (name) => `${name} cannot be changed`,
+  macroRowsUpdated: (count) => `${count} ${count === 1 ? 'row' : 'rows'} updated`
 };
 
 /**
@@ -772,7 +827,33 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetAddRow: 'Satır ekle',
   sheetAddColumn: 'Kolon ekle',
   sheetSelectAll: 'Tümünü seç',
-  sheetCellLabel: (address, text) => (text ? `${address}, ${text}` : `${address}, boş`)
+  sheetCellLabel: (address, text) => (text ? `${address}, ${text}` : `${address}, boş`),
+  macrosButton: 'Makrolar',
+  macroRun: 'Çalıştır',
+  macroEdit: 'Düzenle',
+  macroDelete: 'Sil',
+  macroPin: 'Araç çubuğunda göster',
+  macroNew: 'Yeni makro',
+  macroRecord: 'Kaydet',
+  macroStopRecording: 'Kaydı durdur',
+  macroRecording: 'Kaydediliyor — tabloyu kullanın, sonra durdurun',
+  macroNoMacros: 'Henüz makro yok. Bir tane kaydedin ya da betik yazın.',
+  macroDialogNew: 'Yeni makro',
+  macroDialogEdit: 'Makroyu düzenle',
+  macroName: 'Ad',
+  macroDefaultName: 'Makrom',
+  macroScript: 'Adımlar',
+  macroHelp: 'Kullanabileceğiniz adımlar',
+  macroSave: 'Makroyu kaydet',
+  macroTryRun: 'Şimdi çalıştır',
+  macroLineError: (line, message) => `Satır ${line}: ${message}`,
+  macroDone: (name) => `“${name}” çalıştı`,
+  macroFailed: (name, problems) => `“${name}” ${problems} sorunla çalıştı`,
+  macroUnknownColumn: (name) => `${name} adında bir kolon yok`,
+  macroUnknownView: (name) => `${name} adında bir görünüm yok`,
+  macroUnknownCommand: (name) => `${name} adında bir komut yok`,
+  macroReadOnlyColumn: (name) => `${name} değiştirilemez`,
+  macroRowsUpdated: (count) => `${count} satır güncellendi`
 };
 
 /**

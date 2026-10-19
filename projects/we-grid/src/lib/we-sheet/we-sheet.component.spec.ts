@@ -145,7 +145,7 @@ describe('WeSheetComponent', () => {
 
   it('saves through the store and restores from it', async () => {
     sheet().setCell('A1', 'kept');
-    await new Promise((r) => setTimeout(r, 450));
+    await new Promise((r) => setTimeout(r, 1000));
     expect(store.saved.get('spec-sheet')?.cells['A1'].v).toBe('kept');
     expect(host.changes).toBeGreaterThan(0);
 

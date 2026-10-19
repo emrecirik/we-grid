@@ -43,6 +43,7 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - **Formula columns**: `=[Price] * [Quantity]`, `IF`, `ROUND`, `VLOOKUP` and 40-odd Excel functions
   (English or Turkish names), in the column definition or added by the user from the column menu —
   no `eval`
+- **Macros**: scripts like `FILTER [Status] = "Open"` / `GROUP BY [City]` / `SET [Price] = [Price] * 1.1` run from toolbar buttons, a recorder that writes them for you, and your own TypeScript commands — no `eval` ([docs](docs/macros.md))
 - **`<we-sheet>`**, a spreadsheet in the same package: A1 formulas, a formula bar, copy and paste
   with Excel, undo, styles, number formats, sorting, fill down and a sum/average status bar ([docs](docs/sheet.md))
 - **Multi-level grouping** with record counts and group summaries — automatic sums for numeric
@@ -248,6 +249,7 @@ npm run start:ecommerce           # then any sample app
 - [Tree rows](docs/tree.md)
 - [Row detail](docs/row-detail.md)
 - [Interactive cell templates](docs/cell-templates.md)
+- [Macros](docs/macros.md) — the script language, the recorder, commands
 - [Spreadsheet component `<we-sheet>`](docs/sheet.md)
 - [Theming](docs/theming.md)
 - [Localization](docs/localization.md)

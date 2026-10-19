@@ -59,6 +59,9 @@
 | `formatting` *(0.9.0)* | `boolean` | `false` | Adds **Format…** (cell style, conditional rules, colour scales, data bars) and **Zebra rows** to the column menu; saved with the layout and views — see [formatting.md](formatting.md). |
 | `formatRules` *(0.9.0)* | `WeGridFormatRule[]` | `[]` | Conditional formatting the grid starts with. Replaced by the user's list once they edit the rules. |
 | `allowFormulaColumns` *(0.9.0)* | `boolean` | `false` | Adds **Add formula column…** to the column menu: the user's own Excel-formula columns, saved with the layout and views — see [formulas.md](formulas.md). |
+| `macros` *(0.10.0)* | `WeGridMacro[]` | `[]` | Macros the grid offers — run from the Macros panel or as pinned toolbar buttons. See [macros.md](macros.md). |
+| `allowMacros` *(0.10.0)* | `boolean` | `false` | Users record, write, edit, pin and delete their own macros, saved with the layout. |
+| `macroCommands` *(0.10.0)* | `Record<string, WeGridMacroCommand<T>>` | `{}` | Your TypeScript steps, called from a script with `RUN name`. |
 | `autoFitColumns` | `boolean` | `true` | Fits every column without an explicit `width` (on its definition or in the saved layout) to its content once, when the first rows arrive. Paging doesn't refit. The automatic fit stops at 400px unless the column sets `maxWidth`; it isn't saved as a layout change. |
 
 ### Outputs
@@ -82,6 +85,7 @@
 | `treeExpandChange` *(0.7.0)* | `WeGridTreeExpandEvent<T>` | `{ row, expanded, source: 'user' \| 'api' }` |
 | `detailToggle` *(0.7.0)* | `WeGridDetailToggleEvent<T>` | `{ row, open, source: 'user' \| 'api' }` |
 | `groupFieldsChange` *(0.7.0)* | `string[]` | Every grouping change, all levels. |
+| `macroRun` *(0.10.0)* | `{ macro: WeGridMacro; errors: WeGridMacroError[] }` | After a macro ran, with the problems it met. |
 
 ### Notable public members
 
@@ -119,6 +123,11 @@
   `expandAllGroups()`, `collapseAllGroups()` — see [grouping.md](grouping.md)
 - `moveColumn(col, 1 | -1 | 'first' | 'last')` — the keyboard/menu column move
 - `renderItems: WeGridRenderItem<T>[]` — the flattened list the body renders
+- Formatting and formulas *(0.9.0)*: `stripedActive`, `activeFormatRules`, `userFormulaColumns`,
+  `saveFormulaColumn(column)`, `deleteFormulaColumn(field)`, `cellValue(row, col)` (formula-aware)
+- Macros *(0.10.0)*: `runMacro(macroOrId)`, `runScript(script)` (both resolve with the problems met),
+  `startRecording()`, `stopRecording()`, `isRecording`, `openMacroDialog(macro?)`, `allMacros`,
+  `pinnedMacros`, `userMacros`, `saveMacro(macro)`, `deleteMacro(macro)` — see [macros.md](macros.md)
 
 ### Keyboard
 
@@ -254,6 +263,9 @@ reference in [sheet.md](sheet.md).
   — see [formatting.md](formatting.md)
 - `WeGridFormulaColumn` *(0.9.0)* — a user formula column (`field` starting with `fx:`, `header`, `formula`, `type?`);
   `WeGridLayout` gains `striped`, `formatRules`, `formulaColumns` and `WeGridColumnLayout` gains `style`
+- `WeGridMacro`, `WeGridMacroStep`, `WeGridMacroLine`, `WeGridMacroError`, `WeGridMacroCommand`,
+  `WeGridMacroHost`, `WeGridMacroFilterOperator` *(0.10.0)* — see [macros.md](macros.md);
+  `WeGridLayout` gains `macros`
 
 ## Utilities / services
 
@@ -297,3 +309,5 @@ reference in [sheet.md](sheet.md).
   `WeGridFormulaError`, `WeGridFormulaSyntaxError`, `WeGridFormulaScope`, `WE_GRID_FORMULA_FUNCTIONS`,
   `weGridIsFormula`, `weGridColumnLetter`, `weGridColumnIndex`, `weGridFormulaValueToText`,
   `weGridSanitizeFormulaColumns(input)` *(0.9.0)* — see [formulas.md](formulas.md)
+- `weGridParseMacro(script)`, `weGridMacroScript(steps)`, `weGridDiffViews(before, after, headerOf)`,
+  `weGridSanitizeMacros(input)` *(0.10.0)* — see [macros.md](macros.md)

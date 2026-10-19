@@ -105,6 +105,70 @@
           }
         </span>
       }
+      @if (allowMacros || macros.length > 0) {
+        @for (macro of pinnedMacros; track macro.id) {
+          <button
+            type="button"
+            class="we-grid__filter-toggle-btn"
+            [disabled]="macroRunning"
+            (click)="runMacro(macro)"
+            [attr.aria-label]="locale.macroRun + ': ' + macro.name"
+            [title]="locale.macroRun + ': ' + macro.name"
+          >
+            <span [innerHTML]="icon('play')" aria-hidden="true"></span> {{ macro.name }}
+          </button>
+        }
+        @if (isRecording) {
+          <button type="button" class="we-grid__filter-toggle-btn we-grid__record-btn" (click)="stopRecording()" [title]="locale.macroRecording">
+            <span [innerHTML]="icon('stop')" aria-hidden="true"></span> {{ locale.macroStopRecording }}
+          </button>
+        }
+        <span class="we-grid__views" #macrosContainer (focusout)="onMacrosFocusOut($event, macrosContainer)">
+          <button
+            type="button"
+            class="we-grid__filter-toggle-btn"
+            (click)="toggleMacrosPanel()"
+            [attr.aria-expanded]="macrosPanelOpen"
+            [title]="locale.macrosButton"
+          >
+            <span [innerHTML]="icon('macro')" aria-hidden="true"></span> {{ locale.macrosButton }}
+          </button>
+          @if (macrosPanelOpen) {
+            <div class="we-grid__views-panel" role="dialog" tabindex="-1" [attr.aria-label]="locale.macrosButton" (keydown.escape)="macrosPanelOpen = false">
+              @for (macro of allMacros; track macro.id) {
+                <div class="we-grid__views-item">
+                  <button type="button" class="we-grid__views-apply we-grid__macro-run" [disabled]="macroRunning" (click)="runMacro(macro)" [title]="locale.macroRun">
+                    <span [innerHTML]="icon('play')" aria-hidden="true"></span> {{ macro.name }}
+                  </button>
+                  @if (isUserMacro(macro)) {
+                    <button type="button" class="we-grid__views-icon-btn" [attr.aria-pressed]="!!macro.pinned" (click)="togglePinMacro(macro)" [attr.aria-label]="locale.macroPin + ': ' + macro.name" [title]="locale.macroPin">
+                      <span [innerHTML]="icon('pin')" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" class="we-grid__views-icon-btn" (click)="openMacroDialog(macro)" [attr.aria-label]="locale.macroEdit + ': ' + macro.name" [title]="locale.macroEdit">
+                      <span [innerHTML]="icon('pencil')" aria-hidden="true"></span>
+                    </button>
+                    <button type="button" class="we-grid__views-icon-btn" (click)="deleteMacro(macro)" [attr.aria-label]="locale.macroDelete + ': ' + macro.name" [title]="locale.macroDelete">
+                      <span [innerHTML]="icon('trash')" aria-hidden="true"></span>
+                    </button>
+                  }
+                </div>
+              } @empty {
+                <div class="we-grid__views-empty">{{ locale.macroNoMacros }}</div>
+              }
+              @if (allowMacros) {
+                <div class="we-grid__macro-actions">
+                  <button type="button" class="we-grid__filter-toggle-btn" (click)="startRecording()" [disabled]="isRecording">
+                    <span class="we-grid__record-dot" [innerHTML]="icon('record')" aria-hidden="true"></span> {{ locale.macroRecord }}
+                  </button>
+                  <button type="button" class="we-grid__filter-toggle-btn" (click)="openMacroDialog(null)">
+                    <span [innerHTML]="icon('plus')" aria-hidden="true"></span> {{ locale.macroNew }}
+                  </button>
+                </div>
+              }
+            </div>
+          }
+        </span>
+      }
       @if (savedViews) {
         <span class="we-grid__views" #viewsContainer (focusout)="onViewsFocusOut($event, viewsContainer)">
           <button
@@ -949,6 +1013,17 @@
       [preview]="previewFormula"
       (save)="saveFormulaColumn($event)"
       (cancel)="closeFormulaDialog()"
+    />
+  }
+
+  @if (macroDialog) {
+    <we-grid-macro-dialog
+      [macro]="macroDialog.macro"
+      [script]="macroDialog.script"
+      [usedIds]="macroIds"
+      [run]="tryMacroScript"
+      (save)="saveMacro($event)"
+      (cancel)="closeMacroDialog()"
     />
   }
 

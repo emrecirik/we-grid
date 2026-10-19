@@ -1297,3 +1297,27 @@
     linear-gradient(var(--we-grid-editing-bg, rgba(64, 81, 137, 0.06)), var(--we-grid-editing-bg, rgba(64, 81, 137, 0.06))),
     var(--we-grid-bg, #fff);
 }
+
+// ─── Macros ───────────────────────────────────────────────────────────
+.we-grid__macro-actions {
+  display: flex;
+  gap: 0.4rem;
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+  border-top: 1px solid var(--we-grid-border-color, #dee2e6);
+}
+
+.we-grid__record-dot {
+  display: inline-flex;
+  color: var(--we-grid-danger-color, #f06548);
+}
+
+.we-grid__record-btn {
+  border-color: var(--we-grid-danger-color, #f06548);
+  color: var(--we-grid-danger-color, #f06548);
+}
+
+.we-grid__views-apply.we-grid__macro-run {
+  justify-content: flex-start;
+  gap: 0.45rem;
+}

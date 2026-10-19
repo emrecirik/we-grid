@@ -34,6 +34,7 @@ const en = {
     'Column menu → Add formula column… and write =[Total] * 0.2 or =IF([Qty] > 10, "Bulk", "")',
     'Tick values in a header filter, group by City from its menu, then save the result as a View.',
     'Double-click a row to edit it; paste rows straight from Excel with Ctrl+V.',
+    'Press a macro button (Top sellers, By city) — or Macros → Record, use the grid, Stop, and save your own.',
     'Export to Excel, CSV or PDF from the toolbar.'
   ],
   sheetTitle: 'Budget',
@@ -68,6 +69,7 @@ const tr: typeof en = {
     'Kolon menüsü → Formül Kolonu Ekle… ve =[Toplam] * 0.2 ya da =EĞER([Adet] > 10; "Toptan"; "") yazın.',
     'Başlık filtresinde değer seçin, menüden Şehir’e göre gruplayın ve sonucu Görünüm olarak kaydedin.',
     'Bir satırı düzenlemek için çift tıklayın; Excel’den satırları Ctrl+V ile doğrudan yapıştırın.',
+    'Bir makro butonuna basın (En çok satanlar, Şehre göre) — ya da Makrolar → Kaydet, tabloyu kullanın, Durdurun ve kendi makronuzu kaydedin.',
     'Araç çubuğundan Excel, CSV ya da PDF olarak dışa aktarın.'
   ],
   sheetTitle: 'Bütçe',

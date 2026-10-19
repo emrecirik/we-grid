@@ -1,0 +1,78 @@
+<div class="we-grid-form__backdrop" (click)="cancel.emit()">
+  <div
+    class="we-grid-form we-grid-mx"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="we-grid-mx-title"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+    (keydown)="onKeydown($event)"
+  >
+    <div class="we-grid-form__header">
+      <h2 id="we-grid-mx-title" class="we-grid-form__title">{{ title }}</h2>
+      <button type="button" class="we-grid-form__close" (click)="cancel.emit()" [attr.aria-label]="locale.close" [title]="locale.close">
+        <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <form class="we-grid-form__body" (submit)="submit($event)" novalidate>
+      <div class="we-grid-mx__layout">
+        <div class="we-grid-mx__main">
+          <label class="we-grid-form__field">
+            <span class="we-grid-form__label">{{ locale.macroName }}</span>
+            <input class="we-grid-mx__input" name="name" maxlength="80" [(ngModel)]="name" [placeholder]="locale.macroDefaultName" cdkFocusInitial />
+          </label>
+          <label class="we-grid-form__field we-grid-mx__script-field">
+            <span class="we-grid-form__label">{{ locale.macroScript }}</span>
+            <textarea
+              class="we-grid-mx__input we-grid-mx__script"
+              name="script"
+              rows="12"
+              spellcheck="false"
+              [(ngModel)]="text"
+              [attr.aria-invalid]="errors.length > 0"
+              aria-describedby="we-grid-mx-status"
+              placeholder="SORT [Total] DESC"
+            ></textarea>
+          </label>
+          <div id="we-grid-mx-status" class="we-grid-mx__status" aria-live="polite">
+            @for (e of errors.slice(0, 5); track e.line) {
+              <div class="we-grid-mx__error"><span [innerHTML]="icon('warning')" aria-hidden="true"></span> {{ locale.macroLineError(e.line, e.message) }}</div>
+            }
+            @if (runErrors && errors.length === 0) {
+              @for (e of runErrors.slice(0, 5); track e.line) {
+                <div class="we-grid-mx__error"><span [innerHTML]="icon('warning')" aria-hidden="true"></span> {{ locale.macroLineError(e.line, e.message) }}</div>
+              } @empty {
+                <div class="we-grid-mx__ok"><span [innerHTML]="icon('check')" aria-hidden="true"></span> {{ locale.macroDone(name || locale.macroDefaultName) }}</div>
+              }
+            }
+          </div>
+          <label class="we-grid-mx__check">
+            <input type="checkbox" name="pinned" [(ngModel)]="pinned" /> {{ locale.macroPin }}
+          </label>
+        </div>
+
+        <aside class="we-grid-mx__help" [attr.aria-label]="locale.macroHelp">
+          <h3 class="we-grid-mx__help-title">{{ locale.macroHelp }}</h3>
+          <ul>
+            @for (line of cheatSheet; track line) {
+              <li><button type="button" class="we-grid-mx__help-line" (click)="insert(line)">{{ line }}</button></li>
+            }
+          </ul>
+        </aside>
+      </div>
+
+      <div class="we-grid-form__footer">
+        <button type="button" class="we-grid-form__btn" [disabled]="!canSave" (click)="tryRun()">
+          <span [innerHTML]="icon('play')" aria-hidden="true"></span> {{ locale.macroTryRun }}
+        </button>
+        <span class="we-grid-mx__spacer"></span>
+        <button type="button" class="we-grid-form__btn" (click)="cancel.emit()">{{ locale.cancelEdit }}</button>
+        <button type="submit" class="we-grid-form__btn we-grid-form__btn--primary" [disabled]="!canSave">
+          <span [innerHTML]="icon('save')" aria-hidden="true"></span> {{ locale.macroSave }}
+        </button>
+      </div>
+    </form>
+  </div>
+</div>

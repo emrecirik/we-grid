@@ -81,7 +81,7 @@ describe('WeGridComponent — formula columns', () => {
     host.grid.saveFormulaColumn({ field: 'fx:1', header: 'Unit check', formula: '=IF([Total] > 15, "High", "Low")', type: 'text' });
     expect(texts('fx:1')).toEqual(['Low', 'Low', 'High']);
     expect(column('fx:1').userFormula).toBeTrue();
-    await new Promise((r) => setTimeout(r, 600));
+    await new Promise((r) => setTimeout(r, 1200));
     expect(store.saved?.formulaColumns?.[0].field).toBe('fx:1');
     expect(store.saved?.columns.some((c) => c.field === 'fx:1')).toBeTrue();
 

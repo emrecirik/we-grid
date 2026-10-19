@@ -1,0 +1,124 @@
+// The dialog shell (backdrop, header, footer, buttons, fields) comes from the record form stylesheet
+.we-grid-mx {
+  width: min(58rem, 100%);
+}
+
+.we-grid-mx__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 18rem;
+  gap: 1rem;
+  padding: 1rem;
+  overflow-y: auto;
+
+  @media (max-width: 720px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.we-grid-mx__main {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.we-grid-mx__input {
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font: inherit;
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: -1px;
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--we-grid-danger-color, #f06548);
+  }
+}
+
+.we-grid-mx__script {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  line-height: 1.55;
+  resize: vertical;
+  white-space: pre;
+}
+
+.we-grid-mx__status {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-height: 1.25rem;
+}
+
+.we-grid-mx__error,
+.we-grid-mx__ok {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.we-grid-mx__error {
+  color: var(--we-grid-danger-color, #f06548);
+}
+
+.we-grid-mx__ok {
+  color: var(--we-grid-format-green-fg, #1e7a35);
+}
+
+.we-grid-mx__check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+}
+
+.we-grid-mx__help {
+  padding: 0.75rem;
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-chips-bg, rgba(64, 81, 137, 0.04));
+
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+.we-grid-mx__help-title {
+  margin: 0 0 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-grid-mx__help-line {
+  width: 100%;
+  padding: 0.25rem 0.35rem;
+  border: none;
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: transparent;
+  color: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  text-align: start;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.035));
+    outline: none;
+  }
+}
+
+.we-grid-mx__spacer {
+  flex: 1;
+}

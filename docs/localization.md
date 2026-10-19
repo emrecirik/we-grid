@@ -175,3 +175,15 @@ from the injected `WeGridLocale`.
 
 Formula function names are not locale keys: the engine accepts English and Turkish Excel names at
 once — see [formulas.md](formulas.md#functions).
+
+## Keys added in 0.10.0
+
+- Macros: `macrosButton`, `macroRun`, `macroEdit`, `macroDelete`, `macroPin`, `macroNew`,
+  `macroRecord`, `macroStopRecording`, `macroRecording`, `macroNoMacros`, `macroDialogNew`,
+  `macroDialogEdit`, `macroName`, `macroDefaultName`, `macroScript`, `macroHelp`, `macroSave`,
+  `macroTryRun`, `macroLineError(line, message)`, `macroDone(name)`, `macroFailed(name, problems)`,
+  `macroUnknownColumn(name)`, `macroUnknownView(name)`, `macroUnknownCommand(name)`,
+  `macroReadOnlyColumn(name)`, `macroRowsUpdated(count)`
+
+Script keywords (`SORT`, `FILTER` …) are English in every language, like formula syntax; the
+parser's own messages are English too.

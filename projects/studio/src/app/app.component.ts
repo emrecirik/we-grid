@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { WeGridComponent, WeGridExportFormat, WeGridImportFormat, WeSheetComponent, WeSheetData } from 'we-grid-angular';
-import { studioBudget, studioColumns, studioOrders, studioRules } from './studio-data';
+import { studioBudget, studioColumns, studioMacros, studioOrders, studioRules } from './studio-data';
 import { STUDIO_TEXT, StudioLanguage, saveStudioLanguage, studioLanguage } from './studio-text';
 
 type Tab = 'grid' | 'sheet' | 'start';
@@ -22,6 +22,7 @@ export class AppComponent implements OnInit {
   readonly columns = studioColumns(this.lang);
   readonly orders = studioOrders(this.lang);
   readonly rules = studioRules(this.lang);
+  readonly macros = studioMacros(this.lang);
   readonly exportFormats: WeGridExportFormat[] = ['xlsx', 'csv', 'pdf'];
   readonly importFormats: WeGridImportFormat[] = ['xlsx', 'csv'];
   readonly sheetKey = `${SHEET_KEY}-${this.lang}`;

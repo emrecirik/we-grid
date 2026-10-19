@@ -2,6 +2,26 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.10.0 — 2026-10-20
+
+Macros. A minor release — opt-in; with the new inputs at their defaults the markup is that of 0.9.0.
+
+### Added
+
+- Grid `macros`, `allowMacros`, `macroCommands` and `(macroRun)` — named scripts of grid steps run
+  from a **Macros** toolbar panel or pinned toolbar buttons: sort, filter, group, show/hide columns,
+  density, zebra rows, highlight rules, data bars and colour scales, `SET [Column] = formula WHERE …`,
+  saved views, export, messages and your own TypeScript commands (`RUN name`). Scripts are parsed,
+  never evaluated. See docs/macros.md.
+- A macro recorder: **Record**, use the grid, **Stop** — the steps are written for you.
+- A macro editor with live line-by-line checking, a clickable cheat sheet and a test run.
+- `runMacro()`, `runScript()`, `startRecording()`, `stopRecording()`, `openMacroDialog()`.
+- User macros are saved with the layout (`WeGridLayout.macros`) and survive `layoutVersion` bumps.
+- `weGridParseMacro`, `weGridMacroScript`, `weGridDiffViews`, `weGridSanitizeMacros`;
+  `WeGridMacro`, `WeGridMacroStep`, `WeGridMacroCommand`, `WeGridMacroError`.
+- Locale keys for the macros panel and editor, in English and Turkish.
+- we-grid Studio, the live demo: <https://emrecirik.github.io/we-grid/studio/>.
+
 ## 0.9.0 — 2026-10-19
 
 Spreadsheet features: formatting the user controls, Excel formula columns and a spreadsheet

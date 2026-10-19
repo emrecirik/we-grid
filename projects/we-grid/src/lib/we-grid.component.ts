@@ -68,6 +68,8 @@ import {
 import { WeGridInternalColumn, WeGridRenderItem, weGridDisplayHeader } from './models/we-grid-internal.model';
 import { WeGridScrollToRowOptions, WeGridTreeExpandEvent, WeGridTreeInfo, WeGridTreeNode } from './models/we-grid-tree.model';
 import { WeGridFormulaColumn, WeGridLayout, WeGridLayoutStore, WE_GRID_LAYOUT_STORE } from './models/we-grid-layout.model';
+import { WeGridMacro, WeGridMacroCommand, WeGridMacroError, WeGridMacroStep } from './models/we-grid-macro.model';
+import { weGridDiffViews, weGridMacroScript, weGridParseMacro } from './services/we-grid-macro.util';
 import { WeGridMenuAction } from './models/we-grid-menu-action.model';
 import {
   WeGridChecklistOption,
@@ -150,6 +152,7 @@ import { WeGridEditFormChange, WeGridEditFormComponent } from './we-grid-edit-fo
 import { WeGridFilterPopoverAction, WeGridFilterPopoverComponent } from './we-grid-filter-popover/we-grid-filter-popover.component';
 import { WeGridFormatPanelComponent } from './we-grid-format-panel/we-grid-format-panel.component';
 import { WeGridFormulaDialogComponent } from './we-grid-formula-dialog/we-grid-formula-dialog.component';
+import { WeGridMacroDialogComponent } from './we-grid-macro-dialog/we-grid-macro-dialog.component';
 import { WeGridCellStyle, WeGridFormatRule } from './models/we-grid-format.model';
 import { WeGridCellCss, weGridResolveFormats } from './services/we-grid-format.util';
 import { WeGridFormulaError, weGridTryCompileFormula } from './services/we-grid-formula.util';
@@ -212,7 +215,7 @@ let weGridOpenMenuCloser: (() => void) | null = null;
 @Component({
   selector: 'we-grid',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule, WeGridCellEditorComponent, WeGridEditFormComponent, WeGridFormatPanelComponent, WeGridFormulaDialogComponent],
+  imports: [CommonModule, FormsModule, DragDropModule, WeGridCellEditorComponent, WeGridEditFormComponent, WeGridFormatPanelComponent, WeGridFormulaDialogComponent, WeGridMacroDialogComponent],
   templateUrl: './we-grid.component.html',
   styleUrls: ['./we-grid.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -515,6 +518,15 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * Excel formulas over the other columns. They are saved with the layout and with saved views.
    */
   @Input() allowFormulaColumns = false;
+  /**
+   * Macros the grid offers — named scripts of steps (sort, filter, group, highlight, set values,
+   * export …) the user runs from the Macros panel or a toolbar button. See docs/macros.md.
+   */
+  @Input() macros: WeGridMacro[] = [];
+  /** Lets the user write, record, edit and pin their own macros; they are saved with the layout */
+  @Input() allowMacros = false;
+  /** Your own TypeScript steps, called from a script with `RUN name` */
+  @Input() macroCommands: Record<string, WeGridMacroCommand<T>> = {};
 
   @Output() pageChange = new EventEmitter<WeGridPageChange>();
   @Output() sortChange = new EventEmitter<WeGridSortChange>();
@@ -578,6 +590,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** The toolbar's refresh button was pressed — reloading is entirely the consumer's business */
   @Output() refresh = new EventEmitter<void>();
+  /** After a macro ran — with the problems it met, if any */
+  @Output() macroRun = new EventEmitter<{ macro: WeGridMacro; errors: WeGridMacroError[] }>();
 
   @ContentChildren(WeGridCellDirective) cellTemplateDirectives!: QueryList<WeGridCellDirective<T>>;
   @ContentChild(WeGridRowDetailDirective) rowDetailDirective?: WeGridRowDetailDirective<T>;
@@ -601,6 +615,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   formulaDialog: { column: WeGridFormulaColumn | null; fieldNames: string[]; usedFields: string[] } | null = null;
   private formulaValues = new WeakMap<object, Map<string, unknown>>();
   private readonly formulaEvaluating = new Set<string>();
+  /** Macros the user wrote or recorded — see allowMacros */
+  userMacros: WeGridMacro[] = [];
+  macrosPanelOpen = false;
+  /** The macro editor: null when closed */
+  macroDialog: { macro: WeGridMacro | null; script: string } | null = null;
+  /** While recording: the grid as it was when recording started, plus steps the diff can't see */
+  private recording: { before: WeGridSavedView; extra: WeGridMacroStep[] } | null = null;
+  macroRunning = false;
   /** Field whose Format panel is open */
   formatPanelField: string | null = null;
   private formatCache: { items: unknown; rules: unknown; columns: unknown; map: Map<T, Record<string, WeGridCellCss>> } | null = null;
@@ -1113,6 +1135,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         this.userStriped = merged.striped;
         this.userFormatRules = merged.formatRules;
         if (merged.formulaColumns?.length) this.applyFormulaColumns(merged.formulaColumns, saved);
+        this.userMacros = merged.macros ?? [];
         this.recomputeRenderColumns();
         if (this.groupBy?.length && this.groupFields.length === 0) this.groupFields = this.validGroupFields(this.groupBy);
         this.refreshDisplayData();
@@ -1180,7 +1203,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       filterRowVisible: this.filterRowVisible,
       ...(this.userStriped !== undefined ? { striped: this.userStriped } : {}),
       ...(this.userFormatRules ? { formatRules: this.userFormatRules } : {}),
-      ...(this.userFormulaColumns.length ? { formulaColumns: this.userFormulaColumns } : {})
+      ...(this.userFormulaColumns.length ? { formulaColumns: this.userFormulaColumns } : {}),
+      ...(this.userMacros.length ? { macros: this.userMacros } : {})
     };
   }
 
@@ -1471,6 +1495,281 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (value instanceof WeGridFormulaError) return value.code;
     return formatWeGridColumnValue(value, { ...probe, minorUnits: false, format: undefined } as WeGridInternalColumn<T>, this.valueFormatOptions(), row);
   };
+
+  // ─── Macros ──────────────────────────────────────────────────────────
+  /** Developer macros first, then the user's */
+  get allMacros(): WeGridMacro[] {
+    return this.userMacros.length ? [...this.macros, ...this.userMacros] : this.macros;
+  }
+
+  get pinnedMacros(): WeGridMacro[] {
+    return this.allMacros.filter((m) => m.pinned);
+  }
+
+  get isRecording(): boolean {
+    return this.recording !== null;
+  }
+
+  isUserMacro(macro: WeGridMacro): boolean {
+    return this.userMacros.includes(macro);
+  }
+
+  toggleMacrosPanel(): void {
+    this.macrosPanelOpen = !this.macrosPanelOpen;
+  }
+
+  onMacrosFocusOut(event: FocusEvent, container: HTMLElement): void {
+    const next = event.relatedTarget as Node | null;
+    if (!next || !container.contains(next)) this.macrosPanelOpen = false;
+  }
+
+  /** Runs a macro by object or id; resolves with the problems it met */
+  async runMacro(macroOrId: WeGridMacro | string): Promise<WeGridMacroError[]> {
+    const macro = typeof macroOrId === 'string' ? this.allMacros.find((m) => m.id === macroOrId) : macroOrId;
+    if (!macro || this.macroRunning) return [];
+    this.macrosPanelOpen = false;
+    const errors = await this.runScript(macro.script);
+    const first = errors[0];
+    this.showNotice(
+      first ? `${this.locale.macroFailed(macro.name, errors.length)} — ${this.locale.macroLineError(first.line, first.message)}` : this.locale.macroDone(macro.name),
+      errors.length > 0
+    );
+    this.macroRun.emit({ macro, errors });
+    return errors;
+  }
+
+  /**
+   * Runs a script, step by step. Grid steps (sort, filter, group, columns, density, zebra, formats)
+   * are gathered and applied together as a view, so the grid recomputes once and a server-side grid
+   * gets one round of events; SET, VIEW, EXPORT, RUN and MESSAGE apply what came before them first.
+   */
+  async runScript(script: string): Promise<WeGridMacroError[]> {
+    const { lines, errors } = weGridParseMacro(script);
+    this.macroRunning = true;
+    let view: WeGridSavedView | null = null;
+    const flush = (): void => {
+      if (view) this.applyView(view);
+      view = null;
+    };
+    const work = (): WeGridSavedView => (view ??= this.getCurrentView('macro'));
+    try {
+      for (const { line, step } of lines) {
+        const problem = await this.runStep(step, work, flush);
+        if (problem) errors.push({ line, message: problem });
+      }
+      flush();
+    } finally {
+      this.macroRunning = false;
+      this.cdr.markForCheck();
+    }
+    return errors.sort((a, b) => a.line - b.line);
+  }
+
+  /** One step — returns a problem message, or null */
+  private async runStep(step: WeGridMacroStep, work: () => WeGridSavedView, flush: () => void): Promise<string | null> {
+    const col = (name: string) => this.columnByRef(name);
+    switch (step.op) {
+      case 'sort': {
+        if (!step.field) {
+          work().sort = null;
+          return null;
+        }
+        const c = col(step.field);
+        if (!c) return this.locale.macroUnknownColumn(step.field);
+        work().sort = step.direction ? { field: c.field, direction: step.direction } : null;
+        return null;
+      }
+      case 'filter': {
+        const c = col(step.field);
+        if (!c) return this.locale.macroUnknownColumn(step.field);
+        const filter = this.macroFilter(c, step.operator, step.values);
+        const v = work();
+        v.filters = [...(v.filters ?? []).filter((f) => f.field !== c.field), filter];
+        return null;
+      }
+      case 'clearFilters':
+        work().filters = [];
+        return null;
+      case 'group': {
+        const fields: string[] = [];
+        for (const name of step.fields) {
+          const c = col(name);
+          if (!c) return this.locale.macroUnknownColumn(name);
+          fields.push(c.field);
+        }
+        const v = work();
+        v.groupField = fields[0] ?? null;
+        v.groupFields = fields.length > 1 ? fields : undefined;
+        return null;
+      }
+      case 'ungroup': {
+        const v = work();
+        v.groupField = null;
+        v.groupFields = undefined;
+        return null;
+      }
+      case 'show':
+      case 'hide': {
+        const v = work();
+        for (const name of step.fields) {
+          const c = col(name);
+          if (!c) return this.locale.macroUnknownColumn(name);
+          const layout = v.columns.find((l) => l.field === c.field);
+          if (layout && !(step.op === 'hide' && c.lockVisible)) layout.visible = step.op === 'show';
+        }
+        return null;
+      }
+      case 'density':
+        work().density = step.density;
+        return null;
+      case 'zebra':
+        work().striped = step.on;
+        return null;
+      case 'clearFormats': {
+        const v = work();
+        const c = step.field ? col(step.field) : null;
+        if (step.field && !c) return this.locale.macroUnknownColumn(step.field);
+        v.formatRules = c ? (v.formatRules ?? this.activeFormatRules).filter((r) => r.field !== c.field) : [];
+        return null;
+      }
+      case 'format': {
+        const v = work();
+        const field = step.rule.field === '*' ? this.renderColumns[0]?.field : col(step.rule.field)?.field;
+        if (!field) return this.locale.macroUnknownColumn(step.rule.field);
+        const rules = v.formatRules ?? [...this.activeFormatRules];
+        let n = rules.length + 1;
+        while (rules.some((r) => r.id === `m${n}`)) n++;
+        v.formatRules = [...rules, { ...step.rule, field, id: `m${n}` }];
+        return null;
+      }
+      case 'set':
+        flush();
+        return this.macroSet(step.field, step.formula, step.where);
+      case 'view': {
+        flush();
+        const target = this.views.find((x) => x.name.toLocaleLowerCase() === step.name.toLocaleLowerCase());
+        if (!target) return this.locale.macroUnknownView(step.name);
+        this.applyView(target);
+        return null;
+      }
+      case 'export':
+        flush();
+        this.exportAs(step.format);
+        return null;
+      case 'run': {
+        flush();
+        const command = this.macroCommands[step.command];
+        if (!command) return this.locale.macroUnknownCommand(step.command);
+        try {
+          await command(this);
+        } catch (error: unknown) {
+          return error instanceof Error ? error.message : String(error);
+        }
+        return null;
+      }
+      case 'message':
+        flush();
+        this.showNotice(step.text, false);
+        return null;
+    }
+  }
+
+  /** A script comparison in the column's own filter terms — text equality, number and date ranges */
+  private macroFilter(col: WeGridInternalColumn<T>, operator: string, values: (string | number | boolean)[]): WeGridColumnFilterState {
+    const kind = weGridValueKind(col.type);
+    const scale = this.inputScale(col);
+    const v = (x: string | number | boolean | undefined): string | number | boolean | null =>
+      x === undefined ? null : typeof x === 'number' ? Math.round(x * scale * 1e6) / 1e6 : x;
+    const map: Record<string, WeGridFilterOperator> =
+      kind === 'date' ? { '=': 'eq', '>': 'after', '<': 'before' } : kind === 'number' ? { '=': 'eq', '>': 'gt', '<': 'lt' } : { '=': 'equals', '>': 'gt', '<': 'lt' };
+    const op = (map[operator] ?? operator) as WeGridFilterOperator;
+    if (op === 'in') return { field: col.field, operator: op, value: values.map(v) };
+    if (op === 'between') return { field: col.field, operator: op, value: v(values[0]), value2: v(values[1]) };
+    return { field: col.field, operator: op, value: v(values[0]) };
+  }
+
+  /** `SET [Column] = formula WHERE condition` — over the rows shown, through the paste/batch contract */
+  private macroSet(name: string, formula: string, where: string | null): string | null {
+    const target = this.columnByRef(name);
+    if (!target) return this.locale.macroUnknownColumn(name);
+    if (!target.editable || target.formula) return this.locale.macroReadOnlyColumn(weGridDisplayHeader(target));
+    const updates: WeGridPastedRow<T>[] = [];
+    for (const row of this.displayData) {
+      if (where) {
+        const ok = this.evaluateRowFormula(where, row);
+        if (!(ok === true || (typeof ok === 'number' && ok !== 0))) continue;
+      }
+      const value = this.evaluateRowFormula(formula, row);
+      if (value instanceof WeGridFormulaError || Array.isArray(value)) continue;
+      if (weGridSameEditValue(getNestedValue(row, target.field), value)) continue;
+      const updated = { ...(row as object) } as T;
+      setNestedValue(updated, target.field, value);
+      updates.push({ row: updated, original: row, rowIndex: this.displayData.indexOf(row), changes: { [target.field]: value } });
+    }
+    if (updates.length) this.commitRowBatch(updates, [], [], this.locale.macroRowsUpdated(updates.length), false);
+    return null;
+  }
+
+  startRecording(): void {
+    this.macrosPanelOpen = false;
+    this.recording = { before: this.getCurrentView('before'), extra: [] };
+    this.cdr.markForCheck();
+  }
+
+  /** Stops recording and opens the editor with the recorded steps */
+  stopRecording(): string {
+    if (!this.recording) return '';
+    const { before, extra } = this.recording;
+    this.recording = null;
+    const steps = [...weGridDiffViews(before, this.getCurrentView('after'), (f) => this.headerForField(f)), ...extra];
+    const script = weGridMacroScript(steps);
+    this.openMacroDialog(null, script);
+    return script;
+  }
+
+  private headerForField(field: string): string {
+    const col = this.internalColumns.find((c) => c.field === field);
+    return col ? weGridDisplayHeader(col) : field;
+  }
+
+  /** Ids in use, for the dialog to pick a new one — worked out when it opens */
+  macroIds: string[] = [];
+
+  openMacroDialog(macro: WeGridMacro | null, script = ''): void {
+    this.macrosPanelOpen = false;
+    this.macroIds = this.allMacros.map((m) => m.id);
+    this.macroDialog = { macro, script: macro?.script ?? script };
+    this.cdr.markForCheck();
+  }
+
+  closeMacroDialog(): void {
+    this.macroDialog = null;
+    this.cdr.markForCheck();
+  }
+
+  saveMacro(macro: WeGridMacro): void {
+    const exists = this.userMacros.some((m) => m.id === macro.id);
+    this.userMacros = exists ? this.userMacros.map((m) => (m.id === macro.id ? macro : m)) : [...this.userMacros, macro];
+    this.macroDialog = null;
+    this.scheduleLayoutSave();
+    this.cdr.markForCheck();
+  }
+
+  deleteMacro(macro: WeGridMacro): void {
+    this.userMacros = this.userMacros.filter((m) => m !== macro);
+    this.scheduleLayoutSave();
+    this.cdr.markForCheck();
+  }
+
+  togglePinMacro(macro: WeGridMacro): void {
+    if (!this.isUserMacro(macro)) return;
+    this.userMacros = this.userMacros.map((m) => (m === macro ? { ...m, pinned: !m.pinned || undefined } : m));
+    this.scheduleLayoutSave();
+    this.cdr.markForCheck();
+  }
+
+  /** Bound for the macro dialog's "Run now" */
+  readonly tryMacroScript = (script: string): Promise<WeGridMacroError[]> => this.runScript(script);
 
   onFormatStyleChange(style: WeGridCellStyle): void {
     const col = this.formatPanelColumn;
@@ -3030,6 +3329,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   exportAs(format: WeGridExportFormat): void {
+    this.recording?.extra.push({ op: 'export', format });
     const scope = this.exportScope;
     const rows = scope === 'selected' ? this.selectedRows : this.treeActive ? this.treeFilteredRows : this.displayData;
     const table = this.buildExportTable(rows);
@@ -3641,6 +3941,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       return;
     }
 
+    this.commitRowBatch(updates, created, errors, summary, hasProblems);
+  }
+
+  /**
+   * Hands a batch of row changes to `(rowsPaste)`, or applies them to the rows itself when nobody
+   * listens — shared by spreadsheet paste and the macro `SET` step.
+   */
+  private commitRowBatch(updates: WeGridPastedRow<T>[], created: T[], errors: string[], summary: string, hasProblems: boolean): void {
     if (!this.rowsPaste.observed) {
       for (const update of updates) {
         for (const [field, value] of Object.entries(update.changes)) setNestedValue(update.original, field, value);

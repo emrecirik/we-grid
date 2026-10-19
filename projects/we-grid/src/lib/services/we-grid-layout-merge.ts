@@ -11,6 +11,8 @@ import { WeGridFormulaColumn, WeGridLayout } from '../models/we-grid-layout.mode
 import { WeGridRowEventName } from '../models/we-grid-events.model';
 import { WeGridFormatRule } from '../models/we-grid-format.model';
 import { weGridSanitizeCellStyle, weGridSanitizeFormatRules } from './we-grid-format.util';
+import { weGridSanitizeMacros } from './we-grid-macro.util';
+import { WeGridMacro } from '../models/we-grid-macro.model';
 
 /** Default column width used when the developer doesn't supply `width` and it isn't in the saved layout either */
 export const WE_GRID_DEFAULT_COLUMN_WIDTH = 150;
@@ -24,6 +26,7 @@ export interface WeGridMergedLayout<T> {
   striped: boolean | undefined;
   formatRules: WeGridFormatRule[] | undefined;
   formulaColumns: WeGridFormulaColumn[] | undefined;
+  macros: WeGridMacro[] | undefined;
 }
 
 /**
@@ -138,7 +141,9 @@ export function mergeGridLayout<T>(
     filterRowVisible: useSaved ? saved?.filterRowVisible : undefined,
     striped: useSaved ? saved?.striped : undefined,
     formatRules: useSaved && saved?.formatRules ? weGridSanitizeFormatRules(saved.formatRules) : undefined,
-    formulaColumns: useSaved && saved?.formulaColumns ? weGridSanitizeFormulaColumns(saved.formulaColumns) : undefined
+    formulaColumns: useSaved && saved?.formulaColumns ? weGridSanitizeFormulaColumns(saved.formulaColumns) : undefined,
+    // Macros are tools, not layout — a layoutVersion bump keeps them
+    macros: saved?.macros ? weGridSanitizeMacros(saved.macros) : undefined
   };
 }
 

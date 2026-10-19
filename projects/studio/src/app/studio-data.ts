@@ -1,4 +1,4 @@
-import { WeGridColumnDef, WeGridFormatRule, WeSheetData } from 'we-grid-angular';
+import { WeGridColumnDef, WeGridFormatRule, WeGridMacro, WeSheetData } from 'we-grid-angular';
 import { StudioLanguage } from './studio-text';
 
 /** A fictional sales order — every value comes from a seeded generator */
@@ -143,4 +143,19 @@ export function studioBudget(lang: StudioLanguage): WeSheetData {
   }
   cells[`E${total}`] = { v: `=D${total}/B${total}`, f: 'percent', s: { bold: true, fill: 'yellow', color: 'yellow' } };
   return { version: 1, rows: 40, cols: 10, headerRow: true, striped: true, widths: { A: 190, F: 90 }, cells };
+}
+
+export function studioMacros(lang: StudioLanguage): WeGridMacro[] {
+  if (lang === 'tr') {
+    return [
+      { id: 'top', name: 'En çok satanlar', pinned: true, script: 'CLEAR FILTERS\nUNGROUP\nFILTER [Durum] = "Teslim edildi"\nSORT [Toplam] DESC\nHIGHLIGHT [Toplam] TOP 10 GREEN BOLD' },
+      { id: 'city', name: 'Şehre göre', pinned: true, script: 'CLEAR FILTERS\nGROUP BY [Şehir], [Kategori]\nSORT [Toplam] DESC' },
+      { id: 'reset', name: 'Sıfırla', script: 'CLEAR FILTERS\nUNGROUP\nCLEAR SORT\nMESSAGE "Tablo sıfırlandı"' }
+    ];
+  }
+  return [
+    { id: 'top', name: 'Top sellers', pinned: true, script: 'CLEAR FILTERS\nUNGROUP\nFILTER [Status] = "Delivered"\nSORT [Total] DESC\nHIGHLIGHT [Total] TOP 10 GREEN BOLD' },
+    { id: 'city', name: 'By city', pinned: true, script: 'CLEAR FILTERS\nGROUP BY [City], [Category]\nSORT [Total] DESC' },
+    { id: 'reset', name: 'Reset', script: 'CLEAR FILTERS\nUNGROUP\nCLEAR SORT\nMESSAGE "The grid is back to normal"' }
+  ];
 }

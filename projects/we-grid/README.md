@@ -62,6 +62,7 @@ default theme to your global styles:
 - Theming through plain CSS custom properties (`--we-grid-*`), light and dark
 - Excel-style formatting the user controls — cell styles, conditional rules, colour scales, data
   bars, zebra rows — and formula columns (`=[Price] * [Qty]`, 40-odd Excel functions, no `eval`)
+- Macros: scripted grid steps run from toolbar buttons, a recorder, and your own commands
 - `<we-sheet>`: a spreadsheet with A1 formulas, a formula bar, Excel copy/paste, undo, number
   formats, sorting and Excel/CSV export
 - An optional Apple-style theme (`styles/we-grid-theme-apple.scss`)
@@ -85,6 +86,7 @@ Full docs, screenshots and three runnable sample applications live in the reposi
 - [Inline row editing](https://github.com/emrecirik/we-grid/blob/main/docs/row-editing.md)
 - [Formatting](https://github.com/emrecirik/we-grid/blob/main/docs/formatting.md)
 - [Formulas](https://github.com/emrecirik/we-grid/blob/main/docs/formulas.md)
+- [Macros](https://github.com/emrecirik/we-grid/blob/main/docs/macros.md)
 - [Spreadsheet `<we-sheet>`](https://github.com/emrecirik/we-grid/blob/main/docs/sheet.md)
 - [Theming](https://github.com/emrecirik/we-grid/blob/main/docs/theming.md)
 - [Localization](https://github.com/emrecirik/we-grid/blob/main/docs/localization.md)
