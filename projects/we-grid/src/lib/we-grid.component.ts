@@ -1033,6 +1033,16 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       // Back to flat rows — the tree's open state belongs to the tree
       this.resetTreeState();
     }
+    if (changes['gridKey'] && !changes['gridKey'].firstChange) {
+      // Another table: its own saved layout, user formatting, formula columns, macros and views apply.
+      // shortcut: a layout save still pending from the old key lands under the new one; flush the debounce if that ever matters
+      this.userStriped = undefined;
+      this.userFormatRules = undefined;
+      this.userFormulaColumns = [];
+      this.userMacros = [];
+      this.loadLayout();
+      if (this.savedViews) this.loadViews();
+    }
     if (changes['gridKey'] && !changes['gridKey'].firstChange && this.treeActive) {
       // Another record set — the open rows of the previous one mean nothing here
       this.resetTreeState();

@@ -32,6 +32,11 @@ export class BudgetComponent {}
 | Header row, zebra rows | Row 1 as a header (bold, kept out of sorting, the column titles of an export) and alternate row tint. |
 | Grow | Add a row or a column; pasting past the edge grows the sheet. Drag a column header's edge to resize. |
 | Status bar | Average, min, max, count and sum of the selection, as in Excel. |
+| Right-click menu *(0.11.0)* | Insert rows above/below, insert columns left/right, delete rows or columns, clear contents or formatting, AutoSum, sort — also on the context-menu key or Shift+F10. Every formula's references follow: inserted rows push them down, deleted cells turn them into `#REF!`, a range that loses an end shrinks. |
+| Σ AutoSum *(0.11.0)* | Alt+= or the Σ button: a block gets a `=SUM()` under each column; one cell sums the numbers right above it, or to its left. |
+| Open a file *(0.11.0)* | Excel (`.xlsx`) or CSV into the sheet from A1, with row 1 as the header — undoable. |
+| Freeze *(0.11.0)* | Column A stays in view while scrolling sideways; with a header row, row 1 stays at the top. |
+| Function suggestions *(0.11.0)* | Typing `=SU` (or `=TOP` in Turkish) lists matching functions with their arguments; arrows choose, Tab or Enter inserts `SUM(`, Escape closes. |
 | Export | Excel (`.xlsx`, numbers stay numbers) and CSV, of the used range. |
 
 All formula functions, their Turkish names and the error values are listed in
@@ -55,7 +60,9 @@ All formula functions, their Turkish names and the error values are listed in
 
 Public methods: `getData()`, `setData(data)`, `getValue('B3')`, `setCell('C2', '=A2*B2')`,
 `select('A1:C5')`, `selectionLabel`, `sort('asc' \| 'desc')`, `fillDown()`, `undo()`, `redo()`,
-`addRow()`, `addColumn()`, `exportAs('xlsx' \| 'csv')`, `buildExportTable()`.
+`addRow()`, `addColumn()`, `insertRows('before' \| 'after')`, `insertColumns('before' \| 'after')`,
+`deleteRows()`, `deleteColumns()`, `autoSum()`, `toggleFreezeColumn()`, `openImport()`,
+`exportAs('xlsx' \| 'csv')`, `buildExportTable()`.
 
 Content projected with the `weSheetToolbar` attribute is placed in the toolbar — your own buttons
 next to the built-in ones:
@@ -98,5 +105,6 @@ never inject CSS or markup. Formulas are evaluated by the formula engine — nev
 
 `weSheetAddress`, `weSheetParseAddress`, `weSheetRangeLabel`, `weSheetParseInput`,
 `weSheetParseNumber`, `weSheetShiftFormula`, `weSheetStats`, `weSheetSortRange`,
-`weSheetFormatValue`, `weSheetSanitize`, `weSheetEmpty` — the pure functions the component is built
+`weSheetFormatValue`, `weSheetSanitize`, `weSheetEmpty`, `weSheetInsert`, `weSheetMoveReferences`,
+`weSheetAutoSum` — the pure functions the component is built
 on, exported for servers and tests.

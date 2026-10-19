@@ -283,6 +283,30 @@ export interface WeGridLocale {
   sheetSelectAll: string;
   /** Read out for a cell — `address` is like B3 */
   sheetCellLabel: (address: string, text: string) => string;
+  sheetInsertRowAbove: string;
+  sheetInsertRowBelow: string;
+  sheetDeleteRows: string;
+  sheetInsertColumnLeft: string;
+  sheetInsertColumnRight: string;
+  sheetDeleteColumns: string;
+  sheetClearContents: string;
+  sheetAutoSum: string;
+  sheetImport: string;
+  sheetImportFailed: string;
+  sheetFreezeColumn: string;
+  sheetSuggestions: string;
+
+  // ─── <we-pivot> ───
+  pivotLabel: string;
+  pivotRows: string;
+  pivotColumns: string;
+  pivotValues: string;
+  pivotAddField: string;
+  pivotRemove: (field: string) => string;
+  pivotAggregate: string;
+  pivotTotal: string;
+  pivotTruncated: string;
+  pivotSwap: string;
 
   // ─── Macros (the grid's `allowMacros` / `macros` inputs) ───
   macrosButton: string;
@@ -548,6 +572,28 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetAddColumn: 'Add column',
   sheetSelectAll: 'Select all',
   sheetCellLabel: (address, text) => (text ? `${address}, ${text}` : `${address}, empty`),
+  sheetInsertRowAbove: 'Insert row above',
+  sheetInsertRowBelow: 'Insert row below',
+  sheetDeleteRows: 'Delete rows',
+  sheetInsertColumnLeft: 'Insert column left',
+  sheetInsertColumnRight: 'Insert column right',
+  sheetDeleteColumns: 'Delete columns',
+  sheetClearContents: 'Clear contents',
+  sheetAutoSum: 'AutoSum',
+  sheetImport: 'Open Excel or CSV',
+  sheetImportFailed: 'The file could not be read',
+  sheetFreezeColumn: 'Freeze first column',
+  sheetSuggestions: 'Functions',
+  pivotLabel: 'Pivot table',
+  pivotRows: 'Rows',
+  pivotColumns: 'Columns',
+  pivotValues: 'Values',
+  pivotAddField: 'Add…',
+  pivotRemove: (field) => `Remove ${field}`,
+  pivotAggregate: 'Summarise by',
+  pivotTotal: 'Total',
+  pivotTruncated: 'Only the first columns are shown — use fewer column fields.',
+  pivotSwap: 'Swap rows and columns',
   macrosButton: 'Macros',
   macroRun: 'Run',
   macroEdit: 'Edit',
@@ -828,6 +874,28 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetAddColumn: 'Kolon ekle',
   sheetSelectAll: 'Tümünü seç',
   sheetCellLabel: (address, text) => (text ? `${address}, ${text}` : `${address}, boş`),
+  sheetInsertRowAbove: 'Üste satır ekle',
+  sheetInsertRowBelow: 'Alta satır ekle',
+  sheetDeleteRows: 'Satırları sil',
+  sheetInsertColumnLeft: 'Sola kolon ekle',
+  sheetInsertColumnRight: 'Sağa kolon ekle',
+  sheetDeleteColumns: 'Kolonları sil',
+  sheetClearContents: 'İçeriği temizle',
+  sheetAutoSum: 'Otomatik Toplam',
+  sheetImport: 'Excel ya da CSV aç',
+  sheetImportFailed: 'Dosya okunamadı',
+  sheetFreezeColumn: 'İlk kolonu dondur',
+  sheetSuggestions: 'Fonksiyonlar',
+  pivotLabel: 'Pivot tablo',
+  pivotRows: 'Satırlar',
+  pivotColumns: 'Kolonlar',
+  pivotValues: 'Değerler',
+  pivotAddField: 'Ekle…',
+  pivotRemove: (field) => `${field} alanını kaldır`,
+  pivotAggregate: 'Özetleme',
+  pivotTotal: 'Toplam',
+  pivotTruncated: 'Yalnızca ilk kolonlar gösteriliyor — daha az kolon alanı kullanın.',
+  pivotSwap: 'Satırlarla kolonları değiştir',
   macrosButton: 'Makrolar',
   macroRun: 'Çalıştır',
   macroEdit: 'Düzenle',

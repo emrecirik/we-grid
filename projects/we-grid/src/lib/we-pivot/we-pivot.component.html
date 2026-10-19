@@ -1,0 +1,73 @@
+<div class="we-pivot" role="region" [attr.aria-label]="locale.pivotLabel">
+  <div class="we-pivot__config">
+    @for (zone of ['rows', 'columns']; track zone) {
+      <div class="we-pivot__zone" role="group" [attr.aria-label]="zone === 'rows' ? locale.pivotRows : locale.pivotColumns">
+        <span class="we-pivot__zone-label">{{ zone === 'rows' ? locale.pivotRows : locale.pivotColumns }}</span>
+        @for (field of $any(config)[zone]; track field; let i = $index) {
+          <span class="we-pivot__chip">
+            @if (i > 0) {
+              <button type="button" class="we-pivot__chip-btn" (click)="moveLeft($any(zone), i)" [attr.aria-label]="locale.moveColumnLeft + ': ' + header(field)" [title]="locale.moveColumnLeft">
+                <span class="we-pivot__flip" [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+              </button>
+            }
+            {{ header(field) }}
+            <button type="button" class="we-pivot__chip-btn" (click)="remove($any(zone), i)" [attr.aria-label]="locale.pivotRemove(header(field))" [title]="locale.pivotRemove(header(field))">
+              <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+            </button>
+          </span>
+        }
+        <select #pick class="we-pivot__add" (change)="add($any(zone), pick.value, pick)" [attr.aria-label]="(zone === 'rows' ? locale.pivotRows : locale.pivotColumns) + ': ' + locale.pivotAddField">
+          <option value="">{{ locale.pivotAddField }}</option>
+          @for (f of available($any(zone)); track f.field) {
+            <option [value]="f.field">{{ f.header }}</option>
+          }
+        </select>
+      </div>
+    }
+
+    <div class="we-pivot__zone" role="group" [attr.aria-label]="locale.pivotValues">
+      <span class="we-pivot__zone-label">{{ locale.pivotValues }}</span>
+      @for (v of config.values; track $index; let i = $index) {
+        <span class="we-pivot__chip we-pivot__chip--value">
+          <select class="we-pivot__agg" [ngModel]="v.aggregate" (ngModelChange)="setAggregate(i, $event)" [attr.aria-label]="locale.pivotAggregate + ': ' + header(v.field)">
+            @for (a of aggregates; track a) {
+              <option [value]="a">{{ aggregateLabel(a) }}</option>
+            }
+          </select>
+          {{ header(v.field) }}
+          <button type="button" class="we-pivot__chip-btn" (click)="remove('values', i)" [attr.aria-label]="locale.pivotRemove(header(v.field))" [title]="locale.pivotRemove(header(v.field))">
+            <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+          </button>
+        </span>
+      }
+      <select #pickValue class="we-pivot__add" (change)="add('values', pickValue.value, pickValue)" [attr.aria-label]="locale.pivotValues + ': ' + locale.pivotAddField">
+        <option value="">{{ locale.pivotAddField }}</option>
+        @for (f of available('values'); track f.field) {
+          <option [value]="f.field">{{ f.header }}</option>
+        }
+      </select>
+    </div>
+
+    <button type="button" class="we-pivot__swap" (click)="swap()" [attr.aria-label]="locale.pivotSwap" [title]="locale.pivotSwap">
+      <span [innerHTML]="icon('arrowLeftRight')" aria-hidden="true"></span>
+    </button>
+  </div>
+
+  @if (result.truncated) {
+    <p class="we-pivot__note" role="status">{{ locale.pivotTruncated }}</p>
+  }
+
+  <we-grid
+      [gridKey]="resultKey"
+      [columns]="$any(result.columns)"
+      [data]="result.rows"
+      trackByField="pivot:id"
+      [grouping]="result.groupBy.length > 0"
+      [groupBy]="result.groupBy"
+      [exportFormats]="exportFormats"
+      [exportFileName]="locale.pivotLabel"
+      [formatting]="true"
+      [maxHeight]="maxHeight"
+      footer="count"
+    ></we-grid>
+</div>

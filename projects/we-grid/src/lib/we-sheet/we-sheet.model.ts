@@ -34,6 +34,8 @@ export interface WeSheetData {
   headerRow?: boolean;
   /** Zebra rows */
   striped?: boolean;
+  /** Column A stays in view while scrolling sideways */
+  freezeColumn?: boolean;
 }
 
 /** Persistence for `<we-sheet sheetKey="…">` — the same dependency-inversion contract as `WeGridLayoutStore` */

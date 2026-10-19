@@ -24,10 +24,18 @@ import { WeGridCellStyle, WeGridFormatColor } from '../models/we-grid-format.mod
 import { WE_GRID_ICONS, WeGridIcons } from '../models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 import { weGridParseClipboardTable } from '../services/we-grid-clipboard.util';
-import { weGridDownloadBlob, weGridToCsv } from '../services/we-grid-csv.util';
+import { weGridDownloadBlob, weGridParseCsv, weGridToCsv } from '../services/we-grid-csv.util';
 import { WeGridCellCss, weGridCellStyleCss, weGridFormatBg, weGridFormatFg } from '../services/we-grid-format.util';
-import { WeGridSheetEvaluator, weGridColumnLetter, weGridFormulaValueToText, weGridIsFormula } from '../services/we-grid-formula.util';
-import { weGridBuildXlsx } from '../services/we-grid-xlsx.util';
+import {
+  WE_GRID_FORMULA_ALIASES,
+  WE_GRID_FORMULA_FUNCTIONS,
+  WE_GRID_FORMULA_SIGNATURES,
+  WeGridSheetEvaluator,
+  weGridColumnLetter,
+  weGridFormulaValueToText,
+  weGridIsFormula
+} from '../services/we-grid-formula.util';
+import { weGridBuildXlsx, weGridReadXlsx } from '../services/we-grid-xlsx.util';
 import { WE_SHEET_STORE, WeSheetCell, WeSheetData, WeSheetNumberFormat, WeSheetStore } from './we-sheet.model';
 import {
   WE_SHEET_COLORS,
@@ -36,7 +44,9 @@ import {
   WeSheetRange,
   WeSheetStats,
   weSheetAddress,
+  weSheetAutoSum,
   weSheetEmpty,
+  weSheetInsert,
   weSheetFormatValue,
   weSheetNormalize,
   weSheetParseAddress,
@@ -63,6 +73,18 @@ interface CellView {
 
 const DEFAULT_WIDTH = 104;
 const UNDO_LIMIT = 100;
+
+/** Every name the formula engine accepts, English and Turkish, with what it means — for suggestions */
+const FUNCTION_NAMES: { name: string; canonical: string }[] = [
+  ...WE_GRID_FORMULA_FUNCTIONS.map((name) => ({ name, canonical: name })),
+  ...Object.entries(WE_GRID_FORMULA_ALIASES).map(([name, canonical]) => ({ name, canonical }))
+];
+
+/** One function suggestion while a formula is typed */
+export interface WeSheetSuggestion {
+  name: string;
+  signature: string;
+}
 
 /**
  * `<we-sheet>` — a small spreadsheet: type values and Excel formulas into A1 cells, select ranges,
@@ -100,6 +122,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   @ViewChild('scroll', { static: true }) scrollRef!: ElementRef<HTMLElement>;
   @ViewChild('editor') editorRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('importInput') importInputRef?: ElementRef<HTMLInputElement>;
 
   sheet: WeSheetData = weSheetEmpty();
   view: CellView[][] = [];
@@ -116,6 +139,14 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   barText = '';
   stats: WeSheetStats = weSheetStats([]);
   openPalette: 'color' | 'fill' | null = null;
+  /** The right-click menu, at viewport coordinates */
+  menu: { x: number; y: number } | null = null;
+  /** Function names matching what is being typed after `=` */
+  suggestions: WeSheetSuggestion[] = [];
+  suggestionIndex = 0;
+  /** Where the suggestions list sits — under the cell editor or under the formula bar */
+  suggestionsFor: 'cell' | 'bar' = 'cell';
+  notice: string | null = null;
 
   readonly colors = WE_SHEET_COLORS;
   readonly formats: WeSheetNumberFormat[] = ['general', 'number', 'integer', 'currency', 'percent', 'date', 'text'];
@@ -340,6 +371,23 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   onGridKeydown(event: KeyboardEvent): void {
     if (this.editing) return;
+    if (this.menu && event.key === 'Escape') {
+      this.closeMenu();
+      event.preventDefault();
+      return;
+    }
+    if (event.altKey && event.key === '=') {
+      this.autoSum();
+      event.preventDefault();
+      return;
+    }
+    if (event.key === 'ContextMenu' || (event.shiftKey && event.key === 'F10')) {
+      const cell = this.scrollRef.nativeElement.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(this.active.col, this.active.row)}"]`);
+      const box = cell?.getBoundingClientRect();
+      this.openMenu(box ? box.left + 8 : 40, box ? box.bottom : 40);
+      event.preventDefault();
+      return;
+    }
     const mod = event.ctrlKey || event.metaKey;
     const key = event.key;
     if (mod) {
@@ -402,6 +450,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (!this.editing) return;
     // The editor sits inside the grid — its keys must not reach the grid's own handler as well
     event.stopPropagation();
+    if (this.handleSuggestionKey(event, event.target as HTMLInputElement)) return;
     if (event.key === 'Enter' || event.key === 'Tab') {
       event.preventDefault();
       const back = event.shiftKey ? -1 : 1;
@@ -422,12 +471,15 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.editing = { ...this.active, text: this.barText, fromBar: true };
   }
 
-  onBarInput(text: string): void {
-    this.barText = text;
-    if (this.editing) this.editing.text = text;
+  onBarInput(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    this.barText = input.value;
+    if (this.editing) this.editing.text = input.value;
+    this.updateSuggestions(input, 'bar');
   }
 
   onBarKeydown(event: KeyboardEvent): void {
+    if (this.handleSuggestionKey(event, event.target as HTMLInputElement)) return;
     if (event.key === 'Enter') {
       event.preventDefault();
       this.commitEdit();
@@ -466,16 +518,19 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  onEditorInput(text: string): void {
+  onEditorInput(event: Event): void {
     if (!this.editing) return;
-    this.editing.text = text;
-    this.barText = text;
+    const input = event.target as HTMLInputElement;
+    this.editing.text = input.value;
+    this.barText = input.value;
+    this.updateSuggestions(input, 'cell');
   }
 
   commitEdit(): void {
     const e = this.editing;
     if (!e) return;
     this.editing = null;
+    this.suggestions = [];
     if (e.text === this.rawText(e.col, e.row)) {
       this.cdr.markForCheck();
       return;
@@ -487,6 +542,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   cancelEdit(): void {
     this.editing = null;
+    this.suggestions = [];
     this.barText = this.rawText(this.active.col, this.active.row);
     this.scrollRef.nativeElement.focus({ preventScroll: true });
     this.cdr.markForCheck();
@@ -530,6 +586,186 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   toggleStriped(): void {
     this.commit({ ...this.sheet, striped: !this.sheet.striped || undefined });
+  }
+
+  toggleFreezeColumn(): void {
+    this.commit({ ...this.sheet, freezeColumn: !this.sheet.freezeColumn || undefined });
+  }
+
+  // ─── Rows and columns ────────────────────────────────────────────────
+
+  /** Inserts as many rows as are selected, above (`'before'`) or below the selection */
+  insertRows(where: 'before' | 'after'): void {
+    const s = this.selection;
+    this.structure('row', where === 'before' ? s.r1 : s.r2 + 1, s.r2 - s.r1 + 1);
+  }
+
+  insertColumns(where: 'before' | 'after'): void {
+    const s = this.selection;
+    this.structure('col', where === 'before' ? s.c1 : s.c2 + 1, s.c2 - s.c1 + 1);
+  }
+
+  deleteRows(): void {
+    const s = this.selection;
+    if (s.r2 - s.r1 + 1 >= this.sheet.rows) return;
+    this.structure('row', s.r1, -(s.r2 - s.r1 + 1));
+  }
+
+  deleteColumns(): void {
+    const s = this.selection;
+    if (s.c2 - s.c1 + 1 >= this.sheet.cols) return;
+    this.structure('col', s.c1, -(s.c2 - s.c1 + 1));
+  }
+
+  private structure(axis: 'row' | 'col', at: number, count: number): void {
+    this.closeMenu();
+    if (this.readonly) return;
+    this.commitEdit();
+    this.commit(weSheetInsert(this.sheet, axis, at, count));
+  }
+
+  /** Σ — sums the numbers above (or left of) the active cell, or under each column of a block */
+  autoSum(): void {
+    this.closeMenu();
+    if (this.readonly) return;
+    this.commitEdit();
+    const writes = weSheetAutoSum(this.selection, (c, r) => typeof this.evaluator.value(c, r) === 'number');
+    if (!writes.length) return;
+    const next = this.cloneForEdit(Math.max(...writes.map((w) => w.row)) + 1, this.sheet.cols);
+    for (const w of writes) this.writeInput(next, w.col, w.row, w.formula);
+    this.commit(next);
+    const last = writes[writes.length - 1];
+    this.moveTo({ col: last.col, row: last.row });
+  }
+
+  // ─── Context menu ────────────────────────────────────────────────────
+
+  onCellContextMenu(event: MouseEvent, col: number, row: number): void {
+    event.preventDefault();
+    if (!this.inSelection(col, row)) this.moveTo({ col, row });
+    this.openMenu(event.clientX, event.clientY);
+  }
+
+  openMenu(x: number, y: number): void {
+    this.commitEdit();
+    this.openPalette = null;
+    // Kept inside the viewport — the menu is about 16rem by 22rem
+    this.menu = { x: Math.min(x, window.innerWidth - 260), y: Math.min(y, window.innerHeight - 360) };
+    this.cdr.markForCheck();
+    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLElement>('.we-sheet__menu button')?.focus());
+  }
+
+  closeMenu(): void {
+    if (!this.menu) return;
+    this.menu = null;
+    this.scrollRef.nativeElement.focus({ preventScroll: true });
+    this.cdr.markForCheck();
+  }
+
+  onMenuKeydown(event: KeyboardEvent): void {
+    const items = Array.from((event.currentTarget as HTMLElement).querySelectorAll<HTMLButtonElement>('button:not(:disabled)'));
+    const i = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      items[(i + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length]?.focus();
+      event.preventDefault();
+    } else if (event.key === 'Escape' || event.key === 'Tab') {
+      this.closeMenu();
+      event.preventDefault();
+    }
+  }
+
+  @HostListener('document:mousedown', ['$event'])
+  onDocumentMouseDown(event: MouseEvent): void {
+    if (this.menu && !(event.target as HTMLElement).closest?.('.we-sheet__menu')) this.closeMenu();
+  }
+
+  // ─── Import ──────────────────────────────────────────────────────────
+
+  openImport(): void {
+    this.importInputRef?.nativeElement.click();
+  }
+
+  /** Reads an .xlsx or .csv file into the sheet from A1, as one undoable step */
+  async onImportFile(event: Event): Promise<void> {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    input.value = '';
+    if (!file || this.readonly) return;
+    try {
+      const isXlsx = /\.xlsx$/i.test(file.name);
+      const table = isXlsx ? await weGridReadXlsx(file) : weGridParseCsv(await file.text());
+      const lines = [table.headers, ...table.rows];
+      const cols = Math.max(this.sheet.cols, ...lines.map((l) => l.length));
+      let next: WeSheetData = { ...weSheetEmpty(Math.max(this.sheet.rows, lines.length + 10), cols), headerRow: true, striped: this.sheet.striped };
+      next = { ...next, cells: {} };
+      // Excel stores numbers with a dot whatever the locale; a CSV is written in the user's own
+      const separator: '.' | ',' = isXlsx ? '.' : this.decimalSeparator;
+      lines.forEach((line, r) =>
+        line.forEach((text, c) => {
+          const parsed = weSheetParseInput(text, separator);
+          if (parsed.value !== null && parsed.value !== undefined) next.cells[weSheetAddress(c, r)] = parsed.format ? { v: parsed.value, f: parsed.format } : { v: parsed.value };
+        })
+      );
+      this.commit(next);
+      this.moveTo({ col: 0, row: 0 });
+    } catch {
+      this.notice = this.locale.sheetImportFailed;
+      this.cdr.markForCheck();
+    }
+  }
+
+  // ─── Formula suggestions ─────────────────────────────────────────────
+
+  /** Suggests functions for the name being typed right before the caret, inside a formula */
+  private updateSuggestions(input: HTMLInputElement, where: 'cell' | 'bar'): void {
+    const before = input.value.slice(0, input.selectionStart ?? input.value.length);
+    const m = /(^=|[=(,;+\-*/^&<>\s])([A-Za-zÇĞİÖŞÜçğıöşü_.]+)$/.exec(before);
+    if (!input.value.startsWith('=') || !m) {
+      this.suggestions = [];
+      return;
+    }
+    const prefix = m[2].toLocaleUpperCase('tr').replace(/İ/g, 'I');
+    const norm = (name: string) => name.toLocaleUpperCase('tr').replace(/İ/g, 'I');
+    const seen = new Set<string>();
+    this.suggestions = FUNCTION_NAMES.filter((f) => norm(f.name).startsWith(prefix))
+      .filter((f) => !seen.has(f.name) && seen.add(f.name))
+      .slice(0, 7)
+      .map((f) => ({ name: f.name, signature: `${f.canonical === f.name ? '' : `${f.canonical} · `}${f.name}(${WE_GRID_FORMULA_SIGNATURES[f.canonical] ?? ''})` }));
+    this.suggestionIndex = 0;
+    this.suggestionsFor = where;
+  }
+
+  /** Arrow keys walk the suggestions, Tab or Enter takes one, Escape closes the list */
+  private handleSuggestionKey(event: KeyboardEvent, input: HTMLInputElement): boolean {
+    if (!this.suggestions.length) return false;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      const n = this.suggestions.length;
+      this.suggestionIndex = (this.suggestionIndex + (event.key === 'ArrowDown' ? 1 : n - 1)) % n;
+    } else if (event.key === 'Tab' || event.key === 'Enter') {
+      this.acceptSuggestion(this.suggestions[this.suggestionIndex], input);
+    } else if (event.key === 'Escape') {
+      this.suggestions = [];
+    } else {
+      return false;
+    }
+    event.preventDefault();
+    this.cdr.markForCheck();
+    return true;
+  }
+
+  acceptSuggestion(s: WeSheetSuggestion, input?: HTMLInputElement | null): void {
+    const el = input ?? (this.suggestionsFor === 'cell' ? this.editorRef?.nativeElement : null) ?? null;
+    if (!el) return;
+    const caret = el.selectionStart ?? el.value.length;
+    const before = el.value.slice(0, caret).replace(/[A-Za-zÇĞİÖŞÜçğıöşü_.]+$/, '');
+    const text = `${before}${s.name}(${el.value.slice(caret)}`;
+    el.value = text;
+    const at = before.length + s.name.length + 1;
+    el.setSelectionRange(at, at);
+    el.focus();
+    this.barText = text;
+    if (this.editing) this.editing.text = text;
+    this.suggestions = [];
   }
 
   // ─── Structure ───────────────────────────────────────────────────────
@@ -714,6 +950,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   /** Makes `next` the content as one undoable step */
   private commit(next: WeSheetData): void {
+    this.notice = null;
     this.undoStack.push(this.sheet);
     if (this.undoStack.length > UNDO_LIMIT) this.undoStack.shift();
     this.redoStack = [];

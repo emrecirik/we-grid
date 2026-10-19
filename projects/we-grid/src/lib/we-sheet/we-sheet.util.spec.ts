@@ -1,6 +1,9 @@
 import { WeGridFormulaError } from '../services/we-grid-formula.util';
 import {
   weSheetAddress,
+  weSheetAutoSum,
+  weSheetInsert,
+  weSheetMoveReferences,
   weSheetEmpty,
   weSheetFormatValue,
   weSheetNormalize,
@@ -85,5 +88,53 @@ describe('we-sheet utils', () => {
     expect(data).toEqual({ version: 1, rows: 3, cols: 2, cells: { A1: { v: 1, s: { color: 'red' } } }, widths: { A: 120 }, headerRow: true });
     expect(weSheetSanitize({ rows: 'x', cols: 2, cells: {} })).toBeNull();
     expect(weSheetSanitize(null)).toBeNull();
+  });
+});
+
+describe('we-sheet structure', () => {
+  it('moves references when rows or columns are inserted', () => {
+    expect(weSheetMoveReferences('=A1+A5+$A$6+SUM(A2:A9)', 'row', 4, 2)).toBe('=A1+A7+$A$8+SUM(A2:A11)');
+    expect(weSheetMoveReferences('=B2*C2+SUM(A:C)', 'col', 1, 1)).toBe('=C2*D2+SUM(A:D)');
+    expect(weSheetMoveReferences('=SUM(A:A)+A3', 'row', 0, 1)).toBe('=SUM(A:A)+A4');
+    expect(weSheetMoveReferences('="A1"&[B2]&A1', 'row', 0, 1)).toBe('="A1"&[B2]&A2');
+  });
+
+  it('moves, shrinks or breaks references when rows are deleted', () => {
+    expect(weSheetMoveReferences('=A1+A5+A9', 'row', 3, -3)).toBe('=A1+#REF!+A6');
+    expect(weSheetMoveReferences('=SUM(A2:A9)', 'row', 3, -3)).toBe('=SUM(A2:A6)');
+    expect(weSheetMoveReferences('=SUM(A4:A6)', 'row', 3, -3)).toBe('=SUM(#REF!)');
+    expect(weSheetMoveReferences('=SUM(A5:A9)', 'row', 3, -3)).toBe('=SUM(A4:A6)');
+    expect(weSheetMoveReferences('=SUM(A1:A4)', 'row', 3, -3)).toBe('=SUM(A1:A3)');
+  });
+
+  it('inserts and deletes rows and columns in the data', () => {
+    const data = weSheetEmpty(5, 3);
+    data.widths = { B: 200 };
+    data.cells = { A1: { v: 1 }, A2: { v: 2 }, A3: { v: '=A1+A2' }, B1: { v: 'x' } };
+    const grown = weSheetInsert(data, 'row', 1, 1);
+    expect(grown.rows).toBe(6);
+    expect(grown.cells['A3']).toEqual({ v: 2 });
+    expect(grown.cells['A4']).toEqual({ v: '=A1+A3' });
+    const shrunk = weSheetInsert(grown, 'row', 1, -1);
+    expect(shrunk.cells).toEqual(data.cells);
+    const cols = weSheetInsert(data, 'col', 0, 1);
+    expect(cols.cells['B3']).toEqual({ v: '=B1+B2' });
+    expect(cols.widths).toEqual({ C: 200 });
+    const gone = weSheetInsert(data, 'col', 1, -1);
+    expect(gone.cols).toBe(2);
+    expect(gone.cells['B1']).toBeUndefined();
+    expect(gone.widths).toEqual({});
+  });
+
+  it('sums like Excel AutoSum', () => {
+    const numbers = new Set(['0,0', '0,1', '0,2', '1,3', '2,3']);
+    const isNumber = (c: number, r: number) => numbers.has(`${c},${r}`);
+    expect(weSheetAutoSum({ c1: 0, r1: 3, c2: 0, r2: 3 }, isNumber)).toEqual([{ col: 0, row: 3, formula: '=SUM(A1:A3)' }]);
+    expect(weSheetAutoSum({ c1: 3, r1: 3, c2: 3, r2: 3 }, isNumber)).toEqual([{ col: 3, row: 3, formula: '=SUM(B4:C4)' }]);
+    expect(weSheetAutoSum({ c1: 0, r1: 0, c2: 1, r2: 2 }, isNumber)).toEqual([
+      { col: 0, row: 3, formula: '=SUM(A1:A3)' },
+      { col: 1, row: 3, formula: '=SUM(B1:B3)' }
+    ]);
+    expect(weSheetAutoSum({ c1: 4, r1: 0, c2: 4, r2: 0 }, isNumber)).toEqual([]);
   });
 });

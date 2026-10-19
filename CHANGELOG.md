@@ -4,7 +4,8 @@ All notable changes to this project are documented in this file.
 
 ## 0.11.0 — 2026-10-20
 
-Data sources. A minor release — new exports only; the grid itself is unchanged.
+Data sources, pivot tables and a fuller spreadsheet. A minor release — new components and exports;
+the grid itself changes only in that a new `gridKey` now loads that key's layout.
 
 ### Added
 
@@ -19,6 +20,23 @@ Data sources. A minor release — new exports only; the grid itself is unchanged
   key prefix.
 - `weGridProtocolWhere(filters)`, `weGridColumnsFromTable(table)`, `WeGridProtocolError`.
 - we-grid Studio: a **Your database** tab that connects to a backend on your machine.
+- `<we-sheet>`: a right-click menu (insert rows above/below, insert columns left/right, delete rows
+  and columns — every formula's references move, shrink or become `#REF!` as in Excel — clear
+  contents or formatting, AutoSum, sort), **Σ AutoSum** (Alt+=), **open an Excel or CSV file**,
+  **freeze the first column**, a sticky header row, and **function suggestions** with argument
+  hints while a formula is typed (English and Turkish names; arrows, Tab/Enter, Escape).
+- `<we-pivot>` (`WePivotComponent`) — a pivot table: Rows, Columns and Values (sum, count, average,
+  min, max) picked from chips, the result in a we-grid with subtotals per outer row group, a total
+  per value, a grand total, sorting, formatting and export; formula fields are evaluated per row.
+  `wePivot()` builds the same table without the component. See docs/pivot.md.
+- `weSheetInsert`, `weSheetMoveReferences`, `weSheetAutoSum`; `WE_GRID_FORMULA_ALIASES`,
+  `WE_GRID_FORMULA_SIGNATURES`; locale keys `sheetInsertRowAbove` … `sheetSuggestions` and
+  `pivotLabel` … `pivotSwap`.
+
+### Changed
+
+- Changing a grid's `gridKey` after it was created loads that key's saved layout, formatting,
+  formula columns, macros and views, instead of carrying the previous key's on screen.
 
 ## 0.10.0 — 2026-10-20
 

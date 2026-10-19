@@ -1,4 +1,4 @@
-<div class="we-sheet" [class.we-sheet--striped]="sheet.striped" [class.we-sheet--readonly]="readonly">
+<div class="we-sheet" [class.we-sheet--striped]="sheet.striped" [class.we-sheet--readonly]="readonly" [class.we-sheet--freeze-col]="sheet.freezeColumn">
   <div class="we-sheet__toolbar" role="toolbar" [attr.aria-label]="locale.sheetToolbar">
     @if (!readonly) {
       <div class="we-sheet__group">
@@ -63,6 +63,7 @@
       </select>
 
       <div class="we-sheet__group">
+        <button type="button" class="we-sheet__btn we-sheet__btn--sigma" (click)="autoSum()" [attr.aria-label]="locale.sheetAutoSum" [title]="locale.sheetAutoSum + ' (Alt+=)'">Σ</button>
         <button type="button" class="we-sheet__btn" (click)="sort('asc')" [attr.aria-label]="locale.sheetSortAsc" [title]="locale.sheetSortAsc">
           <span [innerHTML]="icon('sortAsc')" aria-hidden="true"></span>
         </button>
@@ -84,6 +85,9 @@
         <button type="button" class="we-sheet__btn we-sheet__btn--text" [attr.aria-pressed]="!!sheet.striped" (click)="toggleStriped()" [title]="locale.stripedRows">
           <span [innerHTML]="icon('stripes')" aria-hidden="true"></span> {{ locale.stripedRows }}
         </button>
+        <button type="button" class="we-sheet__btn" [attr.aria-pressed]="!!sheet.freezeColumn" (click)="toggleFreezeColumn()" [attr.aria-label]="locale.sheetFreezeColumn" [title]="locale.sheetFreezeColumn">
+          <span [innerHTML]="icon('pin')" aria-hidden="true"></span>
+        </button>
       </div>
 
       <div class="we-sheet__group">
@@ -99,6 +103,12 @@
     <ng-content select="[weSheetToolbar]"></ng-content>
 
     <div class="we-sheet__group we-sheet__group--end">
+      @if (!readonly) {
+        <button type="button" class="we-sheet__btn" (click)="openImport()" [attr.aria-label]="locale.sheetImport" [title]="locale.sheetImport">
+          <span [innerHTML]="icon('upload')" aria-hidden="true"></span>
+        </button>
+        <input #importInput type="file" class="we-sheet__file" accept=".xlsx,.csv,text/csv" tabindex="-1" aria-hidden="true" (change)="onImportFile($event)" />
+      }
       <button type="button" class="we-sheet__btn we-sheet__btn--text" (click)="exportAs('xlsx')" [attr.aria-label]="locale.exportButton + ': ' + locale.exportExcel" [title]="locale.exportButton + ': ' + locale.exportExcel">
         <span [innerHTML]="icon('download')" aria-hidden="true"></span> {{ locale.exportExcel }}
       </button>
@@ -121,13 +131,17 @@
       [value]="editing ? editing.text : barText"
       [readOnly]="readonly"
       (focus)="onBarFocus()"
-      (input)="onBarInput($any($event.target).value)"
+      (input)="onBarInput($event)"
       (keydown)="onBarKeydown($event)"
       (blur)="onBarBlur()"
       [attr.aria-label]="locale.sheetFormulaBar"
       spellcheck="false"
     />
   </div>
+
+  @if (suggestions.length && suggestionsFor === 'bar') {
+    <ng-container *ngTemplateOutlet="suggestionList; context: { $implicit: 'bar' }"></ng-container>
+  }
 
   <div
     #scroll
@@ -155,6 +169,7 @@
             <th
               role="columnheader"
               class="we-sheet__colhead"
+              [class.we-sheet__colhead--first]="c === 0"
               [class.we-sheet__head--on]="c >= selection.c1 && c <= selection.c2"
               (click)="onColumnHeaderClick($event, c)"
             >
@@ -172,6 +187,7 @@
               <td
                 role="gridcell"
                 class="we-sheet__cell"
+                [class.we-sheet__cell--first]="c === 0"
                 [attr.data-cell]="columnLetters[c] + (r + 1)"
                 [class.we-sheet__cell--sel]="inSelection(c, r)"
                 [class.we-sheet__cell--active]="c === active.col && r === active.row"
@@ -182,19 +198,26 @@
                 (mousedown)="onCellMouseDown($event, c, r)"
                 (mouseenter)="onCellMouseEnter(c, r)"
                 (dblclick)="onCellDblClick(c, r)"
+                (contextmenu)="onCellContextMenu($event, c, r)"
               >
                 @if (editing && !editing.fromBar && editing.col === c && editing.row === r) {
                   <input
                     #editor
                     class="we-sheet__editor"
                     [value]="editing.text"
-                    (input)="onEditorInput($any($event.target).value)"
+                    (input)="onEditorInput($event)"
                     (keydown)="onEditorKeydown($event)"
                     (blur)="commitEdit()"
                     (mousedown)="$event.stopPropagation()"
                     [attr.aria-label]="columnLetters[c] + (r + 1)"
                     spellcheck="false"
+                    role="combobox"
+                    [attr.aria-expanded]="suggestions.length > 0"
+                    aria-autocomplete="list"
                   />
+                  @if (suggestions.length && suggestionsFor === 'cell') {
+                    <ng-container *ngTemplateOutlet="suggestionList; context: { $implicit: 'cell' }"></ng-container>
+                  }
                 } @else {
                   {{ view[r][c].text }}
                 }
@@ -206,7 +229,39 @@
     </table>
   </div>
 
+  @if (menu) {
+    <div class="we-sheet__menu" role="menu" [style.left.px]="menu.x" [style.top.px]="menu.y" (keydown)="onMenuKeydown($event)" [attr.aria-label]="locale.sheetLabel">
+      <button type="button" role="menuitem" (click)="insertRows('before')">{{ locale.sheetInsertRowAbove }}</button>
+      <button type="button" role="menuitem" (click)="insertRows('after')">{{ locale.sheetInsertRowBelow }}</button>
+      <button type="button" role="menuitem" (click)="deleteRows()" [disabled]="selection.r2 - selection.r1 + 1 >= sheet.rows">{{ locale.sheetDeleteRows }}</button>
+      <div class="we-sheet__menu-sep" role="separator"></div>
+      <button type="button" role="menuitem" (click)="insertColumns('before')">{{ locale.sheetInsertColumnLeft }}</button>
+      <button type="button" role="menuitem" (click)="insertColumns('after')">{{ locale.sheetInsertColumnRight }}</button>
+      <button type="button" role="menuitem" (click)="deleteColumns()" [disabled]="selection.c2 - selection.c1 + 1 >= sheet.cols">{{ locale.sheetDeleteColumns }}</button>
+      <div class="we-sheet__menu-sep" role="separator"></div>
+      <button type="button" role="menuitem" (click)="closeMenu(); clearContents()">{{ locale.sheetClearContents }}</button>
+      <button type="button" role="menuitem" (click)="closeMenu(); clearFormatting()">{{ locale.sheetClearFormat }}</button>
+      <button type="button" role="menuitem" (click)="autoSum()">Σ {{ locale.sheetAutoSum }}</button>
+      <div class="we-sheet__menu-sep" role="separator"></div>
+      <button type="button" role="menuitem" (click)="closeMenu(); sort('asc')">{{ locale.sheetSortAsc }}</button>
+      <button type="button" role="menuitem" (click)="closeMenu(); sort('desc')">{{ locale.sheetSortDesc }}</button>
+    </div>
+  }
+
+  <ng-template #suggestionList let-where>
+    <ul class="we-sheet__suggest" [class.we-sheet__suggest--bar]="where === 'bar'" role="listbox" [attr.aria-label]="locale.sheetSuggestions">
+      @for (s of suggestions; track s.name; let i = $index) {
+        <li role="option" [attr.aria-selected]="i === suggestionIndex" [class.we-sheet__suggest--on]="i === suggestionIndex" (mousedown)="$event.preventDefault(); acceptSuggestion(s)">
+          <strong>{{ s.name }}</strong><span>{{ s.signature }}</span>
+        </li>
+      }
+    </ul>
+  </ng-template>
+
   <div class="we-sheet__status" aria-live="polite">
+    @if (notice) {
+      <span class="we-sheet__notice" role="alert">{{ notice }}</span>
+    }
     @if (hasStats) {
       @if (stats.numbers > 0) {
         <span>{{ locale.average }}: <strong>{{ formatStat(stats.average) }}</strong></span>

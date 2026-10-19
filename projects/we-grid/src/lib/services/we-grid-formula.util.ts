@@ -535,6 +535,22 @@ const NAME_LOOKUP = new Map<string, string>([
 /** Canonical (English) function names, sorted — for autocomplete */
 export const WE_GRID_FORMULA_FUNCTIONS: readonly string[] = Object.keys(FUNCTIONS).sort();
 
+/** Turkish Excel names and the function each one means — `TOPLA` → `SUM` */
+export const WE_GRID_FORMULA_ALIASES: Readonly<Record<string, string>> = ALIASES;
+
+/** Argument hints shown while a formula is typed — `[x]` is optional, `…` repeats */
+export const WE_GRID_FORMULA_SIGNATURES: Readonly<Record<string, string>> = {
+  SUM: 'number1, [number2], …', AVERAGE: 'number1, [number2], …', MIN: 'number1, [number2], …', MAX: 'number1, [number2], …',
+  COUNT: 'value1, [value2], …', COUNTA: 'value1, [value2], …', COUNTIF: 'range, criteria', SUMIF: 'range, criteria, [sum_range]',
+  AVERAGEIF: 'range, criteria, [average_range]', IF: 'condition, value_if_true, [value_if_false]', IFS: 'condition1, value1, …',
+  IFERROR: 'value, value_if_error', AND: 'logical1, [logical2], …', OR: 'logical1, [logical2], …', NOT: 'logical',
+  ROUND: 'number, digits', ROUNDUP: 'number, digits', ROUNDDOWN: 'number, digits', ABS: 'number', INT: 'number',
+  MOD: 'number, divisor', POWER: 'number, power', SQRT: 'number', LEN: 'text', LEFT: 'text, [count]', RIGHT: 'text, [count]',
+  MID: 'text, start, count', UPPER: 'text', LOWER: 'text', PROPER: 'text', TRIM: 'text', CONCAT: 'text1, [text2], …',
+  CONCATENATE: 'text1, [text2], …', TEXT: 'value, format', TODAY: '', NOW: '', YEAR: 'date', MONTH: 'date', DAY: 'date',
+  DATE: 'year, month, day', VLOOKUP: 'lookup, table, column, [approximate]', MATCH: 'lookup, range, [type]', INDEX: 'range, row, [column]'
+};
+
 // ---------------------------------------------------------------------------------------------
 // Parser
 

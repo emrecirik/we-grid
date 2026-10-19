@@ -260,6 +260,7 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
   }
   if (o['headerRow'] === true) data.headerRow = true;
   if (o['striped'] === true) data.striped = true;
+  if (o['freezeColumn'] === true) data.freezeColumn = true;
   return data;
 }
 
@@ -269,3 +270,163 @@ function clampInt(v: unknown, min: number, max: number): number | null {
 
 /** Palette colours a sheet toolbar offers — the grid's format palette */
 export const WE_SHEET_COLORS = WE_GRID_FORMAT_COLORS;
+
+/**
+ * Rewrites a formula's references after rows or columns are inserted or deleted, as Excel does:
+ * references at or after `at` move by `delta` (absolute ones too — `$` pins a reference against
+ * copying, not against inserting). With a negative `delta` the cells `at … at - delta - 1` are
+ * gone: a single reference to them becomes `#REF!`, a range that loses an end shrinks, a range
+ * that loses everything becomes `#REF!`. Quoted text and `[Field]` references are left alone.
+ */
+export function weSheetMoveReferences(formula: string, axis: 'row' | 'col', at: number, delta: number): string {
+  if (delta === 0) return formula;
+  const deletedEnd = delta < 0 ? at - delta : at;
+  interface Ref {
+    abs: [string, string];
+    col: number;
+    row: number;
+    colOnly: boolean;
+  }
+  const tokens: (string | Ref)[] = [];
+  let i = 0;
+  while (i < formula.length) {
+    const ch = formula[i];
+    if (ch === '"' || ch === '[') {
+      const close = formula.indexOf(ch === '"' ? '"' : ']', i + 1);
+      const stop = close === -1 ? formula.length : close + 1;
+      tokens.push(formula.slice(i, stop));
+      i = stop;
+      continue;
+    }
+    const prev = i > 0 ? formula[i - 1] : '';
+    const rest = formula.slice(i);
+    const m = /^(\$?)([A-Za-z]{1,3})(\$?)(\d+)/.exec(rest);
+    if (m && !/[A-Za-z0-9_.]/.test(prev) && !/^[A-Za-z0-9_(]/.test(formula.slice(i + m[0].length))) {
+      tokens.push({ abs: [m[1], m[3]], col: weGridColumnIndex(m[2].toUpperCase()), row: Number(m[4]) - 1, colOnly: false });
+      i += m[0].length;
+      continue;
+    }
+    // Whole columns (A:A) — only column changes move them
+    const c = /^(\$?)([A-Za-z]{1,3}):(\$?)([A-Za-z]{1,3})(?![A-Za-z0-9(])/.exec(rest);
+    if (c && !/[A-Za-z0-9_.$]/.test(prev)) {
+      tokens.push({ abs: [c[1], ''], col: weGridColumnIndex(c[2].toUpperCase()), row: -1, colOnly: true });
+      tokens.push(':');
+      tokens.push({ abs: [c[3], ''], col: weGridColumnIndex(c[4].toUpperCase()), row: -1, colOnly: true });
+      i += c[0].length;
+      continue;
+    }
+    tokens.push(ch);
+    i++;
+  }
+
+  const pos = (r: Ref): number => (axis === 'row' ? r.row : r.col);
+  const write = (r: Ref, value: number): string => {
+    const col = axis === 'col' ? value : r.col;
+    const row = axis === 'row' ? value : r.row;
+    return r.colOnly ? `${r.abs[0]}${weGridColumnLetter(col)}` : `${r.abs[0]}${weGridColumnLetter(col)}${r.abs[1]}${row + 1}`;
+  };
+  const shiftOne = (p: number): number => (delta > 0 ? (p >= at ? p + delta : p) : p >= deletedEnd ? p + delta : p);
+
+  let out = '';
+  for (let t = 0; t < tokens.length; t++) {
+    const tok = tokens[t];
+    if (typeof tok === 'string') {
+      out += tok;
+      continue;
+    }
+    const next = tokens[t + 2];
+    const end = tokens[t + 1] === ':' && typeof next === 'object' ? next : null;
+    if (axis === 'row' && tok.colOnly) {
+      // A:A spans every row — inserting or deleting rows doesn't touch it
+      out += write(tok, tok.col) + (end ? `:${write(end, end.col)}` : '');
+      if (end) t += 2;
+      continue;
+    }
+    if (end) {
+      let a = pos(tok);
+      let b = pos(end);
+      if (delta > 0) {
+        a = shiftOne(a);
+        b = shiftOne(b);
+      } else {
+        const hi = deletedEnd - 1;
+        if (a >= at && b <= hi) {
+          out += '#REF!';
+          t += 2;
+          continue;
+        }
+        a = a > hi ? a + delta : a >= at ? at : a;
+        b = b > hi ? b + delta : b >= at ? at - 1 : b;
+      }
+      out += `${write(tok, a)}:${write(end, b)}`;
+      t += 2;
+      continue;
+    }
+    const p = pos(tok);
+    out += delta < 0 && p >= at && p < deletedEnd ? '#REF!' : write(tok, shiftOne(p));
+  }
+  return out;
+}
+
+/**
+ * Inserts `count` empty rows or columns before `at` (a negative count deletes them): cells move,
+ * every formula's references follow, column widths move with their columns.
+ */
+export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number, count: number): WeSheetData {
+  if (count === 0) return data;
+  const deletedEnd = count < 0 ? at - count : at;
+  const shift = (v: number): number | null => {
+    if (count < 0 && v >= at && v < deletedEnd) return null;
+    return count > 0 ? (v >= at ? v + count : v) : v >= deletedEnd ? v + count : v;
+  };
+  const size = axis === 'row' ? data.rows : data.cols;
+  const max = axis === 'row' ? WE_SHEET_MAX_ROWS : WE_SHEET_MAX_COLS;
+  const newSize = Math.max(1, Math.min(max, size + count));
+  const rows = axis === 'row' ? newSize : data.rows;
+  const cols = axis === 'col' ? newSize : data.cols;
+  const cells: Record<string, WeSheetCell> = {};
+  for (const [key, cell] of Object.entries(data.cells)) {
+    const p = weSheetParseAddress(key);
+    if (!p) continue;
+    const nv = shift(axis === 'row' ? p.row : p.col);
+    if (nv === null) continue;
+    const col = axis === 'col' ? nv : p.col;
+    const row = axis === 'row' ? nv : p.row;
+    // Cells pushed past the edge go with the edge
+    if (row >= rows || col >= cols) continue;
+    cells[weSheetAddress(col, row)] = typeof cell.v === 'string' && cell.v.startsWith('=') ? { ...cell, v: weSheetMoveReferences(cell.v, axis, at, count) } : cell;
+  }
+  const out: WeSheetData = { ...data, rows, cols, cells };
+  if (axis === 'col' && data.widths) {
+    const widths: Record<string, number> = {};
+    for (const [letter, w] of Object.entries(data.widths)) {
+      const nc = shift(weGridColumnIndex(letter));
+      if (nc !== null && nc < cols) widths[weGridColumnLetter(nc)] = w;
+    }
+    out.widths = widths;
+  }
+  return out;
+}
+
+/**
+ * Excel's AutoSum: with a block selected, a `=SUM()` of each column goes under it; with one cell
+ * selected, the numbers right above it (or, failing that, to its left) are summed into it.
+ * Returns the cells to write — empty when there is nothing to sum.
+ */
+export function weSheetAutoSum(range: WeSheetRange, isNumber: (col: number, row: number) => boolean): { col: number; row: number; formula: string }[] {
+  if (range.r2 > range.r1 || range.c2 > range.c1) {
+    const out: { col: number; row: number; formula: string }[] = [];
+    for (let c = range.c1; c <= range.c2; c++) {
+      out.push({ col: c, row: range.r2 + 1, formula: `=SUM(${weSheetAddress(c, range.r1)}:${weSheetAddress(c, range.r2)})` });
+    }
+    return out;
+  }
+  const { c1: col, r1: row } = range;
+  let top = row;
+  while (top > 0 && isNumber(col, top - 1)) top--;
+  if (top < row) return [{ col, row, formula: `=SUM(${weSheetAddress(col, top)}:${weSheetAddress(col, row - 1)})` }];
+  let left = col;
+  while (left > 0 && isNumber(left - 1, row)) left--;
+  if (left < col) return [{ col, row, formula: `=SUM(${weSheetAddress(left, row)}:${weSheetAddress(col - 1, row)})` }];
+  return [];
+}

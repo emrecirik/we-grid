@@ -187,3 +187,11 @@ once — see [formulas.md](formulas.md#functions).
 
 Script keywords (`SORT`, `FILTER` …) are English in every language, like formula syntax; the
 parser's own messages are English too.
+
+## Keys added in 0.11.0
+
+- `<we-sheet>`: `sheetInsertRowAbove`, `sheetInsertRowBelow`, `sheetDeleteRows`,
+  `sheetInsertColumnLeft`, `sheetInsertColumnRight`, `sheetDeleteColumns`, `sheetClearContents`,
+  `sheetAutoSum`, `sheetImport`, `sheetImportFailed`, `sheetFreezeColumn`, `sheetSuggestions`
+- `<we-pivot>`: `pivotLabel`, `pivotRows`, `pivotColumns`, `pivotValues`, `pivotAddField`,
+  `pivotRemove(field)`, `pivotAggregate`, `pivotTotal`, `pivotTruncated`, `pivotSwap`

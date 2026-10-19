@@ -1,10 +1,10 @@
 import { Component, OnInit } from '@angular/core';
-import { WeGridComponent, WeGridExportFormat, WeGridImportFormat, WeSheetComponent, WeSheetData } from 'we-grid-angular';
+import { WeGridComponent, WeGridExportFormat, WeGridImportFormat, WePivotComponent, WePivotConfig, WeSheetComponent, WeSheetData } from 'we-grid-angular';
 import { DataTabComponent } from './data-tab.component';
 import { studioBudget, studioColumns, studioMacros, studioOrders, studioRules } from './studio-data';
 import { STUDIO_TEXT, StudioLanguage, saveStudioLanguage, studioLanguage } from './studio-text';
 
-type Tab = 'grid' | 'sheet' | 'data' | 'start';
+type Tab = 'grid' | 'sheet' | 'pivot' | 'data' | 'start';
 type Theme = 'light' | 'dark';
 
 const THEME_KEY = 'we-grid-studio:theme';
@@ -13,7 +13,7 @@ const SHEET_KEY = 'studio-budget';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [WeGridComponent, WeSheetComponent, DataTabComponent],
+  imports: [WeGridComponent, WeSheetComponent, WePivotComponent, DataTabComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -24,6 +24,7 @@ export class AppComponent implements OnInit {
   readonly orders = studioOrders(this.lang);
   readonly rules = studioRules(this.lang);
   readonly macros = studioMacros(this.lang);
+  pivotConfig: WePivotConfig = { rows: ['city', 'category'], columns: ['status'], values: [{ field: 'total', aggregate: 'sum' }] };
   readonly exportFormats: WeGridExportFormat[] = ['xlsx', 'csv', 'pdf'];
   readonly importFormats: WeGridImportFormat[] = ['xlsx', 'csv'];
   readonly sheetKey = `${SHEET_KEY}-${this.lang}`;
@@ -53,7 +54,7 @@ export class OrdersComponent {
 
   ngOnInit(): void {
     const hash = location.hash.replace('#', '');
-    if (hash === 'sheet' || hash === 'start' || hash === 'grid' || hash === 'data') this.tab = hash;
+    if (hash === 'sheet' || hash === 'start' || hash === 'grid' || hash === 'data' || hash === 'pivot') this.tab = hash;
     this.theme = this.read(THEME_KEY) === 'dark' ? 'dark' : this.read(THEME_KEY) === 'light' ? 'light' : matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     this.applyTheme();
     if (this.read(`we-sheet:${this.sheetKey}`) === null) this.sheetData = studioBudget(this.lang);

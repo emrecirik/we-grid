@@ -160,6 +160,12 @@ A spreadsheet component — inputs `sheetKey`, `data`, `rows`, `cols`, `readonly
 `LocalStorageSheetStore`); models `WeSheetData`, `WeSheetCell`, `WeSheetNumberFormat`. Full
 reference in [sheet.md](sheet.md).
 
+## `<we-pivot>` (`WePivotComponent`) *(0.11.0)*
+
+A pivot table — inputs `data`, `fields`, `config` (`WePivotConfig`, two-way), `gridKey`,
+`exportFormats`, `maxHeight`, `maxColumns`; output `configChange`; `wePivot()` for the table
+without the component. Full reference in [pivot.md](pivot.md).
+
 ## Directives
 
 - **`WeGridCellDirective<T>`** (`[weGridCell]`) — custom cell template, selector value = column

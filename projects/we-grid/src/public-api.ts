@@ -65,3 +65,7 @@ export * from './lib/services/we-grid-interactive.util';
 export * from './lib/we-sheet/we-sheet.component';
 export * from './lib/we-sheet/we-sheet.model';
 export * from './lib/we-sheet/we-sheet.util';
+
+// <we-pivot> — a pivot table over any rows, rendered by the grid
+export * from './lib/we-pivot/we-pivot.component';
+export * from './lib/we-pivot/we-pivot.util';

@@ -46,6 +46,9 @@ const en = {
     'Ctrl+D fills a formula down, Ctrl+Z undoes, the toolbar styles and formats cells.'
   ],
   tabData: 'Your database',
+  tabPivot: 'Pivot',
+  pivotTitle: 'Sales by city and status',
+  pivotIntro: 'A pivot table over the same 240 orders: add or remove fields in Rows, Columns and Values, change Sum to Count or Average — subtotals per city, totals per row and a grand total follow.',
   dataTitle: 'Connect your own database',
   dataIntro: 'Run one of the sample backends on your machine — .NET, Spring Boot, Node.js, Python, Go or PHP — and browse its tables here: paging, sorting and filtering happen in the database, and your grid layouts are saved on the backend.',
   dataUrl: 'Backend address',
@@ -101,6 +104,9 @@ const tr: typeof en = {
     'Ctrl+D formülü aşağı doldurur, Ctrl+Z geri alır; araç çubuğu hücreleri biçimlendirir.'
   ],
   tabData: 'Veritabanınız',
+  tabPivot: 'Pivot',
+  pivotTitle: 'Şehre ve duruma göre satışlar',
+  pivotIntro: 'Aynı 240 sipariş üzerinde bir pivot tablo: Satırlar, Kolonlar ve Değerler alanlarına alan ekleyip çıkarın, Toplam’ı Sayım ya da Ortalama yapın — şehir ara toplamları, satır toplamları ve genel toplam kendiliğinden gelir.',
   dataTitle: 'Kendi veritabanınızı bağlayın',
   dataIntro: 'Örnek backendlerden birini bilgisayarınızda çalıştırın — .NET, Spring Boot, Node.js, Python, Go ya da PHP — ve tablolarına buradan göz atın: sayfalama, sıralama ve filtreleme veritabanında yapılır, tablo düzenleriniz backend’e kaydedilir.',
   dataUrl: 'Backend adresi',

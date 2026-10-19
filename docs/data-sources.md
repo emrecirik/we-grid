@@ -18,6 +18,9 @@ cd we-report/samples/backends/node        # or dotnet, spring-boot, python, go, 
 WE_REPORT_CORS_ORIGINS=http://localhost:4200 npm start
 ```
 
+> Protocol 1.1 arrives in we-report with [PR #1](https://github.com/emrecirik/we-report/pull/1);
+> until it is merged, check out its `feat/grid-protocol` branch (`git checkout feat/grid-protocol`).
+
 Each backend's README shows its own start command and how to point it at your database
 (`WE_REPORT_CONNECTIONS`). Out of the box they serve a fictional sample shop in SQLite on
 `http://127.0.0.1:5480`, only to local callers. Protocol 1.1 (what the grid needs) adds paging,

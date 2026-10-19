@@ -64,6 +64,7 @@ default theme to your global styles:
   bars, zebra rows — and formula columns (`=[Price] * [Qty]`, 40-odd Excel functions, no `eval`)
 - A client for the we-report data protocol (backends in .NET, Spring Boot, Node.js, Python, Go, PHP): server-side paging and layouts saved on the server
 - Macros: scripted grid steps run from toolbar buttons, a recorder, and your own commands
+- `<we-pivot>`: pivot tables with subtotals, totals and export
 - `<we-sheet>`: a spreadsheet with A1 formulas, a formula bar, Excel copy/paste, undo, number
   formats, sorting and Excel/CSV export
 - An optional Apple-style theme (`styles/we-grid-theme-apple.scss`)
@@ -89,6 +90,7 @@ Full docs, screenshots and three runnable sample applications live in the reposi
 - [Formulas](https://github.com/emrecirik/we-grid/blob/main/docs/formulas.md)
 - [Data sources and backends](https://github.com/emrecirik/we-grid/blob/main/docs/data-sources.md)
 - [Macros](https://github.com/emrecirik/we-grid/blob/main/docs/macros.md)
+- [Pivot tables `<we-pivot>`](https://github.com/emrecirik/we-grid/blob/main/docs/pivot.md)
 - [Spreadsheet `<we-sheet>`](https://github.com/emrecirik/we-grid/blob/main/docs/sheet.md)
 - [Theming](https://github.com/emrecirik/we-grid/blob/main/docs/theming.md)
 - [Localization](https://github.com/emrecirik/we-grid/blob/main/docs/localization.md)
