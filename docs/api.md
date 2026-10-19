@@ -309,5 +309,8 @@ reference in [sheet.md](sheet.md).
   `WeGridFormulaError`, `WeGridFormulaSyntaxError`, `WeGridFormulaScope`, `WE_GRID_FORMULA_FUNCTIONS`,
   `weGridIsFormula`, `weGridColumnLetter`, `weGridColumnIndex`, `weGridFormulaValueToText`,
   `weGridSanitizeFormulaColumns(input)` *(0.9.0)* — see [formulas.md](formulas.md)
+- `WeGridProtocolClient`, `WeGridProtocolDataSource`, `WeGridProtocolLayoutStore`, `WeSheetProtocolStore`,
+  `weGridProtocolWhere(filters)`, `weGridColumnsFromTable(table)`, `WeGridProtocolError` *(0.11.0)* — see
+  [data-sources.md](data-sources.md)
 - `weGridParseMacro(script)`, `weGridMacroScript(steps)`, `weGridDiffViews(before, after, headerOf)`,
   `weGridSanitizeMacros(input)` *(0.10.0)* — see [macros.md](macros.md)

@@ -1,9 +1,10 @@
 import { Component, OnInit } from '@angular/core';
 import { WeGridComponent, WeGridExportFormat, WeGridImportFormat, WeSheetComponent, WeSheetData } from 'we-grid-angular';
+import { DataTabComponent } from './data-tab.component';
 import { studioBudget, studioColumns, studioMacros, studioOrders, studioRules } from './studio-data';
 import { STUDIO_TEXT, StudioLanguage, saveStudioLanguage, studioLanguage } from './studio-text';
 
-type Tab = 'grid' | 'sheet' | 'start';
+type Tab = 'grid' | 'sheet' | 'data' | 'start';
 type Theme = 'light' | 'dark';
 
 const THEME_KEY = 'we-grid-studio:theme';
@@ -12,7 +13,7 @@ const SHEET_KEY = 'studio-budget';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [WeGridComponent, WeSheetComponent],
+  imports: [WeGridComponent, WeSheetComponent, DataTabComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -52,7 +53,7 @@ export class OrdersComponent {
 
   ngOnInit(): void {
     const hash = location.hash.replace('#', '');
-    if (hash === 'sheet' || hash === 'start' || hash === 'grid') this.tab = hash;
+    if (hash === 'sheet' || hash === 'start' || hash === 'grid' || hash === 'data') this.tab = hash;
     this.theme = this.read(THEME_KEY) === 'dark' ? 'dark' : this.read(THEME_KEY) === 'light' ? 'light' : matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     this.applyTheme();
     if (this.read(`we-sheet:${this.sheetKey}`) === null) this.sheetData = studioBudget(this.lang);

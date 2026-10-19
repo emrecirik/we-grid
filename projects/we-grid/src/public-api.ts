@@ -53,6 +53,7 @@ export * from './lib/services/we-grid-filter.util';
 export * from './lib/services/we-grid-format.util';
 export * from './lib/services/we-grid-formula.util';
 export * from './lib/services/we-grid-macro.util';
+export * from './lib/services/we-grid-protocol';
 export * from './lib/services/we-grid-layout-merge';
 export * from './lib/services/we-grid-summary.util';
 export * from './lib/services/we-grid-value.util';

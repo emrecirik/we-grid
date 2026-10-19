@@ -9,6 +9,7 @@
     <nav class="segmented" role="tablist" aria-label="Studio">
       <button type="button" role="tab" [attr.aria-selected]="tab === 'grid'" (click)="select('grid')">{{ text.tabGrid }}</button>
       <button type="button" role="tab" [attr.aria-selected]="tab === 'sheet'" (click)="select('sheet')">{{ text.tabSheet }}</button>
+      <button type="button" role="tab" [attr.aria-selected]="tab === 'data'" (click)="select('data')">{{ text.tabData }}</button>
       <button type="button" role="tab" [attr.aria-selected]="tab === 'start'" (click)="select('start')">{{ text.tabStart }}</button>
     </nav>
 
@@ -92,6 +93,10 @@
         </ul>
       </aside>
     </section>
+  }
+
+  @if (tab === 'data') {
+    <studio-data-tab [text]="text" />
   }
 
   @if (tab === 'start') {

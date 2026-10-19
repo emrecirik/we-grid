@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.11.0 — 2026-10-20
+
+Data sources. A minor release — new exports only; the grid itself is unchanged.
+
+### Added
+
+- `WeGridProtocolClient` — a small fetch-based client for the we-report data protocol 1.1, which
+  sample backends implement in .NET, Spring Boot, Node.js, Python, Go and PHP. Nothing calls it
+  unless you create it. See docs/data-sources.md.
+- `WeGridProtocolDataSource` — a database table as a server-side grid: `load({ page, pageSize,
+  sort, filters })` returns the page and the total; `checklistValues` feeds the checklist header
+  filter with the column's distinct values from the whole table.
+- `WeGridProtocolLayoutStore` and `WeSheetProtocolStore` — keep grid layouts, saved views, user
+  formatting, formula columns, macros and sheets on the backend (`/v1/layouts`), per user with a
+  key prefix.
+- `weGridProtocolWhere(filters)`, `weGridColumnsFromTable(table)`, `WeGridProtocolError`.
+- we-grid Studio: a **Your database** tab that connects to a backend on your machine.
+
 ## 0.10.0 — 2026-10-20
 
 Macros. A minor release — opt-in; with the new inputs at their defaults the markup is that of 0.9.0.

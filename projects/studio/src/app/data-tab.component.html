@@ -1,0 +1,89 @@
+<section class="panel" role="tabpanel" [attr.aria-label]="text.tabData">
+  <div class="panel__head">
+    <div>
+      <h1>{{ text.dataTitle }}</h1>
+      <p class="muted">{{ text.dataIntro }}</p>
+    </div>
+  </div>
+
+  <form class="connect" (submit)="$event.preventDefault(); connect()">
+    <label class="connect__field">
+      <span>{{ text.dataUrl }}</span>
+      <input name="url" [(ngModel)]="baseUrl" spellcheck="false" autocomplete="off" />
+    </label>
+    <label class="connect__field connect__field--small">
+      <span>{{ text.dataToken }}</span>
+      <input name="token" type="password" [(ngModel)]="token" autocomplete="off" />
+    </label>
+    <button type="submit" class="primary-btn" [disabled]="status === 'connecting'">{{ status === 'connected' ? text.dataReconnect : text.dataConnect }}</button>
+  </form>
+
+  @if (status === 'error' || error) {
+    <div class="callout callout--error" role="alert">
+      <strong>{{ text.dataFailed }}</strong> {{ error }}
+      <p>{{ text.dataHelp }}</p>
+      <pre><code>{{ snippet }}</code></pre>
+    </div>
+  }
+
+  @if (status === 'connected') {
+    <div class="connect">
+      <span class="pill">{{ server }}</span>
+      @if (layoutsOnServer) {
+        <span class="pill pill--ok">{{ text.dataLayoutsOnServer }}</span>
+      }
+      <label class="connect__field connect__field--small">
+        <span>{{ text.dataConnection }}</span>
+        <select name="connection" [ngModel]="connection" (ngModelChange)="pickConnection($event)">
+          @for (c of connections; track c.id) {
+            <option [value]="c.id">{{ c.name }} ({{ c.dialect }})</option>
+          }
+        </select>
+      </label>
+      <label class="connect__field connect__field--small">
+        <span>{{ text.dataTable }}</span>
+        <select name="table" [ngModel]="table" (ngModelChange)="pickTable($event)">
+          @for (t of tables; track t.name) {
+            <option [value]="t.name">{{ t.name }}</option>
+          }
+        </select>
+      </label>
+    </div>
+  }
+
+  @if (source) {
+    @for (key of [connection + ':' + table]; track key) {
+      <we-grid
+        [gridKey]="'data-' + key"
+        [columns]="columns"
+        [data]="rows"
+        [loading]="loading"
+        [serverSide]="true"
+        [totalCount]="totalCount"
+        [page]="page"
+        [pageSize]="pageSize"
+        (pageChange)="onPageChange($event)"
+        [sortField]="sortField"
+        [sortDirection]="sortDirection"
+        (sortChange)="onSortChange($event)"
+        [filterRow]="true"
+        filterMode="server"
+        (filterChange)="onFilterChange($event)"
+        [checklistValuesProvider]="source.checklistValues"
+        [formatting]="true"
+        [savedViews]="true"
+        [maxHeight]="560"
+      ></we-grid>
+    }
+  } @else {
+    <aside class="tips">
+      <h2>{{ text.dataHowTitle }}</h2>
+      <ol>
+        @for (step of text.dataSteps; track step) {
+          <li>{{ step }}</li>
+        }
+      </ol>
+      <pre><code>{{ snippet }}</code></pre>
+    </aside>
+  }
+</section>
