@@ -18,8 +18,8 @@ cd we-report/samples/backends/node        # or dotnet, spring-boot, python, go, 
 WE_REPORT_CORS_ORIGINS=http://localhost:4200 npm start
 ```
 
-> Protocol 1.1 arrives in we-report with [PR #1](https://github.com/emrecirik/we-report/pull/1);
-> until it is merged, check out its `feat/grid-protocol` branch (`git checkout feat/grid-protocol`).
+> Protocol 1.1 arrives in we-report with [PR #2](https://github.com/emrecirik/we-report/pull/2);
+> until it is merged, check out its `feat/grid-protocol-1.1` branch (`git checkout feat/grid-protocol-1.1`).
 
 Each backend's README shows its own start command and how to point it at your database
 (`WE_REPORT_CONNECTIONS`). Out of the box they serve a fictional sample shop in SQLite on
