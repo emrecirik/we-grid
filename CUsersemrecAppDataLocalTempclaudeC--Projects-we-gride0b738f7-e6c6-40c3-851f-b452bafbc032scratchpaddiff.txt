@@ -1,0 +1,741 @@
+diff --git a/projects/we-grid/src/lib/models/we-grid-icons.model.ts b/projects/we-grid/src/lib/models/we-grid-icons.model.ts
+index 669016a..7edb817 100644
+--- a/projects/we-grid/src/lib/models/we-grid-icons.model.ts
++++ b/projects/we-grid/src/lib/models/we-grid-icons.model.ts
+@@ -22,6 +22,7 @@ export const weGridDefaultIcons: WeGridIcons = {
+   settings: svg('<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.5-2.4 1a7.5 7.5 0 0 0-2.1-1.2L14.4 3H9.6l-.4 2.5a7.5 7.5 0 0 0-2.1 1.2l-2.4-1-2 3.5 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.5 2.4-1c.6.5 1.3.9 2.1 1.2l.4 2.5h4.8l.4-2.5c.8-.3 1.5-.7 2.1-1.2l2.4 1 2-3.5-2-1.6c.1-.4.1-.8.1-1.2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>'),
+   warning: svg('<path d="M12 3 2 20h20L12 3Zm0 5.5 5.7 9.9H6.3L12 8.5Z"/><rect x="11.1" y="12" width="1.8" height="4.2"/><rect x="11.1" y="16.8" width="1.8" height="1.8"/>'),
+   inbox: svg('<path d="M4 4h16l2 8v8H2v-8L4 4Zm0 2-1.5 6H8l1 2h6l1-2h5.5L18 6H4Z"/>'),
++  chevronDown: svg('<path d="M6.7 9.3 12 14.6l5.3-5.3 1.4 1.4L12 17.4 5.3 10.7z"/>'),
+   chevronRight: svg('<path d="M9.3 6.7 14.6 12l-5.3 5.3 1.4 1.4L17.4 12 10.7 5.3z"/>'),
+   chevronFirst: svg('<path d="M7 6h2v12H7zM17.7 6.7 12.4 12l5.3 5.3-1.4 1.4L9.6 12l6.7-6.7z"/>'),
+   chevronLast: svg('<path d="M15 6h2v12h-2zM6.3 6.7 11.6 12l-5.3 5.3 1.4 1.4L14.4 12 7.7 5.3z"/>'),
+diff --git a/projects/we-grid/src/lib/models/we-grid-locale-extra.model.ts b/projects/we-grid/src/lib/models/we-grid-locale-extra.model.ts
+index fc16e5e..e83e747 100644
+--- a/projects/we-grid/src/lib/models/we-grid-locale-extra.model.ts
++++ b/projects/we-grid/src/lib/models/we-grid-locale-extra.model.ts
+@@ -285,6 +285,12 @@ export const weGridLocaleDe: WeGridLocale = {
+   sheetImportFailed: 'Die Datei konnte nicht gelesen werden',
+   sheetImportTruncated: 'Die Datei ist größer, als ein Blatt fasst — nur der passende Teil wurde importiert',
+   sheetFull: 'Das Blatt ist voll — leeren Sie zuerst die letzten Zeilen oder Spalten',
++  sheetFillHandle: 'Ziehen zum Ausfüllen — Doppelklick füllt nach unten',
++  sheetList: 'Dropdown-Liste…',
++  sheetListHint: 'Auswahlwerte, einer pro Zeile',
++  sheetListRemove: 'Liste entfernen',
++  sheetListInvalid: 'Wählen Sie einen der Werte aus der Liste',
++  sheetListOpen: 'Auswahl anzeigen',
+   sheetFreezeColumn: 'Erste Spalte fixieren',
+   sheetSuggestions: 'Funktionen',
+   sheetOptions: 'Tabellenoptionen',
+@@ -615,6 +621,12 @@ export const weGridLocaleFr: WeGridLocale = {
+   sheetImportFailed: 'Le fichier n’a pas pu être lu',
+   sheetImportTruncated: 'Le fichier dépasse la taille d’une feuille — seule la partie qui tient a été importée',
+   sheetFull: 'La feuille est pleine — videz d’abord ses dernières lignes ou colonnes',
++  sheetFillHandle: 'Faites glisser pour recopier — double-cliquez pour recopier vers le bas',
++  sheetList: 'Liste déroulante…',
++  sheetListHint: 'Choix, un par ligne',
++  sheetListRemove: 'Supprimer la liste',
++  sheetListInvalid: 'Choisissez l’une des valeurs de la liste',
++  sheetListOpen: 'Afficher les choix',
+   sheetFreezeColumn: 'Figer la première colonne',
+   sheetSuggestions: 'Fonctions',
+   sheetOptions: 'Options du tableau',
+@@ -943,6 +955,12 @@ export const weGridLocaleEs: WeGridLocale = {
+   sheetImportFailed: 'No se pudo leer el archivo',
+   sheetImportTruncated: 'El archivo es más grande de lo que cabe en una hoja: solo se importó lo que cabe',
+   sheetFull: 'La hoja está llena: vacíe primero sus últimas filas o columnas',
++  sheetFillHandle: 'Arrastre para rellenar; doble clic para rellenar hacia abajo',
++  sheetList: 'Lista desplegable…',
++  sheetListHint: 'Opciones, una por línea',
++  sheetListRemove: 'Quitar la lista',
++  sheetListInvalid: 'Elija uno de los valores de la lista',
++  sheetListOpen: 'Mostrar opciones',
+   sheetFreezeColumn: 'Inmovilizar primera columna',
+   sheetSuggestions: 'Funciones',
+   sheetOptions: 'Opciones de tabla',
+diff --git a/projects/we-grid/src/lib/models/we-grid-locale.model.ts b/projects/we-grid/src/lib/models/we-grid-locale.model.ts
+index 1a02bc7..b1ba5c1 100644
+--- a/projects/we-grid/src/lib/models/we-grid-locale.model.ts
++++ b/projects/we-grid/src/lib/models/we-grid-locale.model.ts
+@@ -300,6 +300,17 @@ export interface WeGridLocale {
+   sheetImportTruncated: string;
+   /** An insert would push content off a full sheet */
+   sheetFull: string;
++  /** Tooltip of the fill handle at the selection's corner */
++  sheetFillHandle: string;
++  /** Context-menu item and title of the dropdown-list editor */
++  sheetList: string;
++  /** Above the list editor's text box */
++  sheetListHint: string;
++  sheetListRemove: string;
++  /** Typed a value that is not one of the cell's choices */
++  sheetListInvalid: string;
++  /** The arrow that shows a dropdown-list cell's choices */
++  sheetListOpen: string;
+   sheetFreezeColumn: string;
+   sheetSuggestions: string;
+   sheetOptions: string;
+@@ -637,6 +648,12 @@ export const weGridLocaleEn: WeGridLocale = {
+   sheetImportFailed: 'The file could not be read',
+   sheetImportTruncated: 'The file is larger than a sheet holds — only what fits was imported',
+   sheetFull: 'The sheet is full — clear its last rows or columns first',
++  sheetFillHandle: 'Drag to fill — double-click to fill down',
++  sheetList: 'Dropdown list…',
++  sheetListHint: 'Choices, one per line',
++  sheetListRemove: 'Remove list',
++  sheetListInvalid: 'Choose one of the values in the list',
++  sheetListOpen: 'Show choices',
+   sheetFreezeColumn: 'Freeze first column',
+   sheetSuggestions: 'Functions',
+   sheetOptions: 'Table options',
+@@ -979,6 +996,12 @@ export const weGridLocaleTr: WeGridLocale = {
+   sheetImportFailed: 'Dosya okunamadı',
+   sheetImportTruncated: 'Dosya bir sayfaya sığmayacak kadar büyük — yalnızca sığan kısmı alındı',
+   sheetFull: 'Sayfa dolu — önce son satırları veya sütunları boşaltın',
++  sheetFillHandle: 'Doldurmak için sürükleyin — aşağı doldurmak için çift tıklayın',
++  sheetList: 'Açılır liste…',
++  sheetListHint: 'Seçenekler, her satıra bir tane',
++  sheetListRemove: 'Listeyi kaldır',
++  sheetListInvalid: 'Listedeki değerlerden birini seçin',
++  sheetListOpen: 'Seçenekleri göster',
+   sheetFreezeColumn: 'İlk kolonu dondur',
+   sheetSuggestions: 'Fonksiyonlar',
+   sheetOptions: 'Tablo seçenekleri',
+diff --git a/projects/we-grid/src/lib/we-sheet/we-sheet.component.html b/projects/we-grid/src/lib/we-sheet/we-sheet.component.html
+index 14b9d0e..a86feab 100644
+--- a/projects/we-grid/src/lib/we-sheet/we-sheet.component.html
++++ b/projects/we-grid/src/lib/we-sheet/we-sheet.component.html
+@@ -247,6 +247,7 @@
+                 [attr.data-cell]="columnLetters[c] + (r + 1)"
+                 [class.we-sheet__cell--sel]="inSelection(c, r)"
+                 [class.we-sheet__cell--active]="c === active.col && r === active.row"
++                [class.we-sheet__cell--fill]="fillRange !== null && inFill(c, r)"
+                 [class.we-sheet__cell--error]="view[r][c].error"
+                 [attr.aria-selected]="inSelection(c, r)"
+                 [style.text-align]="view[r][c].align"
+@@ -276,6 +277,21 @@
+                   }
+                 } @else {
+                   {{ view[r][c].text }}
++                  @if (!readonly && c === active.col && r === active.row && activeList) {
++                    <button
++                      type="button"
++                      class="we-sheet__pick-btn"
++                      tabindex="-1"
++                      [attr.aria-label]="locale.sheetListOpen"
++                      [title]="locale.sheetListOpen"
++                      (mousedown)="$event.stopPropagation(); $event.preventDefault(); picker ? (picker = null) : openPicker()"
++                    >
++                      <span [innerHTML]="icon('chevronDown')" aria-hidden="true"></span>
++                    </button>
++                  }
++                  @if (!readonly && c === selection.c2 && r === selection.r2) {
++                    <span class="we-sheet__fill" [title]="locale.sheetFillHandle" (mousedown)="onFillStart($event)" (dblclick)="onFillDblClick($event)" aria-hidden="true"></span>
++                  }
+                 }
+               </td>
+             }
+@@ -315,12 +331,35 @@
+       <button type="button" role="menuitem" (click)="closeMenu(); clearContents()">{{ locale.sheetClearContents }}</button>
+       <button type="button" role="menuitem" (click)="closeMenu(); clearFormatting()">{{ locale.sheetClearFormat }}</button>
+       <button type="button" role="menuitem" (click)="autoSum()">Σ {{ locale.sheetAutoSum }}</button>
++      <button type="button" role="menuitem" (click)="openListEditor()">{{ locale.sheetList }}</button>
+       <div class="we-sheet__menu-sep" role="separator"></div>
+       <button type="button" role="menuitem" (click)="closeMenu(); sort('asc')">{{ locale.sheetSortAsc }}</button>
+       <button type="button" role="menuitem" (click)="closeMenu(); sort('desc')">{{ locale.sheetSortDesc }}</button>
+     </div>
+   }
+ 
++  @if (picker) {
++    <div class="we-sheet__menu we-sheet__picker" role="listbox" [attr.aria-label]="locale.sheetListOpen" [style.left.px]="picker.x" [style.top.px]="picker.y">
++      @for (o of picker.options; track o; let i = $index) {
++        <button type="button" role="option" tabindex="-1" [attr.aria-selected]="i === picker.index" [class.we-sheet__picker--on]="i === picker.index" (mousedown)="$event.preventDefault(); pick(o)">{{ o }}</button>
++      }
++    </div>
++  }
++
++  @if (listEditor) {
++    <div class="we-sheet__menu we-sheet__list-editor" role="dialog" [attr.aria-label]="locale.sheetList" [style.left.px]="listEditor.x" [style.top.px]="listEditor.y" (keydown)="onListEditorKeydown($event)">
++      <label class="we-sheet__list-label">
++        {{ locale.sheetListHint }}
++        <textarea #listText rows="6" [value]="listEditor.text" spellcheck="false"></textarea>
++      </label>
++      <div class="we-sheet__list-actions">
++        <button type="button" (click)="saveList('')">{{ locale.sheetListRemove }}</button>
++        <button type="button" (click)="closeListEditor()">{{ locale.cancel }}</button>
++        <button type="button" class="we-sheet__list-save" (click)="saveList(listText.value)">{{ locale.apply }}</button>
++      </div>
++    </div>
++  }
++
+   <ng-template #suggestionList let-where>
+     <ul class="we-sheet__suggest" [class.we-sheet__suggest--bar]="where === 'bar'" role="listbox" [attr.aria-label]="locale.sheetSuggestions">
+       @for (s of suggestions; track s.name; let i = $index) {
+diff --git a/projects/we-grid/src/lib/we-sheet/we-sheet.component.scss b/projects/we-grid/src/lib/we-sheet/we-sheet.component.scss
+index 493bcc3..ece0b93 100644
+--- a/projects/we-grid/src/lib/we-sheet/we-sheet.component.scss
++++ b/projects/we-grid/src/lib/we-sheet/we-sheet.component.scss
+@@ -334,6 +334,90 @@
+   background: transparent;
+ }
+ 
++// The arrow that opens a dropdown-list cell's choices
++.we-sheet__pick-btn {
++  position: absolute;
++  top: 50%;
++  right: 0.15rem;
++  z-index: 1;
++  display: inline-flex;
++  align-items: center;
++  justify-content: center;
++  width: 1.1rem;
++  height: 1.1rem;
++  padding: 0;
++  border: 1px solid var(--we-grid-border-color, #dee2e6);
++  border-radius: calc(var(--we-grid-radius, 0.25rem) - 1px);
++  background: var(--we-grid-bg, #fff);
++  color: var(--we-grid-muted-color, #6c757d);
++  transform: translateY(-50%);
++  cursor: pointer;
++}
++
++.we-sheet__picker {
++  min-width: 10rem;
++  max-height: 16rem;
++  overflow-y: auto;
++}
++
++.we-sheet__picker--on {
++  background: var(--we-grid-row-selected-bg, rgba(64, 81, 137, 0.1)) !important;
++}
++
++.we-sheet__list-editor {
++  gap: 0.5rem;
++  width: 17rem;
++  padding: 0.6rem;
++}
++
++.we-sheet__list-label {
++  display: flex;
++  flex-direction: column;
++  gap: 0.35rem;
++  font-size: 0.85em;
++  color: var(--we-grid-muted-color, #6c757d);
++
++  textarea {
++    padding: 0.35rem 0.45rem;
++    border: 1px solid var(--we-grid-border-color, #dee2e6);
++    border-radius: var(--we-grid-radius, 0.25rem);
++    background: var(--we-grid-bg, #fff);
++    color: var(--we-grid-font-color, #212529);
++    font: inherit;
++    font-size: 1rem;
++    resize: vertical;
++  }
++}
++
++.we-sheet__list-actions {
++  display: flex;
++  justify-content: flex-end;
++  gap: 0.25rem;
++}
++
++.we-sheet__list-save {
++  background: var(--we-grid-accent-color, #405189) !important;
++  color: var(--we-grid-on-accent-color, #fff) !important;
++}
++
++// The fill handle — the square at the selection's corner, dragged to fill
++.we-sheet__fill {
++  position: absolute;
++  right: 0;
++  bottom: 0;
++  z-index: 1;
++  width: 0.45rem;
++  height: 0.45rem;
++  background: var(--we-grid-accent-color, #405189);
++  box-shadow: 0 0 0 1px var(--we-grid-bg, #fff);
++  cursor: crosshair;
++}
++
++.we-sheet__cell--fill {
++  outline: 1px dashed var(--we-grid-accent-color, #405189);
++  outline-offset: -2px;
++}
++
+ .we-sheet__editor {
+   position: absolute;
+   inset: 0;
+diff --git a/projects/we-grid/src/lib/we-sheet/we-sheet.component.spec.ts b/projects/we-grid/src/lib/we-sheet/we-sheet.component.spec.ts
+index 103eea6..321e3d7 100644
+--- a/projects/we-grid/src/lib/we-sheet/we-sheet.component.spec.ts
++++ b/projects/we-grid/src/lib/we-sheet/we-sheet.component.spec.ts
+@@ -146,6 +146,63 @@ describe('WeSheetComponent', () => {
+     expect(sheet().getValue('A1')).toBe(1);
+   });
+ 
++  it('fills by dragging the handle at the selection corner, and down by double-clicking it', () => {
++    sheet().setCell('A1', 1);
++    sheet().setCell('A2', 2);
++    sheet().select('A1:A2');
++    fixture.detectChanges();
++    const handle = () => el().querySelector<HTMLElement>('.we-sheet__fill')!;
++    expect(handle().parentElement!.getAttribute('data-cell')).toBe('A2');
++    handle().dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
++    cellEl('A4').dispatchEvent(new MouseEvent('mouseenter'));
++    fixture.detectChanges();
++    expect(cellEl('A3').classList).toContain('we-sheet__cell--fill');
++    document.dispatchEvent(new MouseEvent('mouseup'));
++    fixture.detectChanges();
++    expect(['A3', 'A4'].map((a) => sheet().getValue(a))).toEqual([3, 4]);
++    expect(sheet().selectionLabel).toBe('A1:A4');
++
++    sheet().setCell('B1', '=A1*2');
++    sheet().select('B1');
++    fixture.detectChanges();
++    handle().dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
++    expect(['B2', 'B3', 'B4', 'B5'].map((a) => sheet().getValue(a))).toEqual([4, 6, 8, null]);
++  });
++
++  it('gives cells a dropdown list, takes only its choices and picks them from the keyboard', () => {
++    sheet().select('A1:A2');
++    sheet().openMenu(10, 10);
++    fixture.detectChanges();
++    sheet().openListEditor();
++    fixture.detectChanges();
++    const editor = el().querySelector<HTMLElement>('.we-sheet__list-editor')!;
++    editor.querySelector('textarea')!.value = ['Open', 'Closed', '', 'open'].join('\n');
++    editor.querySelector<HTMLButtonElement>('.we-sheet__list-save')!.click();
++    fixture.detectChanges();
++    expect(sheet().getData().cells['A2'].l).toEqual(['Open', 'Closed']);
++
++    sheet().select('A1');
++    sheet().startEdit('maybe');
++    sheet().commitEdit();
++    expect(sheet().getValue('A1')).toBeNull();
++    sheet().startEdit('closed');
++    sheet().commitEdit();
++    expect(sheet().getValue('A1')).toBe('Closed');
++
++    fixture.detectChanges();
++    expect(cellEl('A1').querySelector('.we-sheet__pick-btn')).toBeTruthy();
++    const gridKey = (k: string, init: KeyboardEventInit = {}) => {
++      el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }));
++      fixture.detectChanges();
++    };
++    gridKey('ArrowDown', { altKey: true });
++    expect(el().querySelectorAll('.we-sheet__picker [role="option"]').length).toBe(2);
++    gridKey('ArrowUp');
++    gridKey('Enter');
++    expect(sheet().getValue('A1')).toBe('Open');
++    expect(el().querySelector('.we-sheet__picker')).toBeNull();
++  });
++
+   it('sorts the used rows below the header row', () => {
+     sheet().setData({ version: 1, rows: 6, cols: 4, headerRow: true, cells: { A1: { v: 'Name' }, A2: { v: 'b' }, A3: { v: 'c' }, A4: { v: 'a' } } });
+     sheet().select('A2');
+diff --git a/projects/we-grid/src/lib/we-sheet/we-sheet.component.ts b/projects/we-grid/src/lib/we-sheet/we-sheet.component.ts
+index 4310098..2ec2a24 100644
+--- a/projects/we-grid/src/lib/we-sheet/we-sheet.component.ts
++++ b/projects/we-grid/src/lib/we-sheet/we-sheet.component.ts
+@@ -52,6 +52,8 @@ import {
+   weSheetFormatValue,
+   weSheetNormalize,
+   weSheetParseAddress,
++  weSheetFill,
++  weSheetCleanList,
+   weSheetParseInput,
+   weSheetRangeLabel,
+   weSheetSanitize,
+@@ -172,6 +174,13 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
+   private undoStack: WeSheetData[] = [];
+   private redoStack: WeSheetData[] = [];
+   private dragging = false;
++  /** Dragging the fill handle; `fillRange` is where the fill would go */
++  private filling = false;
++  fillRange: WeSheetRange | null = null;
++  /** The dropdown-list editor (one choice per line), placed where the context menu was */
++  listEditor: { text: string; x: number; y: number } | null = null;
++  /** The open choices of the active cell's dropdown list */
++  picker: { options: string[]; index: number; x: number; y: number } | null = null;
+   private resizing: { col: number; startX: number; startWidth: number } | null = null;
+   /** What this sheet last copied — pasted back as raw cells (formulas shifted) instead of text */
+   private clip: { text: string; range: WeSheetRange; cells: (WeSheetCell | undefined)[][]; cut: boolean } | null = null;
+@@ -352,7 +361,56 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
+   }
+ 
+   onCellMouseEnter(col: number, row: number): void {
+-    if (this.dragging) this.extendTo({ col, row });
++    if (this.filling) {
++      this.fillRange = this.fillTargetAt(col, row);
++      this.cdr.markForCheck();
++    } else if (this.dragging) this.extendTo({ col, row });
++  }
++
++  // ─── Fill handle ─────────────────────────────────────────────────────
++
++  onFillStart(event: MouseEvent): void {
++    if (event.button !== 0 || this.readonly) return;
++    event.preventDefault();
++    event.stopPropagation();
++    this.commitEdit();
++    this.filling = true;
++    this.fillRange = null;
++  }
++
++  /** Double-clicking the handle fills down as far as the column beside the selection goes, as in Excel */
++  onFillDblClick(event: MouseEvent): void {
++    event.stopPropagation();
++    const s = this.selection;
++    const filled = (c: number, r: number) => c >= 0 && c < this.sheet.cols && !!this.sheet.cells[weSheetAddress(c, r)]?.v;
++    const side = filled(s.c1 - 1, s.r2 + 1) ? s.c1 - 1 : s.c2 + 1;
++    let r2 = s.r2;
++    while (r2 + 1 < this.sheet.rows && filled(side, r2 + 1)) r2++;
++    if (r2 > s.r2) this.fill({ ...s, r2 });
++  }
++
++  /** Fills `target` from the selection — the fill handle's work; `target` must contain the selection */
++  fill(target: WeSheetRange): void {
++    if (this.readonly) return;
++    const s = this.selection;
++    if (target.c1 > s.c1 || target.r1 > s.r1 || target.c2 < s.c2 || target.r2 < s.r2) return;
++    this.commit(weSheetFill(this.cloneForEdit(target.r2 + 1, target.c2 + 1), s, target));
++    this.selection = target;
++    this.afterSelection();
++  }
++
++  inFill(col: number, row: number): boolean {
++    const f = this.fillRange;
++    return !!f && col >= f.c1 && col <= f.c2 && row >= f.r1 && row <= f.r2 && !this.inSelection(col, row);
++  }
++
++  /** The selection grown towards a cell along the axis it is furthest out on, or null inside it */
++  private fillTargetAt(col: number, row: number): WeSheetRange | null {
++    const s = this.selection;
++    const rows = row > s.r2 ? row - s.r2 : row < s.r1 ? s.r1 - row : 0;
++    const cols = col > s.c2 ? col - s.c2 : col < s.c1 ? s.c1 - col : 0;
++    if (!rows && !cols) return null;
++    return rows >= cols ? { ...s, r1: Math.min(s.r1, row), r2: Math.max(s.r2, row) } : { ...s, c1: Math.min(s.c1, col), c2: Math.max(s.c2, col) };
+   }
+ 
+   onCellDblClick(col: number, row: number): void {
+@@ -404,6 +462,13 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
+   @HostListener('document:mouseup')
+   onDocumentMouseUp(): void {
+     this.dragging = false;
++    if (this.filling) {
++      this.filling = false;
++      const target = this.fillRange;
++      this.fillRange = null;
++      if (target) this.fill(target);
++      else this.cdr.markForCheck();
++    }
+     if (this.resizing) {
+       // The resize already changed `sheet`; record it without another undo step per pixel
+       setTimeout(() => (this.resizing = null));
+@@ -415,6 +480,12 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
+ 
+   onGridKeydown(event: KeyboardEvent): void {
+     if (this.editing) return;
++    if (this.pickerKey(event)) return;
++    if (event.altKey && event.key === 'ArrowDown' && this.activeList) {
++      this.openPicker();
++      event.preventDefault();
++      return;
++    }
+     if (this.menu && event.key === 'Escape') {
+       this.closeMenu();
+       event.preventDefault();
+@@ -585,11 +656,102 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
+       this.cdr.markForCheck();
+       return;
+     }
++    // A dropdown-list cell takes only its choices, written as the list writes them
++    const list = this.sheet.cells[weSheetAddress(e.col, e.row)]?.l;
++    let text = e.text;
++    if (list && text.trim() !== '' && !text.startsWith('=')) {
++      const match = list.find((o) => o.toLocaleLowerCase() === text.trim().toLocaleLowerCase());
++      if (match === undefined) {
++        this.notice = this.locale.sheetListInvalid;
++        this.barText = this.rawText(e.col, e.row);
++        this.cdr.markForCheck();
++        return;
++      }
++      text = match;
++    }
+     const next = this.cloneForEdit(e.row + 1, e.col + 1);
+-    this.writeInput(next, e.col, e.row, e.text);
++    this.writeInput(next, e.col, e.row, text);
+     this.commit(next);
+   }
+ 
++  // ─── Dropdown lists ──────────────────────────────────────────────────
++
++  /** The active cell's dropdown list, or null */
++  get activeList(): string[] | null {
++    return this.sheet.cells[weSheetAddress(this.active.col, this.active.row)]?.l ?? null;
++  }
++
++  /** Opens the list editor for the selection, where the context menu was */
++  openListEditor(): void {
++    const at = this.menu ?? { x: 40, y: 40 };
++    this.closeMenu();
++    if (this.readonly) return;
++    this.listEditor = { text: (this.activeList ?? []).join('\n'), ...at };
++    this.cdr.markForCheck();
++    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLTextAreaElement>('.we-sheet__list-editor textarea')?.focus());
++  }
++
++  /** Gives every selected cell the choices in `text`, one per line — none removes the list */
++  saveList(text: string): void {
++    const list = weSheetCleanList(text.split(/\r?\n/));
++    this.closeListEditor();
++    this.updateRange((cell) => {
++      const { l: _l, ...rest } = cell;
++      return list.length ? { ...rest, l: list } : rest;
++    });
++  }
++
++  closeListEditor(): void {
++    if (!this.listEditor) return;
++    this.listEditor = null;
++    this.scrollRef.nativeElement.focus({ preventScroll: true });
++    this.cdr.markForCheck();
++  }
++
++  onListEditorKeydown(event: KeyboardEvent): void {
++    if (event.key === 'Escape') {
++      event.stopPropagation();
++      this.closeListEditor();
++    }
++  }
++
++  /** Shows the active cell's choices under it — Alt+↓, or the arrow on the cell */
++  openPicker(): void {
++    const options = this.activeList;
++    if (!options || this.readonly) return;
++    this.commitEdit();
++    const cell = this.scrollRef.nativeElement.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(this.active.col, this.active.row)}"]`);
++    const box = cell?.getBoundingClientRect();
++    const current = String(this.sheet.cells[weSheetAddress(this.active.col, this.active.row)]?.v ?? '');
++    this.picker = { options, index: Math.max(0, options.indexOf(current)), x: box ? box.left : 40, y: box ? box.bottom : 40 };
++    this.cdr.markForCheck();
++  }
++
++  pick(option: string): void {
++    this.picker = null;
++    this.setCell(weSheetAddress(this.active.col, this.active.row), option);
++    this.scrollRef.nativeElement.focus({ preventScroll: true });
++    this.afterSelection(false);
++  }
++
++  /** Arrow keys, Enter and Escape while the choices are open; true when the key was used */
++  private pickerKey(event: KeyboardEvent): boolean {
++    const p = this.picker;
++    if (!p) return false;
++    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
++      p.index = (p.index + (event.key === 'ArrowDown' ? 1 : -1) + p.options.length) % p.options.length;
++    } else if (event.key === 'Enter') {
++      this.pick(p.options[p.index]);
++    } else if (event.key === 'Escape' || event.key === 'Tab') {
++      this.picker = null;
++    } else {
++      return false;
++    }
++    event.preventDefault();
++    this.cdr.markForCheck();
++    return true;
++  }
++
+   cancelEdit(): void {
+     this.editing = null;
+     this.suggestions = [];
+@@ -862,6 +1024,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
+   onDocumentMouseDown(event: MouseEvent): void {
+     const target = event.target as HTMLElement;
+     if (this.menu && !target.closest?.('.we-sheet__menu')) this.closeMenu();
++    if (this.listEditor && !target.closest?.('.we-sheet__list-editor')) this.closeListEditor();
++    if (this.picker && !target.closest?.('.we-sheet__picker, .we-sheet__pick-btn')) {
++      this.picker = null;
++      this.cdr.markForCheck();
++    }
+     if (this.optionsOpen && !target.closest?.('.we-sheet__palette-host')) {
+       this.optionsOpen = false;
+       this.cdr.markForCheck();
+@@ -1303,6 +1470,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
+     if (cell.a) out.a = cell.a;
+     if (cell.f) out.f = cell.f;
+     if (cell.d !== undefined) out.d = cell.d;
++    if (cell.l?.length) out.l = cell.l;
+     return out;
+   }
+ 
+@@ -1362,6 +1530,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
+   }
+ 
+   private afterSelection(scroll = true, focus: Pos = this.active): void {
++    this.picker = null;
+     if (!this.editing) this.barText = this.rawText(this.active.col, this.active.row);
+     const values: unknown[] = [];
+     const s = this.selection;
+diff --git a/projects/we-grid/src/lib/we-sheet/we-sheet.model.ts b/projects/we-grid/src/lib/we-sheet/we-sheet.model.ts
+index c8f63a0..a8d49a3 100644
+--- a/projects/we-grid/src/lib/we-sheet/we-sheet.model.ts
++++ b/projects/we-grid/src/lib/we-sheet/we-sheet.model.ts
+@@ -18,6 +18,8 @@ export interface WeSheetCell {
+   f?: WeSheetNumberFormat;
+   /** Fixed decimal places (0-10) for number, currency and percent formats */
+   d?: number;
++  /** A dropdown list: the only values the user may type, offered under the cell (Excel's data validation list) */
++  l?: string[];
+ }
+ 
+ /**
+diff --git a/projects/we-grid/src/lib/we-sheet/we-sheet.util.spec.ts b/projects/we-grid/src/lib/we-sheet/we-sheet.util.spec.ts
+index 35221c4..ebb2f2c 100644
+--- a/projects/we-grid/src/lib/we-sheet/we-sheet.util.spec.ts
++++ b/projects/we-grid/src/lib/we-sheet/we-sheet.util.spec.ts
+@@ -5,6 +5,8 @@ import {
+   weSheetInsert,
+   weSheetMoveReferences,
+   weSheetMoveSheetReferences,
++  weSheetFill,
++  weSheetCleanList,
+   weSheetEmpty,
+   weSheetFormatValue,
+   weSheetNormalize,
+@@ -169,3 +171,38 @@ describe('we-sheet references (0.16.0 fixes)', () => {
+     expect(weSheetInsert(data, 'row', 0, -2).chart).toBeUndefined();
+   });
+ });
++
++describe('weSheetFill', () => {
++  const sheet = (cells: Record<string, { v?: string | number | boolean; f?: 'date' }>) => ({ ...weSheetEmpty(10, 5), cells });
++  const col = (data: Parameters<typeof weSheetFill>[0], c: string, from: number, to: number) =>
++    Array.from({ length: to - from + 1 }, (_, i) => data.cells[`${c}${from + i}`]?.v ?? null);
++
++  it('continues number steps, copies a lone number and counts on text ending in a number', () => {
++    const data = sheet({ A1: { v: 1 }, A2: { v: 3 }, B1: { v: 7 }, C1: { v: 'Item 09' }, D1: { v: 'x' }, D2: { v: 'y' } });
++    const out = weSheetFill(data, { c1: 0, r1: 0, c2: 3, r2: 1 }, { c1: 0, r1: 0, c2: 3, r2: 4 });
++    expect(col(out, 'A', 1, 5)).toEqual([1, 3, 5, 7, 9]);
++    expect(col(out, 'B', 1, 5)).toEqual([7, null, 7, null, 7]);
++    expect(col(out, 'D', 1, 5)).toEqual(['x', 'y', 'x', 'y', 'x']);
++    const items = weSheetFill(data, { c1: 2, r1: 0, c2: 2, r2: 0 }, { c1: 2, r1: 0, c2: 2, r2: 2 });
++    expect(col(items, 'C', 1, 3)).toEqual(['Item 09', 'Item 10', 'Item 11']);
++  });
++
++  it('moves dates on by a day, shifts formulas and fills sideways and backwards', () => {
++    const data = sheet({ B2: { v: 45000, f: 'date' }, C2: { v: '=B2*2' } });
++    const right = weSheetFill(data, { c1: 1, r1: 1, c2: 2, r2: 1 }, { c1: 1, r1: 1, c2: 4, r2: 1 });
++    expect([right.cells['D2'].v, right.cells['E2'].v]).toEqual([45000, '=D2*2']);
++    const down = weSheetFill(data, { c1: 1, r1: 1, c2: 2, r2: 1 }, { c1: 1, r1: 0, c2: 2, r2: 3 });
++    expect(col(down, 'B', 1, 4)).toEqual([44999, 45000, 45001, 45002]);
++    expect(down.cells['B4'].f).toBe('date');
++    expect(col(down, 'C', 1, 4)).toEqual(['=B1*2', '=B2*2', '=B3*2', '=B4*2']);
++  });
++});
++
++describe('dropdown lists', () => {
++  it('cleans choices and keeps them through sanitising', () => {
++    expect(weSheetCleanList([' Open ', '', 'open', 'Closed', '  '])).toEqual(['Open', 'Closed']);
++    const clean = weSheetSanitize({ version: 1, rows: 3, cols: 3, cells: { A1: { v: 'Open', l: ['Open', 7, 'Closed', 'open'] }, A2: { l: 'x' } } });
++    expect(clean?.cells['A1'].l).toEqual(['Open', 'Closed']);
++    expect(clean?.cells['A2']).toBeUndefined();
++  });
++});
+diff --git a/projects/we-grid/src/lib/we-sheet/we-sheet.util.ts b/projects/we-grid/src/lib/we-sheet/we-sheet.util.ts
+index 121c2b9..839d24e 100644
+--- a/projects/we-grid/src/lib/we-sheet/we-sheet.util.ts
++++ b/projects/we-grid/src/lib/we-sheet/we-sheet.util.ts
+@@ -264,6 +264,8 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
+     if (r['a'] === 'start' || r['a'] === 'center' || r['a'] === 'end') cell.a = r['a'];
+     if (FORMATS.has(r['f'] as WeSheetNumberFormat)) cell.f = r['f'] as WeSheetNumberFormat;
+     if (typeof r['d'] === 'number' && Number.isInteger(r['d']) && r['d'] >= 0 && r['d'] <= 10) cell.d = r['d'];
++    const list = Array.isArray(r['l']) ? weSheetCleanList(r['l'].filter((x): x is string => typeof x === 'string')) : [];
++    if (list.length) cell.l = list;
+     if (Object.keys(cell).length) cells[key] = cell;
+   }
+   const data: WeSheetData = { version: 1, rows, cols, cells };
+@@ -443,6 +445,82 @@ export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number
+   return out;
+ }
+ 
++/** A dropdown list's choices: trimmed, without blanks and repeats, at most 200 of up to 200 characters */
++export function weSheetCleanList(items: readonly string[]): string[] {
++  const seen = new Set<string>();
++  const out: string[] = [];
++  for (const item of items) {
++    const v = item.trim().slice(0, 200);
++    const key = v.toLocaleLowerCase();
++    if (!v || seen.has(key)) continue;
++    seen.add(key);
++    out.push(v);
++    if (out.length === 200) break;
++  }
++  return out;
++}
++
++/**
++ * The fill handle: extends the cells of `source` through `target` (which contains it and grows it
++ * along one axis), as Excel does when the corner of a selection is dragged. Each column (or row) is
++ * a series of its own: numbers continue their step (`1, 3` → `5, 7`; one number is copied), dates
++ * go on by a day, text ending in a number counts on (`Item 9` → `Item 10`), formulas shift their
++ * relative references, and anything else repeats. Styles and formats come with the cells.
++ */
++export function weSheetFill(data: WeSheetData, source: WeSheetRange, target: WeSheetRange): WeSheetData {
++  const down = target.r1 < source.r1 || target.r2 > source.r2;
++  const cells = { ...data.cells };
++  const lines = down ? [source.c1, source.c2] : [source.r1, source.r2];
++  const [from, to] = down ? [source.r1, source.r2] : [source.c1, source.c2];
++  const [lo, hi] = down ? [target.r1, target.r2] : [target.c1, target.c2];
++  const n = to - from + 1;
++  for (let line = lines[0]; line <= lines[1]; line++) {
++    const at = (i: number) => (down ? weSheetAddress(line, from + i) : weSheetAddress(from + i, line));
++    const seq = Array.from({ length: n }, (_, i) => data.cells[at(i)]);
++    const series = fillSeries(seq);
++    for (let p = lo; p <= hi; p++) {
++      if (p >= from && p <= to) continue;
++      const t = p - from;
++      const k = ((t % n) + n) % n;
++      const base = seq[k];
++      const key = down ? weSheetAddress(line, p) : weSheetAddress(p, line);
++      let v: WeSheetCell['v'] = base?.v;
++      if (typeof v === 'string' && v.startsWith('=')) v = weSheetShiftFormula(v, down ? 0 : t - k, down ? t - k : 0);
++      else if (series) v = series(t);
++      const cell: WeSheetCell = { ...(base ?? {}) };
++      if (v === undefined || v === null) delete cell.v;
++      else cell.v = v;
++      if (Object.keys(cell).length) cells[key] = cell;
++      else delete cells[key];
++    }
++  }
++  return { ...data, cells };
++}
++
++/** The value at index `t` of the series the cells start, or null when they are simply repeated */
++function fillSeries(seq: (WeSheetCell | undefined)[]): ((t: number) => WeSheetCell['v']) | null {
++  const values = seq.map((c) => c?.v);
++  const n = values.length;
++  if (values.every((v) => typeof v === 'number')) {
++    const nums = values as number[];
++    if (n === 1) return seq[0]?.f === 'date' ? (t) => nums[0] + t : null;
++    const step = (nums[n - 1] - nums[0]) / (n - 1);
++    return (t) => Math.round((nums[0] + step * t) * 1e10) / 1e10;
++  }
++  const parts = values.map((v) => (typeof v === 'string' && !v.startsWith('=') ? /^(.*?)(\d+)$/.exec(v) : null));
++  if (parts.every((m) => m && m[1] === parts[0]![1])) {
++    const nums = parts.map((m) => Number(m![2]));
++    const width = parts[0]![2].length;
++    const step = n === 1 ? 1 : (nums[n - 1] - nums[0]) / (n - 1);
++    if (!Number.isInteger(step)) return null;
++    return (t) => {
++      const x = nums[0] + step * t;
++      return x < 0 ? null : parts[0]![1] + String(x).padStart(width, '0');
++    };
++  }
++  return null;
++}
++
+ /**
+  * Excel's AutoSum: with a block selected, a `=SUM()` of each column goes under it; with one cell
+  * selected, the numbers right above it (or, failing that, to its left) are summed into it.

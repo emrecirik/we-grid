@@ -52,6 +52,8 @@ import {
   weSheetFormatValue,
   weSheetNormalize,
   weSheetParseAddress,
+  weSheetFill,
+  weSheetCleanList,
   weSheetParseInput,
   weSheetRangeLabel,
   weSheetSanitize,
@@ -172,6 +174,13 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   private undoStack: WeSheetData[] = [];
   private redoStack: WeSheetData[] = [];
   private dragging = false;
+  /** Dragging the fill handle; `fillRange` is where the fill would go */
+  private filling = false;
+  fillRange: WeSheetRange | null = null;
+  /** The dropdown-list editor (one choice per line), placed where the context menu was */
+  listEditor: { text: string; x: number; y: number } | null = null;
+  /** The open choices of the active cell's dropdown list */
+  picker: { options: string[]; index: number; x: number; y: number } | null = null;
   private resizing: { col: number; startX: number; startWidth: number } | null = null;
   /** What this sheet last copied — pasted back as raw cells (formulas shifted) instead of text */
   private clip: { text: string; range: WeSheetRange; cells: (WeSheetCell | undefined)[][]; cut: boolean } | null = null;
@@ -352,7 +361,74 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onCellMouseEnter(col: number, row: number): void {
-    if (this.dragging) this.extendTo({ col, row });
+    if (this.filling) {
+      this.fillRange = this.fillTargetAt(col, row);
+      this.cdr.markForCheck();
+    } else if (this.dragging) this.extendTo({ col, row });
+  }
+
+  // ─── Fill handle ─────────────────────────────────────────────────────
+
+  onFillStart(event: MouseEvent): void {
+    if (event.button !== 0 || this.readonly) return;
+    event.preventDefault();
+    event.stopPropagation();
+    this.commitEdit();
+    this.filling = true;
+    this.fillRange = null;
+  }
+
+  /** Double-clicking the handle fills down as far as the column beside the selection goes, as in Excel */
+  onFillDblClick(event: MouseEvent): void {
+    event.stopPropagation();
+    const s = this.selection;
+    const filled = (c: number, r: number) => c >= 0 && c < this.sheet.cols && !!this.sheet.cells[weSheetAddress(c, r)]?.v;
+    const side = filled(s.c1 - 1, s.r2 + 1) ? s.c1 - 1 : s.c2 + 1;
+    let r2 = s.r2;
+    while (r2 + 1 < this.sheet.rows && filled(side, r2 + 1)) r2++;
+    if (r2 > s.r2) this.fill({ ...s, r2 });
+  }
+
+  /** Fills `target` from the selection — the fill handle's work; `target` must contain the selection */
+  fill(target: WeSheetRange): void {
+    if (this.readonly) return;
+    const s = this.selection;
+    if (target.c1 > s.c1 || target.r1 > s.r1 || target.c2 < s.c2 || target.r2 < s.r2) return;
+    this.commit(weSheetFill(this.cloneForEdit(target.r2 + 1, target.c2 + 1), s, target));
+    this.selection = target;
+    this.afterSelection();
+  }
+
+  /**
+   * The fill handle from the keyboard (context menu): the filled rows at the top of the selection
+   * start a series that continues through the empty rows below them
+   */
+  fillSeries(): void {
+    this.closeMenu();
+    const s = this.selection;
+    const filled = (r: number) => {
+      for (let c = s.c1; c <= s.c2; c++) if (this.sheet.cells[weSheetAddress(c, r)]?.v !== undefined) return true;
+      return false;
+    };
+    let r2 = s.r1;
+    while (r2 < s.r2 && filled(r2 + 1)) r2++;
+    if (r2 === s.r2 || !filled(s.r1) || this.readonly) return;
+    this.commit(weSheetFill(this.cloneForEdit(s.r2 + 1, s.c2 + 1), { ...s, r2 }, s));
+    this.afterSelection(false);
+  }
+
+  inFill(col: number, row: number): boolean {
+    const f = this.fillRange;
+    return !!f && col >= f.c1 && col <= f.c2 && row >= f.r1 && row <= f.r2 && !this.inSelection(col, row);
+  }
+
+  /** The selection grown towards a cell along the axis it is furthest out on, or null inside it */
+  private fillTargetAt(col: number, row: number): WeSheetRange | null {
+    const s = this.selection;
+    const rows = row > s.r2 ? row - s.r2 : row < s.r1 ? s.r1 - row : 0;
+    const cols = col > s.c2 ? col - s.c2 : col < s.c1 ? s.c1 - col : 0;
+    if (!rows && !cols) return null;
+    return rows >= cols ? { ...s, r1: Math.min(s.r1, row), r2: Math.max(s.r2, row) } : { ...s, c1: Math.min(s.c1, col), c2: Math.max(s.c2, col) };
   }
 
   onCellDblClick(col: number, row: number): void {
@@ -404,6 +480,13 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   @HostListener('document:mouseup')
   onDocumentMouseUp(): void {
     this.dragging = false;
+    if (this.filling) {
+      this.filling = false;
+      const target = this.fillRange;
+      this.fillRange = null;
+      if (target) this.fill(target);
+      else this.cdr.markForCheck();
+    }
     if (this.resizing) {
       // The resize already changed `sheet`; record it without another undo step per pixel
       setTimeout(() => (this.resizing = null));
@@ -415,6 +498,12 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   onGridKeydown(event: KeyboardEvent): void {
     if (this.editing) return;
+    if (this.pickerKey(event)) return;
+    if (event.altKey && event.key === 'ArrowDown' && this.activeList) {
+      this.openPicker();
+      event.preventDefault();
+      return;
+    }
     if (this.menu && event.key === 'Escape') {
       this.closeMenu();
       event.preventDefault();
@@ -585,9 +674,100 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       this.cdr.markForCheck();
       return;
     }
+    // A dropdown-list cell takes only its choices, written as the list writes them
+    const list = this.sheet.cells[weSheetAddress(e.col, e.row)]?.l;
+    let text = e.text;
+    if (list && text.trim() !== '' && !text.startsWith('=')) {
+      const match = list.find((o) => o.toLocaleLowerCase() === text.trim().toLocaleLowerCase());
+      if (match === undefined) {
+        this.notice = this.locale.sheetListInvalid;
+        this.barText = this.rawText(e.col, e.row);
+        this.cdr.markForCheck();
+        return;
+      }
+      text = match;
+    }
     const next = this.cloneForEdit(e.row + 1, e.col + 1);
-    this.writeInput(next, e.col, e.row, e.text);
+    this.writeInput(next, e.col, e.row, text);
     this.commit(next);
+  }
+
+  // ─── Dropdown lists ──────────────────────────────────────────────────
+
+  /** The active cell's dropdown list, or null */
+  get activeList(): string[] | null {
+    return this.sheet.cells[weSheetAddress(this.active.col, this.active.row)]?.l ?? null;
+  }
+
+  /** Opens the list editor for the selection, where the context menu was */
+  openListEditor(): void {
+    const at = this.menu ?? { x: 40, y: 40 };
+    this.closeMenu();
+    if (this.readonly) return;
+    this.listEditor = { text: (this.activeList ?? []).join('\n'), ...at };
+    this.cdr.markForCheck();
+    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLTextAreaElement>('.we-sheet__list-editor textarea')?.focus());
+  }
+
+  /** Gives every selected cell the choices in `text`, one per line — none removes the list */
+  saveList(text: string): void {
+    const list = weSheetCleanList(text.split(/\r?\n/));
+    this.closeListEditor();
+    this.updateRange((cell) => {
+      const { l: _l, ...rest } = cell;
+      return list.length ? { ...rest, l: list } : rest;
+    });
+  }
+
+  closeListEditor(): void {
+    if (!this.listEditor) return;
+    this.listEditor = null;
+    this.scrollRef.nativeElement.focus({ preventScroll: true });
+    this.cdr.markForCheck();
+  }
+
+  onListEditorKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      this.closeListEditor();
+    }
+  }
+
+  /** Shows the active cell's choices under it — Alt+↓, or the arrow on the cell */
+  openPicker(): void {
+    const options = this.activeList;
+    if (!options || this.readonly) return;
+    this.commitEdit();
+    const cell = this.scrollRef.nativeElement.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(this.active.col, this.active.row)}"]`);
+    const box = cell?.getBoundingClientRect();
+    const current = String(this.sheet.cells[weSheetAddress(this.active.col, this.active.row)]?.v ?? '');
+    this.picker = { options, index: Math.max(0, options.indexOf(current)), x: box ? box.left : 40, y: box ? box.bottom : 40 };
+    this.cdr.markForCheck();
+  }
+
+  pick(option: string): void {
+    this.picker = null;
+    this.setCell(weSheetAddress(this.active.col, this.active.row), option);
+    this.scrollRef.nativeElement.focus({ preventScroll: true });
+    this.afterSelection(false);
+  }
+
+  /** Arrow keys, Enter and Escape while the choices are open; true when the key was used */
+  private pickerKey(event: KeyboardEvent): boolean {
+    const p = this.picker;
+    if (!p) return false;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      p.index = (p.index + (event.key === 'ArrowDown' ? 1 : -1) + p.options.length) % p.options.length;
+    } else if (event.key === 'Enter') {
+      this.pick(p.options[p.index]);
+    } else if (event.key === 'Escape' || event.key === 'Tab') {
+      this.picker = null;
+    } else {
+      return false;
+    }
+    event.preventDefault();
+    this.cdr.markForCheck();
+    return true;
   }
 
   cancelEdit(): void {
@@ -862,6 +1042,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   onDocumentMouseDown(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (this.menu && !target.closest?.('.we-sheet__menu')) this.closeMenu();
+    if (this.listEditor && !target.closest?.('.we-sheet__list-editor')) this.closeListEditor();
+    if (this.picker && !target.closest?.('.we-sheet__picker, .we-sheet__pick-btn')) {
+      this.picker = null;
+      this.cdr.markForCheck();
+    }
     if (this.optionsOpen && !target.closest?.('.we-sheet__palette-host')) {
       this.optionsOpen = false;
       this.cdr.markForCheck();
@@ -1303,6 +1488,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (cell.a) out.a = cell.a;
     if (cell.f) out.f = cell.f;
     if (cell.d !== undefined) out.d = cell.d;
+    if (cell.l?.length) out.l = cell.l;
     return out;
   }
 
@@ -1362,6 +1548,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private afterSelection(scroll = true, focus: Pos = this.active): void {
+    this.picker = null;
     if (!this.editing) this.barText = this.rawText(this.active.col, this.active.row);
     const values: unknown[] = [];
     const s = this.selection;

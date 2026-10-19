@@ -146,6 +146,71 @@ describe('WeSheetComponent', () => {
     expect(sheet().getValue('A1')).toBe(1);
   });
 
+  it('fills by dragging the handle at the selection corner, and down by double-clicking it', () => {
+    sheet().setCell('A1', 1);
+    sheet().setCell('A2', 2);
+    sheet().select('A1:A2');
+    fixture.detectChanges();
+    const handle = () => el().querySelector<HTMLElement>('.we-sheet__fill')!;
+    expect(handle().parentElement!.getAttribute('data-cell')).toBe('A2');
+    handle().dispatchEvent(new MouseEvent('mousedown', { button: 0, bubbles: true }));
+    cellEl('A4').dispatchEvent(new MouseEvent('mouseenter'));
+    fixture.detectChanges();
+    expect(cellEl('A3').classList).toContain('we-sheet__cell--fill');
+    document.dispatchEvent(new MouseEvent('mouseup'));
+    fixture.detectChanges();
+    expect(['A3', 'A4'].map((a) => sheet().getValue(a))).toEqual([3, 4]);
+    expect(sheet().selectionLabel).toBe('A1:A4');
+
+    sheet().setCell('B1', '=A1*2');
+    sheet().select('B1');
+    fixture.detectChanges();
+    handle().dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(['B2', 'B3', 'B4', 'B5'].map((a) => sheet().getValue(a))).toEqual([4, 6, 8, null]);
+  });
+
+  it('fills a series down from the context menu, for keyboard users', () => {
+    sheet().setCell('A1', 5);
+    sheet().setCell('A2', 10);
+    sheet().select('A1:A4');
+    sheet().fillSeries();
+    expect(['A3', 'A4'].map((a) => sheet().getValue(a))).toEqual([15, 20]);
+  });
+
+  it('gives cells a dropdown list, takes only its choices and picks them from the keyboard', () => {
+    sheet().select('A1:A2');
+    sheet().openMenu(10, 10);
+    fixture.detectChanges();
+    sheet().openListEditor();
+    fixture.detectChanges();
+    const editor = el().querySelector<HTMLElement>('.we-sheet__list-editor')!;
+    editor.querySelector('textarea')!.value = ['Open', 'Closed', '', 'open'].join('\n');
+    editor.querySelector<HTMLButtonElement>('.we-sheet__list-save')!.click();
+    fixture.detectChanges();
+    expect(sheet().getData().cells['A2'].l).toEqual(['Open', 'Closed']);
+
+    sheet().select('A1');
+    sheet().startEdit('maybe');
+    sheet().commitEdit();
+    expect(sheet().getValue('A1')).toBeNull();
+    sheet().startEdit('closed');
+    sheet().commitEdit();
+    expect(sheet().getValue('A1')).toBe('Closed');
+
+    fixture.detectChanges();
+    expect(cellEl('A1').querySelector('.we-sheet__pick-btn')).toBeTruthy();
+    const gridKey = (k: string, init: KeyboardEventInit = {}) => {
+      el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true, ...init }));
+      fixture.detectChanges();
+    };
+    gridKey('ArrowDown', { altKey: true });
+    expect(el().querySelectorAll('.we-sheet__picker [role="option"]').length).toBe(2);
+    gridKey('ArrowUp');
+    gridKey('Enter');
+    expect(sheet().getValue('A1')).toBe('Open');
+    expect(el().querySelector('.we-sheet__picker')).toBeNull();
+  });
+
   it('sorts the used rows below the header row', () => {
     sheet().setData({ version: 1, rows: 6, cols: 4, headerRow: true, cells: { A1: { v: 'Name' }, A2: { v: 'b' }, A3: { v: 'c' }, A4: { v: 'a' } } });
     sheet().select('A2');

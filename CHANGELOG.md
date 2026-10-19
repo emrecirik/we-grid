@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.17.0 — 2026-10-20
+
+Spreadsheet fill handle and dropdown lists. A minor release.
+
+### Added
+
+- `<we-sheet>` **fill handle**: drag the square at the corner of the selection to fill down, up or
+  sideways — numbers continue their step, dates go on by a day, text ending in a number counts on,
+  formulas shift their references, anything else repeats. Double-click it to fill down as far as
+  the neighbouring column goes; from the keyboard, *Fill series down* in the context menu.
+  `fill(range)` / `fillSeries()` methods, `weSheetFill` util, locale keys `sheetFillHandle`,
+  `sheetFillSeries`.
+- `<we-sheet>` **dropdown lists** (Excel's data validation list): right-click → *Dropdown list…*
+  gives the selected cells a list of choices (`WeSheetCell.l`). The active cell shows an arrow
+  (or Alt+↓) to pick one; a typed value that is not a choice is refused with a notice. Kept by
+  copy, fill, sort and saved layouts. `weSheetCleanList` util; icon `chevronDown`; locale keys
+  `sheetList`, `sheetListHint`, `sheetListRemove`, `sheetListInvalid`, `sheetListOpen`.
+- Studio: the Budget sheet has an *Approval* column with a dropdown list.
+
 ## 0.16.0 — 2026-10-20
 
 Icon sets and a tidier sheet toolbar. A minor release.

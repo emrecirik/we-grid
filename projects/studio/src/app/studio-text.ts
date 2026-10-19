@@ -45,6 +45,7 @@ const en = {
     'Select a block with the mouse or Shift+arrows — the status bar adds it up.',
     'Copy a table from Excel or Google Sheets and paste it here.',
     'Ctrl+D fills a formula down, Ctrl+Z undoes, the toolbar styles and formats cells.',
+    'Drag the small square at the corner of a selection to fill a series (1, 2 → 3, 4…); the Approval column is a dropdown list — right-click → Dropdown list… to make your own.',
     'Right-click for insert/delete rows and columns, Σ sums, Ctrl+F finds and replaces, the chart button charts a selection.'
   ],
   tabData: 'Your database',
@@ -105,6 +106,7 @@ const tr: typeof en = {
     'Fareyle ya da Shift+ok tuşlarıyla bir alan seçin — durum çubuğu toplamı gösterir.',
     'Excel ya da Google E-Tablolar’dan bir tablo kopyalayıp buraya yapıştırın.',
     'Ctrl+D formülü aşağı doldurur, Ctrl+Z geri alır; araç çubuğu hücreleri biçimlendirir.',
+    'Seçimin köşesindeki küçük kareyi sürükleyerek seri doldurun (1, 2 → 3, 4…); Onay kolonu bir açılır liste — kendi listeniz için sağ tık → Açılır liste…',
     'Sağ tıkla satır/kolon ekleyip silin, Σ toplasın, Ctrl+F bulup değiştirsin, grafik düğmesi seçimi grafiğe çevirsin.'
   ],
   tabData: 'Veritabanınız',

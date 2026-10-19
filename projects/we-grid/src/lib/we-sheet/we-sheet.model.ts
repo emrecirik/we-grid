@@ -18,6 +18,8 @@ export interface WeSheetCell {
   f?: WeSheetNumberFormat;
   /** Fixed decimal places (0-10) for number, currency and percent formats */
   d?: number;
+  /** A dropdown list: the only values the user may type, offered under the cell (Excel's data validation list) */
+  l?: string[];
 }
 
 /**

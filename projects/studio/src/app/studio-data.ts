@@ -126,8 +126,11 @@ export function studioBudget(lang: StudioLanguage): WeSheetData {
     C1: { v: tr ? 'Gerçekleşen' : 'Actual' },
     D1: { v: tr ? 'Fark' : 'Variance' },
     E1: { v: tr ? 'Fark %' : 'Variance %' },
-    F1: { v: tr ? 'Not' : 'Note' }
+    F1: { v: tr ? 'Not' : 'Note' },
+    G1: { v: tr ? 'Onay' : 'Approval' }
   };
+  // A dropdown list: the cell takes only these, offered by the arrow on the cell or Alt+↓
+  const approval = tr ? ['Onaylandı', 'Bekliyor', 'Reddedildi'] : ['Approved', 'Pending', 'Rejected'];
   rows.forEach(([item, budget, actual], i) => {
     const r = i + 2;
     cells[`A${r}`] = { v: item };
@@ -136,6 +139,7 @@ export function studioBudget(lang: StudioLanguage): WeSheetData {
     cells[`D${r}`] = { v: `=C${r}-B${r}`, f: 'currency' };
     cells[`E${r}`] = { v: `=IFERROR(D${r}/B${r}, 0)`, f: 'percent' };
     cells[`F${r}`] = { v: tr ? `=IF(D${r}>0, "Aşım", "")` : `=IF(D${r}>0, "Over", "")`, s: { color: 'red' } };
+    cells[`G${r}`] = { v: approval[actual > budget ? 1 : 0], l: approval };
   });
   const total = rows.length + 3;
   cells[`A${total}`] = { v: tr ? 'Toplam' : 'Total', s: { bold: true } };
@@ -146,7 +150,7 @@ export function studioBudget(lang: StudioLanguage): WeSheetData {
   // Reads the other sheet of the workbook
   cells[`A${total + 2}`] = { v: tr ? 'Altı aylık satış (Satışlar sayfası)' : 'Six months of sales (Sales sheet)' };
   cells[`B${total + 2}`] = { v: tr ? '=TOPLA(Satışlar!D2:D7)' : '=SUM(Sales!D2:D7)', f: 'currency', s: { bold: true, color: 'blue' } };
-  return { version: 1, rows: 40, cols: 10, headerRow: true, striped: true, widths: { A: 190, F: 90 }, cells, chart: { range: `A1:C${rows.length + 1}`, type: 'column' } };
+  return { version: 1, rows: 40, cols: 10, headerRow: true, striped: true, widths: { A: 190, F: 90, G: 120 }, cells, chart: { range: `A1:C${rows.length + 1}`, type: 'column' } };
 }
 
 export function studioMacros(lang: StudioLanguage): WeGridMacro[] {

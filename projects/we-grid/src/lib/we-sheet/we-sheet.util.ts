@@ -264,6 +264,8 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
     if (r['a'] === 'start' || r['a'] === 'center' || r['a'] === 'end') cell.a = r['a'];
     if (FORMATS.has(r['f'] as WeSheetNumberFormat)) cell.f = r['f'] as WeSheetNumberFormat;
     if (typeof r['d'] === 'number' && Number.isInteger(r['d']) && r['d'] >= 0 && r['d'] <= 10) cell.d = r['d'];
+    const list = Array.isArray(r['l']) ? weSheetCleanList(r['l'].filter((x): x is string => typeof x === 'string')) : [];
+    if (list.length) cell.l = list;
     if (Object.keys(cell).length) cells[key] = cell;
   }
   const data: WeSheetData = { version: 1, rows, cols, cells };
@@ -441,6 +443,82 @@ export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number
     out.widths = widths;
   }
   return out;
+}
+
+/** A dropdown list's choices: trimmed, without blanks and repeats, at most 200 of up to 200 characters */
+export function weSheetCleanList(items: readonly string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const item of items) {
+    const v = item.trim().slice(0, 200);
+    const key = v.toLocaleLowerCase();
+    if (!v || seen.has(key)) continue;
+    seen.add(key);
+    out.push(v);
+    if (out.length === 200) break;
+  }
+  return out;
+}
+
+/**
+ * The fill handle: extends the cells of `source` through `target` (which contains it and grows it
+ * along one axis), as Excel does when the corner of a selection is dragged. Each column (or row) is
+ * a series of its own: numbers continue their step (`1, 3` → `5, 7`; one number is copied), dates
+ * go on by a day, text ending in a number counts on (`Item 9` → `Item 10`), formulas shift their
+ * relative references, and anything else repeats. Styles and formats come with the cells.
+ */
+export function weSheetFill(data: WeSheetData, source: WeSheetRange, target: WeSheetRange): WeSheetData {
+  const down = target.r1 < source.r1 || target.r2 > source.r2;
+  const cells = { ...data.cells };
+  const lines = down ? [source.c1, source.c2] : [source.r1, source.r2];
+  const [from, to] = down ? [source.r1, source.r2] : [source.c1, source.c2];
+  const [lo, hi] = down ? [target.r1, target.r2] : [target.c1, target.c2];
+  const n = to - from + 1;
+  for (let line = lines[0]; line <= lines[1]; line++) {
+    const at = (i: number) => (down ? weSheetAddress(line, from + i) : weSheetAddress(from + i, line));
+    const seq = Array.from({ length: n }, (_, i) => data.cells[at(i)]);
+    const series = fillSeries(seq);
+    for (let p = lo; p <= hi; p++) {
+      if (p >= from && p <= to) continue;
+      const t = p - from;
+      const k = ((t % n) + n) % n;
+      const base = seq[k];
+      const key = down ? weSheetAddress(line, p) : weSheetAddress(p, line);
+      let v: WeSheetCell['v'] = base?.v;
+      if (typeof v === 'string' && v.startsWith('=')) v = weSheetShiftFormula(v, down ? 0 : t - k, down ? t - k : 0);
+      else if (series) v = series(t);
+      const cell: WeSheetCell = { ...(base ?? {}) };
+      if (v === undefined || v === null) delete cell.v;
+      else cell.v = v;
+      if (Object.keys(cell).length) cells[key] = cell;
+      else delete cells[key];
+    }
+  }
+  return { ...data, cells };
+}
+
+/** The value at index `t` of the series the cells start, or null when they are simply repeated */
+function fillSeries(seq: (WeSheetCell | undefined)[]): ((t: number) => WeSheetCell['v']) | null {
+  const values = seq.map((c) => c?.v);
+  const n = values.length;
+  if (values.every((v) => typeof v === 'number')) {
+    const nums = values as number[];
+    if (n === 1) return seq[0]?.f === 'date' ? (t) => nums[0] + t : null;
+    const step = (nums[n - 1] - nums[0]) / (n - 1);
+    return (t) => Math.round((nums[0] + step * t) * 1e10) / 1e10;
+  }
+  const parts = values.map((v) => (typeof v === 'string' && !v.startsWith('=') ? /^(.*?)(\d+)$/.exec(v) : null));
+  if (parts.every((m) => m && m[1] === parts[0]![1])) {
+    const nums = parts.map((m) => Number(m![2]));
+    const width = parts[0]![2].length;
+    const step = n === 1 ? 1 : (nums[n - 1] - nums[0]) / (n - 1);
+    if (!Number.isInteger(step)) return null;
+    return (t) => {
+      const x = nums[0] + step * t;
+      return x < 0 ? null : parts[0]![1] + String(x).padStart(width, '0');
+    };
+  }
+  return null;
 }
 
 /**

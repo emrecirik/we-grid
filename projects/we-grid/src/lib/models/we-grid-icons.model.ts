@@ -22,6 +22,7 @@ export const weGridDefaultIcons: WeGridIcons = {
   settings: svg('<path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm7.4-3.5a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.5-2.4 1a7.5 7.5 0 0 0-2.1-1.2L14.4 3H9.6l-.4 2.5a7.5 7.5 0 0 0-2.1 1.2l-2.4-1-2 3.5 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.5 2.4-1c.6.5 1.3.9 2.1 1.2l.4 2.5h4.8l.4-2.5c.8-.3 1.5-.7 2.1-1.2l2.4 1 2-3.5-2-1.6c.1-.4.1-.8.1-1.2Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>'),
   warning: svg('<path d="M12 3 2 20h20L12 3Zm0 5.5 5.7 9.9H6.3L12 8.5Z"/><rect x="11.1" y="12" width="1.8" height="4.2"/><rect x="11.1" y="16.8" width="1.8" height="1.8"/>'),
   inbox: svg('<path d="M4 4h16l2 8v8H2v-8L4 4Zm0 2-1.5 6H8l1 2h6l1-2h5.5L18 6H4Z"/>'),
+  chevronDown: svg('<path d="M6.7 9.3 12 14.6l5.3-5.3 1.4 1.4L12 17.4 5.3 10.7z"/>'),
   chevronRight: svg('<path d="M9.3 6.7 14.6 12l-5.3 5.3 1.4 1.4L17.4 12 10.7 5.3z"/>'),
   chevronFirst: svg('<path d="M7 6h2v12H7zM17.7 6.7 12.4 12l5.3 5.3-1.4 1.4L9.6 12l6.7-6.7z"/>'),
   chevronLast: svg('<path d="M15 6h2v12h-2zM6.3 6.7 11.6 12l-5.3 5.3 1.4 1.4L14.4 12 7.7 5.3z"/>'),

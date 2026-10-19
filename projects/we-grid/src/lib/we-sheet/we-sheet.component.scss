@@ -334,6 +334,90 @@
   background: transparent;
 }
 
+// The arrow that opens a dropdown-list cell's choices
+.we-sheet__pick-btn {
+  position: absolute;
+  top: 50%;
+  right: 0.15rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: calc(var(--we-grid-radius, 0.25rem) - 1px);
+  background: var(--we-grid-bg, #fff);
+  color: var(--we-grid-muted-color, #6c757d);
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.we-sheet__picker {
+  min-width: 10rem;
+  max-height: 16rem;
+  overflow-y: auto;
+}
+
+.we-sheet__picker--on {
+  background: var(--we-grid-row-selected-bg, rgba(64, 81, 137, 0.1)) !important;
+}
+
+.we-sheet__list-editor {
+  gap: 0.5rem;
+  width: 17rem;
+  padding: 0.6rem;
+}
+
+.we-sheet__list-label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.85em;
+  color: var(--we-grid-muted-color, #6c757d);
+
+  textarea {
+    padding: 0.35rem 0.45rem;
+    border: 1px solid var(--we-grid-border-color, #dee2e6);
+    border-radius: var(--we-grid-radius, 0.25rem);
+    background: var(--we-grid-bg, #fff);
+    color: var(--we-grid-font-color, #212529);
+    font: inherit;
+    font-size: 1rem;
+    resize: vertical;
+  }
+}
+
+.we-sheet__list-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.25rem;
+}
+
+.we-sheet__list-save {
+  background: var(--we-grid-accent-color, #405189) !important;
+  color: var(--we-grid-on-accent-color, #fff) !important;
+}
+
+// The fill handle — the square at the selection's corner, dragged to fill
+.we-sheet__fill {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  width: 0.45rem;
+  height: 0.45rem;
+  background: var(--we-grid-accent-color, #405189);
+  box-shadow: 0 0 0 1px var(--we-grid-bg, #fff);
+  cursor: crosshair;
+}
+
+.we-sheet__cell--fill {
+  outline: 1px dashed var(--we-grid-accent-color, #405189);
+  outline-offset: -2px;
+}
+
 .we-sheet__editor {
   position: absolute;
   inset: 0;

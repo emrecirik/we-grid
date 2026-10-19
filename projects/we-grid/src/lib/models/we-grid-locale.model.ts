@@ -300,6 +300,19 @@ export interface WeGridLocale {
   sheetImportTruncated: string;
   /** An insert would push content off a full sheet */
   sheetFull: string;
+  /** Tooltip of the fill handle at the selection's corner */
+  sheetFillHandle: string;
+  /** Context-menu item: continue the series at the top of the selection through it */
+  sheetFillSeries: string;
+  /** Context-menu item and title of the dropdown-list editor */
+  sheetList: string;
+  /** Above the list editor's text box */
+  sheetListHint: string;
+  sheetListRemove: string;
+  /** Typed a value that is not one of the cell's choices */
+  sheetListInvalid: string;
+  /** The arrow that shows a dropdown-list cell's choices */
+  sheetListOpen: string;
   sheetFreezeColumn: string;
   sheetSuggestions: string;
   sheetOptions: string;
@@ -637,6 +650,13 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetImportFailed: 'The file could not be read',
   sheetImportTruncated: 'The file is larger than a sheet holds — only what fits was imported',
   sheetFull: 'The sheet is full — clear its last rows or columns first',
+  sheetFillHandle: 'Drag to fill — double-click to fill down',
+  sheetFillSeries: 'Fill series down',
+  sheetList: 'Dropdown list…',
+  sheetListHint: 'Choices, one per line',
+  sheetListRemove: 'Remove list',
+  sheetListInvalid: 'Choose one of the values in the list',
+  sheetListOpen: 'Show choices',
   sheetFreezeColumn: 'Freeze first column',
   sheetSuggestions: 'Functions',
   sheetOptions: 'Table options',
@@ -979,6 +999,13 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetImportFailed: 'Dosya okunamadı',
   sheetImportTruncated: 'Dosya bir sayfaya sığmayacak kadar büyük — yalnızca sığan kısmı alındı',
   sheetFull: 'Sayfa dolu — önce son satırları veya sütunları boşaltın',
+  sheetFillHandle: 'Doldurmak için sürükleyin — aşağı doldurmak için çift tıklayın',
+  sheetFillSeries: 'Seriyi aşağı doldur',
+  sheetList: 'Açılır liste…',
+  sheetListHint: 'Seçenekler, her satıra bir tane',
+  sheetListRemove: 'Listeyi kaldır',
+  sheetListInvalid: 'Listedeki değerlerden birini seçin',
+  sheetListOpen: 'Seçenekleri göster',
   sheetFreezeColumn: 'İlk kolonu dondur',
   sheetSuggestions: 'Fonksiyonlar',
   sheetOptions: 'Tablo seçenekleri',

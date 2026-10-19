@@ -29,6 +29,7 @@ export class BudgetComponent {}
 | Number format | General, number, whole number, currency (the locale's `intlCurrency`), percent, date (Excel serial dates), text. |
 | Sort | A → Z / Z → A by the active column — the selected rows, or every used row below the header row. Numbers before text, blanks last. |
 | Fill down | Ctrl+D copies the top row of the selection down through it, shifting relative references. |
+| Fill handle *(0.17.0)* | Drag the square at the selection's corner down, up or sideways: numbers continue their step (`1, 2` → `3, 4`), dates go on by a day, `Item 9` → `Item 10`, formulas shift, anything else repeats. Double-click it to fill down as far as the column beside goes. `fill(range)` does the same from code; from the keyboard, select the start of the series and the empty cells under it and choose **Fill series down** in the context menu (Shift+F10). |
 | Header row, zebra rows | Row 1 as a header (bold, kept out of sorting, the column titles of an export) and alternate row tint. |
 | Grow | Add a row or a column; pasting past the edge grows the sheet. Drag a column header's edge to resize. |
 | Status bar | Average, min, max, count and sum of the selection, as in Excel. |
@@ -38,6 +39,7 @@ export class BudgetComponent {}
 | Freeze *(0.11.0)* | Column A stays in view while scrolling sideways; with a header row, row 1 stays at the top. |
 | Function suggestions *(0.11.0)* | Typing `=SU` (or `=TOP` in Turkish) lists matching functions with their arguments; arrows choose, Tab or Enter inserts `SUM(`, Escape closes. |
 | Find and replace *(0.14.0)* | Ctrl+F finds text in what the cells show (and in formulas), Enter / Shift+Enter walk the matches, "Match case" narrows them; Ctrl+H (or Replace…) replaces one match or all of them — undoable. |
+| Dropdown lists *(0.17.0)* | Right-click → **Dropdown list…**, one choice per line, for the selected cells (`WeSheetCell.l`). The active cell shows an arrow (or Alt+↓) to pick a choice; typing anything else is refused with a notice, and a choice typed in another case is written as the list writes it. Paste is not checked, as in Excel. |
 | Decimal places *(0.14.0)* | `.0−` / `.00+` in the toolbar: Excel's Decrease / Increase Decimal for the selection (`WeSheetCell.d`). |
 | Export | Excel (`.xlsx`, numbers stay numbers) and CSV, of the used range. |
 
@@ -111,7 +113,7 @@ never inject CSS or markup. Formulas are evaluated by the formula engine — nev
 `weSheetAddress`, `weSheetParseAddress`, `weSheetRangeLabel`, `weSheetParseInput`,
 `weSheetParseNumber`, `weSheetShiftFormula`, `weSheetStats`, `weSheetSortRange`,
 `weSheetFormatValue`, `weSheetSanitize`, `weSheetEmpty`, `weSheetInsert`, `weSheetMoveReferences`,
-`weSheetAutoSum` — the pure functions the component is built
+`weSheetAutoSum`, `weSheetFill`, `weSheetCleanList` *(0.17.0)*, `weSheetMoveSheetReferences` *(0.16.0)* — the pure functions the component is built
 on, exported for servers and tests.
 
 ## Workbooks: several sheets *(0.14.0)*

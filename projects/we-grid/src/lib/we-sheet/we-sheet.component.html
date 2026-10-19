@@ -247,6 +247,7 @@
                 [attr.data-cell]="columnLetters[c] + (r + 1)"
                 [class.we-sheet__cell--sel]="inSelection(c, r)"
                 [class.we-sheet__cell--active]="c === active.col && r === active.row"
+                [class.we-sheet__cell--fill]="fillRange !== null && inFill(c, r)"
                 [class.we-sheet__cell--error]="view[r][c].error"
                 [attr.aria-selected]="inSelection(c, r)"
                 [style.text-align]="view[r][c].align"
@@ -276,6 +277,21 @@
                   }
                 } @else {
                   {{ view[r][c].text }}
+                  @if (!readonly && c === active.col && r === active.row && activeList) {
+                    <button
+                      type="button"
+                      class="we-sheet__pick-btn"
+                      tabindex="-1"
+                      [attr.aria-label]="locale.sheetListOpen"
+                      [title]="locale.sheetListOpen"
+                      (mousedown)="$event.stopPropagation(); $event.preventDefault(); picker ? (picker = null) : openPicker()"
+                    >
+                      <span [innerHTML]="icon('chevronDown')" aria-hidden="true"></span>
+                    </button>
+                  }
+                  @if (!readonly && c === selection.c2 && r === selection.r2) {
+                    <span class="we-sheet__fill" [title]="locale.sheetFillHandle" (mousedown)="onFillStart($event)" (dblclick)="onFillDblClick($event)" aria-hidden="true"></span>
+                  }
                 }
               </td>
             }
@@ -315,9 +331,33 @@
       <button type="button" role="menuitem" (click)="closeMenu(); clearContents()">{{ locale.sheetClearContents }}</button>
       <button type="button" role="menuitem" (click)="closeMenu(); clearFormatting()">{{ locale.sheetClearFormat }}</button>
       <button type="button" role="menuitem" (click)="autoSum()">Σ {{ locale.sheetAutoSum }}</button>
+      <button type="button" role="menuitem" (click)="fillSeries()" [disabled]="selection.r2 === selection.r1">{{ locale.sheetFillSeries }}</button>
+      <button type="button" role="menuitem" (click)="openListEditor()">{{ locale.sheetList }}</button>
       <div class="we-sheet__menu-sep" role="separator"></div>
       <button type="button" role="menuitem" (click)="closeMenu(); sort('asc')">{{ locale.sheetSortAsc }}</button>
       <button type="button" role="menuitem" (click)="closeMenu(); sort('desc')">{{ locale.sheetSortDesc }}</button>
+    </div>
+  }
+
+  @if (picker) {
+    <div class="we-sheet__menu we-sheet__picker" role="listbox" [attr.aria-label]="locale.sheetListOpen" [style.left.px]="picker.x" [style.top.px]="picker.y">
+      @for (o of picker.options; track o; let i = $index) {
+        <button type="button" role="option" tabindex="-1" [attr.aria-selected]="i === picker.index" [class.we-sheet__picker--on]="i === picker.index" (mousedown)="$event.preventDefault(); pick(o)">{{ o }}</button>
+      }
+    </div>
+  }
+
+  @if (listEditor) {
+    <div class="we-sheet__menu we-sheet__list-editor" role="dialog" [attr.aria-label]="locale.sheetList" [style.left.px]="listEditor.x" [style.top.px]="listEditor.y" (keydown)="onListEditorKeydown($event)">
+      <label class="we-sheet__list-label">
+        {{ locale.sheetListHint }}
+        <textarea #listText rows="6" [value]="listEditor.text" spellcheck="false"></textarea>
+      </label>
+      <div class="we-sheet__list-actions">
+        <button type="button" (click)="saveList('')">{{ locale.sheetListRemove }}</button>
+        <button type="button" (click)="closeListEditor()">{{ locale.cancel }}</button>
+        <button type="button" class="we-sheet__list-save" (click)="saveList(listText.value)">{{ locale.apply }}</button>
+      </div>
     </div>
   }
 

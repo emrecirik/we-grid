@@ -5,6 +5,8 @@ import {
   weSheetInsert,
   weSheetMoveReferences,
   weSheetMoveSheetReferences,
+  weSheetFill,
+  weSheetCleanList,
   weSheetEmpty,
   weSheetFormatValue,
   weSheetNormalize,
@@ -167,5 +169,40 @@ describe('we-sheet references (0.16.0 fixes)', () => {
     const data = { ...weSheetEmpty(5, 3), chart: { range: 'A1:B2', type: 'column' as const } };
     expect(weSheetInsert(data, 'row', 0, 1).chart?.range).toBe('A2:B3');
     expect(weSheetInsert(data, 'row', 0, -2).chart).toBeUndefined();
+  });
+});
+
+describe('weSheetFill', () => {
+  const sheet = (cells: Record<string, { v?: string | number | boolean; f?: 'date' }>) => ({ ...weSheetEmpty(10, 5), cells });
+  const col = (data: Parameters<typeof weSheetFill>[0], c: string, from: number, to: number) =>
+    Array.from({ length: to - from + 1 }, (_, i) => data.cells[`${c}${from + i}`]?.v ?? null);
+
+  it('continues number steps, copies a lone number and counts on text ending in a number', () => {
+    const data = sheet({ A1: { v: 1 }, A2: { v: 3 }, B1: { v: 7 }, C1: { v: 'Item 09' }, D1: { v: 'x' }, D2: { v: 'y' } });
+    const out = weSheetFill(data, { c1: 0, r1: 0, c2: 3, r2: 1 }, { c1: 0, r1: 0, c2: 3, r2: 4 });
+    expect(col(out, 'A', 1, 5)).toEqual([1, 3, 5, 7, 9]);
+    expect(col(out, 'B', 1, 5)).toEqual([7, null, 7, null, 7]);
+    expect(col(out, 'D', 1, 5)).toEqual(['x', 'y', 'x', 'y', 'x']);
+    const items = weSheetFill(data, { c1: 2, r1: 0, c2: 2, r2: 0 }, { c1: 2, r1: 0, c2: 2, r2: 2 });
+    expect(col(items, 'C', 1, 3)).toEqual(['Item 09', 'Item 10', 'Item 11']);
+  });
+
+  it('moves dates on by a day, shifts formulas and fills sideways and backwards', () => {
+    const data = sheet({ B2: { v: 45000, f: 'date' }, C2: { v: '=B2*2' } });
+    const right = weSheetFill(data, { c1: 1, r1: 1, c2: 2, r2: 1 }, { c1: 1, r1: 1, c2: 4, r2: 1 });
+    expect([right.cells['D2'].v, right.cells['E2'].v]).toEqual([45000, '=D2*2']);
+    const down = weSheetFill(data, { c1: 1, r1: 1, c2: 2, r2: 1 }, { c1: 1, r1: 0, c2: 2, r2: 3 });
+    expect(col(down, 'B', 1, 4)).toEqual([44999, 45000, 45001, 45002]);
+    expect(down.cells['B4'].f).toBe('date');
+    expect(col(down, 'C', 1, 4)).toEqual(['=B1*2', '=B2*2', '=B3*2', '=B4*2']);
+  });
+});
+
+describe('dropdown lists', () => {
+  it('cleans choices and keeps them through sanitising', () => {
+    expect(weSheetCleanList([' Open ', '', 'open', 'Closed', '  '])).toEqual(['Open', 'Closed']);
+    const clean = weSheetSanitize({ version: 1, rows: 3, cols: 3, cells: { A1: { v: 'Open', l: ['Open', 7, 'Closed', 'open'] }, A2: { l: 'x' } } });
+    expect(clean?.cells['A1'].l).toEqual(['Open', 'Closed']);
+    expect(clean?.cells['A2']).toBeUndefined();
   });
 });
