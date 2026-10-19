@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.12.1 — 2026-10-20
+
+### Fixed
+
+- `<we-sheet>`: moving the selection scrolled the whole page along with the sheet — only the
+  sheet's own scrolling area moves now.
+
 ## 0.12.0 — 2026-10-20
 
 Charts. A minor release — new component and exports.

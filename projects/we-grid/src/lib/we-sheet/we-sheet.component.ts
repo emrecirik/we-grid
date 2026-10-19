@@ -1189,8 +1189,20 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.cdr.markForCheck();
     if (scroll) {
       queueMicrotask(() => {
-        const el = this.scrollRef.nativeElement.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(focus.col, focus.row)}"]`);
-        el?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+        // Only the sheet's own scroller moves — scrollIntoView would scroll the page around it too
+        const box = this.scrollRef.nativeElement;
+        const el = box.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(focus.col, focus.row)}"]`);
+        if (!el) return;
+        const headTop = box.querySelector<HTMLElement>('thead')?.offsetHeight ?? 0;
+        const headLeft = box.querySelector<HTMLElement>('.we-sheet__rowhead')?.offsetWidth ?? 0;
+        const top = el.offsetTop - headTop;
+        const bottom = el.offsetTop + el.offsetHeight;
+        const left = el.offsetLeft - headLeft;
+        const right = el.offsetLeft + el.offsetWidth;
+        if (top < box.scrollTop) box.scrollTop = top;
+        else if (bottom > box.scrollTop + box.clientHeight) box.scrollTop = bottom - box.clientHeight;
+        if (left < box.scrollLeft) box.scrollLeft = left;
+        else if (right > box.scrollLeft + box.clientWidth) box.scrollLeft = right - box.clientWidth;
       });
     }
   }
