@@ -334,6 +334,59 @@
   background: transparent;
 }
 
+// AutoFilter: the button in a header cell, and its checklist
+.we-sheet__filter-btn {
+  position: absolute;
+  top: 50%;
+  right: 0.15rem;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: calc(var(--we-grid-radius, 0.25rem) - 1px);
+  background: var(--we-grid-bg, #fff);
+  color: var(--we-grid-muted-color, #6c757d);
+  font-size: 0.7rem;
+  transform: translateY(-50%);
+  cursor: pointer;
+}
+
+.we-sheet__filter-btn--on {
+  color: var(--we-grid-accent-color, #405189);
+}
+
+.we-sheet__filter {
+  gap: 0.4rem;
+  width: 16rem;
+  padding: 0.6rem;
+
+  label {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.15rem 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+.we-sheet__filter-all {
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+  padding-bottom: 0.35rem !important;
+}
+
+.we-sheet__filter-values {
+  display: flex;
+  flex-direction: column;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
 // The arrow that opens a dropdown-list cell's choices
 .we-sheet__pick-btn {
   position: absolute;

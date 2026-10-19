@@ -150,7 +150,7 @@ export function studioBudget(lang: StudioLanguage): WeSheetData {
   // Reads the other sheet of the workbook
   cells[`A${total + 2}`] = { v: tr ? 'Altı aylık satış (Satışlar sayfası)' : 'Six months of sales (Sales sheet)' };
   cells[`B${total + 2}`] = { v: tr ? '=TOPLA(Satışlar!D2:D7)' : '=SUM(Sales!D2:D7)', f: 'currency', s: { bold: true, color: 'blue' } };
-  return { version: 1, rows: 40, cols: 10, headerRow: true, striped: true, widths: { A: 190, F: 90, G: 120 }, cells, chart: { range: `A1:C${rows.length + 1}`, type: 'column' } };
+  return { version: 1, rows: 40, cols: 10, headerRow: true, autoFilter: true, striped: true, widths: { A: 190, F: 90, G: 120 }, cells, chart: { range: `A1:C${rows.length + 1}`, type: 'column' } };
 }
 
 export function studioMacros(lang: StudioLanguage): WeGridMacro[] {

@@ -169,6 +169,43 @@ describe('WeSheetComponent', () => {
     expect(['B2', 'B3', 'B4', 'B5'].map((a) => sheet().getValue(a))).toEqual([4, 6, 8, null]);
   });
 
+  it('filters rows from a header cell and skips the hidden rows with the arrow keys', () => {
+    sheet().setData({
+      version: 1, rows: 8, cols: 3, headerRow: true, autoFilter: true,
+      cells: { A1: { v: 'City' }, A2: { v: 'Izmir' }, A3: { v: 'Ankara' }, A4: { v: 'Izmir' }, A5: { v: 'Bursa' }, B1: { v: 'Qty' }, B2: { v: 1 } }
+    });
+    fixture.detectChanges();
+    const btn = cellEl('A1').querySelector<HTMLElement>('.we-sheet__filter-btn')!;
+    expect(btn.getAttribute('aria-label')).toBe('Filter “City”');
+    btn.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true }));
+    fixture.detectChanges();
+    expect(sheet().filterMenu!.values.map((v) => v.label)).toEqual(['Ankara', 'Bursa', 'Izmir']);
+    sheet().filterMenu!.values[1].shown = false;
+    sheet().filterMenu!.values[2].shown = false;
+    sheet().applyFilter();
+    fixture.detectChanges();
+    expect(sheet().getData().filters).toEqual({ A: ['Bursa', 'Izmir'] });
+    expect(['A2', 'A3', 'A4', 'A5', 'A6'].map((a) => !!cellEl(a))).toEqual([false, true, false, false, true]);
+    expect(cellEl('A1').querySelector('.we-sheet__filter-btn--on')).toBeTruthy();
+    sheet().select('A1');
+    el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(sheet().selectionLabel).toBe('A6');
+    sheet().select('A1:B4');
+    expect(el().querySelector('.we-sheet__status')!.textContent).not.toContain('Sum');
+    const data = new DataTransfer();
+    el().querySelector('.we-sheet__scroll')!.dispatchEvent(new ClipboardEvent('copy', { clipboardData: data, bubbles: true, cancelable: true }));
+    expect(data.getData('text/plain')).toBe(['City\tQty', 'Ankara\t'].join('\n'));
+    sheet().select('A1');
+    el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', altKey: true, bubbles: true, cancelable: true }));
+    expect(sheet().filterMenu?.col).toBe(0);
+    sheet().closeFilter();
+    sheet().toggleAutoFilter();
+    fixture.detectChanges();
+    expect(sheet().getData().filters).toBeUndefined();
+    expect(cellEl('A2')).toBeTruthy();
+  });
+
   it('formats a column range conditionally through the Format panel', () => {
     sheet().setData({ version: 1, rows: 6, cols: 3, headerRow: true, cells: { A1: { v: 'Qty' }, A2: { v: 5 }, A3: { v: 50 }, A4: { v: '=A2*20' } } });
     sheet().select('A2');

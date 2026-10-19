@@ -224,3 +224,11 @@ describe('sheet conditional formats', () => {
     expect(weSheetInsert(clean, 'row', 0, -3).formats?.map((f) => f.range)).toEqual(['B1:B6']);
   });
 });
+
+describe('sheet filters', () => {
+  it('keeps the filters of an AutoFilter sheet only', () => {
+    const input = { version: 1, rows: 3, cols: 3, cells: {}, headerRow: true, filters: { A: ['x', 3], b: ['y'], C: 'z' } };
+    expect(weSheetSanitize({ ...input, autoFilter: true })?.filters).toEqual({ A: ['x'] });
+    expect(weSheetSanitize(input)?.filters).toBeUndefined();
+  });
+});

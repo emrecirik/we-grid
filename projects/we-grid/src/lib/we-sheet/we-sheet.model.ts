@@ -42,6 +42,10 @@ export interface WeSheetData {
   striped?: boolean;
   /** Column A stays in view while scrolling sideways */
   freezeColumn?: boolean;
+  /** Filter buttons on the header row (Excel's AutoFilter) — needs `headerRow` */
+  autoFilter?: boolean;
+  /** Per column letter, the shown texts whose rows the filter hides (`''` for blanks) */
+  filters?: Record<string, string[]>;
   /** A chart of a range, shown under the cells — `{ range: 'A1:C9', type: 'column' }` */
   chart?: WeSheetChart;
   /** Conditional formatting — the grid's format rules, each over a range of one column */

@@ -319,6 +319,10 @@ export interface WeGridLocale {
   sheetNoteHint: string;
   sheetNoteRemove: string;
   sheetFreezeColumn: string;
+  /** Table options: filter buttons on the header row */
+  sheetAutoFilter: string;
+  /** A header cell's filter button, e.g. `(h) => \`Filter ${h}\`` */
+  sheetFilterColumn: (header: string) => string;
   sheetSuggestions: string;
   sheetOptions: string;
 
@@ -666,6 +670,8 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetNoteHint: 'A note shown when the cell is pointed at',
   sheetNoteRemove: 'Remove note',
   sheetFreezeColumn: 'Freeze first column',
+  sheetAutoFilter: 'Filter buttons',
+  sheetFilterColumn: (h) => `Filter “${h}”`,
   sheetSuggestions: 'Functions',
   sheetOptions: 'Table options',
   pivotLabel: 'Pivot table',
@@ -1018,6 +1024,8 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetNoteHint: 'Hücrenin üzerine gelince gösterilen not',
   sheetNoteRemove: 'Notu kaldır',
   sheetFreezeColumn: 'İlk kolonu dondur',
+  sheetAutoFilter: 'Filtre düğmeleri',
+  sheetFilterColumn: (h) => `“${h}” filtresi`,
   sheetSuggestions: 'Fonksiyonlar',
   sheetOptions: 'Tablo seçenekleri',
   pivotLabel: 'Pivot tablo',

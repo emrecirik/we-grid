@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.19.0 — 2026-10-20
+
+Filters in the spreadsheet. A minor release.
+
+### Added
+
+- `<we-sheet>` **filter buttons** (Excel's AutoFilter): *Table options → Filter buttons* on a sheet
+  with a header row puts a button in each header cell with a checklist of the column's values.
+  Alt+↓ on a header cell opens it. Hidden rows keep their numbers; arrow keys and Enter skip them,
+  copy and the status bar leave them out. `WeSheetData.autoFilter` and
+  `filters`, `toggleAutoFilter()`; locale keys `sheetAutoFilter`, `sheetFilterColumn`.
+- Studio: the Budget sheet has filter buttons.
+
 ## 0.18.0 — 2026-10-20
 
 Notes and conditional formatting in the spreadsheet. A minor release.

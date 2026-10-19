@@ -280,6 +280,17 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
   if (o['headerRow'] === true) data.headerRow = true;
   if (o['striped'] === true) data.striped = true;
   if (o['freezeColumn'] === true) data.freezeColumn = true;
+  if (o['autoFilter'] === true) data.autoFilter = true;
+  const filters = o['filters'];
+  if (data.autoFilter && typeof filters === 'object' && filters !== null) {
+    const clean: Record<string, string[]> = {};
+    for (const [letter, hidden] of Object.entries(filters as Record<string, unknown>)) {
+      if (!/^[A-Z]{1,3}$/.test(letter) || !Array.isArray(hidden)) continue;
+      const texts = hidden.filter((t): t is string => typeof t === 'string').slice(0, 1000).map((t) => t.slice(0, MAX_TEXT));
+      if (texts.length) clean[letter] = texts;
+    }
+    if (Object.keys(clean).length) data.filters = clean;
+  }
   const chart = o['chart'];
   if (typeof chart === 'object' && chart !== null) {
     const { range, type } = chart as Record<string, unknown>;

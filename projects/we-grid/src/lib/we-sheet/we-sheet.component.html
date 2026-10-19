@@ -101,6 +101,9 @@
             <button type="button" role="menuitemcheckbox" [attr.aria-checked]="!!sheet.freezeColumn" (click)="toggleFreezeColumn()">
               <span class="we-sheet__check" [innerHTML]="sheet.freezeColumn ? icon('check') : ''" aria-hidden="true"></span>{{ locale.sheetFreezeColumn }}
             </button>
+            <button type="button" role="menuitemcheckbox" [attr.aria-checked]="!!sheet.autoFilter" [disabled]="!sheet.headerRow" (click)="toggleAutoFilter()">
+              <span class="we-sheet__check" [innerHTML]="sheet.autoFilter ? icon('check') : ''" aria-hidden="true"></span>{{ locale.sheetAutoFilter }}
+            </button>
             <div class="we-sheet__menu-sep" role="separator"></div>
             <button type="button" role="menuitem" (click)="optionsOpen = false; addRow()"><span class="we-sheet__check"></span>{{ locale.sheetAddRow }}</button>
             <button type="button" role="menuitem" (click)="optionsOpen = false; addColumn()"><span class="we-sheet__check"></span>{{ locale.sheetAddColumn }}</button>
@@ -236,7 +239,7 @@
         </tr>
       </thead>
       <tbody>
-        @for (r of rowNumbers; track r) {
+        @for (r of visibleRows; track r) {
           <tr role="row" [class.we-sheet__row--alt]="sheet.striped && r % 2 === (sheet.headerRow ? 0 : 1)" [class.we-sheet__row--header]="sheet.headerRow && r === 0">
             <th role="rowheader" class="we-sheet__rowhead" [class.we-sheet__head--on]="r >= selection.r1 && r <= selection.r2" (click)="onRowHeaderClick($event, r)">{{ r + 1 }}</th>
             @for (c of colIndexes; track c) {
@@ -278,6 +281,19 @@
                   }
                 } @else {
                   {{ view[r][c].text }}
+                  @if (r === 0 && sheet.headerRow && sheet.autoFilter && view[0][c].text !== '') {
+                    <button
+                      type="button"
+                      class="we-sheet__filter-btn"
+                      [class.we-sheet__filter-btn--on]="isFiltered(c)"
+                      tabindex="-1"
+                      [attr.aria-label]="locale.sheetFilterColumn(view[0][c].text)"
+                      [title]="locale.sheetFilterColumn(view[0][c].text)"
+                      (mousedown)="openFilter($event, c)"
+                    >
+                      <span [innerHTML]="icon(isFiltered(c) ? 'filterFilled' : 'filter')" aria-hidden="true"></span>
+                    </button>
+                  }
                   @if (view[r][c].note !== null) {
                     <span class="we-sheet__note-mark" aria-hidden="true"></span>
                   }
@@ -353,6 +369,24 @@
       (rulesChange)="onFormatRulesChange($event)"
       (closed)="closeFormatPanel()"
     />
+  }
+
+  @if (filterMenu) {
+    <div class="we-sheet__menu we-sheet__filter" role="dialog" [attr.aria-label]="locale.sheetFilterColumn(view[0][filterMenu.col].text)" [style.left.px]="filterMenu.x" [style.top.px]="filterMenu.y" (keydown)="onFilterKeydown($event)">
+      <label class="we-sheet__filter-all">
+        <input type="checkbox" [checked]="filterAllShown" (change)="setAllFilterValues($any($event.target).checked)" /> {{ locale.selectAll }}
+      </label>
+      <div class="we-sheet__filter-values">
+        @for (v of filterMenu.values; track v.text) {
+          <label><input type="checkbox" [checked]="v.shown" (change)="v.shown = $any($event.target).checked" /> {{ v.label }}</label>
+        }
+      </div>
+      <div class="we-sheet__list-actions">
+        <button type="button" (click)="applyFilter(true)" [disabled]="!isFiltered(filterMenu.col)">{{ locale.clearFilters }}</button>
+        <button type="button" (click)="closeFilter()">{{ locale.cancel }}</button>
+        <button type="button" class="we-sheet__list-save" (click)="applyFilter()">{{ locale.apply }}</button>
+      </div>
+    </div>
   }
 
   @if (picker) {

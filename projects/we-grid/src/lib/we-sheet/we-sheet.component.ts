@@ -31,6 +31,7 @@ import {
   WE_GRID_FORMULA_FUNCTIONS,
   WE_GRID_FORMULA_SIGNATURES,
   WeGridSheetEvaluator,
+  weGridColumnIndex,
   weGridColumnLetter,
   weGridFormulaValueToText,
   weGridIsFormula
@@ -141,6 +142,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   view: CellView[][] = [];
   columnLetters: string[] = [];
   rowNumbers: number[] = [];
+  /** The rows drawn — all of them, but those the header-row filters hide */
+  visibleRows: number[] = [];
+  private hiddenRows = new Set<number>();
+  /** The open filter of a header cell: its column and the distinct texts below it */
+  filterMenu: { col: number; x: number; y: number; values: { text: string; label: string; shown: boolean }[] } | null = null;
   colIndexes: number[] = [];
 
   active: Pos = { col: 0, row: 0 };
@@ -503,6 +509,12 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   onGridKeydown(event: KeyboardEvent): void {
     if (this.editing) return;
     if (this.pickerKey(event)) return;
+    // Alt+↓ on a header cell opens its filter, as in Excel
+    if (event.altKey && event.key === 'ArrowDown' && this.active.row === 0 && this.sheet.headerRow && this.sheet.autoFilter && this.view[0]?.[this.active.col]?.text) {
+      this.openFilter(null, this.active.col);
+      event.preventDefault();
+      return;
+    }
     if (event.altKey && event.key === 'ArrowDown' && this.activeList) {
       this.openPicker();
       event.preventDefault();
@@ -554,13 +566,13 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       case 'ArrowRight': {
         const d = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[key];
         const from = event.shiftKey ? this.focusCorner() : this.active;
-        const to = this.clamp({ col: from.col + d[0], row: from.row + d[1] });
+        const to = this.skipHidden(this.clamp({ col: from.col + d[0], row: from.row + d[1] }), d[1]);
         if (event.shiftKey) this.extendTo(to);
         else this.moveTo(to);
         break;
       }
       case 'Enter':
-        this.moveTo(this.clamp({ col: this.active.col, row: this.active.row + (event.shiftKey ? -1 : 1) }));
+        this.moveTo(this.skipHidden(this.clamp({ col: this.active.col, row: this.active.row + (event.shiftKey ? -1 : 1) }), event.shiftKey ? -1 : 1));
         break;
       case 'Tab':
         this.moveTo(this.clamp({ col: this.active.col + (event.shiftKey ? -1 : 1), row: this.active.row }));
@@ -981,6 +993,86 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.commit({ ...this.sheet, headerRow: !this.sheet.headerRow || undefined });
   }
 
+  /** Filter buttons on the header row; turning them off shows every row again */
+  toggleAutoFilter(): void {
+    const next: WeSheetData = { ...this.sheet, autoFilter: !this.sheet.autoFilter || undefined };
+    if (!next.autoFilter) delete next.filters;
+    this.commit(next);
+  }
+
+  /** Whether a column's filter hides anything — its button shows filled */
+  isFiltered(col: number): boolean {
+    return !!this.sheet.filters?.[weGridColumnLetter(col)]?.length;
+  }
+
+  /** Opens a header cell's filter: every distinct text under it, ticked when shown */
+  openFilter(event: MouseEvent | null, col: number): void {
+    event?.preventDefault();
+    event?.stopPropagation();
+    this.commitEdit();
+    const hidden = new Set(this.sheet.filters?.[weGridColumnLetter(col)] ?? []);
+    const texts = new Set<string>();
+    const used = this.usedSize();
+    for (let r = 1; r < used.rows; r++) texts.add(this.view[r]?.[col]?.text ?? '');
+    const sorted = [...texts].filter((t) => t !== '').sort((a, b) => a.localeCompare(b, this.locale.intlLocale, { numeric: true }));
+    if (texts.has('')) sorted.push('');
+    const anchor = (event?.currentTarget as HTMLElement | null) ?? this.scrollRef.nativeElement.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(col, 0)}"]`);
+    const box = anchor?.getBoundingClientRect() ?? { left: 40, bottom: 40 };
+    this.filterMenu = {
+      col,
+      x: Math.min(box.left, window.innerWidth - 260),
+      y: box.bottom,
+      values: sorted.map((text) => ({ text, label: text === '' ? this.locale.emptyGroupValue : text, shown: !hidden.has(text) }))
+    };
+    this.cdr.markForCheck();
+    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLElement>('.we-sheet__filter input')?.focus());
+  }
+
+  get filterAllShown(): boolean {
+    return !!this.filterMenu?.values.every((v) => v.shown);
+  }
+
+  setAllFilterValues(shown: boolean): void {
+    this.filterMenu?.values.forEach((v) => (v.shown = shown));
+  }
+
+  /** Hides the rows whose text in the column is unticked; `clear` shows them all */
+  applyFilter(clear = false): void {
+    const menu = this.filterMenu;
+    if (!menu) return;
+    const letter = weGridColumnLetter(menu.col);
+    const hidden = clear ? [] : menu.values.filter((v) => !v.shown).map((v) => v.text);
+    const filters = { ...(this.sheet.filters ?? {}) };
+    if (hidden.length) filters[letter] = hidden;
+    else delete filters[letter];
+    this.closeFilter();
+    const next: WeSheetData = { ...this.sheet, filters };
+    if (!Object.keys(filters).length) delete next.filters;
+    this.commit(next);
+  }
+
+  closeFilter(): void {
+    if (!this.filterMenu) return;
+    this.filterMenu = null;
+    this.scrollRef.nativeElement.focus({ preventScroll: true });
+    this.cdr.markForCheck();
+  }
+
+  onFilterKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.stopPropagation();
+      this.closeFilter();
+    }
+  }
+
+  /** `to`, or the next row in the direction of travel that the filters don't hide */
+  private skipHidden(to: Pos, step: number): Pos {
+    if (!step || !this.hiddenRows.has(to.row)) return to;
+    let row = to.row;
+    while (this.hiddenRows.has(row) && row + step >= 0 && row + step < this.sheet.rows) row += step;
+    return this.hiddenRows.has(row) ? this.active : { col: to.col, row };
+  }
+
   toggleStriped(): void {
     this.commit({ ...this.sheet, striped: !this.sheet.striped || undefined });
   }
@@ -1107,6 +1199,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const target = event.target as HTMLElement;
     if (this.menu && !target.closest?.('.we-sheet__menu')) this.closeMenu();
     if (this.listEditor && !target.closest?.('.we-sheet__list-editor')) this.closeListEditor();
+    if (this.filterMenu && !target.closest?.('.we-sheet__filter')) this.closeFilter();
     if (this.picker && !target.closest?.('.we-sheet__picker, .we-sheet__pick-btn')) {
       this.picker = null;
       this.cdr.markForCheck();
@@ -1286,6 +1379,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const lines: string[] = [];
     const cells: (WeSheetCell | undefined)[][] = [];
     for (let r = s.r1; r <= r2; r++) {
+      // Rows the filters hide are left out, as Excel copies the visible cells of a filtered range
+      if (this.hiddenRows.has(r)) continue;
       const line: string[] = [];
       const row: (WeSheetCell | undefined)[] = [];
       for (let c = s.c1; c <= c2; c++) {
@@ -1489,6 +1584,21 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  /** The rows the header-row filters hide, and the rows left to draw */
+  private applyFilters(): void {
+    const hidden = new Set<number>();
+    const filters = this.sheet.headerRow && this.sheet.autoFilter ? Object.entries(this.sheet.filters ?? {}) : [];
+    if (filters.length) {
+      const used = this.usedSize();
+      const columns = filters.map(([letter, texts]) => [weGridColumnIndex(letter), new Set(texts)] as const);
+      for (let r = 1; r < used.rows; r++) {
+        if (columns.some(([c, texts]) => texts.has(this.view[r]?.[c]?.text ?? ''))) hidden.add(r);
+      }
+    }
+    this.hiddenRows = hidden;
+    this.visibleRows = hidden.size ? this.rowNumbers.filter((r) => !hidden.has(r)) : this.rowNumbers;
+  }
+
   private rebuildView(): void {
     const view: CellView[][] = [];
     for (let r = 0; r < this.sheet.rows; r++) {
@@ -1506,6 +1616,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.applyFormats(view);
     this.view = view;
+    this.applyFilters();
     this.rebuildChart();
   }
 
@@ -1641,6 +1752,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const s = this.selection;
     const used = this.usedSize();
     for (let r = s.r1; r <= Math.min(s.r2, used.rows - 1); r++) {
+      if (this.hiddenRows.has(r)) continue;
       for (let c = s.c1; c <= Math.min(s.c2, used.cols - 1); c++) values.push(this.evaluator.value(c, r));
     }
     this.stats = weSheetStats(values);
