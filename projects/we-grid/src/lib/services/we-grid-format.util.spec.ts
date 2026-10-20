@@ -1,5 +1,5 @@
 import { WeGridFormatRule } from '../models/we-grid-format.model';
-import { weGridCellStyleCss, weGridResolveFormats, weGridSanitizeFormatRules } from './we-grid-format.util';
+import { weGridCellStyleCss, weGridFormatHex, weGridNearestFormatColor, weGridResolveFormats, weGridSanitizeFormatRules } from './we-grid-format.util';
 
 interface Row {
   name: string;
@@ -133,5 +133,14 @@ describe('weGridSanitizeFormatRules', () => {
       { id: 'd', field: 'x', type: 'dataBar', color: 'blue' }
     ]);
     expect(weGridSanitizeFormatRules({})).toEqual([]);
+  });
+});
+
+describe('palette colours as hex', () => {
+  it('gives the light theme value and finds the nearest palette colour', () => {
+    expect(weGridFormatHex('blue', 'fg')).toBe('#0a5cc2');
+    expect(weGridNearestFormatColor('FFFF0000', 'fg')).toBe('red');
+    expect(weGridNearestFormatColor('#e0edff', 'bg')).toBe('blue');
+    expect(weGridNearestFormatColor('nope', 'bg')).toBeNull();
   });
 });

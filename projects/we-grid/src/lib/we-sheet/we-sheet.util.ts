@@ -1,7 +1,7 @@
 import { WE_GRID_FORMAT_COLORS } from '../models/we-grid-format.model';
 import { WE_GRID_FORMULA_ALIASES, WeGridFormulaError, WeGridSheetEvaluator, weGridColumnIndex, weGridColumnLetter } from '../services/we-grid-formula.util';
 import { WeGridXlsxCell, WeGridXlsxCellFormat, weGridBuildXlsxWorkbook, weGridXlsxSheetName } from '../services/we-grid-xlsx.util';
-import { weGridSanitizeCellStyle, weGridSanitizeFormatRules } from '../services/we-grid-format.util';
+import { weGridFormatHex, weGridNearestFormatColor, weGridSanitizeCellStyle, weGridSanitizeFormatRules } from '../services/we-grid-format.util';
 import { WeSheetCell, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat } from './we-sheet.model';
 
 /** Limits applied to anything loaded from a store — keep a hostile record from freezing the page */
@@ -877,6 +877,10 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
           error: error || undefined,
           bold: cell.s?.bold || (data.headerRow && at.row === 0) || undefined,
           italic: cell.s?.italic,
+          underline: cell.s?.underline,
+          strike: cell.s?.strike,
+          color: cell.s?.color ? weGridFormatHex(cell.s.color, 'fg') : undefined,
+          fill: cell.s?.fill ? weGridFormatHex(cell.s.fill, 'bg') : undefined,
           numFmt: excelNumberFormat(cell),
           borders: cell.b || undefined,
           align: cell.a,
@@ -946,7 +950,18 @@ export function weSheetFromCells(
     if (!at || at.row >= WE_SHEET_MAX_ROWS || at.col >= WE_SHEET_MAX_COLS) continue;
     const key = weSheetAddress(at.col, at.row);
     const cell: WeSheetCell = { ...(cells[key] ?? {}) };
-    if (look.bold || look.italic) cell.s = { ...(cell.s ?? {}), ...(look.bold ? { bold: true } : {}), ...(look.italic ? { italic: true } : {}) };
+    // Colours come in as the nearest palette colour — the sheet only has the palette
+    const color = look.color ? weGridNearestFormatColor(look.color, 'fg') : null;
+    const fill = look.fill ? weGridNearestFormatColor(look.fill, 'bg') : null;
+    const style = {
+      ...(look.bold ? { bold: true } : {}),
+      ...(look.italic ? { italic: true } : {}),
+      ...(look.underline ? { underline: true } : {}),
+      ...(look.strike ? { strike: true } : {}),
+      ...(color ? { color } : {}),
+      ...(fill ? { fill } : {})
+    };
+    if (Object.keys(style).length) cell.s = { ...(cell.s ?? {}), ...style };
     if (look.borders) cell.b = weSheetBorderSides(look.borders);
     if (look.align) cell.a = look.align;
     if (look.wrap) cell.w = true;

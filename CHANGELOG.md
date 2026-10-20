@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.32.0 — 2026-10-20
+
+Colours in Excel files. A minor release.
+
+### Added
+
+- `<we-sheet>` Excel export writes text and fill colours (the light theme's RGB values),
+  underline and strikethrough; opening an .xlsx reads them back, each colour as the nearest of
+  the nine palette colours. `weGridFormatHex`, `weGridNearestFormatColor`;
+  `WeGridXlsxCell.color` / `fill` / `underline` / `strike`, the same on `WeGridXlsxCellFormat`.
+
 ## 0.31.1 — 2026-10-20
 
 ### Fixed

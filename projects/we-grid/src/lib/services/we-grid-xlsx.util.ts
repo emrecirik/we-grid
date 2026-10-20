@@ -345,6 +345,12 @@ export interface WeGridXlsxCell {
   align?: 'start' | 'center' | 'end';
   /** Wrap text */
   wrap?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+  /** Text colour, hex (`#c41e16`) */
+  color?: string;
+  /** Fill colour, hex */
+  fill?: string;
 }
 
 /** One worksheet for `weGridBuildXlsxWorkbook` — widths in pixels by column index */
@@ -367,11 +373,26 @@ const BUILTIN_FORMATS: Record<string, number> = {
  */
 export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blob {
   const custom = new Map<string, number>();
-  const xfs = new Map<string, number>([['0:0:0:', 0]]);
-  const xfList: { font: number; fmt: number; border: number; align?: string; wrap?: boolean }[] = [{ font: 0, fmt: 0, border: 0 }];
+  const xfs = new Map<string, number>([['0:0:0:0:', 0]]);
+  const xfList: { font: number; fmt: number; border: number; fill: number; align?: string; wrap?: boolean }[] = [{ font: 0, fmt: 0, border: 0, fill: 0 }];
   const borders = new Map<string, number>([['', 0]]);
+  // Fonts and fills are numbered as they turn up; fills 0 and 1 are the two Excel requires
+  const fonts = new Map<string, number>([['', 0]]);
+  const fills = new Map<string, number>([['none', 0], ['gray125', 1]]);
+  const hex = (c: string | undefined) => (c && /^#?[0-9a-f]{6}$/i.test(c) ? `FF${c.replace('#', '').toUpperCase()}` : '');
   const styleOf = (cell: WeGridXlsxCell): number => {
-    const font = (cell.bold ? 1 : 0) + (cell.italic ? 2 : 0);
+    const fontKey = `${cell.bold ? 'b' : ''}${cell.italic ? 'i' : ''}${cell.strike ? 's' : ''}${cell.underline ? 'u' : ''}${hex(cell.color) ? `:${hex(cell.color)}` : ''}`;
+    let font = fonts.get(fontKey);
+    if (font === undefined) {
+      font = fonts.size;
+      fonts.set(fontKey, font);
+    }
+    const fillKey = hex(cell.fill);
+    let fill = fillKey ? fills.get(fillKey) : 0;
+    if (fill === undefined) {
+      fill = fills.size;
+      fills.set(fillKey, fill);
+    }
     const sides = ['l', 'r', 't', 'b'].filter((s) => cell.borders?.includes(s)).join('');
     let border = borders.get(sides);
     if (border === undefined) {
@@ -385,12 +406,12 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
     }
     const align = cell.align === 'start' ? 'left' : cell.align === 'end' ? 'right' : cell.align;
     const wrap = !!cell.wrap;
-    const key = `${font}:${fmt}:${border}:${align ?? ''}${wrap ? ':w' : ''}`;
+    const key = `${font}:${fmt}:${border}:${fill}:${align ?? ''}${wrap ? ':w' : ''}`;
     let index = xfs.get(key);
     if (index === undefined) {
       index = xfList.length;
       xfs.set(key, index);
-      xfList.push({ font, fmt, border, align, wrap });
+      xfList.push({ font, fmt, border, fill, align, wrap });
     }
     return index;
   };
@@ -431,9 +452,22 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
     (custom.size ? `<numFmts count="${custom.size}">${[...custom].map(([code, id]) => `<numFmt numFmtId="${id}" formatCode="${escapeXml(code)}"/>`).join('')}</numFmts>` : '') +
-    `<fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font>` +
-    `<font><i/><sz val="11"/><name val="Calibri"/></font><font><b/><i/><sz val="11"/><name val="Calibri"/></font></fonts>` +
-    `<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>` +
+    `<fonts count="${fonts.size}">` +
+    [...fonts.keys()]
+      .map((k) => {
+        const [flags, rgb] = k.split(':');
+        return (
+          `<font>${flags.includes('b') ? '<b/>' : ''}${flags.includes('i') ? '<i/>' : ''}${flags.includes('s') ? '<strike/>' : ''}${flags.includes('u') ? '<u/>' : ''}` +
+          `<sz val="11"/>${rgb ? `<color rgb="${rgb}"/>` : ''}<name val="Calibri"/></font>`
+        );
+      })
+      .join('') +
+    `</fonts>` +
+    `<fills count="${fills.size}">` +
+    [...fills.keys()]
+      .map((k) => (k === 'none' || k === 'gray125' ? `<fill><patternFill patternType="${k}"/></fill>` : `<fill><patternFill patternType="solid"><fgColor rgb="${k}"/><bgColor indexed="64"/></patternFill></fill>`))
+      .join('') +
+    `</fills>` +
     `<borders count="${borders.size}">` +
     [...borders.keys()]
       .map((sides) => {
@@ -447,7 +481,7 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
     xfList
       .map(
         (x) =>
-          `<xf numFmtId="${x.fmt}" fontId="${x.font}" fillId="0" borderId="${x.border}" xfId="0"${x.font ? ' applyFont="1"' : ''}${x.fmt ? ' applyNumberFormat="1"' : ''}${x.border ? ' applyBorder="1"' : ''}` +
+          `<xf numFmtId="${x.fmt}" fontId="${x.font}" fillId="${x.fill}" borderId="${x.border}" xfId="0"${x.font ? ' applyFont="1"' : ''}${x.fill ? ' applyFill="1"' : ''}${x.fmt ? ' applyNumberFormat="1"' : ''}${x.border ? ' applyBorder="1"' : ''}` +
           (x.align || x.wrap
             ? ` applyAlignment="1"><alignment${x.align ? ` horizontal="${x.align}"` : ''}${x.wrap ? ' wrapText="1"' : ''}/></xf>`
             : '/>')
@@ -577,10 +611,23 @@ function parseCellFormats(xml: string): (WeGridXlsxCellFormat | null)[] {
   const codes = new Map<number, string>(Object.entries(BUILTIN_FORMAT_CODES).map(([id, code]) => [Number(id), code]));
   for (const f of all(doc, 'numFmt')) codes.set(Number(f.getAttribute('numFmtId')), f.getAttribute('formatCode') ?? '');
   const fontsEl = all(doc, 'fonts')[0];
+  const on = (el: Element, name: string) => Array.from(el.children).some((c) => c.localName === name && c.getAttribute('val') !== '0' && c.getAttribute('val') !== 'none');
+  const rgbOf = (el: Element | undefined) => {
+    const rgb = el?.getAttribute('rgb');
+    return rgb && /^[0-9a-f]{8}$/i.test(rgb) ? `#${rgb.slice(2).toLowerCase()}` : undefined;
+  };
   const fonts = fontsEl ? Array.from(fontsEl.children).map((font) => ({
-    bold: Array.from(font.children).some((c) => c.localName === 'b' && c.getAttribute('val') !== '0'),
-    italic: Array.from(font.children).some((c) => c.localName === 'i' && c.getAttribute('val') !== '0')
+    bold: on(font, 'b'),
+    italic: on(font, 'i'),
+    underline: on(font, 'u'),
+    strike: on(font, 'strike'),
+    color: rgbOf(Array.from(font.children).find((c) => c.localName === 'color'))
   })) : [];
+  const fillsEl = all(doc, 'fills')[0];
+  const fills = fillsEl ? Array.from(fillsEl.children).map((fill) => {
+    const pattern = Array.from(fill.children).find((c) => c.localName === 'patternFill');
+    return pattern?.getAttribute('patternType') === 'solid' ? rgbOf(Array.from(pattern.children).find((c) => c.localName === 'fgColor')) : undefined;
+  }) : [];
   const bordersEl = all(doc, 'borders')[0];
   const borders = bordersEl ? Array.from(bordersEl.children).map((border) =>
     Array.from(border.children)
@@ -594,6 +641,12 @@ function parseCellFormats(xml: string): (WeGridXlsxCellFormat | null)[] {
     const font = fonts[Number(xf.getAttribute('fontId') ?? 0)];
     if (font?.bold) out.bold = true;
     if (font?.italic) out.italic = true;
+    if (font?.underline) out.underline = true;
+    if (font?.strike) out.strike = true;
+    // Black text and white fills are what a cell has anyway
+    if (font?.color && font.color !== '#000000') out.color = font.color;
+    const fill = fills[Number(xf.getAttribute('fillId') ?? 0)];
+    if (fill && fill !== '#ffffff') out.fill = fill;
     const sides = borders[Number(xf.getAttribute('borderId') ?? 0)];
     if (sides) out.borders = ['t', 'r', 'b', 'l'].filter((s) => sides.includes(s)).join('');
     const code = codes.get(Number(xf.getAttribute('numFmtId') ?? 0));
@@ -684,6 +737,11 @@ export interface WeGridXlsxCellSheet {
 export interface WeGridXlsxCellFormat {
   bold?: boolean;
   italic?: boolean;
+  underline?: boolean;
+  strike?: boolean;
+  /** Text and fill colours, hex (`#c41e16`) — set as RGB in the file; theme colours are not read */
+  color?: string;
+  fill?: string;
   /** Bordered sides, any of `t` `r` `b` `l` */
   borders?: string;
   align?: 'start' | 'center' | 'end';

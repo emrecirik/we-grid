@@ -26,6 +26,33 @@ const FALLBACK: Record<WeGridFormatColor, [string, string]> = {
   gray: ['#545961', '#eceef1']
 };
 
+/**
+ * A palette colour as plain hex, the light theme's value — for files that cannot use CSS variables
+ * (an .xlsx). `'fg'` is the text colour, `'bg'` the fill.
+ */
+export function weGridFormatHex(color: WeGridFormatColor, kind: 'fg' | 'bg'): string {
+  return FALLBACK[color][kind === 'fg' ? 0 : 1];
+}
+
+/** The palette colour nearest to a hex colour (`#c41e16`, `FFC41E16`) as text (`'fg'`) or fill (`'bg'`), or null when it is not a colour */
+export function weGridNearestFormatColor(hex: string, kind: 'fg' | 'bg'): WeGridFormatColor | null {
+  const m = /^#?(?:[0-9a-f]{2})?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
+  if (!m) return null;
+  const rgb = [m[1], m[2], m[3]].map((x) => parseInt(x, 16));
+  let best: WeGridFormatColor | null = null;
+  let distance = Infinity;
+  for (const color of Object.keys(FALLBACK) as WeGridFormatColor[]) {
+    const p = FALLBACK[color][kind === 'fg' ? 0 : 1];
+    const c = [1, 3, 5].map((i) => parseInt(p.slice(i, i + 2), 16));
+    const d = c.reduce((sum, v, i) => sum + (v - rgb[i]) ** 2, 0);
+    if (d < distance) {
+      distance = d;
+      best = color;
+    }
+  }
+  return best;
+}
+
 /** A palette colour's text variable */
 export function weGridFormatFg(color: WeGridFormatColor): string {
   return `var(--we-grid-format-${color}-fg, ${FALLBACK[color][0]})`;

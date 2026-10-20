@@ -199,3 +199,16 @@ describe('cell formats read from Excel files', () => {
     expect(back['A2']).toEqual({ w: true, b: 'l' });
   });
 });
+
+describe('colours in Excel files', () => {
+  it('writes palette colours as RGB and reads them back as the nearest palette colour', async () => {
+    const blob = weSheetWorkbookXlsx([{ name: 'C', data: { version: 1, rows: 1, cols: 2, cells: { A1: { v: 'x', s: { color: 'red', fill: 'yellow', underline: true } }, B1: { v: 'y', s: { strike: true } } } } }]);
+    const text = await new Response(blob).text();
+    expect(text).toContain('<u/><sz val="11"/><color rgb="FFC41E16"/>');
+    expect(text).toContain('<fgColor rgb="FFFFF6CC"/>');
+    const [read] = await weGridReadXlsxCells(blob);
+    const cells = weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats).data.cells;
+    expect(cells['A1']).toEqual({ v: 'x', s: { underline: true, color: 'red', fill: 'yellow' } });
+    expect(cells['B1']).toEqual({ v: 'y', s: { strike: true } });
+  });
+});
