@@ -212,3 +212,23 @@ describe('colours in Excel files', () => {
     expect(cells['B1']).toEqual({ v: 'y', s: { strike: true } });
   });
 });
+
+describe('dropdown lists, filter buttons and frozen panes in Excel files', () => {
+  it('writes and reads them', async () => {
+    const data: WeSheetData = {
+      version: 1, rows: 5, cols: 3, headerRow: true, autoFilter: true, freeze: { rows: 1, cols: 1 },
+      cells: { A1: { v: 'Item' }, B1: { v: 'State' }, A2: { v: 'x' }, B2: { v: 'Open', l: ['Open', 'Closed'] }, B3: { l: ['Open', 'Closed'] } }
+    };
+    const blob = weSheetWorkbookXlsx([{ name: 'L', data }]);
+    const text = await new Response(blob).text();
+    expect(text).toContain('<pane xSplit="1" ySplit="1" topLeftCell="B2" activePane="bottomRight" state="frozen"/>');
+    expect(text).toContain('<autoFilter ref="A1:B3"/>');
+    expect(text).toContain('sqref="B2 B3"><formula1>"Open,Closed"</formula1>');
+    const [read] = await weGridReadXlsxCells(blob);
+    const back = weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats, read).data;
+    expect(back.cells['B2']).toEqual({ v: 'Open', l: ['Open', 'Closed'] });
+    expect(back.cells['B3']).toEqual({ l: ['Open', 'Closed'] });
+    expect(back.autoFilter).toBeTrue();
+    expect(back.freeze).toEqual({ rows: 1, cols: 1 });
+  });
+});

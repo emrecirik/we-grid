@@ -120,7 +120,7 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
    * The sheets of an opened Excel file, added after the workbook's own (as many as fit). A name
    * already taken gets a number, and the file's formulas that point at it follow.
    */
-  readonly importSheets = (sheets: readonly { name: string; cells: Record<string, string>; merges?: string[]; formats?: WeGridXlsxCellSheet['formats'] }[]): void => {
+  readonly importSheets = (sheets: readonly (Pick<WeGridXlsxCellSheet, 'name' | 'cells'> & Partial<WeGridXlsxCellSheet>)[]): void => {
     if (this.readonly) return;
     const taken = new Set(this.book.sheets.map((s) => s.name.toLocaleLowerCase()));
     const added: WeWorkbookData['sheets'] = [];
@@ -131,7 +131,7 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
       for (let n = 2; taken.has(name.toLocaleLowerCase()); n++) name = `${base} ${n}`;
       taken.add(name.toLocaleLowerCase());
       if (name !== sheet.name) renames.set(sheet.name, name);
-      added.push({ name, data: { ...weSheetFromCells(sheet.cells, '.', this.rows, this.cols, sheet.merges, sheet.formats).data, headerRow: true } });
+      added.push({ name, data: { ...weSheetFromCells(sheet.cells, '.', this.rows, this.cols, sheet.merges, sheet.formats, sheet).data, headerRow: true } });
     }
     if (!added.length) return;
     const fixed = added.map((s) => {

@@ -360,6 +360,12 @@ export interface WeGridXlsxSheet {
   widths?: Record<number, number>;
   /** Merged ranges, `'A1:C1'` */
   merges?: string[];
+  /** Dropdown lists (data validation): the cells, space-separated (`'B2 B3:B9'`), and their choices */
+  lists?: { ref: string; values: string[] }[];
+  /** The range with filter buttons, `'A1:G12'` */
+  autoFilter?: string;
+  /** Rows and columns that stay in view */
+  freeze?: { rows: number; cols: number };
 }
 
 const BUILTIN_FORMATS: Record<string, number> = {
@@ -441,9 +447,12 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
     const xml =
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
       `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+      sheetViewXml(sheet.freeze) +
       (widths ? `<cols>${widths}</cols>` : '') +
       `<sheetData>${rows.join('')}</sheetData>` +
+      (sheet.autoFilter ? `<autoFilter ref="${escapeXml(sheet.autoFilter)}"/>` : '') +
       (sheet.merges?.length ? `<mergeCells count="${sheet.merges.length}">${sheet.merges.map((m) => `<mergeCell ref="${escapeXml(m)}"/>`).join('')}</mergeCells>` : '') +
+      dataValidationsXml(sheet.lists ?? []) +
       `</worksheet>`;
     return { name, xml };
   });
@@ -491,6 +500,28 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `</styleSheet>`;
   return buildPackage(parts, styles);
+}
+
+/** Frozen panes, as Excel writes them: a split at the first scrolling cell */
+function sheetViewXml(freeze: WeGridXlsxSheet['freeze']): string {
+  if (!freeze || (!freeze.rows && !freeze.cols)) return '';
+  const topLeft = `${columnLetter(freeze.cols)}${freeze.rows + 1}`;
+  const pane = freeze.rows && freeze.cols ? 'bottomRight' : freeze.rows ? 'bottomLeft' : 'topRight';
+  return (
+    `<sheetViews><sheetView workbookViewId="0"><pane${freeze.cols ? ` xSplit="${freeze.cols}"` : ''}${freeze.rows ? ` ySplit="${freeze.rows}"` : ''}` +
+    ` topLeftCell="${topLeft}" activePane="${pane}" state="frozen"/></sheetView></sheetViews>`
+  );
+}
+
+/** Dropdown lists as list validations — Excel takes up to 255 characters of choices, without commas */
+function dataValidationsXml(lists: readonly { ref: string; values: string[] }[]): string {
+  const valid = lists.filter((l) => l.values.length && l.values.every((v) => !v.includes(',') && !v.includes('"')) && l.values.join(',').length <= 255);
+  if (!valid.length) return '';
+  return (
+    `<dataValidations count="${valid.length}">` +
+    valid.map((l) => `<dataValidation type="list" allowBlank="1" showErrorMessage="1" sqref="${escapeXml(l.ref)}"><formula1>"${escapeXml(sanitiseXmlText(l.values.join(',')))}"</formula1></dataValidation>`).join('') +
+    `</dataValidations>`
+  );
 }
 
 function workbookCell(cell: WeGridXlsxCell, style: number): string {
@@ -731,6 +762,12 @@ export interface WeGridXlsxCellSheet {
   merges: string[];
   /** How cells look, by A1 address — empty cells too (a border, say); plain cells are left out */
   formats: Record<string, WeGridXlsxCellFormat>;
+  /** Dropdown lists with their choices written out, by the cells they cover (`'B2 B3:B9'`) */
+  lists: { ref: string; values: string[] }[];
+  /** The range with filter buttons, when there is one */
+  autoFilter?: string;
+  /** Frozen rows and columns, when the sheet has them */
+  freeze?: { rows: number; cols: number };
 }
 
 /** A cell's look as an .xlsx file stores it, read by `weGridReadXlsxCells` */
@@ -849,7 +886,19 @@ export async function weGridReadXlsxCells(
     const merges = Array.from(doc.getElementsByTagNameNS('*', 'mergeCell'))
       .map((el) => el.getAttribute('ref') ?? '')
       .filter((ref) => /^[A-Z]{1,3}\d+:[A-Z]{1,3}\d+$/.test(ref));
-    out.push({ name: sheet.name, cells, merges, formats });
+    const lists: { ref: string; values: string[] }[] = [];
+    for (const dv of Array.from(doc.getElementsByTagNameNS('*', 'dataValidation'))) {
+      const formula = Array.from(dv.children).find((c) => c.localName === 'formula1')?.textContent ?? '';
+      const literal = /^"(.*)"$/s.exec(formula);
+      if (dv.getAttribute('type') !== 'list' || !literal) continue;
+      const values = literal[1].split(',').map((v) => v.trim()).filter(Boolean);
+      if (values.length) lists.push({ ref: dv.getAttribute('sqref') ?? '', values });
+    }
+    const filterRef = doc.getElementsByTagNameNS('*', 'autoFilter')[0]?.getAttribute('ref') ?? undefined;
+    const paneEl = doc.getElementsByTagNameNS('*', 'pane')[0];
+    const frozen = paneEl && (paneEl.getAttribute('state') === 'frozen' || paneEl.getAttribute('state') === 'frozenSplit');
+    const freeze = frozen ? { rows: Math.round(Number(paneEl.getAttribute('ySplit') ?? 0)) || 0, cols: Math.round(Number(paneEl.getAttribute('xSplit') ?? 0)) || 0 } : undefined;
+    out.push({ name: sheet.name, cells, merges, formats, lists, ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
   }
   return out;
 }

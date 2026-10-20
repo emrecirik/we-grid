@@ -905,7 +905,27 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
       }
       const widths: Record<number, number> = {};
       for (const [letter, w] of Object.entries(data.widths ?? {})) widths[weGridColumnIndex(letter)] = w;
-      return { name: renames.get(name) ?? name, cells, widths, merges: data.merges };
+      // Dropdown lists, one validation per distinct list of choices
+      const byList = new Map<string, { ref: string[]; values: string[] }>();
+      for (const [ref, cell] of Object.entries(data.cells)) {
+        if (!cell.l?.length) continue;
+        const key = cell.l.join('\u0000');
+        const entry = byList.get(key) ?? { ref: [], values: cell.l };
+        entry.ref.push(ref);
+        byList.set(key, entry);
+      }
+      const used = Object.keys(data.cells).map((k) => weSheetParseAddress(k)).filter((p): p is { col: number; row: number } => !!p);
+      const lastRow = used.reduce((m, p) => Math.max(m, p.row), 0);
+      const lastCol = used.reduce((m, p) => Math.max(m, p.col), 0);
+      return {
+        name: renames.get(name) ?? name,
+        cells,
+        widths,
+        merges: data.merges,
+        lists: [...byList.values()].map((l) => ({ ref: l.ref.join(' '), values: l.values })),
+        autoFilter: data.autoFilter && data.headerRow && used.length ? `A1:${weSheetAddress(lastCol, lastRow)}` : undefined,
+        freeze: data.freeze ?? (data.freezeColumn ? { rows: 0, cols: 1 } : undefined)
+      };
     })
   );
 }
@@ -921,7 +941,8 @@ export function weSheetFromCells(
   minRows = 1,
   minCols = 1,
   merges: readonly string[] = [],
-  formats: Readonly<Record<string, WeGridXlsxCellFormat>> = {}
+  formats: Readonly<Record<string, WeGridXlsxCellFormat>> = {},
+  extras: { lists?: readonly { ref: string; values: string[] }[]; autoFilter?: string; freeze?: { rows: number; cols: number } } = {}
 ): { data: WeSheetData; truncated: boolean } {
   const cells: Record<string, WeSheetCell> = {};
   let rows = 0;
@@ -975,6 +996,29 @@ export function weSheetFromCells(
       data.rows = Math.min(WE_SHEET_MAX_ROWS, Math.max(data.rows, at.row + 1));
       data.cols = Math.min(WE_SHEET_MAX_COLS, Math.max(data.cols, at.col + 1));
     }
+  }
+  // Dropdown lists on the cells they cover (ranges written out, at most 5000 cells a list)
+  for (const list of extras.lists ?? []) {
+    const choices = weSheetCleanList(list.values);
+    if (!choices.length) continue;
+    let left = 5000;
+    for (const part of list.ref.split(/\s+/).filter(Boolean)) {
+      const [a, b] = part.split(':').map((p) => weSheetParseAddress(p));
+      if (!a) continue;
+      const r = weSheetNormalize(a, b ?? a);
+      for (let row = r.r1; row <= Math.min(r.r2, WE_SHEET_MAX_ROWS - 1) && left > 0; row++) {
+        for (let col = r.c1; col <= Math.min(r.c2, WE_SHEET_MAX_COLS - 1) && left > 0; col++, left--) {
+          const key = weSheetAddress(col, row);
+          cells[key] = { ...(cells[key] ?? {}), l: choices };
+          data.rows = Math.max(data.rows, row + 1);
+          data.cols = Math.max(data.cols, col + 1);
+        }
+      }
+    }
+  }
+  if (extras.autoFilter) data.autoFilter = true;
+  if (extras.freeze && (extras.freeze.rows || extras.freeze.cols)) {
+    data.freeze = { rows: Math.min(extras.freeze.rows, 50), cols: Math.min(extras.freeze.cols, 20) };
   }
   // The sheet grows to hold every merge, as it does for every cell
   for (const m of merges) {

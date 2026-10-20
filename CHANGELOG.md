@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.33.0 — 2026-10-20
+
+Dropdown lists, filter buttons and frozen panes in Excel files. A minor release.
+
+### Added
+
+- `<we-sheet>` Excel export writes dropdown lists as list validations, the filter buttons as an
+  AutoFilter and frozen panes as Excel's frozen split; opening an .xlsx reads all three back
+  (lists written as choices — a list that points at a range is left out).
+  `WeGridXlsxSheet.lists` / `autoFilter` / `freeze`, the same on `WeGridXlsxCellSheet`;
+  `weSheetFromCells(…, extras)`.
+
 ## 0.32.0 — 2026-10-20
 
 Colours in Excel files. A minor release.

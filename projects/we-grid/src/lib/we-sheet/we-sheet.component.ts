@@ -1415,7 +1415,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         // The first worksheet, cell by cell where it stands — formulas included
-        const { data, truncated } = weSheetFromCells(sheets[0]?.cells ?? {}, '.', this.sheet.rows, this.sheet.cols, sheets[0]?.merges, sheets[0]?.formats);
+        const first = sheets[0];
+        const { data, truncated } = weSheetFromCells(first?.cells ?? {}, '.', this.sheet.rows, this.sheet.cols, first?.merges, first?.formats, first);
         this.commit({ ...data, headerRow: true, striped: this.sheet.striped });
         this.moveTo({ col: 0, row: 0 });
         if (truncated) {
