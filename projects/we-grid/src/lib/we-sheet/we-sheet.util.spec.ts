@@ -332,3 +332,19 @@ describe('times of day', () => {
     expect(weSheetFormatValue(45000.75, 'time', 'en-GB', 'EUR')).toBe('18:00');
   });
 });
+
+describe('row heights and time series', () => {
+  it('keeps row heights with their rows and drops bad ones', () => {
+    const data = weSheetSanitize({ version: 1, rows: 5, cols: 1, cells: {}, heights: { '2': 40, '9': 30, x: 20, '3': 5 } })!;
+    expect(data.heights).toEqual({ '2': 40 });
+    expect(weSheetInsert(data, 'row', 0, 1).heights).toEqual({ '3': 40 });
+    expect(weSheetInsert(data, 'row', 1, -1).heights).toBeUndefined();
+  });
+
+  it('fills a lone time by the hour', () => {
+    const data: WeSheetData = { version: 1, rows: 3, cols: 1, cells: { A1: { v: 9 / 24, f: 'time' } } };
+    const out = weSheetFill(data, { c1: 0, r1: 0, c2: 0, r2: 0 }, { c1: 0, r1: 0, c2: 0, r2: 2 });
+    expect(out.cells['A3'].f).toBe('time');
+    expect(out.cells['A3'].v as number).toBeCloseTo(11 / 24, 9);
+  });
+});

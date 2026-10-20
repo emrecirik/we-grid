@@ -6,13 +6,16 @@ import { WE_GRID_ICONS, WeGridIcons } from '../models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 import { WeSheetComponent } from './we-sheet.component';
 import { WeGridXlsxCellSheet } from '../services/we-grid-xlsx.util';
+import { WE_GRID_FORMAT_COLORS, WeGridFormatColor } from '../models/we-grid-format.model';
+import { weGridFormatFg, weGridNearestFormatColor } from '../services/we-grid-format.util';
 import { WE_SHEET_STORE, WeSheetData, WeSheetStore } from './we-sheet.model';
 import { weSheetEmpty, weSheetFromCells, weSheetMoveSheetReferences, weSheetRenameReferences, weSheetRenameSheets, weSheetSanitize } from './we-sheet.util';
 
 /** A workbook: named sheets in order, like the tabs at the bottom of Excel */
 export interface WeWorkbookData {
   version: 1;
-  sheets: { name: string; data: WeSheetData }[];
+  /** `color`: the tab's colour, from the format palette */
+  sheets: { name: string; data: WeSheetData; color?: WeGridFormatColor }[];
   /** Index of the sheet shown */
   active: number;
 }
@@ -27,9 +30,15 @@ export function weWorkbookSanitize(input: unknown): WeWorkbookData | null {
   const sheets: WeWorkbookData['sheets'] = [];
   for (const item of o['sheets'].slice(0, MAX_SHEETS)) {
     if (typeof item !== 'object' || item === null) continue;
-    const { name, data } = item as Record<string, unknown>;
+    const { name, data, color } = item as Record<string, unknown>;
     const clean = weSheetSanitize(data);
-    if (typeof name === 'string' && clean) sheets.push({ name: name.trim().slice(0, 60) || `Sheet${sheets.length + 1}`, data: clean });
+    if (typeof name === 'string' && clean) {
+      sheets.push({
+        name: name.trim().slice(0, 60) || `Sheet${sheets.length + 1}`,
+        data: clean,
+        ...(typeof color === 'string' && (WE_GRID_FORMAT_COLORS as readonly string[]).includes(color) ? { color: color as WeGridFormatColor } : {})
+      });
+    }
   }
   if (!sheets.length) return null;
   const active = typeof o['active'] === 'number' && Number.isInteger(o['active']) ? Math.max(0, Math.min(sheets.length - 1, o['active'])) : 0;
@@ -131,7 +140,8 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
       for (let n = 2; taken.has(name.toLocaleLowerCase()); n++) name = `${base} ${n}`;
       taken.add(name.toLocaleLowerCase());
       if (name !== sheet.name) renames.set(sheet.name, name);
-      added.push({ name, data: { ...weSheetFromCells(sheet.cells, '.', this.rows, this.cols, sheet.merges, sheet.formats, sheet).data, headerRow: true } });
+      const color = sheet.tabColor ? weGridNearestFormatColor(sheet.tabColor, 'fg') : null;
+      added.push({ name, data: { ...weSheetFromCells(sheet.cells, '.', this.rows, this.cols, sheet.merges, sheet.formats, sheet).data, headerRow: true }, ...(color ? { color } : {}) });
     }
     if (!added.length) return;
     const fixed = added.map((s) => {
@@ -150,6 +160,30 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
   private refreshResolver(): void {
     const byName = new Map(this.book.sheets.map((s) => [s.name.toLocaleLowerCase(), s.data] as const));
     this.resolveSheet = (name) => byName.get(name.toLocaleLowerCase()) ?? null;
+  }
+
+  /** The palette under the tab-colour button, while open */
+  colorMenu = false;
+  readonly tabColors = WE_GRID_FORMAT_COLORS;
+
+  /** Colours the active sheet's tab, or takes its colour away */
+  setTabColor(color: WeGridFormatColor | null): void {
+    this.colorMenu = false;
+    if (this.readonly) return;
+    const sheets = this.book.sheets.map((s, i) => {
+      if (i !== this.book.active) return s;
+      const { color: _old, ...rest } = s;
+      return color ? { ...rest, color } : rest;
+    });
+    this.update({ ...this.book, sheets });
+  }
+
+  tabColor(color: WeGridFormatColor | undefined): string | null {
+    return color ? `inset 0 -3px 0 ${weGridFormatFg(color)}` : null;
+  }
+
+  fg(color: WeGridFormatColor): string {
+    return weGridFormatFg(color);
   }
 
   icon(key: string): SafeHtml {
@@ -175,7 +209,7 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
   duplicateSheet(index = this.book.active): void {
     if (this.readonly || this.book.sheets.length >= MAX_SHEETS) return;
     const source = this.book.sheets[index];
-    const copy = { name: this.freeName(source.name), data: JSON.parse(JSON.stringify(source.data)) as WeSheetData };
+    const copy = { name: this.freeName(source.name), data: JSON.parse(JSON.stringify(source.data)) as WeSheetData, ...(source.color ? { color: source.color } : {}) };
     const sheets = [...this.book.sheets.slice(0, index + 1), copy, ...this.book.sheets.slice(index + 1)];
     this.update({ ...this.book, sheets, active: index + 1 });
   }

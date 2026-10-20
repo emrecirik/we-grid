@@ -90,3 +90,42 @@
   display: inline-flex;
   transform: scaleX(-1);
 }
+
+// Tab colours: the palette under the tab-colour button
+.we-book__color-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.we-book__palette {
+  position: absolute;
+  bottom: calc(100% + 0.25rem);
+  right: 0;
+  z-index: 10;
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.4rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-bg, #fff);
+  box-shadow: var(--we-grid-menu-shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
+}
+
+.we-book__dot {
+  width: 1.1rem;
+  height: 1.1rem;
+  padding: 0;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: 50%;
+  cursor: pointer;
+
+  &[aria-checked='true'] {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: 1px;
+  }
+}
+
+.we-book__dot--none {
+  background: linear-gradient(135deg, transparent 45%, var(--we-grid-muted-color, #878a99) 45%, var(--we-grid-muted-color, #878a99) 55%, transparent 55%), var(--we-grid-bg, #fff);
+}
+

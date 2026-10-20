@@ -40,6 +40,8 @@ export interface WeSheetData {
   cells: Record<string, WeSheetCell>;
   /** Column widths in pixels by column letter — the default width when absent */
   widths?: Record<string, number>;
+  /** Row heights in pixels by row number as shown (`'1'` is the first row) — the default height when absent */
+  heights?: Record<string, number>;
   /** Row 1 is a header: bold, kept out of sorting, and the column titles of an export */
   headerRow?: boolean;
   /** Zebra rows */

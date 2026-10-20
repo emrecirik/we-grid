@@ -329,3 +329,17 @@ describe('times in Excel files', () => {
     expect(weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats, read).data.cells['A1']).toEqual({ v: 0.5, f: 'time' });
   });
 });
+
+describe('row heights and tab colours in Excel files', () => {
+  it('writes them and reads them back', async () => {
+    const blob = weSheetWorkbookXlsx([{ name: 'H', color: 'green', data: { version: 1, rows: 4, cols: 1, heights: { '1': 40, '3': 60 }, cells: { A1: { v: 1 } } } }]);
+    const text = await new Response(blob).text();
+    expect(text).toContain('<sheetPr><tabColor rgb="FF');
+    expect(text).toContain('<row r="1" ht="30" customHeight="1">');
+    expect(text).toContain('<row r="3" ht="45" customHeight="1"></row>');
+    const [read] = await weGridReadXlsxCells(blob);
+    expect(read.heights).toEqual({ 0: 40, 2: 60 });
+    expect(read.tabColor).toMatch(/^#[0-9a-f]{6}$/);
+    expect(weSheetFromCells(read.cells, '.', 4, 1, read.merges, read.formats, read).data.heights).toEqual({ '1': 40, '3': 60 });
+  });
+});

@@ -236,6 +236,10 @@ parser's own messages are English too.
 - `sheetOptions`, `formatTypeIconSet`, `formatIconSetLabels`, `formatIconSetReverse`, `sheetImportTruncated`,
   `sheetFull`
 
+## Keys added in 0.46.0
+
+- `workbookTabColor`
+
 ## Keys changed in 0.45.0
 
 - `sheetFormatLabels` gains `time`

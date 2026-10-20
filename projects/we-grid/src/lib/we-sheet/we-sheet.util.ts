@@ -1,4 +1,4 @@
-import { WE_GRID_FORMAT_COLORS, WeGridCellStyle } from '../models/we-grid-format.model';
+import { WE_GRID_FORMAT_COLORS, WeGridCellStyle, WeGridFormatColor } from '../models/we-grid-format.model';
 import { WE_GRID_FORMULA_ALIASES, WeGridFormulaError, WeGridSheetEvaluator, weGridColumnIndex, weGridColumnLetter } from '../services/we-grid-formula.util';
 import { WeGridXlsxCell, WeGridXlsxCellFormat, WeGridXlsxConditionalFormat, weGridBuildXlsxWorkbook, weGridXlsxSheetName } from '../services/we-grid-xlsx.util';
 import { weGridFormatHex, weGridNearestFormatColor, weGridSanitizeCellStyle, weGridSanitizeFormatRules } from '../services/we-grid-format.util';
@@ -388,6 +388,13 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
   }
   const merges = weSheetSanitizeMerges(o['merges'], rows, cols);
   if (merges.length) data.merges = merges;
+  if (typeof o['heights'] === 'object' && o['heights'] !== null) {
+    const heights: Record<string, number> = {};
+    for (const [k, h] of Object.entries(o['heights'] as Record<string, unknown>)) {
+      if (/^[1-9]\d{0,6}$/.test(k) && Number(k) <= rows && typeof h === 'number' && h >= 12 && h <= 400) heights[k] = Math.round(h);
+    }
+    if (Object.keys(heights).length) data.heights = heights;
+  }
   const hidden = weSheetSanitizeHidden(o['hidden'], rows);
   if (hidden.length) data.hidden = hidden;
   const hiddenColumns = weSheetSanitizeHiddenColumns(o['hiddenColumns'], cols);
@@ -596,6 +603,16 @@ export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number
     if (range.includes('#REF!')) delete out.chart;
     else out.chart = { ...data.chart, range };
   }
+  if (data.heights && axis === 'row') {
+    // Row heights move with their rows
+    const heights: Record<string, number> = {};
+    for (const [k, h] of Object.entries(data.heights)) {
+      const nr = shift(Number(k) - 1);
+      if (nr !== null && nr < rows) heights[String(nr + 1)] = h;
+    }
+    if (Object.keys(heights).length) out.heights = heights;
+    else delete out.heights;
+  }
   if (data.hidden && axis === 'row') {
     // Hidden rows move with their rows; deleted ones are gone
     const hidden = weSheetSanitizeHidden(data.hidden.map(shift).filter((r): r is number => r !== null), rows);
@@ -711,7 +728,8 @@ function fillSeries(seq: (WeSheetCell | undefined)[]): ((t: number) => WeSheetCe
   const n = values.length;
   if (values.every((v) => typeof v === 'number')) {
     const nums = values as number[];
-    if (n === 1) return seq[0]?.f === 'date' ? (t) => nums[0] + t : null;
+    // A lone date steps by a day and a lone time by an hour, as in Excel
+    if (n === 1) return seq[0]?.f === 'date' ? (t) => nums[0] + t : seq[0]?.f === 'time' ? (t) => Math.round((nums[0] + t / 24) * 1e10) / 1e10 : null;
     const step = (nums[n - 1] - nums[0]) / (n - 1);
     return (t) => Math.round((nums[0] + step * t) * 1e10) / 1e10;
   }
@@ -1041,7 +1059,7 @@ function excelNumberFormat(cell: WeSheetCell): string | undefined {
  * italic text, number formats and column widths. Colours, lists, notes, charts and conditional
  * formats are not written.
  */
-export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeSheetData }[]): Blob {
+export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeSheetData; color?: WeGridFormatColor }[]): Blob {
   // The names the file can hold (31 characters, no []:*?/\, unique) — formulas follow them
   const used = new Set<string>();
   const renames = new Map<string, string>();
@@ -1064,7 +1082,7 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
     );
   }
   return weGridBuildXlsxWorkbook(
-    sheets.map(({ name, data }) => {
+    sheets.map(({ name, data, color }) => {
       const evaluator = evaluators.get(name.toLocaleLowerCase())!;
       const cells: WeGridXlsxCell[] = [];
       for (const [ref, cell] of Object.entries(data.cells)) {
@@ -1133,6 +1151,8 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
         conditionalFormats: (data.formats ?? []).map(excelConditionalFormat).filter((f): f is WeGridXlsxConditionalFormat => f !== null),
         notes: Object.fromEntries(Object.entries(data.cells).filter(([, c]) => !!c.n).map(([ref, c]) => [ref, c.n as string])),
         hiddenRows: data.hidden?.map((r) => r + 1),
+        heights: data.heights ? Object.fromEntries(Object.entries(data.heights).map(([k, h]) => [Number(k) - 1, h])) : undefined,
+        tabColor: color ? weGridFormatHex(color, 'fg') : undefined,
         hiddenColumns: data.hiddenColumns?.map((l) => weGridColumnIndex(l))
       };
     })
@@ -1159,6 +1179,7 @@ export function weSheetFromCells(
     notes?: Readonly<Record<string, string>>;
     hiddenRows?: readonly number[];
     hiddenColumns?: readonly number[];
+    heights?: Readonly<Record<number, number>>;
   } = {}
 ): { data: WeSheetData; truncated: boolean } {
   const cells: Record<string, WeSheetCell> = {};
@@ -1247,6 +1268,13 @@ export function weSheetFromCells(
   if (hiddenRows.length) data.rows = Math.max(data.rows, Math.max(...hiddenRows) + 2);
   const hidden = weSheetSanitizeHidden(hiddenRows, data.rows);
   if (hidden.length) data.hidden = hidden;
+  // Row heights the file set, by row index; rows past the sheet's edge are left out
+  const heights: Record<string, number> = {};
+  for (const [r, h] of Object.entries(extras.heights ?? {})) {
+    const row = Number(r);
+    if (Number.isInteger(row) && row >= 0 && row < data.rows && h >= 12 && h <= 400) heights[String(row + 1)] = Math.round(h);
+  }
+  if (Object.keys(heights).length) data.heights = heights;
   // Hidden columns, by index; empty hidden columns past the data are left out
   const hiddenColumns = weSheetSanitizeHiddenColumns((extras.hiddenColumns ?? []).filter((c) => Number.isInteger(c) && c >= 0 && c < data.cols).map((c) => weGridColumnLetter(c)), data.cols);
   if (hiddenColumns.length) data.hiddenColumns = hiddenColumns;

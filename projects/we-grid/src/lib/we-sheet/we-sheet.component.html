@@ -291,10 +291,11 @@
       <tbody>
         @for (r of visibleRows; track r; let i = $index) {
           <tr role="row" [class.we-sheet__row--alt]="sheet.striped && i % 2 === (sheet.headerRow ? 0 : 1)" [class.we-sheet__row--header]="sheet.headerRow && r === 0">
-            <th role="rowheader" class="we-sheet__rowhead" [class.we-sheet__rowhead--frozen]="r < frozenRows" [class.we-sheet__rowhead--after-hidden]="isAfterHiddenRow(r)" [style.top]="r < frozenRows ? frozenTop(r) : null" [class.we-sheet__head--on]="r >= selection.r1 && r <= selection.r2" (click)="onRowHeaderClick($event, r)">{{ r + 1 }}</th>
+            <th role="rowheader" class="we-sheet__rowhead" [class.we-sheet__rowhead--frozen]="r < frozenRows" [class.we-sheet__rowhead--after-hidden]="isAfterHiddenRow(r)" [style.top]="r < frozenRows ? frozenTop(r) : null" [class.we-sheet__head--on]="r >= selection.r1 && r <= selection.r2" [style.height.px]="rowHeight(r)" (click)="onRowHeaderClick($event, r)">{{ r + 1 }}@if (!readonly) {<span class="we-sheet__row-resize" (mousedown)="onRowResizeStart($event, r)" (dblclick)="resetRowHeight($event, r)" aria-hidden="true"></span>}</th>
             @for (c of colIndexes; track c) {
               @if (!view[r][c].covered) {
               <td
+                [style.height.px]="rowHeight(r)"
                 [attr.colspan]="view[r][c].colspan ?? null"
                 [attr.rowspan]="view[r][c].rowspan ?? null"
                 role="gridcell"

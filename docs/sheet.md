@@ -38,7 +38,7 @@ export class BudgetComponent {}
 | Today's date, the time *(0.44.0, 0.45.0)* | Ctrl+; writes today's date into the active cell, Ctrl+Shift+: the time now (`insertToday(time?)`). |
 | Fill handle *(0.17.0)* | Drag the square at the selection's corner down, up or sideways: numbers continue their step (`1, 2` → `3, 4`), dates go on by a day, `Item 9` → `Item 10`, formulas shift, anything else repeats. Double-click it to fill down as far as the column beside goes. `fill(range)` does the same from code; from the keyboard, select the start of the series and the empty cells under it and choose **Fill series down** in the context menu (Shift+F10). |
 | Header row, zebra rows | Row 1 as a header (bold, kept out of sorting, the column titles of an export) and alternate row tint. |
-| Grow | Add a row or a column; pasting past the edge grows the sheet. Drag a column header's edge to resize. |
+| Grow | Add a row or a column; pasting past the edge grows the sheet. Drag a column header's edge to resize. *(0.46.0)* Drag a row number's bottom edge to set the row's height, double-click it for the default again (`WeSheetData.heights`, by row number; kept in Excel files both ways). |
 | Status bar | Average, min, max, count and sum of the selection, as in Excel. |
 | Right-click menu *(0.11.0)* | Insert rows above/below, insert columns left/right, delete rows or columns, clear contents or formatting, AutoSum, sort — also on the context-menu key or Shift+F10. Every formula's references follow: inserted rows push them down, deleted cells turn them into `#REF!`, a range that loses an end shrinks. |
 | Σ AutoSum *(0.11.0)* | Alt+= or the Σ button: a block gets a `=SUM()` under each column; one cell sums the numbers right above it, or to its left. |
@@ -138,7 +138,7 @@ on, exported for servers and tests.
 
 `<we-workbook>` puts sheets behind tabs, as at the bottom of an Excel window — add one with **+**,
 rename with a double-click (or F2), duplicate, delete, and move them with the arrows (or
-Ctrl+← / Ctrl+→ on a tab). The whole workbook is one JSON object saved under `workbookKey`
+Ctrl+← / Ctrl+→ on a tab). *(0.46.0)* The palette button colours the active tab (`sheets[i].color`, a format palette colour; Excel files keep it as the tab colour). The whole workbook is one JSON object saved under `workbookKey`
 through `WE_SHEET_STORE`:
 
 ```html

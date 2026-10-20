@@ -218,6 +218,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** The conditional-formatting panel: the column it shows (as the panel expects one) and that range's rules */
   formatPanel: { range: string; column: { field: string; defaultHeader: string; type: 'number' | 'text' }; rules: WeGridFormatRule[] } | null = null;
   private resizing: { col: number; startX: number; startWidth: number } | null = null;
+  private rowResizing: { row: number; startY: number; startHeight: number } | null = null;
   /** What this sheet last copied — pasted back as raw cells (formulas shifted) instead of text */
   private clip: { text: string; range: WeSheetRange; cells: (WeSheetCell | undefined)[][]; values: unknown[][]; rows: number[]; cut: boolean } | null = null;
   private pasteValues = false;
@@ -490,6 +491,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onRowHeaderClick(event: MouseEvent, row: number): void {
+    if (this.rowResizing) return;
     this.commitEdit();
     const from = event.shiftKey ? this.anchor : { col: 0, row };
     this.anchor = { col: 0, row: from.row };
@@ -513,8 +515,37 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.resizing = { col, startX: event.clientX, startWidth: this.width(col) };
   }
 
+  /** Drag a row number's bottom edge to set the row's height */
+  onRowResizeStart(event: MouseEvent, row: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    const th = (event.target as HTMLElement).closest('th');
+    this.rowResizing = { row, startY: event.clientY, startHeight: this.rowHeight(row) ?? th?.offsetHeight ?? 28 };
+  }
+
+  /** A row's height in pixels when it has its own, else null */
+  rowHeight(row: number): number | null {
+    return this.sheet.heights?.[String(row + 1)] ?? null;
+  }
+
+  /** Double-clicking a row number's edge gives the row back its default height */
+  resetRowHeight(event: MouseEvent, row: number): void {
+    event.stopPropagation();
+    if (this.readonly || !this.sheet.heights?.[String(row + 1)]) return;
+    const { [String(row + 1)]: _gone, ...rest } = this.sheet.heights;
+    const next: WeSheetData = { ...this.sheet, heights: rest };
+    if (!Object.keys(rest).length) delete next.heights;
+    this.commit(next);
+  }
+
   @HostListener('document:mousemove', ['$event'])
   onDocumentMouseMove(event: MouseEvent): void {
+    if (this.rowResizing) {
+      const h = Math.max(12, Math.min(400, this.rowResizing.startHeight + event.clientY - this.rowResizing.startY));
+      this.sheet = { ...this.sheet, heights: { ...(this.sheet.heights ?? {}), [String(this.rowResizing.row + 1)]: Math.round(h) } };
+      this.cdr.markForCheck();
+      return;
+    }
     if (!this.resizing) return;
     const w = Math.max(30, Math.min(1000, this.resizing.startWidth + event.clientX - this.resizing.startX));
     this.sheet = { ...this.sheet, widths: { ...(this.sheet.widths ?? {}), [weGridColumnLetter(this.resizing.col)]: Math.round(w) } };
@@ -536,6 +567,10 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (this.resizing) {
       // The resize already changed `sheet`; record it without another undo step per pixel
       setTimeout(() => (this.resizing = null));
+      this.emitChange();
+    }
+    if (this.rowResizing) {
+      setTimeout(() => (this.rowResizing = null));
       this.emitChange();
     }
   }
@@ -1331,11 +1366,17 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   /** Where a frozen row sticks: under the column letters and the frozen rows shown above it */
   frozenTop(row: number): string | null {
-    // shortcut: assumes the standard row height — a wrapped row in the frozen area overlaps the next; measure rows if that matters
+    // shortcut: assumes the standard height for rows without their own — a wrapped row in the frozen area overlaps the next; measure rows if that matters
     if (row >= this.frozenRows) return this.sheet.headerRow && row === 0 ? '1.6rem' : null;
     let above = 0;
-    for (let r = 0; r < row; r++) if (!this.hiddenRows.has(r)) above++;
-    return `calc(1.6rem + ${above * 1.75}rem)`;
+    let px = 0;
+    for (let r = 0; r < row; r++) {
+      if (this.hiddenRows.has(r)) continue;
+      const h = this.rowHeight(r);
+      if (h === null) above++;
+      else px += h;
+    }
+    return `calc(1.6rem + ${above * 1.75}rem${px ? ` + ${px}px` : ''})`;
   }
 
   /** A cell (or the merge it starts) lies wholly in the frozen columns */

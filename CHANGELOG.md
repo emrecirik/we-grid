@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.46.0 — 2026-10-20
+
+### Added
+
+- Row heights in the sheet: drag a row number's bottom edge, double-click it to reset
+  (`WeSheetData.heights`, `rowHeight()`). Inserted and deleted rows move them, frozen rows stack by
+  them, and Excel files keep them both ways (`WeGridXlsxSheet.heights`, `WeGridXlsxCellSheet.heights`).
+- Tab colours in `<we-workbook>`: the palette button by the tabs colours the active sheet's tab
+  (`WeWorkbookData.sheets[i].color`, `setTabColor()`); Excel files keep them both ways
+  (`tabColor`). New locale key `workbookTabColor`.
+- The fill handle continues a lone time by the hour, as Excel does.
+
 ## 0.45.0 — 2026-10-20
 
 ### Added

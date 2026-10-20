@@ -32,6 +32,7 @@
           class="we-book__tab"
           [attr.aria-selected]="i === book.active"
           [attr.tabindex]="i === book.active ? 0 : -1"
+          [style.box-shadow]="tabColor(s.color)"
           (click)="activate(i)"
           (dblclick)="startRename(i)"
           (keydown)="onTabKeydown($event, i)"
@@ -52,6 +53,19 @@
       <button type="button" class="we-book__icon" (click)="moveSheet(book.active, 1)" [disabled]="book.active === book.sheets.length - 1" [attr.aria-label]="locale.moveColumnRight" [title]="locale.moveColumnRight">
         <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
       </button>
+      <span class="we-book__color-wrap">
+        <button type="button" class="we-book__icon" (click)="colorMenu = !colorMenu" aria-haspopup="true" [attr.aria-expanded]="colorMenu" [attr.aria-label]="locale.workbookTabColor" [title]="locale.workbookTabColor">
+          <span [innerHTML]="icon('palette')" aria-hidden="true"></span>
+        </button>
+        @if (colorMenu) {
+          <div class="we-book__palette" role="radiogroup" [attr.aria-label]="locale.workbookTabColor" (keydown.escape)="colorMenu = false">
+            <button type="button" role="radio" class="we-book__dot we-book__dot--none" [attr.aria-checked]="!book.sheets[book.active].color" (click)="setTabColor(null)" [attr.aria-label]="locale.formatNoColor" [title]="locale.formatNoColor"></button>
+            @for (color of tabColors; track color) {
+              <button type="button" role="radio" class="we-book__dot" [style.background]="fg(color)" [attr.aria-checked]="book.sheets[book.active].color === color" (click)="setTabColor(color)" [attr.aria-label]="locale.formatColorNames[color]" [title]="locale.formatColorNames[color]"></button>
+            }
+          </div>
+        }
+      </span>
       <button type="button" class="we-book__icon" (click)="startRename(book.active)" [attr.aria-label]="locale.workbookRename" [title]="locale.workbookRename">
         <span [innerHTML]="icon('pencil')" aria-hidden="true"></span>
       </button>

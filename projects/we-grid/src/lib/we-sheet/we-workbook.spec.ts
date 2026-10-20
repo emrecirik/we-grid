@@ -123,4 +123,17 @@ describe('WeWorkbookComponent', () => {
     });
     expect(weWorkbookSanitize({ sheets: [] })).toBeNull();
   });
+
+  it('colours the active tab and keeps the colour when stored', () => {
+    book().setTabColor('green');
+    fixture.detectChanges();
+    expect(book().getData().sheets[0].color).toBe('green');
+    expect(fixture.nativeElement.querySelector('.we-book__tab').style.boxShadow).toContain('inset');
+    expect(weWorkbookSanitize({ sheets: [{ name: 'a', color: 'green', data: { rows: 1, cols: 1, cells: {} } }, { name: 'b', color: 'neon', data: { rows: 1, cols: 1, cells: {} } }] })!.sheets.map((s) => s.color)).toEqual(['green', undefined]);
+    book().duplicateSheet();
+    expect(book().getData().sheets[1].color).toBe('green');
+    book().activate(0);
+    book().setTabColor(null);
+    expect(book().getData().sheets[0].color).toBeUndefined();
+  });
 });

@@ -477,6 +477,10 @@ export interface WeGridXlsxSheet {
   hiddenRows?: number[];
   /** Hidden columns, by index (0-based, like `widths`) */
   hiddenColumns?: number[];
+  /** Row heights in pixels by row index (0-based) */
+  heights?: Record<number, number>;
+  /** The sheet tab's colour, `#rrggbb` */
+  tabColor?: string;
 }
 
 /** One conditional format rule for `weGridBuildXlsxWorkbook`, as Excel names it (a `cfRule`) */
@@ -592,11 +596,15 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
     }
     const hiddenRows = new Set(sheet.hiddenRows ?? []);
     for (const r of hiddenRows) if (Number.isInteger(r) && r >= 1 && !byRow.has(r)) byRow.set(r, []);
+    // Heights in points (a pixel is three quarters of one)
+    const heightOf = new Map(Object.entries(sheet.heights ?? {}).map(([r, h]) => [Number(r) + 1, h]));
+    for (const r of heightOf.keys()) if (Number.isInteger(r) && r >= 1 && !byRow.has(r)) byRow.set(r, []);
     const rows = [...byRow.entries()]
       .sort((a, b) => a[0] - b[0])
       .map(([r, cells]) => {
         cells.sort((a, b) => refToColumnIndex(a.ref) - refToColumnIndex(b.ref));
-        return `<row r="${r}"${hiddenRows.has(r) ? ' hidden="1"' : ''}>${cells.map((c) => workbookCell(c, styleOf(c))).join('')}</row>`;
+        const ht = heightOf.get(r);
+        return `<row r="${r}"${ht ? ` ht="${Math.round(ht * 0.75 * 100) / 100}" customHeight="1"` : ''}${hiddenRows.has(r) ? ' hidden="1"' : ''}>${cells.map((c) => workbookCell(c, styleOf(c))).join('')}</row>`;
       });
     const hiddenCols = new Set((sheet.hiddenColumns ?? []).filter((c) => Number.isInteger(c) && c >= 0));
     const widthOf = new Map<number, number>(Object.entries(sheet.widths ?? {}).map(([c, w]) => [Number(c), w]));
@@ -608,6 +616,7 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
     const xml =
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
       `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+      (sheet.tabColor && /^#[0-9a-f]{6}$/i.test(sheet.tabColor) ? `<sheetPr><tabColor rgb="FF${sheet.tabColor.slice(1).toUpperCase()}"/></sheetPr>` : '') +
       sheetViewXml(sheet.freeze) +
       (widths ? `<cols>${widths}</cols>` : '') +
       `<sheetData>${rows.join('')}</sheetData>` +
@@ -1064,6 +1073,10 @@ export interface WeGridXlsxCellSheet {
   hiddenRows: number[];
   /** Hidden columns, by index (0-based) */
   hiddenColumns: number[];
+  /** Custom row heights in pixels by row index (0-based) */
+  heights: Record<number, number>;
+  /** The tab's colour as `#rrggbb`, when the file gives it in RGB */
+  tabColor?: string;
 }
 
 /** A cell's look as an .xlsx file stores it, read by `weGridReadXlsxCells` */
@@ -1134,9 +1147,12 @@ export async function weGridReadXlsxCells(
     // Namespace-blind (`<x:c>` too); a row or cell without its `r` follows the one before it
     let rowNumber = 0;
     const hiddenRows: number[] = [];
+    const heights: Record<number, number> = {};
     for (const rowEl of Array.from(doc.getElementsByTagNameNS('*', 'row'))) {
       rowNumber = Number(rowEl.getAttribute('r')) || rowNumber + 1;
       if (/^(1|true)$/.test(rowEl.getAttribute('hidden') ?? '')) hiddenRows.push(rowNumber);
+      const ht = Number(rowEl.getAttribute('ht'));
+      if (/^(1|true)$/.test(rowEl.getAttribute('customHeight') ?? '') && ht > 0) heights[rowNumber - 1] = Math.round(ht / 0.75);
       let col = -1;
       for (const cellEl of Array.from(rowEl.children)) {
         if (cellEl.localName !== 'c') continue;
@@ -1224,7 +1240,9 @@ export async function weGridReadXlsxCells(
       const max = Math.min(Number(colEl.getAttribute('max')) || min, min + 1000);
       for (let c = min; Number.isInteger(c) && c >= 1 && c <= max; c++) hiddenColumns.push(c - 1);
     }
-    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, notes, hiddenRows, hiddenColumns, ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
+    const tabRgb = doc.getElementsByTagNameNS('*', 'tabColor')[0]?.getAttribute('rgb') ?? '';
+    const tabColor = /^[0-9a-f]{8}$/i.test(tabRgb) ? `#${tabRgb.slice(2).toLowerCase()}` : undefined;
+    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, notes, hiddenRows, hiddenColumns, heights, ...(tabColor ? { tabColor } : {}), ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
   }
   return out;
 }

@@ -408,6 +408,8 @@ export interface WeGridLocale {
   workbookRename: string;
   workbookRenameHint: string;
   workbookDuplicate: string;
+  /** Tab bar button: colour the active sheet's tab */
+  workbookTabColor: string;
   workbookDelete: string;
 
   // ─── Macros (the grid's `allowMacros` / `macros` inputs) ───
@@ -769,6 +771,7 @@ export const weGridLocaleEn: WeGridLocale = {
   workbookRename: 'Rename sheet',
   workbookRenameHint: 'Double-click to rename',
   workbookDuplicate: 'Duplicate sheet',
+  workbookTabColor: 'Tab colour',
   workbookDelete: 'Delete sheet',
   macrosButton: 'Macros',
   macroRun: 'Run',
@@ -1144,6 +1147,7 @@ export const weGridLocaleTr: WeGridLocale = {
   workbookRename: 'Sayfayı yeniden adlandır',
   workbookRenameHint: 'Yeniden adlandırmak için çift tıklayın',
   workbookDuplicate: 'Sayfayı çoğalt',
+  workbookTabColor: 'Sekme rengi',
   workbookDelete: 'Sayfayı sil',
   macrosButton: 'Makrolar',
   macroRun: 'Çalıştır',

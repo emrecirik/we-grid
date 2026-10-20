@@ -680,4 +680,18 @@ describe('WeSheetComponent', () => {
     sheet().onFindInput('x');
     expect(sheet().findMatches).toEqual([{ col: 0, row: 0 }]);
   });
+
+  it('sets a row height by dragging the row number\'s edge and resets it with a double-click', () => {
+    fixture.detectChanges();
+    const handle = el().querySelectorAll<HTMLElement>('.we-sheet__row-resize')[1];
+    handle.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, clientY: 100 }));
+    document.dispatchEvent(new MouseEvent('mousemove', { clientY: 130 }));
+    document.dispatchEvent(new MouseEvent('mouseup'));
+    fixture.detectChanges();
+    const h = sheet().getData().heights!['2'];
+    expect(h).toBeGreaterThan(40);
+    expect(cellEl('A2').style.height).toBe(`${h}px`);
+    handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+    expect(sheet().getData().heights).toBeUndefined();
+  });
 });
