@@ -153,3 +153,14 @@ describe('merged cells in Excel files', () => {
     expect(weSheetFromCells(read.cells, '.', 1, 1, read.merges).data.merges).toEqual(['A1:C1']);
   });
 });
+
+describe('borders in Excel files', () => {
+  it('writes thin borders on the sides a cell has', async () => {
+    const blob = weSheetWorkbookXlsx([{ name: 'B', data: { version: 1, rows: 2, cols: 2, cells: { A1: { v: 1, b: 'tb' } } } }]);
+    const text = await new Response(blob).text();
+    expect(text).toContain('<border><left/><right/><top style="thin"><color auto="1"/></top><bottom style="thin"><color auto="1"/></bottom><diagonal/></border>');
+    expect(text).toContain('borderId="1"');
+    const aligned = await new Response(weSheetWorkbookXlsx([{ name: 'C', data: { version: 1, rows: 1, cols: 1, cells: { A1: { v: 'x', a: 'center' } } } }])).text();
+    expect(aligned).toContain('applyAlignment="1"><alignment horizontal="center"/></xf>');
+  });
+});

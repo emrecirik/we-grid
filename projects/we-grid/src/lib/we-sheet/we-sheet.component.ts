@@ -58,6 +58,7 @@ import {
   weSheetCleanList,
   weSheetWorkbookXlsx,
   weSheetFromCells,
+  weSheetBorderSides,
   weSheetParseInput,
   weSheetRangeLabel,
   weSheetSanitize,
@@ -174,7 +175,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** The formula bar's text — the active cell's raw content unless the user is typing in it */
   barText = '';
   stats: WeSheetStats = weSheetStats([]);
-  openPalette: 'color' | 'fill' | null = null;
+  openPalette: 'color' | 'fill' | 'border' | null = null;
   /** The table options menu in the toolbar */
   optionsOpen = false;
   /** The right-click menu, at viewport coordinates */
@@ -1714,6 +1715,51 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.chartData = { categories, series };
   }
 
+  /**
+   * Borders, drawn in the strong ink on the grid lines the cells already have: a cell's right and
+   * bottom lines are its own, its top and left ones belong to the cells above and before it
+   */
+  private applyBorders(view: CellView[][]): void {
+    const ink = 'var(--we-grid-font-color, #212529)';
+    const paint = (r: number, c: number, side: 'right' | 'bottom') => {
+      const target = view[r]?.[c];
+      if (target) target.css = { ...(target.css ?? {}), [`border-${side}-color`]: ink };
+    };
+    for (const [key, cell] of Object.entries(this.sheet.cells)) {
+      if (!cell.b) continue;
+      const at = weSheetParseAddress(key);
+      if (!at) continue;
+      if (cell.b.includes('r')) paint(at.row, at.col, 'right');
+      if (cell.b.includes('b')) paint(at.row, at.col, 'bottom');
+      if (cell.b.includes('t') && at.row > 0) paint(at.row - 1, at.col, 'bottom');
+      if (cell.b.includes('l') && at.col > 0) paint(at.row, at.col - 1, 'right');
+    }
+  }
+
+  /** Borders on the selection: every line, the outline, the bottom line, or none */
+  setBorders(kind: 'all' | 'outside' | 'bottom' | 'none'): void {
+    this.openPalette = null;
+    const s = this.selection;
+    const next = this.cloneForEdit(0, 0);
+    for (let r = s.r1; r <= s.r2; r++) {
+      for (let c = s.c1; c <= s.c2; c++) {
+        const key = weSheetAddress(c, r);
+        const cell = next.cells[key] ?? {};
+        let sides = kind === 'none' ? '' : kind === 'all' ? 'trbl' : cell.b ?? '';
+        if (kind === 'outside') {
+          if (r === s.r1) sides += 't';
+          if (r === s.r2) sides += 'b';
+          if (c === s.c1) sides += 'l';
+          if (c === s.c2) sides += 'r';
+        } else if (kind === 'bottom' && r === s.r2) sides += 'b';
+        const b = weSheetBorderSides(sides);
+        const { b: _b, ...rest } = cell;
+        this.putCell(next, c, r, this.compact(b ? { ...rest, b } : rest));
+      }
+    }
+    this.commit(next);
+  }
+
   /** Conditional formatting over the computed values — over the cell's own style, as in Excel */
   private applyFormats(view: CellView[][]): void {
     const groups = new Map<string, WeSheetFormatRule[]>();
@@ -1880,6 +1926,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       }
       view.push(line);
     }
+    this.applyBorders(view);
     this.applyFormats(view);
     this.view = view;
     this.mergeRanges = this.parseMerges();
@@ -1958,6 +2005,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (cell.d !== undefined) out.d = cell.d;
     if (cell.l?.length) out.l = cell.l;
     if (cell.n) out.n = cell.n;
+    if (cell.b) out.b = cell.b;
     return out;
   }
 

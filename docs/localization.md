@@ -236,6 +236,10 @@ parser's own messages are English too.
 - `sheetOptions`, `formatTypeIconSet`, `formatIconSetLabels`, `formatIconSetReverse`, `sheetImportTruncated`,
   `sheetFull`
 
+## Keys added in 0.27.0
+
+- `sheetBorders`, `sheetBorderAll`, `sheetBorderOutside`, `sheetBorderBottom`, `sheetBorderNone`
+
 ## Keys added in 0.26.0
 
 - `sheetMerge`, `sheetMergeSort`

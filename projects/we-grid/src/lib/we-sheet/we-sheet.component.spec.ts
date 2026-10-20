@@ -204,6 +204,21 @@ describe('WeSheetComponent', () => {
     expect(cellEl('A3')).toBeNull();
   });
 
+  it('draws borders on the selection and writes them to Excel', () => {
+    sheet().select('B2:C3');
+    sheet().setBorders('outside');
+    fixture.detectChanges();
+    const cells = sheet().getData().cells;
+    expect([cells['B2'].b, cells['C2'].b, cells['B3'].b, cells['C3'].b]).toEqual(['tl', 'tr', 'bl', 'rb']);
+    expect(cellEl('C2').style.borderRightColor).toContain('--we-grid-font-color');
+    expect(cellEl('B1').style.borderBottomColor).toContain('--we-grid-font-color');
+    expect(cellEl('A2').style.borderRightColor).toContain('--we-grid-font-color');
+    sheet().setBorders('none');
+    expect(sheet().getData().cells['B2']).toBeUndefined();
+    sheet().setBorders('all');
+    expect(sheet().getData().cells['C3'].b).toBe('trbl');
+  });
+
   it('pastes values only after Ctrl+Shift+V', () => {
     sheet().setCell('A1', 4);
     sheet().setCell('B1', '=A1*2');

@@ -22,6 +22,8 @@ export interface WeSheetCell {
   l?: string[];
   /** A note: text shown when the cell is pointed at, marked by a corner triangle (Excel's notes) */
   n?: string;
+  /** Borders: the sides drawn, any of `t` `r` `b` `l` (`'tb'`, `'trbl'`) */
+  b?: string;
 }
 
 /**

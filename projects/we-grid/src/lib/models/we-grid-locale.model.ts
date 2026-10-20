@@ -330,6 +330,12 @@ export interface WeGridLocale {
   sheetInsertFunction: string;
   /** Toolbar: merge the selection and centre it, or split the merge */
   sheetMerge: string;
+  /** Toolbar: the borders menu and its four choices */
+  sheetBorders: string;
+  sheetBorderAll: string;
+  sheetBorderOutside: string;
+  sheetBorderBottom: string;
+  sheetBorderNone: string;
   /** Sorting a range with merged cells is refused */
   sheetMergeSort: string;
   sheetFunctionSearch: string;
@@ -685,6 +691,11 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetSuggestions: 'Functions',
   sheetInsertFunction: 'Insert function',
   sheetMerge: 'Merge and center',
+  sheetBorders: 'Borders',
+  sheetBorderAll: 'All borders',
+  sheetBorderOutside: 'Outside borders',
+  sheetBorderBottom: 'Bottom border',
+  sheetBorderNone: 'No border',
   sheetMergeSort: 'Merged cells cannot be sorted — unmerge them first',
   sheetFunctionSearch: 'Search functions',
   sheetOptions: 'Table options',
@@ -1044,6 +1055,11 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetSuggestions: 'Fonksiyonlar',
   sheetInsertFunction: 'İşlev ekle',
   sheetMerge: 'Birleştir ve ortala',
+  sheetBorders: 'Kenarlıklar',
+  sheetBorderAll: 'Tüm kenarlıklar',
+  sheetBorderOutside: 'Dış kenarlıklar',
+  sheetBorderBottom: 'Alt kenarlık',
+  sheetBorderNone: 'Kenarlık yok',
   sheetMergeSort: 'Birleştirilmiş hücreler sıralanamaz — önce ayırın',
   sheetFunctionSearch: 'İşlev ara',
   sheetOptions: 'Tablo seçenekleri',

@@ -299,6 +299,8 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
     const list = Array.isArray(r['l']) ? weSheetCleanList(r['l'].filter((x): x is string => typeof x === 'string')) : [];
     if (list.length) cell.l = list;
     if (typeof r['n'] === 'string' && r['n'].trim()) cell.n = r['n'].trim().slice(0, 1000);
+    const sides = typeof r['b'] === 'string' ? weSheetBorderSides(r['b']) : '';
+    if (sides) cell.b = sides;
     if (Object.keys(cell).length) cells[key] = cell;
   }
   const data: WeSheetData = { version: 1, rows, cols, cells };
@@ -335,6 +337,11 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
   const formats = weSheetSanitizeFormats(o['formats']);
   if (formats.length) data.formats = formats;
   return data;
+}
+
+/** Border sides in a fixed order, without repeats or unknown letters: `'lbt'` → `'tbl'` */
+export function weSheetBorderSides(sides: string): string {
+  return ['t', 'r', 'b', 'l'].filter((s) => sides.includes(s)).join('');
 }
 
 /** Merge ranges that are well formed, inside the sheet, bigger than one cell and not overlapping an earlier one — at most 1000 */
@@ -835,7 +842,9 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
           error: error || undefined,
           bold: cell.s?.bold || (data.headerRow && at.row === 0) || undefined,
           italic: cell.s?.italic,
-          numFmt: excelNumberFormat(cell)
+          numFmt: excelNumberFormat(cell),
+          borders: cell.b || undefined,
+          align: cell.a
         });
       }
       const widths: Record<number, number> = {};

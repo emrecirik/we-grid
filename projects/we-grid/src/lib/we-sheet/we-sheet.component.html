@@ -24,7 +24,17 @@
         <button type="button" class="we-sheet__btn" [attr.aria-expanded]="openPalette === 'fill'" (click)="openPalette = openPalette === 'fill' ? null : 'fill'" [attr.aria-label]="locale.formatFill" [title]="locale.formatFill">
           <span class="we-sheet__swatch-fill" [style.background]="activeStyle.fill ? bg(activeStyle.fill) : null" [style.border-color]="activeStyle.fill ? fg(activeStyle.fill) : null"></span>
         </button>
-        @if (openPalette) {
+        <button type="button" class="we-sheet__btn" [attr.aria-expanded]="openPalette === 'border'" aria-haspopup="menu" (click)="openPalette = openPalette === 'border' ? null : 'border'" [disabled]="readonly" [attr.aria-label]="locale.sheetBorders" [title]="locale.sheetBorders">
+          <span [innerHTML]="icon('borders')" aria-hidden="true"></span>
+        </button>
+        @if (openPalette === 'border') {
+          <div class="we-sheet__options we-sheet__borders" role="menu" [attr.aria-label]="locale.sheetBorders" (keydown.escape)="openPalette = null">
+            <button type="button" role="menuitem" (click)="setBorders('all')">{{ locale.sheetBorderAll }}</button>
+            <button type="button" role="menuitem" (click)="setBorders('outside')">{{ locale.sheetBorderOutside }}</button>
+            <button type="button" role="menuitem" (click)="setBorders('bottom')">{{ locale.sheetBorderBottom }}</button>
+            <button type="button" role="menuitem" (click)="setBorders('none')">{{ locale.sheetBorderNone }}</button>
+          </div>
+        } @else if (openPalette) {
           <div class="we-sheet__palette" role="radiogroup" [attr.aria-label]="openPalette === 'color' ? locale.formatTextColor : locale.formatFill" (keydown.escape)="openPalette = null">
             <button type="button" role="radio" class="we-sheet__dot we-sheet__dot--none" [attr.aria-checked]="!activeStyle[openPalette]" (click)="setColor(openPalette, null)" [attr.aria-label]="locale.formatNoColor" [title]="locale.formatNoColor"></button>
             @for (color of colors; track color) {

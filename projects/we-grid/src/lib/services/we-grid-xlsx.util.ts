@@ -339,6 +339,10 @@ export interface WeGridXlsxCell {
   italic?: boolean;
   /** An Excel number format code — `#,##0.00`, `0%`, `mm-dd-yy`, `@` … */
   numFmt?: string;
+  /** Thin borders on these sides, any of `t` `r` `b` `l` */
+  borders?: string;
+  /** Horizontal alignment */
+  align?: 'start' | 'center' | 'end';
 }
 
 /** One worksheet for `weGridBuildXlsxWorkbook` — widths in pixels by column index */
@@ -361,21 +365,29 @@ const BUILTIN_FORMATS: Record<string, number> = {
  */
 export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blob {
   const custom = new Map<string, number>();
-  const xfs = new Map<string, number>([['0:0', 0]]);
-  const xfList: { font: number; fmt: number }[] = [{ font: 0, fmt: 0 }];
+  const xfs = new Map<string, number>([['0:0:0:', 0]]);
+  const xfList: { font: number; fmt: number; border: number; align?: string }[] = [{ font: 0, fmt: 0, border: 0 }];
+  const borders = new Map<string, number>([['', 0]]);
   const styleOf = (cell: WeGridXlsxCell): number => {
     const font = (cell.bold ? 1 : 0) + (cell.italic ? 2 : 0);
+    const sides = ['l', 'r', 't', 'b'].filter((s) => cell.borders?.includes(s)).join('');
+    let border = borders.get(sides);
+    if (border === undefined) {
+      border = borders.size;
+      borders.set(sides, border);
+    }
     let fmt = 0;
     if (cell.numFmt) {
       fmt = BUILTIN_FORMATS[cell.numFmt] ?? custom.get(cell.numFmt) ?? 164 + custom.size;
       if (fmt >= 164 && !custom.has(cell.numFmt)) custom.set(cell.numFmt, fmt);
     }
-    const key = `${font}:${fmt}`;
+    const align = cell.align === 'start' ? 'left' : cell.align === 'end' ? 'right' : cell.align;
+    const key = `${font}:${fmt}:${border}:${align ?? ''}`;
     let index = xfs.get(key);
     if (index === undefined) {
       index = xfList.length;
       xfs.set(key, index);
-      xfList.push({ font, fmt });
+      xfList.push({ font, fmt, border, align });
     }
     return index;
   };
@@ -419,10 +431,23 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
     `<fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font>` +
     `<font><i/><sz val="11"/><name val="Calibri"/></font><font><b/><i/><sz val="11"/><name val="Calibri"/></font></fonts>` +
     `<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>` +
-    `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
+    `<borders count="${borders.size}">` +
+    [...borders.keys()]
+      .map((sides) => {
+        const side = (name: string, letter: string) => (sides.includes(letter) ? `<${name} style="thin"><color auto="1"/></${name}>` : `<${name}/>`);
+        return `<border>${side('left', 'l')}${side('right', 'r')}${side('top', 't')}${side('bottom', 'b')}<diagonal/></border>`;
+      })
+      .join('') +
+    `</borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
     `<cellXfs count="${xfList.length}">` +
-    xfList.map((x) => `<xf numFmtId="${x.fmt}" fontId="${x.font}" fillId="0" borderId="0" xfId="0"${x.font ? ' applyFont="1"' : ''}${x.fmt ? ' applyNumberFormat="1"' : ''}/>`).join('') +
+    xfList
+      .map(
+        (x) =>
+          `<xf numFmtId="${x.fmt}" fontId="${x.font}" fillId="0" borderId="${x.border}" xfId="0"${x.font ? ' applyFont="1"' : ''}${x.fmt ? ' applyNumberFormat="1"' : ''}${x.border ? ' applyBorder="1"' : ''}` +
+          (x.align ? ` applyAlignment="1"><alignment horizontal="${x.align}"/></xf>` : '/>')
+      )
+      .join('') +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `</styleSheet>`;

@@ -28,6 +28,7 @@ export class BudgetComponent {}
 | Style | Bold, italic, underline, strikethrough (Ctrl+B / I / U), text colour and fill from the nine-colour palette, alignment. |
 | Number format | General, number, whole number, currency (the locale's `intlCurrency`), percent, date (Excel serial dates), text. |
 | Sort | A → Z / Z → A by the active column — the selected rows, or every used row below the header row. Numbers before text, blanks last. |
+| Borders *(0.27.0)* | The borders button: all borders, outside borders, a bottom border or none, for the selection (`WeSheetCell.b`, sides `t` `r` `b` `l`). Drawn in the text colour on the grid lines, and written to Excel files as thin borders. |
 | Merge and center *(0.26.0)* | The merge button in the toolbar joins the selection into one cell, keeping the top-left value (centred), or splits the merge back. Moving with the keyboard steps over a merge, a selection that touches one grows to hold it, inserted rows and columns move it, sorting through one is refused with a notice, and Excel files keep it both ways (`WeSheetData.merges`, `weSheetSanitizeMerges`). |
 | Typed dates *(0.25.0)* | `2026-01-15`, or `15.01.2026` / `1/15/2026` in the order your locale writes dates, becomes a date (an Excel serial with the date format) that date functions and sorting understand. `weSheetParseDate`. |
 | Insert function *(0.24.0)* | The ƒ button by the formula bar lists every function with its arguments; search by English or Turkish name, pick one (or ↑ ↓ Enter) and it goes into the cell's formula. |
@@ -78,7 +79,10 @@ Public methods: `getData()`, `setData(data)`, `getValue('B3')`, `setCell('C2', '
 `deleteRows()`, `deleteColumns()`, `autoSum()`, `toggleFreezeColumn()`, `openImport()`,
 `openFind(withReplace?)`, `findNext(step?)`, `replaceOne()`, `replaceAll()`, `changeDecimals(delta)`,
 `insertChart(type?)`, `setChartType(type)`, `removeChart()`,
-`exportAs('xlsx' \| 'csv')`, `buildExportTable()`.
+`exportAs('xlsx' \| 'csv')`, `buildExportTable()`, `fill(range)`, `fillSeries()` *(0.17.0)*,
+`saveList(text)`, `saveNote(text)`, `openFormatPanel()` *(0.18.0)*, `toggleAutoFilter()` *(0.19.0)*,
+`insertFunction(name)` *(0.24.0)*, `toggleMerge()` *(0.26.0)*,
+`setBorders('all' \| 'outside' \| 'bottom' \| 'none')` *(0.27.0)*.
 
 Content projected with the `weSheetToolbar` attribute is placed in the toolbar — your own buttons
 next to the built-in ones:

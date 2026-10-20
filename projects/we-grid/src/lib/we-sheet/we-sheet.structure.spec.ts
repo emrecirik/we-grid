@@ -131,7 +131,7 @@ describe('WeSheetComponent — structure, AutoSum, suggestions, import', () => {
   });
 
   it('toggles table options from the toolbar menu', () => {
-    el().querySelector<HTMLButtonElement>('[aria-haspopup="menu"]')!.click();
+    el().querySelector<HTMLButtonElement>('[aria-haspopup="menu"][aria-label="Table options"]')!.click();
     fixture.detectChanges();
     const items = Array.from(el().querySelectorAll<HTMLButtonElement>('.we-sheet__options button'));
     expect(items.length).toBe(6);

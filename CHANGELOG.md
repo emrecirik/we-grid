@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.27.0 — 2026-10-20
+
+Cell borders in the spreadsheet. A minor release.
+
+### Added
+
+- `<we-sheet>` **borders**: the toolbar's borders button draws all borders, outside borders or a
+  bottom border on the selection, or clears them (`WeSheetCell.b`, `weSheetBorderSides`). Drawn in
+  the text colour, so they follow the theme; icon `borders`; locale keys `sheetBorders`,
+  `sheetBorderAll`, `sheetBorderOutside`, `sheetBorderBottom`, `sheetBorderNone`.
+- Excel export writes borders (thin) and horizontal alignment — a merged, centred title stays
+  centred. `WeGridXlsxCell.borders` / `align`.
+
 ## 0.26.0 — 2026-10-20
 
 Merged cells in the spreadsheet. A minor release.
