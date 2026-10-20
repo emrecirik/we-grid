@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.29.1 — 2026-10-20
+
+Freeze panes fixes. A patch release.
+
+### Fixed
+
+- `<we-sheet>` frozen panes move with inserted and deleted rows and columns, and shrink with them.
+- A merge that crosses the frozen edge scrolls instead of sticking whole.
+- A frozen row hidden by a filter leaves no gap: the frozen rows below it close up.
+- Moving the active cell with the keyboard scrolls it clear of the frozen rows and columns.
+- Frozen column offsets are worked out once per layout instead of once per cell.
+
 ## 0.29.0 — 2026-10-20
 
 Freeze panes in the spreadsheet. A minor release.

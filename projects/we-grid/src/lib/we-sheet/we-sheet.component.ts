@@ -163,6 +163,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   private hiddenRows = new Set<number>();
   /** The sheet's merges as ranges, worked out with the view */
   private mergeRanges: WeSheetRange[] = [];
+  private leftCache: { widths: unknown; cols: number; values: string[] } | null = null;
   /** The open filter of a header cell: its column and the distinct texts below it */
   filterMenu: { col: number; x: number; y: number; values: { text: string; label: string; shown: boolean }[] } | null = null;
   colIndexes: number[] = [];
@@ -1237,16 +1238,37 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** Where a frozen column sticks: past the row numbers and the frozen columns before it */
   frozenLeft(col: number): string | null {
     if (col >= this.frozenCols) return null;
-    let px = 0;
-    for (let c = 0; c < col; c++) px += this.width(c);
-    return `calc(3rem + ${px}px)`;
+    const widths = this.sheet.widths;
+    let cache = this.leftCache;
+    if (!cache || cache.widths !== widths || cache.cols !== this.frozenCols) {
+      const values: string[] = [];
+      let px = 0;
+      for (let c = 0; c < this.frozenCols; c++) {
+        values.push(`calc(3rem + ${px}px)`);
+        px += this.width(c);
+      }
+      cache = this.leftCache = { widths, cols: this.frozenCols, values };
+    }
+    return cache.values[col];
   }
 
-  /** Where a frozen row sticks: under the column letters and the frozen rows above it */
+  /** Where a frozen row sticks: under the column letters and the frozen rows shown above it */
   frozenTop(row: number): string | null {
     // shortcut: assumes the standard row height — a wrapped row in the frozen area overlaps the next; measure rows if that matters
     if (row >= this.frozenRows) return this.sheet.headerRow && row === 0 ? '1.6rem' : null;
-    return `calc(1.6rem + ${row * 1.75}rem)`;
+    let above = 0;
+    for (let r = 0; r < row; r++) if (!this.hiddenRows.has(r)) above++;
+    return `calc(1.6rem + ${above * 1.75}rem)`;
+  }
+
+  /** A cell (or the merge it starts) lies wholly in the frozen columns */
+  isFrozenCol(col: number, row: number): boolean {
+    return col + (this.view[row]?.[col]?.colspan ?? 1) <= this.frozenCols;
+  }
+
+  /** A cell (or the merge it starts) lies wholly in the frozen rows */
+  isFrozenRow(col: number, row: number): boolean {
+    return row + (this.view[row]?.[col]?.rowspan ?? 1) <= this.frozenRows;
   }
 
   // ─── Rows and columns ────────────────────────────────────────────────
@@ -2144,8 +2166,16 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
         const box = this.scrollRef.nativeElement;
         const el = box.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(focus.col, focus.row)}"]`);
         if (!el) return;
-        const headTop = box.querySelector<HTMLElement>('thead')?.offsetHeight ?? 0;
-        const headLeft = box.querySelector<HTMLElement>('.we-sheet__rowhead')?.offsetWidth ?? 0;
+        let headTop = box.querySelector<HTMLElement>('thead')?.offsetHeight ?? 0;
+        let headLeft = box.querySelector<HTMLElement>('.we-sheet__rowhead')?.offsetWidth ?? 0;
+        // Frozen rows and columns cover the cells scrolled under them, too
+        const stuckRows = Math.max(this.frozenRows, this.sheet.headerRow ? 1 : 0);
+        if (focus.row >= stuckRows) {
+          for (let r = 0; r < stuckRows; r++) {
+            if (!this.hiddenRows.has(r)) headTop += box.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(0, r)}"]`)?.offsetHeight ?? 28;
+          }
+        }
+        if (focus.col >= this.frozenCols) for (let c = 0; c < this.frozenCols; c++) headLeft += this.width(c);
         const top = el.offsetTop - headTop;
         const bottom = el.offsetTop + el.offsetHeight;
         const left = el.offsetLeft - headLeft;

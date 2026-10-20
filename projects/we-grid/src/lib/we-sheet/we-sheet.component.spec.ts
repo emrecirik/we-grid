@@ -215,6 +215,17 @@ describe('WeSheetComponent', () => {
     expect(cellEl('D2').classList).toContain('we-sheet__cell--frozen-row');
     expect(cellEl('D2').style.top).toBe('calc(3.35rem)');
     expect(cellEl('C5').classList).not.toContain('we-sheet__cell--frozen-col');
+    // A merge across the frozen edge scrolls; a hidden frozen row leaves no gap
+    sheet().setData({ version: 1, rows: 10, cols: 5, cells: {}, freeze: { rows: 2, cols: 2 }, merges: ['B4:C4'] });
+    fixture.detectChanges();
+    expect(cellEl('B4').classList).not.toContain('we-sheet__cell--frozen-col');
+    expect(cellEl('A4').classList).toContain('we-sheet__cell--frozen-col');
+    sheet().setData({
+      version: 1, rows: 10, cols: 5, headerRow: true, autoFilter: true, filters: { A: ['x'] }, freeze: { rows: 3, cols: 0 },
+      cells: { A1: { v: 'K' }, A2: { v: 'x' }, A3: { v: 'y' } }
+    });
+    fixture.detectChanges();
+    expect(cellEl('A3').style.top).toBe('calc(3.35rem)');
     sheet().toggleFreezePanes();
     fixture.detectChanges();
     expect(sheet().getData().freeze).toBeUndefined();

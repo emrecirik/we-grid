@@ -269,3 +269,14 @@ describe('merged cells', () => {
     expect(weSheetInsert({ ...data, merges: ['B2:B3'] }, 'row', 1, -1).merges).toBeUndefined();
   });
 });
+
+describe('frozen panes', () => {
+  it('move with inserted and deleted rows and columns', () => {
+    const data = { version: 1 as const, rows: 10, cols: 6, cells: {}, freeze: { rows: 2, cols: 1 } };
+    expect(weSheetInsert(data, 'row', 0, 1).freeze).toEqual({ rows: 3, cols: 1 });
+    expect(weSheetInsert(data, 'row', 5, 1).freeze).toEqual({ rows: 2, cols: 1 });
+    expect(weSheetInsert(data, 'row', 0, -2).freeze).toEqual({ rows: 0, cols: 1 });
+    expect(weSheetInsert(data, 'col', 0, -1).freeze).toEqual({ rows: 2, cols: 0 });
+    expect(weSheetInsert({ ...data, freeze: { rows: 0, cols: 1 } }, 'col', 0, -1).freeze).toBeUndefined();
+  });
+});

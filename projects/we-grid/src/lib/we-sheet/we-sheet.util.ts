@@ -544,6 +544,15 @@ export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number
     if (formats.length) out.formats = formats;
     else delete out.formats;
   }
+  if (data.freeze) {
+    const f = { ...data.freeze };
+    const key = axis === 'row' ? 'rows' : 'cols';
+    const limit = (axis === 'row' ? rows : cols) - 1;
+    if (at < f[key]) f[key] = count > 0 ? f[key] + count : Math.max(at, f[key] + count);
+    f[key] = Math.max(0, Math.min(f[key], limit));
+    if (f.rows || f.cols) out.freeze = f;
+    else delete out.freeze;
+  }
   if (axis === 'col' && data.filters) {
     const filters: Record<string, string[]> = {};
     for (const [letter, hidden] of Object.entries(data.filters)) {
