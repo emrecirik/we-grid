@@ -1,5 +1,6 @@
 import { WE_GRID_FORMAT_COLORS } from '../models/we-grid-format.model';
-import { WeGridFormulaError, weGridColumnIndex, weGridColumnLetter } from '../services/we-grid-formula.util';
+import { WE_GRID_FORMULA_ALIASES, WeGridFormulaError, WeGridSheetEvaluator, weGridColumnIndex, weGridColumnLetter } from '../services/we-grid-formula.util';
+import { WeGridXlsxCell, weGridBuildXlsxWorkbook } from '../services/we-grid-xlsx.util';
 import { weGridSanitizeCellStyle, weGridSanitizeFormatRules } from '../services/we-grid-format.util';
 import { WeSheetCell, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat } from './we-sheet.model';
 
@@ -472,6 +473,15 @@ export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number
     if (formats.length) out.formats = formats;
     else delete out.formats;
   }
+  if (axis === 'col' && data.filters) {
+    const filters: Record<string, string[]> = {};
+    for (const [letter, hidden] of Object.entries(data.filters)) {
+      const nc = shift(weGridColumnIndex(letter));
+      if (nc !== null && nc < cols) filters[weGridColumnLetter(nc)] = hidden;
+    }
+    if (Object.keys(filters).length) out.filters = filters;
+    else delete out.filters;
+  }
   if (axis === 'col' && data.widths) {
     const widths: Record<string, number> = {};
     for (const [letter, w] of Object.entries(data.widths)) {
@@ -646,4 +656,112 @@ export function weSheetRenameReferences(formula: string, oldName: string, newNam
     i++;
   }
   return out;
+}
+
+/**
+ * A sheet formula in Excel's own syntax: Turkish function names become English (`TOPLA` → `SUM`),
+ * `;` separates arguments as `,`, `DOĞRU`/`YANLIŞ` become `TRUE`/`FALSE`. Quoted text and quoted
+ * sheet names are left alone. Returns the formula without its `=`.
+ */
+export function weSheetFormulaToExcel(formula: string): string {
+  let out = '';
+  let i = formula.startsWith('=') ? 1 : 0;
+  while (i < formula.length) {
+    const ch = formula[i];
+    if (ch === '"' || ch === "'") {
+      let end = i + 1;
+      // A doubled quote is the quote itself, inside text and sheet names alike
+      while (end < formula.length && !(formula[end] === ch && formula[end + 1] !== ch)) end += formula[end] === ch ? 2 : 1;
+      out += formula.slice(i, end + 1);
+      i = end + 1;
+      continue;
+    }
+    if (ch === ';') {
+      out += ',';
+      i++;
+      continue;
+    }
+    const word = /^[\p{L}_][\p{L}\p{N}_.]*/u.exec(formula.slice(i));
+    if (word && !/[\p{L}\p{N}_.$]/u.test(formula[i - 1] ?? '')) {
+      const name = word[0];
+      const upper = name.toLocaleUpperCase('tr');
+      const next = formula.slice(i + name.length).trimStart()[0];
+      if (next === '(') out += WE_GRID_FORMULA_ALIASES[upper] ?? WE_GRID_FORMULA_ALIASES[name.toUpperCase()] ?? name.toUpperCase();
+      else if (upper === 'DOĞRU') out += 'TRUE';
+      else if (upper === 'YANLIŞ') out += 'FALSE';
+      else out += name;
+      i += name.length;
+      continue;
+    }
+    out += ch;
+    i++;
+  }
+  return out;
+}
+
+/** The Excel number format code of a sheet cell's format */
+function excelNumberFormat(cell: WeSheetCell): string | undefined {
+  const d = cell.d;
+  const places = (n: number) => (n > 0 ? `.${'0'.repeat(n)}` : '');
+  switch (cell.f) {
+    case 'number':
+    case 'currency':
+      // shortcut: currency is written as a number with its decimals, without the symbol — add the currency's Excel code if asked
+      return `#,##0${places(d ?? 2)}`;
+    case 'integer':
+      return '#,##0';
+    case 'percent':
+      return `0${places(d ?? 2)}%`;
+    case 'date':
+      return 'mm-dd-yy';
+    case 'text':
+      return '@';
+    default:
+      return d !== undefined ? `0${places(d)}` : undefined;
+  }
+}
+
+/**
+ * The sheets of a workbook (or one sheet) as an .xlsx file Excel opens as the same workbook:
+ * formulas in Excel's syntax with their current results, references between the sheets, bold and
+ * italic text, number formats and column widths. Colours, lists, notes, charts and conditional
+ * formats are not written.
+ */
+export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeSheetData }[]): Blob {
+  const evaluators = new Map<string, WeGridSheetEvaluator>();
+  for (const { name, data } of sheets) {
+    evaluators.set(
+      name.toLocaleLowerCase(),
+      new WeGridSheetEvaluator(
+        (c, r) => data.cells[weSheetAddress(c, r)]?.v ?? null,
+        () => ({ cols: data.cols, rows: data.rows }),
+        { sheet: (n) => evaluators.get(n.toLocaleLowerCase()) ?? null, parseNumbers: false }
+      )
+    );
+  }
+  return weGridBuildXlsxWorkbook(
+    sheets.map(({ name, data }) => {
+      const evaluator = evaluators.get(name.toLocaleLowerCase())!;
+      const cells: WeGridXlsxCell[] = [];
+      for (const [ref, cell] of Object.entries(data.cells)) {
+        const at = weSheetParseAddress(ref);
+        if (!at || cell.v === undefined || cell.v === null || cell.v === '') continue;
+        const isFormula = typeof cell.v === 'string' && cell.v.startsWith('=');
+        const value = isFormula ? evaluator.value(at.col, at.row) : cell.v;
+        const error = value instanceof WeGridFormulaError;
+        cells.push({
+          ref,
+          value: error ? (value as WeGridFormulaError).code : (value as WeGridXlsxCell['value']),
+          formula: isFormula ? weSheetFormulaToExcel(cell.v as string) : undefined,
+          error: error || undefined,
+          bold: cell.s?.bold || (data.headerRow && at.row === 0) || undefined,
+          italic: cell.s?.italic,
+          numFmt: excelNumberFormat(cell)
+        });
+      }
+      const widths: Record<number, number> = {};
+      for (const [letter, w] of Object.entries(data.widths ?? {})) widths[weGridColumnIndex(letter)] = w;
+      return { name, cells, widths };
+    })
+  );
 }

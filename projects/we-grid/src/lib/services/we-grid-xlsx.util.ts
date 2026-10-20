@@ -206,7 +206,6 @@ function sanitiseSheetName(name: string): string {
 
 /** Builds a real .xlsx workbook out of an export table — one sheet, a bold header and a summary row */
 export function weGridBuildXlsx(table: WeGridExportTable): Blob {
-  const encoder = new TextEncoder();
   const sheetName = sanitiseSheetName(table.title);
 
   const cols = table.columns
@@ -277,13 +276,19 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
     (cols ? `<cols>${cols}</cols>` : '') +
     `<sheetData>${rowsXml.join('')}</sheetData></worksheet>`;
 
+  return buildPackage([{ name: sheetName, xml: sheet }], buildStyles());
+}
+
+/** The .xlsx package around worksheet XML: content types, relationships, workbook and styles */
+function buildPackage(sheets: { name: string; xml: string }[], styles: string): Blob {
+  const encoder = new TextEncoder();
   const contentTypes =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
     `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
     `<Default Extension="xml" ContentType="application/xml"/>` +
     `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
-    `<Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>` +
+    sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') +
     `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
     `</Types>`;
 
@@ -297,13 +302,15 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ` +
     `xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
-    `<sheets><sheet name="${escapeXml(sheetName)}" sheetId="1" r:id="rId1"/></sheets></workbook>`;
+    `<sheets>${sheets.map((s, i) => `<sheet name="${escapeXml(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>` +
+    // Formulas are written with their last result; Excel recalculates them on opening
+    `<calcPr fullCalcOnLoad="1"/></workbook>`;
 
   const workbookRels =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
-    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>` +
-    `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
+    sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('') +
+    `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>` +
     `</Relationships>`;
 
   return buildZip([
@@ -311,9 +318,122 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
     { name: '_rels/.rels', data: encoder.encode(rootRels) },
     { name: 'xl/workbook.xml', data: encoder.encode(workbook) },
     { name: 'xl/_rels/workbook.xml.rels', data: encoder.encode(workbookRels) },
-    { name: 'xl/styles.xml', data: encoder.encode(buildStyles()) },
-    { name: 'xl/worksheets/sheet1.xml', data: encoder.encode(sheet) }
+    { name: 'xl/styles.xml', data: encoder.encode(styles) },
+    ...sheets.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: encoder.encode(s.xml) }))
   ]);
+}
+
+// ─── Workbooks with formulas ───────────────────────────────────────────────────────────
+
+/** One cell for `weGridBuildXlsxWorkbook` */
+export interface WeGridXlsxCell {
+  /** A1 address */
+  ref: string;
+  /** The value — for a formula, its last result, which Excel shows until it recalculates */
+  value: string | number | boolean | Date | null;
+  /** The formula in Excel's syntax, without the leading `=` (`SUM(B2:B9)`) */
+  formula?: string;
+  /** `value` is an error code such as `#DIV/0!` */
+  error?: boolean;
+  bold?: boolean;
+  italic?: boolean;
+  /** An Excel number format code — `#,##0.00`, `0%`, `mm-dd-yy`, `@` … */
+  numFmt?: string;
+}
+
+/** One worksheet for `weGridBuildXlsxWorkbook` — widths in pixels by column index */
+export interface WeGridXlsxSheet {
+  name: string;
+  cells: WeGridXlsxCell[];
+  widths?: Record<number, number>;
+}
+
+const BUILTIN_FORMATS: Record<string, number> = {
+  General: 0, '0': 1, '0.00': 2, '#,##0': 3, '#,##0.00': 4, '0%': 9, '0.00%': 10, 'mm-dd-yy': 14, 'm/d/yy h:mm': 22, '@': 49
+};
+
+/**
+ * Writes sheets cell by cell — formulas (with their last results), bold and italic text and number
+ * formats survive, so the file opens in Excel as the workbook it was. Sheet names are made valid
+ * and unique.
+ */
+export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blob {
+  const custom = new Map<string, number>();
+  const xfs = new Map<string, number>([['0:0', 0]]);
+  const xfList: { font: number; fmt: number }[] = [{ font: 0, fmt: 0 }];
+  const styleOf = (cell: WeGridXlsxCell): number => {
+    const font = (cell.bold ? 1 : 0) + (cell.italic ? 2 : 0);
+    let fmt = 0;
+    if (cell.numFmt) {
+      fmt = BUILTIN_FORMATS[cell.numFmt] ?? custom.get(cell.numFmt) ?? 164 + custom.size;
+      if (fmt >= 164 && !custom.has(cell.numFmt)) custom.set(cell.numFmt, fmt);
+    }
+    const key = `${font}:${fmt}`;
+    let index = xfs.get(key);
+    if (index === undefined) {
+      index = xfList.length;
+      xfs.set(key, index);
+      xfList.push({ font, fmt });
+    }
+    return index;
+  };
+
+  const used = new Set<string>();
+  const parts = sheets.map((sheet, i) => {
+    let name = sanitiseSheetName(sheet.name || `Sheet${i + 1}`);
+    for (let n = 2; used.has(name.toLowerCase()); n++) name = `${name.slice(0, 28)} ${n}`;
+    used.add(name.toLowerCase());
+    const byRow = new Map<number, WeGridXlsxCell[]>();
+    for (const cell of sheet.cells) {
+      const m = /^([A-Z]{1,3})(\d+)$/.exec(cell.ref);
+      if (!m) continue;
+      const row = Number(m[2]);
+      byRow.set(row, [...(byRow.get(row) ?? []), cell]);
+    }
+    const rows = [...byRow.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([r, cells]) => {
+        cells.sort((a, b) => refToColumnIndex(a.ref) - refToColumnIndex(b.ref));
+        return `<row r="${r}">${cells.map((c) => workbookCell(c, styleOf(c))).join('')}</row>`;
+      });
+    const widths = Object.entries(sheet.widths ?? {})
+      .map(([c, w]) => `<col min="${Number(c) + 1}" max="${Number(c) + 1}" width="${Math.max(4, Math.round(w / 7))}" customWidth="1"/>`)
+      .join('');
+    const xml =
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+      (widths ? `<cols>${widths}</cols>` : '') +
+      `<sheetData>${rows.join('')}</sheetData></worksheet>`;
+    return { name, xml };
+  });
+
+  const styles =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+    (custom.size ? `<numFmts count="${custom.size}">${[...custom].map(([code, id]) => `<numFmt numFmtId="${id}" formatCode="${escapeXml(code)}"/>`).join('')}</numFmts>` : '') +
+    `<fonts count="4"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font>` +
+    `<font><i/><sz val="11"/><name val="Calibri"/></font><font><b/><i/><sz val="11"/><name val="Calibri"/></font></fonts>` +
+    `<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>` +
+    `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
+    `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
+    `<cellXfs count="${xfList.length}">` +
+    xfList.map((x) => `<xf numFmtId="${x.fmt}" fontId="${x.font}" fillId="0" borderId="0" xfId="0"${x.font ? ' applyFont="1"' : ''}${x.fmt ? ' applyNumberFormat="1"' : ''}/>`).join('') +
+    `</cellXfs>` +
+    `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
+    `</styleSheet>`;
+  return buildPackage(parts, styles);
+}
+
+function workbookCell(cell: WeGridXlsxCell, style: number): string {
+  const { ref, value } = cell;
+  const f = cell.formula ? `<f>${escapeXml(sanitiseXmlText(cell.formula))}</f>` : '';
+  if (cell.error) return `<c r="${ref}" t="e" s="${style}">${f}<v>${escapeXml(String(value))}</v></c>`;
+  if (typeof value === 'number' && Number.isFinite(value)) return `<c r="${ref}" s="${style}">${f}<v>${value}</v></c>`;
+  if (value instanceof Date && !isNaN(value.getTime())) return `<c r="${ref}" s="${style}">${f}<v>${toExcelSerial(value)}</v></c>`;
+  if (typeof value === 'boolean') return `<c r="${ref}" t="b" s="${style}">${f}<v>${value ? 1 : 0}</v></c>`;
+  const text = value === null || value === undefined ? '' : String(value);
+  if (f) return `<c r="${ref}" t="str" s="${style}">${f}<v>${escapeXml(sanitiseXmlText(text))}</v></c>`;
+  return text === '' ? `<c r="${ref}" s="${style}"/>` : inlineStringCell(ref, text, style);
 }
 
 // ─── XLSX reading ──────────────────────────────────────────────────────────────────────
@@ -453,4 +573,96 @@ export async function weGridReadXlsx(file: File): Promise<WeGridImportSheet> {
   const nonEmpty = normalised.filter((r) => r.some((cell) => cell.trim() !== ''));
   const headers = (nonEmpty.shift() ?? []).map((h) => h.trim());
   return { headers, rows: nonEmpty };
+}
+
+/** One worksheet read by `weGridReadXlsxCells`: its name and the text of each cell by A1 address */
+export interface WeGridXlsxCellSheet {
+  name: string;
+  /** What a user would type: numbers as written (a dot decimal), booleans `TRUE`/`FALSE`, formulas with `=` */
+  cells: Record<string, string>;
+}
+
+/**
+ * Reads every worksheet of an .xlsx file cell by cell, where they are — for a spreadsheet, unlike
+ * `weGridReadXlsx`, which reads a table. Formulas come back as `=…`; a shared formula (Excel stores
+ * a filled formula once) is moved to each of its cells by `shift`, which gets the master formula
+ * and the offset. Without `shift`, those cells keep their last value.
+ */
+export async function weGridReadXlsxCells(
+  file: Blob,
+  shift?: (formula: string, dCol: number, dRow: number) => string
+): Promise<WeGridXlsxCellSheet[]> {
+  const buffer = await file.arrayBuffer();
+  const directory = readZipDirectory(buffer);
+  const read = async (path: string) => {
+    const entry = directory.get(path);
+    return entry ? readZipEntry(buffer, entry) : null;
+  };
+  const sharedXml = await read('xl/sharedStrings.xml');
+  const sharedStrings = sharedXml ? parseSharedStrings(sharedXml) : [];
+
+  // Sheet names and order come from the workbook, their files from its relationships
+  const targets = new Map<string, string>();
+  const relsXml = await read('xl/_rels/workbook.xml.rels');
+  if (relsXml) {
+    for (const rel of Array.from(new DOMParser().parseFromString(relsXml, 'application/xml').getElementsByTagName('Relationship'))) {
+      const target = rel.getAttribute('Target') ?? '';
+      targets.set(rel.getAttribute('Id') ?? '', target.startsWith('/') ? target.slice(1) : `xl/${target}`);
+    }
+  }
+  const workbookXml = await read('xl/workbook.xml');
+  const listed = workbookXml
+    ? Array.from(new DOMParser().parseFromString(workbookXml, 'application/xml').getElementsByTagName('sheet')).map((el) => ({
+        name: el.getAttribute('name') ?? '',
+        path: targets.get(el.getAttribute('r:id') ?? el.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') ?? '') ?? ''
+      }))
+    : [];
+  const sheets = listed.length ? listed : [{ name: 'Sheet1', path: 'xl/worksheets/sheet1.xml' }];
+
+  const out: WeGridXlsxCellSheet[] = [];
+  for (const sheet of sheets) {
+    const xml = await read(sheet.path);
+    if (xml === null) continue;
+    const doc = new DOMParser().parseFromString(xml, 'application/xml');
+    const cells: Record<string, string> = {};
+    const masters = new Map<string, { formula: string; col: number; row: number }>();
+    for (const cellEl of Array.from(doc.getElementsByTagName('c'))) {
+      const ref = cellEl.getAttribute('r') ?? '';
+      const m = /^([A-Z]{1,3})(\d+)$/.exec(ref);
+      if (!m) continue;
+      const fEl = cellEl.getElementsByTagName('f')[0];
+      if (fEl) {
+        const text = fEl.textContent ?? '';
+        const si = fEl.getAttribute('si');
+        if (fEl.getAttribute('t') === 'shared' && si !== null) {
+          const col = refToColumnIndex(ref);
+          const row = Number(m[2]);
+          if (text) masters.set(si, { formula: `=${text}`, col, row });
+          const master = masters.get(si);
+          if (text) {
+            cells[ref] = `=${text}`;
+            continue;
+          }
+          if (master && shift) {
+            cells[ref] = shift(master.formula, col - master.col, row - master.row);
+            continue;
+          }
+        } else if (text) {
+          cells[ref] = `=${text}`;
+          continue;
+        }
+      }
+      const type = cellEl.getAttribute('t');
+      let text: string;
+      if (type === 'inlineStr') {
+        text = Array.from(cellEl.getElementsByTagName('t')).map((t) => t.textContent ?? '').join('');
+      } else {
+        const value = cellEl.getElementsByTagName('v')[0]?.textContent ?? '';
+        text = type === 's' ? (sharedStrings[Number(value)] ?? '') : type === 'b' ? (value === '1' ? 'TRUE' : 'FALSE') : value;
+      }
+      if (text !== '') cells[ref] = text;
+    }
+    out.push({ name: sheet.name, cells });
+  }
+  return out;
 }

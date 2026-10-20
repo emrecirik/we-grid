@@ -112,6 +112,8 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
 
   /** What the active sheet's formulas can read of the others — a new function whenever the book changes */
   resolveSheet: (name: string) => WeSheetData | null = () => null;
+  /** Every sheet, for the Excel export */
+  readonly xlsxSheets = () => this.book.sheets;
 
   private refreshResolver(): void {
     const byName = new Map(this.book.sheets.map((s) => [s.name.toLocaleLowerCase(), s.data] as const));

@@ -206,6 +206,42 @@ describe('WeSheetComponent', () => {
     expect(cellEl('A2')).toBeTruthy();
   });
 
+  it('keeps hidden rows out of edits, moves and pastes, and moves filters with their column', () => {
+    sheet().setData({
+      version: 1, rows: 8, cols: 3, headerRow: true, autoFilter: true, filters: { A: ['x'] },
+      cells: { A1: { v: 'K' }, A2: { v: 'a' }, A3: { v: 'x' }, A4: { v: 'b' }, B2: { v: '=C2' }, B3: { v: 7 }, B4: { v: '=C4' }, C2: { v: 1 }, C4: { v: 0 } }
+    });
+    fixture.detectChanges();
+    expect(cellEl('A3')).toBeNull();
+    // Enter from the editor skips the hidden row
+    sheet().select('A2');
+    sheet().startEdit('z');
+    el().querySelector<HTMLInputElement>('.we-sheet__editor')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(sheet().selectionLabel).toBe('A4');
+    // Delete over the range clears the shown rows only; Ctrl+D fills them only
+    sheet().select('B2:B4');
+    sheet().clearContents();
+    expect(sheet().getValue('B3')).toBe(7);
+    sheet().setCell('B2', '=C2*2');
+    sheet().select('B2:B4');
+    sheet().fillDown();
+    expect([sheet().getData().cells['B3'].v, sheet().getData().cells['B4'].v]).toEqual([7, '=C4*2']);
+    // A filtered copy shifts each row from its own source row
+    sheet().select('B2:B4');
+    const scroll = el().querySelector('.we-sheet__scroll')!;
+    const data = new DataTransfer();
+    scroll.dispatchEvent(new ClipboardEvent('copy', { clipboardData: data, bubbles: true, cancelable: true }));
+    sheet().toggleAutoFilter();
+    sheet().select('C5');
+    scroll.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    expect([sheet().getData().cells['C5'].v, sheet().getData().cells['C6'].v]).toEqual(['=D5*2', '=D6*2']);
+    // Clear formatting keeps lists and notes
+    sheet().setData({ version: 1, rows: 4, cols: 2, cells: { A1: { v: 'a', l: ['a', 'b'], n: 'note', s: { bold: true } } } });
+    sheet().select('A1');
+    sheet().clearFormatting();
+    expect(sheet().getData().cells['A1']).toEqual({ v: 'a', l: ['a', 'b'], n: 'note' });
+  });
+
   it('formats a column range conditionally through the Format panel', () => {
     sheet().setData({ version: 1, rows: 6, cols: 3, headerRow: true, cells: { A1: { v: 'Qty' }, A2: { v: 5 }, A3: { v: 50 }, A4: { v: '=A2*20' } } });
     sheet().select('A2');

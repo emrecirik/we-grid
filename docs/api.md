@@ -160,7 +160,7 @@ Adding or removing a column needs no bump.
 
 ## `<we-sheet>` (`WeSheetComponent`) *(0.9.0)*
 
-A spreadsheet component — inputs `sheetKey`, `data`, `rows`, `cols`, `readonly`, `exportFileName`,
+A spreadsheet component — inputs `sheetKey`, `data`, `rows`, `cols`, `readonly`, `exportFileName`, `xlsxSheets`,
 `height`; output `dataChange`; token `WE_SHEET_STORE` (`WeSheetStore`, default
 `LocalStorageSheetStore`); models `WeSheetData`, `WeSheetCell`, `WeSheetNumberFormat`. Full
 reference in [sheet.md](sheet.md).
@@ -305,7 +305,7 @@ Several sheets behind tabs — inputs `workbookKey`, `data` (`WeWorkbookData`), 
 - `WeGridDefaultExporter` (default `WE_GRID_EXPORTER`), `WeGridDefaultImportParser`
   (default `WE_GRID_IMPORT_PARSER`)
 - `weGridToCsv(table, options?)`, `weGridParseCsv(text, options?)`, `weGridDownloadBlob(blob, fileName)`
-- `weGridBuildXlsx(table)`, `weGridReadXlsx(file)`
+- `weGridBuildXlsx(table)`, `weGridReadXlsx(file)`; *(0.20.0)* `weGridBuildXlsxWorkbook(sheets)` (cell by cell, with formulas, number formats and several sheets — `WeGridXlsxSheet`, `WeGridXlsxCell`) and `weGridReadXlsxCells(file, shift?)` (every worksheet where its cells stand, formulas as `=…` — `WeGridXlsxCellSheet`)
 - `weGridBuildPrintDocument(table, options?)`, `weGridPrintTable(table, options?)`
 - `weGridMapImportedRows(sheet, columns)`, `weGridCoerceImportValue(raw, column)` — one cell's text
   in the column's type, shared by import and paste

@@ -230,5 +230,8 @@ describe('sheet filters', () => {
     const input = { version: 1, rows: 3, cols: 3, cells: {}, headerRow: true, filters: { A: ['x', 3], b: ['y'], C: 'z' } };
     expect(weSheetSanitize({ ...input, autoFilter: true })?.filters).toEqual({ A: ['x'] });
     expect(weSheetSanitize(input)?.filters).toBeUndefined();
+    const data = { version: 1 as const, rows: 3, cols: 3, cells: {}, headerRow: true, autoFilter: true, filters: { A: ['x'], B: ['y'] } };
+    expect(weSheetInsert(data, 'col', 0, 1).filters).toEqual({ B: ['x'], C: ['y'] });
+    expect(weSheetInsert(data, 'col', 0, -1).filters).toEqual({ A: ['y'] });
   });
 });

@@ -36,7 +36,7 @@ import {
   weGridFormulaValueToText,
   weGridIsFormula
 } from '../services/we-grid-formula.util';
-import { weGridBuildXlsx, weGridReadXlsx } from '../services/we-grid-xlsx.util';
+import { weGridReadXlsxCells } from '../services/we-grid-xlsx.util';
 import { WE_SHEET_STORE, WeSheetCell, WeSheetChart, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat, WeSheetStore } from './we-sheet.model';
 import { WeChartComponent } from '../we-chart/we-chart.component';
 import { WeGridFormatPanelComponent } from '../we-grid-format-panel/we-grid-format-panel.component';
@@ -56,6 +56,7 @@ import {
   weSheetParseAddress,
   weSheetFill,
   weSheetCleanList,
+  weSheetWorkbookXlsx,
   weSheetParseInput,
   weSheetRangeLabel,
   weSheetSanitize,
@@ -128,6 +129,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
    * here. Returns null for an unknown name (→ `#REF!`).
    */
   @Input() resolveSheet?: (name: string) => WeSheetData | null;
+  /** The sheets the Excel export writes — `<we-workbook>` passes all of its sheets; this sheet alone by default */
+  @Input() xlsxSheets?: () => readonly { name: string; data: WeSheetData }[];
 
   /** Every change, with the new content */
   @Output() dataChange = new EventEmitter<WeSheetData>();
@@ -193,7 +196,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   formatPanel: { range: string; column: { field: string; defaultHeader: string; type: 'number' | 'text' }; rules: WeGridFormatRule[] } | null = null;
   private resizing: { col: number; startX: number; startWidth: number } | null = null;
   /** What this sheet last copied — pasted back as raw cells (formulas shifted) instead of text */
-  private clip: { text: string; range: WeSheetRange; cells: (WeSheetCell | undefined)[][]; cut: boolean } | null = null;
+  private clip: { text: string; range: WeSheetRange; cells: (WeSheetCell | undefined)[][]; rows: number[]; cut: boolean } | null = null;
   private readonly save$ = new Subject<void>();
   private readonly destroy$ = new Subject<void>();
 
@@ -392,7 +395,10 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   onFillDblClick(event: MouseEvent): void {
     event.stopPropagation();
     const s = this.selection;
-    const filled = (c: number, r: number) => c >= 0 && c < this.sheet.cols && !!this.sheet.cells[weSheetAddress(c, r)]?.v;
+    const filled = (c: number, r: number) => {
+      const v = c >= 0 && c < this.sheet.cols ? this.sheet.cells[weSheetAddress(c, r)]?.v : undefined;
+      return v !== undefined && v !== null && v !== '';
+    };
     const side = filled(s.c1 - 1, s.r2 + 1) ? s.c1 - 1 : s.c2 + 1;
     let r2 = s.r2;
     while (r2 + 1 < this.sheet.rows && filled(side, r2 + 1)) r2++;
@@ -566,13 +572,13 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       case 'ArrowRight': {
         const d = { ArrowUp: [0, -1], ArrowDown: [0, 1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[key];
         const from = event.shiftKey ? this.focusCorner() : this.active;
-        const to = this.skipHidden(this.clamp({ col: from.col + d[0], row: from.row + d[1] }), d[1]);
+        const to = this.clamp({ col: from.col + d[0], row: from.row + d[1] });
         if (event.shiftKey) this.extendTo(to);
         else this.moveTo(to);
         break;
       }
       case 'Enter':
-        this.moveTo(this.skipHidden(this.clamp({ col: this.active.col, row: this.active.row + (event.shiftKey ? -1 : 1) }), event.shiftKey ? -1 : 1));
+        this.moveTo(this.clamp({ col: this.active.col, row: this.active.row + (event.shiftKey ? -1 : 1) }));
         break;
       case 'Tab':
         this.moveTo(this.clamp({ col: this.active.col + (event.shiftKey ? -1 : 1), row: this.active.row }));
@@ -660,7 +666,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   // ─── Editing ─────────────────────────────────────────────────────────
 
   startEdit(initial: string | null): void {
-    if (this.readonly) return;
+    if (this.readonly || this.hiddenRows.has(this.active.row)) return;
     const raw = this.rawText(this.active.col, this.active.row);
     this.editing = { ...this.active, text: initial ?? raw, fromBar: false };
     this.barText = this.editing.text;
@@ -817,7 +823,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const cell = this.scrollRef.nativeElement.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(this.active.col, this.active.row)}"]`);
     const box = cell?.getBoundingClientRect();
     const current = String(this.sheet.cells[weSheetAddress(this.active.col, this.active.row)]?.v ?? '');
-    this.picker = { options, index: Math.max(0, options.indexOf(current)), x: box ? box.left : 40, y: box ? box.bottom : 40 };
+    const index = options.findIndex((o) => o === current || String(weSheetParseInput(o, this.decimalSeparator).value) === current);
+    this.picker = { options, index: Math.max(0, index), x: box ? box.left : 40, y: box ? box.bottom : 40 };
     this.cdr.markForCheck();
   }
 
@@ -986,7 +993,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   clearFormatting(): void {
-    this.updateRange((cell) => (cell.v === undefined || cell.v === null ? {} : { v: cell.v }));
+    this.updateRange((cell) => ({ v: cell.v, l: cell.l, n: cell.n }));
   }
 
   toggleHeaderRow(): void {
@@ -1013,7 +1020,13 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const hidden = new Set(this.sheet.filters?.[weGridColumnLetter(col)] ?? []);
     const texts = new Set<string>();
     const used = this.usedSize();
-    for (let r = 1; r < used.rows; r++) texts.add(this.view[r]?.[col]?.text ?? '');
+    const others = Object.entries(this.sheet.filters ?? {})
+      .filter(([letter]) => letter !== weGridColumnLetter(col))
+      .map(([letter, list]) => [weGridColumnIndex(letter), new Set(list)] as const);
+    for (let r = 1; r < used.rows; r++) {
+      if (others.some(([c, list]) => list.has(this.view[r]?.[c]?.text ?? ''))) continue;
+      texts.add(this.view[r]?.[col]?.text ?? '');
+    }
     const sorted = [...texts].filter((t) => t !== '').sort((a, b) => a.localeCompare(b, this.locale.intlLocale, { numeric: true }));
     if (texts.has('')) sorted.push('');
     const anchor = (event?.currentTarget as HTMLElement | null) ?? this.scrollRef.nativeElement.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(col, 0)}"]`);
@@ -1065,12 +1078,15 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
-  /** `to`, or the next row in the direction of travel that the filters don't hide */
-  private skipHidden(to: Pos, step: number): Pos {
-    if (!step || !this.hiddenRows.has(to.row)) return to;
-    let row = to.row;
-    while (this.hiddenRows.has(row) && row + step >= 0 && row + step < this.sheet.rows) row += step;
-    return this.hiddenRows.has(row) ? this.active : { col: to.col, row };
+  /** `to`, or the nearest row the filters don't hide — in the direction of travel first, then back */
+  private toShown(to: Pos, step: number): Pos {
+    if (!this.hiddenRows.has(to.row)) return to;
+    for (const dir of [step || 1, -(step || 1)]) {
+      for (let row = to.row + dir; row >= 0 && row < this.sheet.rows; row += dir) {
+        if (!this.hiddenRows.has(row)) return { col: to.col, row };
+      }
+    }
+    return to;
   }
 
   toggleStriped(): void {
@@ -1228,8 +1244,23 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (!file || this.readonly) return;
     try {
       const isXlsx = /\.xlsx$/i.test(file.name);
-      const table = isXlsx ? await weGridReadXlsx(file) : weGridParseCsv(await file.text());
-      const all = [table.headers, ...table.rows];
+      let all: string[][];
+      if (isXlsx) {
+        // The first worksheet, cell by cell where it stands — formulas included
+        const [first] = await weGridReadXlsxCells(file, weSheetShiftFormula);
+        all = [];
+        for (const [ref, text] of Object.entries(first?.cells ?? {})) {
+          const at = weSheetParseAddress(ref);
+          if (!at || at.row >= WE_SHEET_MAX_ROWS + 1) continue;
+          while (all.length <= at.row) all.push([]);
+          const line = all[at.row];
+          while (line.length < at.col) line.push('');
+          line[at.col] = text;
+        }
+      } else {
+        const table = weGridParseCsv(await file.text());
+        all = [table.headers, ...table.rows];
+      }
       const lines = all.slice(0, WE_SHEET_MAX_ROWS).map((l) => l.slice(0, WE_SHEET_MAX_COLS));
       let cols = this.sheet.cols;
       let truncated = lines.length < all.length;
@@ -1347,7 +1378,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const next = this.cloneForEdit(s.r2 + 1, s.c2 + 1);
     for (let c = s.c1; c <= s.c2; c++) {
       const source = this.sheet.cells[weSheetAddress(c, s.r1)];
-      for (let r = s.r1 + 1; r <= s.r2; r++) this.putCell(next, c, r, this.shiftedCell(source, 0, r - s.r1));
+      for (let r = s.r1 + 1; r <= s.r2; r++) if (!this.hiddenRows.has(r)) this.putCell(next, c, r, this.shiftedCell(source, 0, r - s.r1));
     }
     this.commit(next);
   }
@@ -1378,9 +1409,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const c2 = Math.min(s.c2, Math.max(used.cols - 1, s.c1));
     const lines: string[] = [];
     const cells: (WeSheetCell | undefined)[][] = [];
+    const rows: number[] = [];
     for (let r = s.r1; r <= r2; r++) {
       // Rows the filters hide are left out, as Excel copies the visible cells of a filtered range
       if (this.hiddenRows.has(r)) continue;
+      rows.push(r);
       const line: string[] = [];
       const row: (WeSheetCell | undefined)[] = [];
       for (let c = s.c1; c <= c2; c++) {
@@ -1391,7 +1424,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       cells.push(row);
     }
     const text = lines.join('\n');
-    this.clip = { text, range: { c1: s.c1, r1: s.r1, c2, r2 }, cells, cut };
+    this.clip = { text, range: { c1: s.c1, r1: s.r1, c2, r2 }, cells, rows, cut };
     event.clipboardData?.setData('text/plain', text);
     event.preventDefault();
     if (cut && !this.readonly) this.clearContents();
@@ -1414,7 +1447,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       for (let c = 0; c < widthOf(r); c++) {
         if (own) {
           const dCol = own.cut ? 0 : at.col - own.range.c1;
-          const dRow = own.cut ? 0 : at.row - own.range.r1;
+          const dRow = own.cut ? 0 : at.row + r - own.rows[r];
           this.putCell(next, at.col + c, at.row + r, this.shiftedCell(own.cells[r][c], dCol, dRow));
         } else {
           this.writeInput(next, at.col + c, at.row + r, table![r][c]);
@@ -1436,7 +1469,9 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (format === 'csv') {
       weGridDownloadBlob(new Blob([weGridToCsv(table)], { type: 'text/csv;charset=utf-8' }), `${name}.csv`);
     } else {
-      weGridDownloadBlob(weGridBuildXlsx(table), `${name}.xlsx`);
+      // Cell by cell, with formulas — the whole workbook when the sheet is part of one
+      const sheets = this.xlsxSheets?.() ?? [{ name: this.exportFileName || 'Sheet1', data: this.sheet }];
+      weGridDownloadBlob(weSheetWorkbookXlsx(sheets), `${name}.xlsx`);
     }
   }
 
@@ -1597,6 +1632,13 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.hiddenRows = hidden;
     this.visibleRows = hidden.size ? this.rowNumbers.filter((r) => !hidden.has(r)) : this.rowNumbers;
+    // The active cell never stays on a row that just got hidden
+    if (hidden.has(this.active.row)) {
+      const p = this.toShown(this.active, 1);
+      this.anchor = p;
+      this.active = p;
+      this.selection = weSheetNormalize(p, p);
+    }
   }
 
   private rebuildView(): void {
@@ -1668,6 +1710,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const s = this.selection;
     const next = this.cloneForEdit(0, 0);
     for (let r = s.r1; r <= s.r2; r++) {
+      if (this.hiddenRows.has(r)) continue;
       for (let c = s.c1; c <= s.c2; c++) {
         const key = weSheetAddress(c, r);
         const updated = fn(next.cells[key] ?? {});
@@ -1721,6 +1764,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private moveTo(p: Pos): void {
+    p = this.toShown(p, Math.sign(p.row - this.active.row));
     this.anchor = p;
     this.active = p;
     this.selection = weSheetNormalize(p, p);
@@ -1728,6 +1772,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private extendTo(p: Pos): void {
+    p = this.toShown(p, Math.sign(p.row - this.focusCorner().row));
     this.selection = weSheetNormalize(this.anchor, p);
     this.afterSelection(true, p);
   }

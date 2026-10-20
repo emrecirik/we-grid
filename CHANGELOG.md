@@ -2,6 +2,32 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.20.0 — 2026-10-20
+
+Excel round trip for the spreadsheet, and fixes to filtered sheets. A minor release.
+
+### Added
+
+- `<we-sheet>` / `<we-workbook>` **Excel export writes the workbook itself**: every sheet, each
+  cell where it stands, formulas in Excel's syntax with their results (Turkish function names and
+  `;` become `SUM` and `,`), references between sheets, bold and italic, number formats and column
+  widths. `weSheetWorkbookXlsx`, `weSheetFormulaToExcel`; `<we-sheet [xlsxSheets]>`.
+- **Excel import keeps formulas and layout**: cells land where they stand in the file, formulas
+  come in as formulas, and a filled (shared) formula is moved to each of its cells.
+- xlsx utils: `weGridBuildXlsxWorkbook` (`WeGridXlsxSheet`, `WeGridXlsxCell`) and
+  `weGridReadXlsxCells` (`WeGridXlsxCellSheet`).
+
+### Fixed
+
+- Filtered sheets: the active cell never lands on a hidden row (Enter, the formula bar, Ctrl+↓,
+  a filter that hides the current row); Delete, cut and styles leave hidden rows alone; Ctrl+D
+  fills the shown rows only; a filtered copy pastes with the right references; zebra rows follow
+  the rows shown; a column's filter lists only the values the other filters show; inserting or
+  deleting columns moves the filters with their columns.
+- Clear formatting keeps dropdown lists and notes.
+- Double-clicking the fill handle fills past a 0 or FALSE in the column beside.
+- The dropdown picker finds a stored choice that was read as a number (`001`).
+
 ## 0.19.0 — 2026-10-20
 
 Filters in the spreadsheet. A minor release.

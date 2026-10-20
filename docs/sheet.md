@@ -35,7 +35,7 @@ export class BudgetComponent {}
 | Status bar | Average, min, max, count and sum of the selection, as in Excel. |
 | Right-click menu *(0.11.0)* | Insert rows above/below, insert columns left/right, delete rows or columns, clear contents or formatting, AutoSum, sort — also on the context-menu key or Shift+F10. Every formula's references follow: inserted rows push them down, deleted cells turn them into `#REF!`, a range that loses an end shrinks. |
 | Σ AutoSum *(0.11.0)* | Alt+= or the Σ button: a block gets a `=SUM()` under each column; one cell sums the numbers right above it, or to its left. |
-| Open a file *(0.11.0)* | Excel (`.xlsx`) or CSV into the sheet from A1, with row 1 as the header — undoable. |
+| Open a file *(0.11.0)* | Excel (`.xlsx`) or CSV into the sheet from A1, with row 1 as the header — undoable. *(0.20.0)* An Excel file keeps its layout and its formulas (filled formulas included). |
 | Freeze *(0.11.0)* | Column A stays in view while scrolling sideways; with a header row, row 1 stays at the top. |
 | Function suggestions *(0.11.0)* | Typing `=SU` (or `=TOP` in Turkish) lists matching functions with their arguments; arrows choose, Tab or Enter inserts `SUM(`, Escape closes. |
 | Find and replace *(0.14.0)* | Ctrl+F finds text in what the cells show (and in formulas), Enter / Shift+Enter walk the matches, "Match case" narrows them; Ctrl+H (or Replace…) replaces one match or all of them — undoable. |
@@ -44,7 +44,7 @@ export class BudgetComponent {}
 | Notes *(0.18.0)* | Right-click → **Note…** adds a note to the selected cells (`WeSheetCell.n`, up to 1000 characters): a triangle marks the corner and the note shows when the cell is pointed at. |
 | Dropdown lists *(0.17.0)* | Right-click → **Dropdown list…**, one choice per line, for the selected cells (`WeSheetCell.l`). The active cell shows an arrow (or Alt+↓) to pick a choice; typing anything else is refused with a notice, and a choice typed in another case is written as the list writes it. Paste is not checked, as in Excel. |
 | Decimal places *(0.14.0)* | `.0−` / `.00+` in the toolbar: Excel's Decrease / Increase Decimal for the selection (`WeSheetCell.d`). |
-| Export | Excel (`.xlsx`, numbers stay numbers) and CSV, of the used range. |
+| Export | Excel (`.xlsx`) and CSV. *(0.20.0)* The Excel file is the workbook itself: every sheet of a `<we-workbook>`, formulas in Excel's syntax (Turkish names and `;` become `SUM` and `,`) with their results, references between sheets, bold/italic, number formats and column widths. Colours, lists, notes, charts and conditional formats are not written. `weSheetWorkbookXlsx(sheets)`, `weSheetFormulaToExcel(formula)`. |
 
 All formula functions, their Turkish names and the error values are listed in
 [formulas.md](formulas.md). A1 references (`B3`, `$B$3`), ranges (`A1:C9`) and whole columns
@@ -60,6 +60,7 @@ All formula functions, their Turkish names and the error values are listed in
 | `readonly` | `boolean` | `false` | No editing; selection, copy and export remain |
 | `exportFileName` | `string` | `'sheet'` | File name of exports, without extension |
 | `height` | `number \| string` | `420` | Height of the scrolling area (px or any CSS length) |
+| `xlsxSheets` *(0.20.0)* | `() => { name, data }[]` | this sheet | The sheets the Excel export writes, when this sheet is one of several — `<we-workbook>` sets it |
 
 | Output | |
 |---|---|

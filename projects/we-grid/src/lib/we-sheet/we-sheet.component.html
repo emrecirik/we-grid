@@ -239,8 +239,8 @@
         </tr>
       </thead>
       <tbody>
-        @for (r of visibleRows; track r) {
-          <tr role="row" [class.we-sheet__row--alt]="sheet.striped && r % 2 === (sheet.headerRow ? 0 : 1)" [class.we-sheet__row--header]="sheet.headerRow && r === 0">
+        @for (r of visibleRows; track r; let i = $index) {
+          <tr role="row" [class.we-sheet__row--alt]="sheet.striped && i % 2 === (sheet.headerRow ? 0 : 1)" [class.we-sheet__row--header]="sheet.headerRow && r === 0">
             <th role="rowheader" class="we-sheet__rowhead" [class.we-sheet__head--on]="r >= selection.r1 && r <= selection.r2" (click)="onRowHeaderClick($event, r)">{{ r + 1 }}</th>
             @for (c of colIndexes; track c) {
               <td
@@ -372,7 +372,7 @@
   }
 
   @if (filterMenu) {
-    <div class="we-sheet__menu we-sheet__filter" role="dialog" [attr.aria-label]="locale.sheetFilterColumn(view[0][filterMenu.col].text)" [style.left.px]="filterMenu.x" [style.top.px]="filterMenu.y" (keydown)="onFilterKeydown($event)">
+    <div class="we-sheet__menu we-sheet__filter" role="dialog" [attr.aria-label]="locale.sheetFilterColumn(view[0]?.[filterMenu.col]?.text ?? '')" [style.left.px]="filterMenu.x" [style.top.px]="filterMenu.y" (keydown)="onFilterKeydown($event)">
       <label class="we-sheet__filter-all">
         <input type="checkbox" [checked]="filterAllShown" (change)="setAllFilterValues($any($event.target).checked)" /> {{ locale.selectAll }}
       </label>
