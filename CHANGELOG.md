@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.48.0 — 2026-10-20
+
+### Added
+
+- Named ranges in the sheet: select cells, type a name in the name box and press Enter; formulas
+  use it (`=SUM(Sales)`), the name box goes to it, and Table options → Names… lists and removes
+  names. `<we-workbook>` shares names between its sheets (`resolveName`). Names follow inserted
+  and deleted rows and columns and travel with Excel files as defined names, both ways
+  (`WeSheetData.names`, `weSheetIsName`, `weSheetSanitizeNames`, `weSheetExpandNames`,
+  `defineName()`, `removeName()`, `WeGridXlsxSheet.names`, `WeGridXlsxCellSheet.names`).
+- Locale keys `sheetNames`, `sheetNamesHint`, `sheetNameRemove`, `sheetNameInvalid`.
+
 ## 0.47.0 — 2026-10-20
 
 ### Added

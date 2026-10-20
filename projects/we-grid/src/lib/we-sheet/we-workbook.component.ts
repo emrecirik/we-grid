@@ -9,7 +9,7 @@ import { WeGridXlsxCellSheet } from '../services/we-grid-xlsx.util';
 import { WE_GRID_FORMAT_COLORS, WeGridFormatColor } from '../models/we-grid-format.model';
 import { weGridFormatFg, weGridNearestFormatColor } from '../services/we-grid-format.util';
 import { WE_SHEET_STORE, WeSheetData, WeSheetStore } from './we-sheet.model';
-import { weSheetEmpty, weSheetFromCells, weSheetMoveSheetReferences, weSheetRenameReferences, weSheetRenameSheets, weSheetSanitize } from './we-sheet.util';
+import { weSheetEmpty, weSheetFromCells, weSheetMoveSheetReferences, weSheetNameRef, weSheetRenameReferences, weSheetRenameSheets, weSheetSanitize } from './we-sheet.util';
 
 /** A workbook: named sheets in order, like the tabs at the bottom of Excel */
 export interface WeWorkbookData {
@@ -160,7 +160,15 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
   private refreshResolver(): void {
     const byName = new Map(this.book.sheets.map((s) => [s.name.toLocaleLowerCase(), s.data] as const));
     this.resolveSheet = (name) => byName.get(name.toLocaleLowerCase()) ?? null;
+    // Names are the workbook's: one sheet's name reads, from another, as that sheet's range
+    const names = new Map<string, string>();
+    for (const s of this.book.sheets) {
+      for (const [n, target] of Object.entries(s.data.names ?? {})) if (!names.has(n.toLowerCase())) names.set(n.toLowerCase(), `${weSheetNameRef(s.name)}!${target}`);
+    }
+    this.resolveName = (name) => names.get(name.toLowerCase()) ?? null;
   }
+
+  resolveName: (name: string) => string | null = () => null;
 
   /** The palette under the tab-colour button, while open */
   colorMenu = false;

@@ -7,6 +7,7 @@ browser with no dependency beyond Angular CDK.
 | In Excel | In we-grid | Where |
 |---|---|---|
 | Formulas (`=SUM(B2:B9)`, `=IF(…)`, `=XLOOKUP(…)`) | 90-odd functions, English or Turkish names, `,` or `;` | Sheet: any cell · Grid: formula columns `=[Price] * [Qty]` — [formulas.md](formulas.md) |
+| Named ranges, Name Box | Type a name in the name box with cells selected; Table options → Names… | Sheet |
 | Insert Function (ƒx) | The ƒ button, searchable in English or Turkish | Sheet |
 | References to other sheets (`=Sales!B2`) | Same syntax, renames and inserts follow | Sheet (`<we-workbook>`) — [sheet.md](sheet.md) |
 | AutoSum (Σ, Alt+=) | Σ button, Alt+= | Sheet |

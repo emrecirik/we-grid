@@ -317,6 +317,56 @@
   max-width: min(26rem, calc(100% - 2rem));
 }
 
+.we-sheet__names {
+  display: grid;
+  gap: 0.15rem;
+  max-height: 14rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  overflow: auto;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+}
+
+.we-sheet__names-go,
+.we-sheet__names-remove {
+  border: none;
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+
+  &:hover,
+  &:focus-visible {
+    background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.035));
+  }
+}
+
+.we-sheet__names-go {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.25rem 0.4rem;
+  text-align: start;
+
+  span {
+    color: var(--we-grid-muted-color, #878a99);
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.we-sheet__names-remove {
+  padding: 0.25rem;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
 .we-sheet__split {
   display: flex;
   flex-wrap: wrap;

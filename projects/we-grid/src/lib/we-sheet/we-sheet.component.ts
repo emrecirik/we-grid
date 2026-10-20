@@ -64,6 +64,9 @@ import {
   weSheetRangeLabel,
   weSheetSanitize,
   weSheetSanitizeHidden,
+  weSheetSanitizeNames,
+  weSheetIsName,
+  weSheetExpandNames,
   weSheetSanitizeHiddenColumns,
   weSheetShiftFormula,
   weSheetSortRange,
@@ -141,6 +144,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
    * here. Returns null for an unknown name (→ `#REF!`).
    */
   @Input() resolveSheet?: (name: string) => WeSheetData | null;
+  /** A name another sheet of the workbook defines, as `'Sheet'!$B$2:$B$9` — `<we-workbook>` sets it */
+  @Input() resolveName?: (name: string) => string | null;
   /** The sheets the Excel export writes — `<we-workbook>` passes all of its sheets; this sheet alone by default */
   @Input() xlsxSheets?: () => readonly { name: string; data: WeSheetData }[];
   /** Takes the sheets of an opened Excel file with more than one — `<we-workbook>` adds them as sheets */
@@ -257,7 +262,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     // Our own (dataChange) bound back into [data] carries the same object — nothing to reload then
     if (changes['data'] && !changes['data'].firstChange && this.data && this.data !== this.sheet) {
       this.load(this.data);
-    } else if (changes['resolveSheet'] && !changes['resolveSheet'].firstChange) {
+    } else if ((changes['resolveSheet'] && !changes['resolveSheet'].firstChange) || (changes['resolveName'] && !changes['resolveName'].firstChange)) {
       // Another sheet changed: recompute what refers to it
       this.otherSheets.clear();
       this.apply(this.sheet, false);
@@ -267,6 +272,15 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** Evaluators of the other sheets, by lower-cased name — rebuilt when the resolver changes */
   private readonly otherSheets = new Map<string, { data: WeSheetData; evaluator: WeGridSheetEvaluator } | null>();
 
+  /** A formula with its names written out — the sheet's own first, then the workbook's */
+  private withNames(v: WeSheetCell['v'], data: WeSheetData): WeSheetCell['v'] {
+    if (typeof v !== 'string' || !v.startsWith('=') || (!data.names && !this.resolveName)) return v;
+    return weSheetExpandNames(v, (n) => {
+      const key = n.toLowerCase();
+      return Object.entries(data.names ?? {}).find(([k]) => k.toLowerCase() === key)?.[1] ?? this.resolveName?.(n) ?? null;
+    });
+  }
+
   private otherSheet(name: string): WeGridSheetEvaluator | null {
     const key = name.toLocaleLowerCase();
     if (!this.otherSheets.has(key)) {
@@ -275,7 +289,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
         this.otherSheets.set(key, null);
       } else {
         const evaluator = new WeGridSheetEvaluator(
-          (c, r) => data.cells[weSheetAddress(c, r)]?.v ?? null,
+          (c, r) => this.withNames(data.cells[weSheetAddress(c, r)]?.v ?? null, data),
           () => ({ cols: data.cols, rows: data.rows }),
           { sheet: (n) => this.otherSheet(n), parseNumbers: false }
         );
@@ -738,11 +752,63 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (this.editing?.fromBar) this.commitEdit();
   }
 
-  /** The name box accepts an address or a range to jump to */
+  /**
+   * The name box takes an address or a range to jump to, a name to go to its cells — or, as in
+   * Excel, a new name for the selected cells
+   */
   onNameBoxEnter(input: HTMLInputElement): void {
-    this.select(input.value.trim().toUpperCase());
+    const text = input.value.trim();
+    const named = Object.entries(this.sheet.names ?? {}).find(([k]) => k.toLowerCase() === text.toLowerCase());
+    if (named) {
+      this.select(named[1].replace(/\$/g, ''));
+    } else if (weSheetIsName(text)) {
+      if (!this.readonly) this.defineName(text, this.selectionLabel);
+    } else if (/^\$?[A-Za-z]{1,3}\$?\d+(:\$?[A-Za-z]{1,3}\$?\d+)?$/.test(text)) {
+      this.select(text.replace(/\$/g, '').toUpperCase());
+    } else if (text) {
+      this.notice = this.locale.sheetNameInvalid;
+      this.cdr.markForCheck();
+    }
     input.value = this.selectionLabel;
     this.scrollRef.nativeElement.focus({ preventScroll: true });
+  }
+
+  /** Names `range` (`'B2:B9'`) as `name` — the cells are kept as absolute references */
+  defineName(name: string, range: string): void {
+    if (this.readonly || !weSheetIsName(name)) return;
+    const target = range.toUpperCase().split(':').map((p) => p.replace(/^\$?([A-Z]+)\$?(\d+)$/, '$$$1$$$2')).join(':');
+    const rest = Object.fromEntries(Object.entries(this.sheet.names ?? {}).filter(([k]) => k.toLowerCase() !== name.toLowerCase()));
+    this.commit({ ...this.sheet, names: weSheetSanitizeNames({ ...rest, [name]: target }) });
+  }
+
+  removeName(name: string): void {
+    if (this.readonly || !this.sheet.names?.[name]) return;
+    const { [name]: _gone, ...rest } = this.sheet.names;
+    const next: WeSheetData = { ...this.sheet, names: rest };
+    if (!Object.keys(rest).length) delete next.names;
+    this.commit(next);
+  }
+
+  /** The Names list (Table options → Names…), while open */
+  namesOpen = false;
+
+  get nameList(): { name: string; target: string }[] {
+    return Object.entries(this.sheet.names ?? {})
+      .map(([name, target]) => ({ name, target }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  goToName(target: string): void {
+    this.namesOpen = false;
+    this.select(target.replace(/\$/g, ''));
+    this.scrollRef.nativeElement.focus({ preventScroll: true });
+  }
+
+  openNames(): void {
+    this.optionsOpen = false;
+    this.namesOpen = true;
+    this.cdr.markForCheck();
+    this.focusDialog('button');
   }
 
   // ─── Editing ─────────────────────────────────────────────────────────
@@ -2092,7 +2158,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   private apply(data: WeSheetData, emit = true): void {
     this.sheet = data;
     this.evaluator = new WeGridSheetEvaluator(
-      (c, r) => this.sheet.cells[weSheetAddress(c, r)]?.v ?? null,
+      (c, r) => this.withNames(this.sheet.cells[weSheetAddress(c, r)]?.v ?? null, this.sheet),
       () => ({ cols: this.sheet.cols, rows: this.sheet.rows }),
       { sheet: (name) => this.otherSheet(name), parseNumbers: false }
     );

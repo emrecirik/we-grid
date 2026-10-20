@@ -128,6 +128,7 @@
             </button>
             <button type="button" role="menuitem" [disabled]="readonly" (click)="removeDuplicates()"><span class="we-sheet__check"></span>{{ locale.sheetRemoveDuplicates }}</button>
             <button type="button" role="menuitem" [disabled]="readonly" (click)="openTextToColumns()"><span class="we-sheet__check"></span>{{ locale.sheetTextToColumns }}</button>
+            <button type="button" role="menuitem" (click)="openNames()"><span class="we-sheet__check"></span>{{ locale.sheetNames }}</button>
             <div class="we-sheet__menu-sep" role="separator"></div>
             <button type="button" role="menuitem" (click)="optionsOpen = false; addRow()"><span class="we-sheet__check"></span>{{ locale.sheetAddRow }}</button>
             <button type="button" role="menuitem" (click)="optionsOpen = false; addColumn()"><span class="we-sheet__check"></span>{{ locale.sheetAddColumn }}</button>
@@ -504,6 +505,31 @@
         <button type="button" (click)="answerExpand(null)">{{ locale.cancel }}</button>
         <button type="button" (click)="answerExpand(false)">{{ locale.sheetKeepSelection }}</button>
         <button type="button" class="we-sheet__list-save" (click)="answerExpand(true)">{{ locale.sheetExpandSelection }}</button>
+      </div>
+    </div>
+  }
+
+  @if (namesOpen) {
+    <div class="we-sheet__menu we-sheet__list-editor we-sheet__dialog" role="dialog" [attr.aria-label]="locale.sheetNames" (keydown.escape)="namesOpen = false">
+      @if (nameList.length) {
+        <ul class="we-sheet__names">
+          @for (n of nameList; track n.name) {
+            <li>
+              <button type="button" class="we-sheet__names-go" (click)="goToName(n.target)">
+                <strong>{{ n.name }}</strong> <span>{{ n.target }}</span>
+              </button>
+              @if (!readonly) {
+                <button type="button" class="we-sheet__names-remove" (click)="removeName(n.name)" [attr.aria-label]="locale.sheetNameRemove + ': ' + n.name" [title]="locale.sheetNameRemove">
+                  <span [innerHTML]="icon('trash')" aria-hidden="true"></span>
+                </button>
+              }
+            </li>
+          }
+        </ul>
+      }
+      <p class="we-sheet__list-label">{{ locale.sheetNamesHint }}</p>
+      <div class="we-sheet__list-actions">
+        <button type="button" class="we-sheet__list-save" (click)="namesOpen = false">{{ locale.close }}</button>
       </div>
     </div>
   }

@@ -236,6 +236,10 @@ parser's own messages are English too.
 - `sheetOptions`, `formatTypeIconSet`, `formatIconSetLabels`, `formatIconSetReverse`, `sheetImportTruncated`,
   `sheetFull`
 
+## Keys added in 0.48.0
+
+- `sheetNames`, `sheetNamesHint`, `sheetNameRemove`, `sheetNameInvalid`
+
 ## Keys added in 0.47.0
 
 - `sheetExpandPrompt`, `sheetExpandSelection`, `sheetKeepSelection`

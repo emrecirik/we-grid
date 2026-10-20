@@ -388,6 +388,8 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
   }
   const merges = weSheetSanitizeMerges(o['merges'], rows, cols);
   if (merges.length) data.merges = merges;
+  const names = weSheetSanitizeNames(o['names']);
+  if (Object.keys(names).length) data.names = names;
   if (typeof o['heights'] === 'object' && o['heights'] !== null) {
     const heights: Record<string, number> = {};
     for (const [k, h] of Object.entries(o['heights'] as Record<string, unknown>)) {
@@ -602,6 +604,16 @@ export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number
     const range = weSheetMoveReferences(data.chart.range, axis, at, count);
     if (range.includes('#REF!')) delete out.chart;
     else out.chart = { ...data.chart, range };
+  }
+  if (data.names) {
+    // A name follows its cells; one whose cells are all gone goes with them
+    const names: Record<string, string> = {};
+    for (const [name, target] of Object.entries(data.names)) {
+      const moved = weSheetMoveReferences(target, axis, at, count);
+      if (!moved.includes('#REF!')) names[name] = moved;
+    }
+    if (Object.keys(names).length) out.names = names;
+    else delete out.names;
   }
   if (data.heights && axis === 'row') {
     // Row heights move with their rows
@@ -842,6 +854,66 @@ export function weSheetRenameSheets(formula: string, renames: ReadonlyMap<string
   return out;
 }
 
+/**
+ * Whether `name` can name a range, as in Excel: a letter or `_` first, then letters, digits, `_`
+ * and `.` (up to 255), and nothing that reads as a cell address (`A1`, `XFD9`) or TRUE/FALSE
+ */
+export function weSheetIsName(name: string): boolean {
+  return (
+    /^[\p{L}_][\p{L}\p{N}_.]{0,254}$/u.test(name) &&
+    !/^[A-Za-z]{1,3}\d+$/.test(name) &&
+    !/^(R\d*C\d*|TRUE|FALSE|DOĞRU|YANLIŞ)$/iu.test(name)
+  );
+}
+
+const NAME_TARGET = /^\$?[A-Z]{1,3}\$?[1-9]\d{0,6}(:\$?[A-Z]{1,3}\$?[1-9]\d{0,6})?$/;
+
+/** Named ranges from untrusted input: valid names over plain A1 ranges, at most 500 */
+export function weSheetSanitizeNames(value: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (typeof value !== 'object' || value === null) return out;
+  const seen = new Set<string>();
+  for (const [name, target] of Object.entries(value as Record<string, unknown>).slice(0, 500)) {
+    if (!weSheetIsName(name) || typeof target !== 'string' || !NAME_TARGET.test(target.toUpperCase()) || seen.has(name.toLowerCase())) continue;
+    seen.add(name.toLowerCase());
+    out[name] = target.toUpperCase();
+  }
+  return out;
+}
+
+/**
+ * A formula with its range names written out as the ranges they stand for, so the evaluator reads
+ * `=SUM(Sales)` as `=SUM($B$2:$B$9)`. Text, function names, sheet names and anything `lookup` does
+ * not know are left alone.
+ */
+export function weSheetExpandNames(formula: string, lookup: (name: string) => string | null): string {
+  let out = '';
+  let i = 0;
+  while (i < formula.length) {
+    const ch = formula[i];
+    if (ch === '"' || ch === "'") {
+      // Text, or a quoted sheet name — a doubled quote is the quote itself
+      let end = i + 1;
+      while (end < formula.length && !(formula[end] === ch && formula[end + 1] !== ch)) end += formula[end] === ch ? 2 : 1;
+      out += formula.slice(i, end + 1);
+      i = end + 1;
+      continue;
+    }
+    const word = /^[\p{L}_][\p{L}\p{N}_.]*/u.exec(formula.slice(i));
+    const prev = i > 0 ? formula[i - 1] : '';
+    if (word && !/[\p{L}\p{N}_.$!:]/u.test(prev)) {
+      const after = formula.slice(i + word[0].length).trimStart()[0];
+      const target = after === '(' || after === '!' || after === ':' ? null : lookup(word[0]);
+      out += target ?? word[0];
+      i += word[0].length;
+      continue;
+    }
+    out += ch;
+    i++;
+  }
+  return out;
+}
+
 /** Functions newer than Excel 2007, which a file names with the `_xlfn.` prefix */
 const XLFN = new Set(['IFS', 'SWITCH', 'XLOOKUP', 'TEXTJOIN', 'CONCAT', 'XOR', 'IFNA', 'DAYS', 'STDEV.S', 'RANK.EQ']);
 
@@ -1071,11 +1143,27 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
     if (fileName !== name) renames.set(name, fileName);
   }
   const evaluators = new Map<string, WeGridSheetEvaluator>();
+  const hasNames = sheets.some((s) => s.data.names && Object.keys(s.data.names).length);
+  // A name is the workbook's: its own sheet reads it as it is, the others through the sheet's name
+  const lookupFor = (own: WeSheetData) => (n: string): string | null => {
+    const key = n.toLowerCase();
+    const local = Object.entries(own.names ?? {}).find(([k]) => k.toLowerCase() === key)?.[1];
+    if (local) return local;
+    for (const s of sheets) {
+      const hit = Object.entries(s.data.names ?? {}).find(([k]) => k.toLowerCase() === key)?.[1];
+      if (hit) return `${weSheetNameRef(s.name)}!${hit}`;
+    }
+    return null;
+  };
   for (const { name, data } of sheets) {
+    const lookup = lookupFor(data);
     evaluators.set(
       name.toLocaleLowerCase(),
       new WeGridSheetEvaluator(
-        (c, r) => data.cells[weSheetAddress(c, r)]?.v ?? null,
+        (c, r) => {
+          const v = data.cells[weSheetAddress(c, r)]?.v ?? null;
+          return typeof v === 'string' && v.startsWith('=') && hasNames ? weSheetExpandNames(v, lookup) : v;
+        },
         () => ({ cols: data.cols, rows: data.rows }),
         { sheet: (n) => evaluators.get(n.toLocaleLowerCase()) ?? null, parseNumbers: false }
       )
@@ -1151,6 +1239,7 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
         conditionalFormats: (data.formats ?? []).map(excelConditionalFormat).filter((f): f is WeGridXlsxConditionalFormat => f !== null),
         notes: Object.fromEntries(Object.entries(data.cells).filter(([, c]) => !!c.n).map(([ref, c]) => [ref, c.n as string])),
         hiddenRows: data.hidden?.map((r) => r + 1),
+        names: data.names,
         heights: data.heights ? Object.fromEntries(Object.entries(data.heights).map(([k, h]) => [Number(k) - 1, h])) : undefined,
         tabColor: color ? weGridFormatHex(color, 'fg') : undefined,
         hiddenColumns: data.hiddenColumns?.map((l) => weGridColumnIndex(l))
@@ -1180,6 +1269,7 @@ export function weSheetFromCells(
     hiddenRows?: readonly number[];
     hiddenColumns?: readonly number[];
     heights?: Readonly<Record<number, number>>;
+    names?: Readonly<Record<string, string>>;
   } = {}
 ): { data: WeSheetData; truncated: boolean } {
   const cells: Record<string, WeSheetCell> = {};
@@ -1268,6 +1358,8 @@ export function weSheetFromCells(
   if (hiddenRows.length) data.rows = Math.max(data.rows, Math.max(...hiddenRows) + 2);
   const hidden = weSheetSanitizeHidden(hiddenRows, data.rows);
   if (hidden.length) data.hidden = hidden;
+  const names = weSheetSanitizeNames(extras.names);
+  if (Object.keys(names).length) data.names = names;
   // Row heights the file set, by row index; rows past the sheet's edge are left out
   const heights: Record<string, number> = {};
   for (const [r, h] of Object.entries(extras.heights ?? {})) {

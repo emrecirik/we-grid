@@ -2,6 +2,8 @@ import { WeGridFormulaError } from '../services/we-grid-formula.util';
 import { WeSheetData } from './we-sheet.model';
 import {
   weSheetAddress,
+  weSheetExpandNames,
+  weSheetIsName,
   weSheetAutoSum,
   weSheetInsert,
   weSheetMoveReferences,
@@ -346,5 +348,27 @@ describe('row heights and time series', () => {
     const out = weSheetFill(data, { c1: 0, r1: 0, c2: 0, r2: 0 }, { c1: 0, r1: 0, c2: 0, r2: 2 });
     expect(out.cells['A3'].f).toBe('time');
     expect(out.cells['A3'].v as number).toBeCloseTo(11 / 24, 9);
+  });
+});
+
+describe('named ranges', () => {
+  it('tells names from addresses', () => {
+    expect(['Sales', '_x', 'Satış.2026', 'Q1Total'].map(weSheetIsName)).toEqual([true, true, true, true]);
+    expect(['A1', 'xfd99', 'TRUE', '1abc', 'has space', 'R1C1', ''].map(weSheetIsName)).toEqual([false, false, false, false, false, false, false]);
+  });
+
+  it('writes names out in formulas, leaving text, functions and sheet names alone', () => {
+    const lookup = (n: string) => ({ sales: '$B$2:$B$9', rate: '$E$1', other: "'Sheet 2'!$A$1" } as Record<string, string>)[n.toLowerCase()] ?? null;
+    expect(weSheetExpandNames('=SUM(Sales)*Rate', lookup)).toBe('=SUM($B$2:$B$9)*$E$1');
+    expect(weSheetExpandNames('=SALES+"Sales"+Sales!A1+sales(1)', lookup)).toBe('=$B$2:$B$9+"Sales"+Sales!A1+sales(1)');
+    expect(weSheetExpandNames("='Sales'!A1+Other+A1:Rate", lookup)).toBe("='Sales'!A1+'Sheet 2'!$A$1+A1:Rate");
+    expect(weSheetExpandNames('=Unknown+1', lookup)).toBe('=Unknown+1');
+  });
+
+  it('keeps valid names and moves them with their cells', () => {
+    const data = weSheetSanitize({ version: 1, rows: 9, cols: 3, cells: {}, names: { Sales: '$b$2:$b$9', A1: '$A$1', bad: 'B2:', sales: '$C$1' } })!;
+    expect(data.names).toEqual({ Sales: '$B$2:$B$9' });
+    expect(weSheetInsert(data, 'row', 0, 1).names).toEqual({ Sales: '$B$3:$B$10' });
+    expect(weSheetInsert(data, 'col', 1, -1).names).toBeUndefined();
   });
 });

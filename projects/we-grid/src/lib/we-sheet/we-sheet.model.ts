@@ -64,6 +64,8 @@ export interface WeSheetData {
   formats?: WeSheetFormatRule[];
   /** Merged cells, as ranges (`'A1:C1'`) — the top-left cell holds the content and covers the rest */
   merges?: string[];
+  /** Named ranges: a name formulas can use (`=SUM(Sales)`) and the cells it stands for (`'$B$2:$B$9'`) */
+  names?: Record<string, string>;
 }
 
 /**

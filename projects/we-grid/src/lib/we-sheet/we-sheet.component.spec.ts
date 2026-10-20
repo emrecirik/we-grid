@@ -742,4 +742,28 @@ describe('WeSheetComponent', () => {
     sheet().answerReplace(true);
     expect(sheet().getValue('B1')).toBe('y');
   });
+
+  it('names cells from the name box, uses the name in formulas and goes to it', () => {
+    sheet().setData({ version: 1, rows: 4, cols: 3, cells: { B1: { v: 2 }, B2: { v: 5 }, C1: { v: '=SUM(Total)*2' } } });
+    fixture.detectChanges();
+    const box = el().querySelector<HTMLInputElement>('.we-sheet__name')!;
+    sheet().select('B1:B2');
+    box.value = 'Total';
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(sheet().getData().names).toEqual({ Total: '$B$1:$B$2' });
+    expect(sheet().getValue('C1')).toBe(14);
+    sheet().select('A4');
+    box.value = 'total';
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(sheet().selectionLabel).toBe('B1:B2');
+    box.value = 'not a name';
+    box.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(sheet().notice).toBe(sheet().locale.sheetNameInvalid);
+    sheet().openNames();
+    fixture.detectChanges();
+    expect(el().querySelector('.we-sheet__names')!.textContent).toContain('$B$1:$B$2');
+    sheet().removeName('Total');
+    expect(sheet().getData().names).toBeUndefined();
+    expect(sheet().getValue('C1')).not.toBe(14);
+  });
 });

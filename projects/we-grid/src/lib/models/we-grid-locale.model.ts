@@ -367,6 +367,11 @@ export interface WeGridLocale {
   sheetSplitOther: string;
   /** Asked before Text to columns writes over cells that hold something */
   sheetReplacePrompt: string;
+  /** Table options item and title of the list of named ranges; the hint under it; its remove button; the notice for a name box entry that is neither an address nor a name */
+  sheetNames: string;
+  sheetNamesHint: string;
+  sheetNameRemove: string;
+  sheetNameInvalid: string;
   sheetFunctionSearch: string;
   sheetOptions: string;
 
@@ -751,6 +756,10 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetSplitSpace: 'Space',
   sheetSplitOther: 'Other',
   sheetReplacePrompt: 'There is already data here. Replace it?',
+  sheetNames: 'Names…',
+  sheetNamesHint: 'To name cells, select them, type a name in the name box at the top left and press Enter. Formulas can then use it: =SUM(Sales).',
+  sheetNameRemove: 'Remove name',
+  sheetNameInvalid: 'Not an address or a name — a name starts with a letter and has no spaces',
   sheetFunctionSearch: 'Search functions',
   sheetOptions: 'Table options',
   pivotLabel: 'Pivot table',
@@ -1138,6 +1147,10 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetSplitSpace: 'Boşluk',
   sheetSplitOther: 'Diğer',
   sheetReplacePrompt: 'Burada zaten veri var. Değiştirilsin mi?',
+  sheetNames: 'Adlar…',
+  sheetNamesHint: 'Hücrelere ad vermek için onları seçin, sol üstteki ad kutusuna bir ad yazıp Enter’a basın. Formüller sonra bu adı kullanabilir: =TOPLA(Satışlar).',
+  sheetNameRemove: 'Adı kaldır',
+  sheetNameInvalid: 'Bir adres ya da ad değil — ad bir harfle başlar ve boşluk içermez',
   sheetFunctionSearch: 'İşlev ara',
   sheetOptions: 'Tablo seçenekleri',
   pivotLabel: 'Pivot tablo',

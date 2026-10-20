@@ -340,7 +340,7 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
 }
 
 /** The .xlsx package around worksheet XML: content types, relationships, workbook and styles */
-function buildPackage(sheets: { name: string; xml: string; notes?: Record<string, string> }[], styles: string): Blob {
+function buildPackage(sheets: { name: string; xml: string; notes?: Record<string, string> }[], styles: string, definedNames = ''): Blob {
   const encoder = new TextEncoder();
   const noted = sheets.map((s) => !!s.notes && Object.keys(s.notes).length > 0);
   const contentTypes =
@@ -366,6 +366,7 @@ function buildPackage(sheets: { name: string; xml: string; notes?: Record<string
     `<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" ` +
     `xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
     `<sheets>${sheets.map((s, i) => `<sheet name="${escapeXml(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>` +
+    definedNames +
     // Formulas are written with their last result; Excel recalculates them on opening
     `<calcPr fullCalcOnLoad="1"/></workbook>`;
 
@@ -481,6 +482,8 @@ export interface WeGridXlsxSheet {
   heights?: Record<number, number>;
   /** The sheet tab's colour, `#rrggbb` */
   tabColor?: string;
+  /** Named ranges on this sheet: name → `$B$2:$B$9` */
+  names?: Record<string, string>;
 }
 
 /** One conditional format rule for `weGridBuildXlsxWorkbook`, as Excel names it (a `cfRule`) */
@@ -672,7 +675,16 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     (dxfs.length ? `<dxfs count="${dxfs.length}">${dxfs.join('')}</dxfs>` : '') +
     `</styleSheet>`;
-  return buildPackage(parts, styles);
+  // Names are the workbook's, as in Excel; a name two sheets both use stays with each sheet
+  const nameCount = new Map<string, number>();
+  for (const sheet of sheets) for (const n of Object.keys(sheet.names ?? {})) nameCount.set(n.toLowerCase(), (nameCount.get(n.toLowerCase()) ?? 0) + 1);
+  const defined = sheets.flatMap((sheet, i) =>
+    Object.entries(sheet.names ?? {}).map(
+      ([n, ref]) =>
+        `<definedName name="${escapeXml(n)}"${(nameCount.get(n.toLowerCase()) ?? 0) > 1 ? ` localSheetId="${i}"` : ''}>${escapeXml(`'${parts[i].name.replace(/'/g, "''")}'!${ref}`)}</definedName>`
+    )
+  );
+  return buildPackage(parts, styles, defined.length ? `<definedNames>${defined.join('')}</definedNames>` : '');
 }
 
 /** Frozen panes, as Excel writes them: a split at the first scrolling cell */
@@ -1077,6 +1089,8 @@ export interface WeGridXlsxCellSheet {
   heights: Record<number, number>;
   /** The tab's colour as `#rrggbb`, when the file gives it in RGB */
   tabColor?: string;
+  /** Named ranges that point into this sheet: name → `$B$2:$B$9` */
+  names: Record<string, string>;
 }
 
 /** A cell's look as an .xlsx file stores it, read by `weGridReadXlsxCells` */
@@ -1135,9 +1149,22 @@ export async function weGridReadXlsxCells(
       }))
     : [];
   const sheets = listed.length ? listed : [{ name: 'Sheet1', path: 'xl/worksheets/sheet1.xml' }];
+  // Defined names over plain ranges (`'Sheet 1'!$B$2:$B$9`) go to the sheet they point into; Excel's own (_xlnm.*) and formulas are left out
+  const namesBySheet = new Map<number, Record<string, string>>();
+  if (workbookXml) {
+    for (const el of Array.from(new DOMParser().parseFromString(workbookXml, 'application/xml').getElementsByTagNameNS('*', 'definedName'))) {
+      const name = el.getAttribute('name') ?? '';
+      const m = /^(?:'((?:[^']|'')+)'|([^'!]+))!(\$?[A-Z]{1,3}\$?\d+(?::\$?[A-Z]{1,3}\$?\d+)?)$/.exec((el.textContent ?? '').trim());
+      if (!m || name.startsWith('_xlnm.')) continue;
+      const sheetName = (m[1]?.replace(/''/g, "'") ?? m[2]).toLowerCase();
+      const index = sheets.findIndex((s) => s.name.toLowerCase() === sheetName);
+      if (index < 0) continue;
+      namesBySheet.set(index, { ...(namesBySheet.get(index) ?? {}), [name]: m[3] });
+    }
+  }
 
   const out: WeGridXlsxCellSheet[] = [];
-  for (const sheet of sheets) {
+  for (const [sheetIndex, sheet] of sheets.entries()) {
     const xml = await read(sheet.path);
     if (xml === null) continue;
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
@@ -1242,7 +1269,7 @@ export async function weGridReadXlsxCells(
     }
     const tabRgb = doc.getElementsByTagNameNS('*', 'tabColor')[0]?.getAttribute('rgb') ?? '';
     const tabColor = /^[0-9a-f]{8}$/i.test(tabRgb) ? `#${tabRgb.slice(2).toLowerCase()}` : undefined;
-    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, notes, hiddenRows, hiddenColumns, heights, ...(tabColor ? { tabColor } : {}), ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
+    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, notes, hiddenRows, hiddenColumns, heights, names: namesBySheet.get(sheetIndex) ?? {}, ...(tabColor ? { tabColor } : {}), ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
   }
   return out;
 }

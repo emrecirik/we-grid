@@ -136,4 +136,17 @@ describe('WeWorkbookComponent', () => {
     book().setTabColor(null);
     expect(book().getData().sheets[0].color).toBeUndefined();
   });
+
+  it('lets one sheet use a name another sheet defines', () => {
+    book().addSheet();
+    book().activate(0);
+    fixture.detectChanges();
+    sheet().setCell('A1', 4);
+    sheet().setCell('A2', 6);
+    sheet().defineName('Stock', 'A1:A2');
+    book().activate(1);
+    fixture.detectChanges();
+    sheet().setCell('B1', '=SUM(Stock)');
+    expect(sheet().getValue('B1')).toBe(10);
+  });
 });

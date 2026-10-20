@@ -343,3 +343,19 @@ describe('row heights and tab colours in Excel files', () => {
     expect(weSheetFromCells(read.cells, '.', 4, 1, read.merges, read.formats, read).data.heights).toEqual({ '1': 40, '3': 60 });
   });
 });
+
+describe('named ranges in Excel files', () => {
+  it('writes names as defined names, works out formulas that use them, and reads them back', async () => {
+    const blob = weSheetWorkbookXlsx([
+      { name: 'Data', data: { version: 1, rows: 3, cols: 2, names: { Sales: '$B$1:$B$2' }, cells: { B1: { v: 2 }, B2: { v: 3 } } } },
+      { name: 'Sum up', data: { version: 1, rows: 1, cols: 1, cells: { A1: { v: '=SUM(Sales)' } } } }
+    ]);
+    const text = await new Response(blob).text();
+    expect(text).toContain(`<definedNames><definedName name="Sales">'Data'!$B$1:$B$2</definedName></definedNames>`);
+    expect(text).toContain('<f>SUM(Sales)</f><v>5</v>');
+    const read = await weGridReadXlsxCells(blob);
+    expect(read[0].names).toEqual({ Sales: '$B$1:$B$2' });
+    expect(read[1].names).toEqual({});
+    expect(weSheetFromCells(read[0].cells, '.', 1, 1, read[0].merges, read[0].formats, read[0]).data.names).toEqual({ Sales: '$B$1:$B$2' });
+  });
+});
