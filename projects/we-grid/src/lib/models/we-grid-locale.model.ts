@@ -425,6 +425,8 @@ export interface WeGridLocale {
   macroDone: (name: string) => string;
   macroFailed: (name: string, problems: number) => string;
   macroUnknownColumn: (name: string) => string;
+  /** A macro's COLUMN step names a column of the grid that is not a formula column */
+  macroColumnTaken: (name: string) => string;
   macroUnknownView: (name: string) => string;
   macroUnknownCommand: (name: string) => string;
   macroReadOnlyColumn: (name: string) => string;
@@ -775,6 +777,7 @@ export const weGridLocaleEn: WeGridLocale = {
   macroDone: (name) => `“${name}” ran`,
   macroFailed: (name, problems) => `“${name}” ran with ${problems} ${problems === 1 ? 'problem' : 'problems'}`,
   macroUnknownColumn: (name) => `there is no column called ${name}`,
+  macroColumnTaken: (name) => `${name} is a column of the grid, not a formula column`,
   macroUnknownView: (name) => `there is no view called ${name}`,
   macroUnknownCommand: (name) => `there is no command called ${name}`,
   macroReadOnlyColumn: (name) => `${name} cannot be changed`,
@@ -1143,6 +1146,7 @@ export const weGridLocaleTr: WeGridLocale = {
   macroDone: (name) => `“${name}” çalıştı`,
   macroFailed: (name, problems) => `“${name}” ${problems} sorunla çalıştı`,
   macroUnknownColumn: (name) => `${name} adında bir kolon yok`,
+  macroColumnTaken: (name) => `${name} tablonun kendi kolonu, formül kolonu değil`,
   macroUnknownView: (name) => `${name} adında bir görünüm yok`,
   macroUnknownCommand: (name) => `${name} adında bir komut yok`,
   macroReadOnlyColumn: (name) => `${name} değiştirilemez`,

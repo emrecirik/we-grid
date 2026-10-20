@@ -21,6 +21,7 @@ const CHEAT_SHEET = [
   'DATABAR [Column] BLUE · COLORSCALE [Column] RED YELLOW GREEN',
   'ICONSET [Column] ARROWS | DOTS [REVERSE]',
   'SET [Column] = formula WHERE condition',
+  'COLUMN [Name] [NUMBER | CURRENCY | …] = formula',
   'DENSITY COMPACT · ZEBRA ON',
   'VIEW "Name" · EXPORT XLSX | CSV | PDF',
   'RUN command · MESSAGE "Done"'

@@ -145,4 +145,14 @@ describe('we-grid macro scripts', () => {
     ).toEqual([{ id: 'm1', name: 'Daily', script: 'SORT [A] ASC', pinned: true }]);
     expect(weGridSanitizeMacros('x')).toEqual([]);
   });
+
+  it('reads and writes COLUMN steps', () => {
+    const { lines, errors } = weGridParseMacro('COLUMN [Margin] CURRENCY = [Price] - [Cost]\nCOLUMN [Note] = "x"\nCOLUMN [Bad] SIDEWAYS = 1\nCOLUMN [Bad]');
+    expect(lines.map((l) => l.step)).toEqual([
+      { op: 'column', header: 'Margin', formula: '=[Price] - [Cost]', type: 'currency' },
+      { op: 'column', header: 'Note', formula: '="x"' }
+    ]);
+    expect(errors.map((e) => e.line)).toEqual([3, 4]);
+    expect(weGridMacroScript(lines.map((l) => l.step))).toBe('COLUMN [Margin] CURRENCY = [Price] - [Cost]\nCOLUMN [Note] = "x"');
+  });
 });

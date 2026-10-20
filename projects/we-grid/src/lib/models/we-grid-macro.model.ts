@@ -1,6 +1,7 @@
 import { WeGridDensity } from './we-grid-column.model';
 import { WeGridExportFormat } from './we-grid-export.model';
 import { WeGridFormatRule } from './we-grid-format.model';
+import { WeGridFormulaColumn } from './we-grid-layout.model';
 
 /**
  * A macro: a named script of grid steps, like an Excel macro but without code — see
@@ -34,6 +35,7 @@ export type WeGridMacroStep =
   | { op: 'format'; rule: Omit<WeGridFormatRule, 'id'> }
   | { op: 'clearFormats'; field: string | null }
   | { op: 'set'; field: string; formula: string; where: string | null }
+  | { op: 'column'; header: string; formula: string; type?: WeGridFormulaColumn['type'] }
   | { op: 'view'; name: string }
   | { op: 'export'; format: WeGridExportFormat }
   | { op: 'run'; command: string }

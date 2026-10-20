@@ -130,4 +130,17 @@ describe('WeGridComponent — macros', () => {
     expect(errors[0].line).toBe(1);
     expect(ids()).toEqual([3, 2, 1]);
   });
+
+  it('adds or updates a formula column with COLUMN, refuses the grid\'s own columns, and records new ones', async () => {
+    host.grid.startRecording();
+    let errors = await host.grid.runScript('COLUMN [Triple] INTEGER = [Quantity] * 3\nSORT [Triple] DESC\nCOLUMN [City] = 1');
+    expect(errors).toEqual([{ line: 3, message: 'City is a column of the grid, not a formula column' }]);
+    expect(host.grid.userFormulaColumns).toEqual([{ field: 'fx:1', header: 'Triple', formula: '=[Quantity] * 3', type: 'integer' }]);
+    expect(ids()).toEqual([3, 2, 1]);
+    const script = host.grid.stopRecording();
+    expect(script).toBe('COLUMN [Triple] INTEGER = [Quantity] * 3\nSORT [Triple] DESC');
+    errors = await host.grid.runScript('COLUMN [triple] = [Quantity] * 4');
+    expect(errors).toEqual([]);
+    expect(host.grid.userFormulaColumns.map((c) => [c.field, c.formula])).toEqual([['fx:1', '=[Quantity] * 4']]);
+  });
 });

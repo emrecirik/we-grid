@@ -2,6 +2,7 @@ import { WeGridDensity } from '../models/we-grid-column.model';
 import { WeGridExportFormat } from '../models/we-grid-export.model';
 import { WE_GRID_FORMAT_COLORS, WeGridCellStyle, WeGridFormatColor, WeGridFormatOperator, WeGridFormatRule } from '../models/we-grid-format.model';
 import { WeGridMacro, WeGridMacroError, WeGridMacroFilterOperator, WeGridMacroLine, WeGridMacroStep } from '../models/we-grid-macro.model';
+import { WeGridFormulaColumn } from '../models/we-grid-layout.model';
 import { WeGridSavedView } from '../models/we-grid-view.model';
 import { weGridTryCompileFormula } from './we-grid-formula.util';
 import { weGridToInputNumber } from './we-grid-value.util';
@@ -126,6 +127,7 @@ class Cursor {
 const COLORS = new Set<string>(WE_GRID_FORMAT_COLORS.map((c) => c.toUpperCase()));
 const EXPORTS: Record<string, WeGridExportFormat> = { XLSX: 'xlsx', EXCEL: 'xlsx', CSV: 'csv', PDF: 'pdf' };
 const DENSITIES: Record<string, WeGridDensity> = { COMPACT: 'compact', NORMAL: 'normal', COMFORTABLE: 'comfortable' };
+const COLUMN_TYPES = new Set(['TEXT', 'NUMBER', 'INTEGER', 'CURRENCY', 'PERCENT', 'DATE', 'BOOLEAN']);
 
 /**
  * Reads a macro script into steps. Every line is one step; empty lines and lines starting with `#`
@@ -244,6 +246,15 @@ function parseLine(c: Cursor): WeGridMacroStep {
       checkFormula(formula);
       if (where !== null) checkFormula(where);
       step = { op: 'set', field, formula: `=${formula}`, where: where === null ? null : `=${where}` };
+      break;
+    }
+    case 'COLUMN': {
+      const header = c.field();
+      const typeWord = c.acceptChar('=') ? null : c.word();
+      if (typeWord !== null && (!COLUMN_TYPES.has(typeWord) || !c.acceptChar('='))) throw new Error('write COLUMN [Name] = formula, or COLUMN [Name] NUMBER = formula');
+      const formula = c.rest();
+      checkFormula(formula);
+      step = { op: 'column', header: header.slice(0, 80), formula: `=${formula}`, ...(typeWord ? { type: typeWord.toLowerCase() as NonNullable<WeGridFormulaColumn['type']> } : {}) };
       break;
     }
     case 'VIEW': {
@@ -465,6 +476,8 @@ function stepText(step: WeGridMacroStep): string {
       return `ZEBRA ${step.on ? 'ON' : 'OFF'}`;
     case 'clearFormats':
       return step.field ? `CLEAR FORMATS [${step.field}]` : 'CLEAR FORMATS';
+    case 'column':
+      return `COLUMN [${step.header}]${step.type ? ` ${step.type.toUpperCase()}` : ''} = ${step.formula.replace(/^=/, '')}`;
     case 'set':
       return `SET [${step.field}] = ${step.formula.replace(/^=/, '')}${step.where ? ` WHERE ${step.where.replace(/^=/, '')}` : ''}`;
     case 'view':
@@ -527,6 +540,16 @@ export function weGridDiffViews(
 ): WeGridMacroStep[] {
   const steps: WeGridMacroStep[] = [];
   const name = headerOf;
+
+  // Formula columns added or changed come first — later steps may sort or filter by them
+  // shortcut: a deleted formula column is not recorded, add a step for it if macros need to remove columns
+  const columnsBefore = new Map((before.formulaColumns ?? []).map((c) => [c.field, c]));
+  for (const c of after.formulaColumns ?? []) {
+    const was = columnsBefore.get(c.field);
+    if (!was || was.formula !== c.formula || was.header !== c.header || was.type !== c.type) {
+      steps.push({ op: 'column', header: c.header, formula: c.formula, ...(c.type ? { type: c.type } : {}) });
+    }
+  }
 
   const visibleBefore = new Map(before.columns.map((c) => [c.field, c.visible]));
   const shown = after.columns.filter((c) => c.visible && visibleBefore.get(c.field) === false).map((c) => name(c.field));

@@ -1745,6 +1745,16 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       case 'set':
         flush();
         return this.macroSet(step.field, step.formula, step.where);
+      case 'column': {
+        // A formula column of that name gets the new formula; otherwise the column is added
+        flush();
+        const same = this.userFormulaColumns.find((c) => c.header.toLocaleLowerCase() === step.header.toLocaleLowerCase());
+        if (!same && this.internalColumns.some((c) => weGridDisplayHeader(c).toLocaleLowerCase() === step.header.toLocaleLowerCase())) return this.locale.macroColumnTaken(step.header);
+        let n = 1;
+        while (this.internalColumns.some((c) => c.field === `fx:${n}`) || this.userFormulaColumns.some((c) => c.field === `fx:${n}`)) n++;
+        this.saveFormulaColumn({ field: same?.field ?? `fx:${n}`, header: step.header, formula: step.formula, ...(step.type ? { type: step.type } : {}) });
+        return null;
+      }
       case 'view': {
         flush();
         const target = this.views.find((x) => x.name.toLocaleLowerCase() === step.name.toLocaleLowerCase());

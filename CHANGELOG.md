@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.40.0 — 2026-10-20
+
+### Added
+
+- Macro step `COLUMN [Name] [TYPE] = formula` adds a formula column or updates the one of that
+  name. Recording a macro now writes these steps for formula columns added or changed while
+  recording, so a recorded `SORT` or `FILTER` on such a column replays. New locale key
+  `macroColumnTaken(name)`.
+
 ## 0.39.0 — 2026-10-20
 
 ### Added

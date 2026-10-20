@@ -75,6 +75,7 @@ English and case-insensitive. Text values go in double quotes (`""` for a quote 
 | `DATABAR [Column] BLUE` · `COLORSCALE [Column] RED YELLOW GREEN` | Data bars and two- or three-colour scales |
 | `ICONSET [Column] ARROWS` · `ICONSET [Column] DOTS REVERSE` | Icon sets (0.16.0) |
 | `CLEAR FORMATS` · `CLEAR FORMATS [Column]` | Removes format rules |
+| `COLUMN [Name] = formula` · `COLUMN [Margin] CURRENCY = [Price] - [Cost]` | *(0.40.0)* Adds a formula column, or gives the formula column of that name a new formula. The optional type is `TEXT`, `NUMBER`, `INTEGER`, `CURRENCY`, `PERCENT`, `DATE` or `BOOLEAN`. A recording writes one for each formula column added or changed while it ran, before the steps that use it. A name that belongs to one of the grid's own columns is refused |
 | `SET [Column] = formula WHERE condition` | Writes a formula's result into a column, for the rows shown (and matching the optional `WHERE`). Goes through `(rowsPaste)` like a paste — or straight into the rows when nobody listens. Read-only and formula columns refuse, and so does a grid without `editable` *(0.33.1)* |
 | `VIEW "Name"` | Applies a saved view |
 | `EXPORT XLSX` / `CSV` / `PDF` | Exports, as the toolbar would |
