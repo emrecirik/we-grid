@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.35.1 — 2026-10-20
+
+### Fixed
+
+- Formula columns: every column of a loop shows `#CIRC!`, whichever is worked out first and even
+  behind `IFERROR`; a row's worked-out values are no longer thrown away when one formula column
+  reads another (it was recomputed each time).
+
 ## 0.35.0 — 2026-10-20
 
 Conditional formatting read from Excel files. A minor release.

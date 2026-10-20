@@ -624,6 +624,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   formulaDialog: { column: WeGridFormulaColumn | null; fieldNames: string[]; usedFields: string[] } | null = null;
   private formulaValues = new WeakMap<object, Map<string, unknown>>();
   private readonly formulaEvaluating = new Set<string>();
+  /** A loop was met while the current chain of formula columns was worked out */
+  private formulaCycle = false;
   /** Macros the user wrote or recorded — see allowMacros */
   userMacros: WeGridMacro[] = [];
   macrosPanelOpen = false;
@@ -1485,7 +1487,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const rowKey = row as unknown as object;
     let values = this.formulaValues.get(rowKey);
     if (values?.has(col.field)) return values.get(col.field);
-    if (this.formulaEvaluating.has(col.field)) return new WeGridFormulaError('#CIRC!');
+    if (this.formulaEvaluating.has(col.field)) {
+      this.formulaCycle = true;
+      return new WeGridFormulaError('#CIRC!');
+    }
     const compiled = weGridTryCompileFormula(col.formula ?? '');
     let value: unknown;
     if ('error' in compiled) {
@@ -1502,7 +1507,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       } finally {
         this.formulaEvaluating.delete(col.field);
       }
+      // Every column of a loop is #CIRC!, whichever one is worked out first — even where IFERROR hides the error
+      if (this.formulaCycle) value = new WeGridFormulaError('#CIRC!');
+      if (!this.formulaEvaluating.size) this.formulaCycle = false;
     }
+    // Read again: the columns this one refers to may have made the row's map meanwhile
+    values = this.formulaValues.get(rowKey);
     if (!values) this.formulaValues.set(rowKey, (values = new Map()));
     values.set(col.field, value);
     return value;

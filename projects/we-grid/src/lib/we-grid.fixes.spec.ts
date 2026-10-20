@@ -77,6 +77,29 @@ describe('WeGridComponent — 0.33.1 fixes', () => {
     expect(host.grid.renderColumns.map((c) => c.field)).toEqual(['name', 'qty']);
   });
 
+  it('drops the grouping, sort and rules on a formula column when it is deleted', () => {
+    const grid = host.grid;
+    grid.saveFormulaColumn({ field: 'fx:d', header: 'Double', formula: '=[Qty]*2' });
+    grid.setGrouping(['fx:d']);
+    grid.onFormatRulesChange([{ id: 'r', field: 'fx:d', type: 'condition', operator: 'gt', value: 1, style: { bold: true } }]);
+    grid.deleteFormulaColumn('fx:d');
+    expect(grid.groupFields).toEqual([]);
+    expect(grid.activeFormatRules.some((r) => r.field === 'fx:d')).toBeFalse();
+    expect(grid.getCurrentView('v').sort).toBeNull();
+  });
+
+  it('shows #CIRC! on every column of a loop, even behind IFERROR', () => {
+    const grid = host.grid;
+    grid.saveFormulaColumn({ field: 'fx:a', header: 'FA', formula: '=IFERROR([FB],0)+1' });
+    grid.saveFormulaColumn({ field: 'fx:b', header: 'FB', formula: '=IFERROR([FA],0)+1' });
+    const a = grid.internalColumns.find((c) => c.field === 'fx:a')!;
+    const b = grid.internalColumns.find((c) => c.field === 'fx:b')!;
+    expect(String(grid.cellValue(host.data[0], a))).toBe('#CIRC!');
+    expect(String(grid.cellValue(host.data[0], b))).toBe('#CIRC!');
+    expect(String(grid.cellValue(host.data[1], b))).toBe('#CIRC!');
+    expect(String(grid.cellValue(host.data[1], a))).toBe('#CIRC!');
+  });
+
   it('stripes rows within each group', () => {
     host.grid.setGrouping(['name']);
     fixture.detectChanges();
