@@ -81,6 +81,7 @@ interface CellView {
 }
 
 const DEFAULT_WIDTH = 104;
+let sheetCount = 0;
 const UNDO_LIMIT = 100;
 
 /** Every name the formula engine accepts, English and Turkish, with what it means — for suggestions */
@@ -141,6 +142,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   @Output() structureChange = new EventEmitter<{ axis: 'row' | 'col'; at: number; count: number }>();
 
   @ViewChild('scroll', { static: true }) scrollRef!: ElementRef<HTMLElement>;
+  /** Unique per sheet — the ids that tie the comboboxes to their lists */
+  readonly uid = `we-sheet-${++sheetCount}`;
   @ViewChild('editor') editorRef?: ElementRef<HTMLInputElement>;
   @ViewChild('importInput') importInputRef?: ElementRef<HTMLInputElement>;
   @ViewChild('formulaBar') formulaBarRef?: ElementRef<HTMLInputElement>;
@@ -776,6 +779,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
       if (n) p.index = (p.index + (event.key === 'ArrowDown' ? 1 : -1) + n) % n;
       event.preventDefault();
+      queueMicrotask(() => document.getElementById(`${this.uid}-fn-${p.index}`)?.scrollIntoView({ block: 'nearest' }));
     } else if (event.key === 'Enter') {
       const f = this.functionMatches[p.index];
       if (f) this.insertFunction(f.name);

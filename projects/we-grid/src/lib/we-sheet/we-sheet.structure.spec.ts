@@ -157,6 +157,8 @@ describe('WeSheetComponent — structure, AutoSum, suggestions, import', () => {
     search.dispatchEvent(new Event('input'));
     fixture.detectChanges();
     const names = Array.from(el().querySelectorAll('.we-sheet__functions-list strong')).map((s) => s.textContent);
+    const active = search.getAttribute('aria-activedescendant')!;
+    expect(document.getElementById(active)?.getAttribute('aria-selected')).toBe('true');
     expect(names).toContain('SUM');
     expect(names).toContain('SUMPRODUCT');
     search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));

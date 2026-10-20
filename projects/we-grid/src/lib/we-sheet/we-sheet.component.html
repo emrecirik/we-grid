@@ -163,6 +163,11 @@
       (keydown)="onBarKeydown($event)"
       (blur)="onBarBlur()"
       [attr.aria-label]="locale.sheetFormulaBar"
+      role="combobox"
+      aria-autocomplete="list"
+      [attr.aria-expanded]="suggestions.length > 0 && suggestionsFor === 'bar'"
+      [attr.aria-controls]="suggestions.length && suggestionsFor === 'bar' ? uid + '-suggest' : null"
+      [attr.aria-activedescendant]="suggestions.length && suggestionsFor === 'bar' ? uid + '-suggest-' + suggestionIndex : null"
       spellcheck="false"
     />
   </div>
@@ -219,13 +224,19 @@
     #scroll
     class="we-sheet__scroll"
     tabindex="0"
+    role="grid"
+    [attr.aria-label]="locale.sheetLabel"
+    aria-multiselectable="true"
+    [attr.aria-rowcount]="sheet.rows + 1"
+    [attr.aria-colcount]="sheet.cols + 1"
+    [attr.aria-activedescendant]="editing && !editing.fromBar ? null : uid + '-' + columnLetters[active.col] + (active.row + 1)"
     [style.height]="heightCss"
     (keydown)="onGridKeydown($event)"
     (copy)="onCopy($event)"
     (cut)="onCopy($event, true)"
     (paste)="onPaste($event)"
   >
-    <table class="we-sheet__table" role="grid" [attr.aria-label]="locale.sheetLabel" aria-multiselectable="true" [attr.aria-rowcount]="sheet.rows + 1" [attr.aria-colcount]="sheet.cols + 1">
+    <table class="we-sheet__table" role="presentation">
       <colgroup>
         <col class="we-sheet__col-rowhead" />
         @for (c of colIndexes; track c) {
@@ -258,6 +269,9 @@
             @for (c of colIndexes; track c) {
               <td
                 role="gridcell"
+                [id]="uid + '-' + columnLetters[c] + (r + 1)"
+                [attr.aria-rowindex]="r + 2"
+                [attr.aria-colindex]="c + 2"
                 class="we-sheet__cell"
                 [class.we-sheet__cell--first]="c === 0"
                 [attr.data-cell]="columnLetters[c] + (r + 1)"
@@ -287,6 +301,8 @@
                     spellcheck="false"
                     role="combobox"
                     [attr.aria-expanded]="suggestions.length > 0"
+                    [attr.aria-controls]="suggestions.length ? uid + '-suggest' : null"
+                    [attr.aria-activedescendant]="suggestions.length ? uid + '-suggest-' + suggestionIndex : null"
                     aria-autocomplete="list"
                   />
                   @if (suggestions.length && suggestionsFor === 'cell') {
@@ -407,15 +423,20 @@
       <input
         class="we-sheet__functions-search"
         type="search"
+        role="combobox"
+        aria-autocomplete="list"
+        aria-expanded="true"
+        [attr.aria-controls]="uid + '-functions'"
+        [attr.aria-activedescendant]="functionMatches.length ? uid + '-fn-' + functionPicker.index : null"
         [value]="functionPicker.query"
         (input)="functionPicker.query = $any($event.target).value; functionPicker.index = 0"
         [placeholder]="locale.sheetFunctionSearch"
         [attr.aria-label]="locale.sheetFunctionSearch"
         spellcheck="false"
       />
-      <div class="we-sheet__functions-list" role="listbox" [attr.aria-label]="locale.sheetInsertFunction">
+      <div class="we-sheet__functions-list" role="listbox" [id]="uid + '-functions'" [attr.aria-label]="locale.sheetInsertFunction">
         @for (f of functionMatches; track f.name; let i = $index) {
-          <button type="button" role="option" tabindex="-1" [attr.aria-selected]="i === functionPicker.index" [class.we-sheet__picker--on]="i === functionPicker.index" (mousedown)="$event.preventDefault()" (click)="insertFunction(f.name)">
+          <button type="button" role="option" [id]="uid + '-fn-' + i" tabindex="-1" [attr.aria-selected]="i === functionPicker.index" [class.we-sheet__picker--on]="i === functionPicker.index" (mousedown)="$event.preventDefault()" (click)="insertFunction(f.name)">
             <strong>{{ f.name }}</strong><span>{{ f.signature }}</span>
           </button>
         }
@@ -447,9 +468,9 @@
   }
 
   <ng-template #suggestionList let-where>
-    <ul class="we-sheet__suggest" [class.we-sheet__suggest--bar]="where === 'bar'" role="listbox" [attr.aria-label]="locale.sheetSuggestions">
+    <ul class="we-sheet__suggest" [class.we-sheet__suggest--bar]="where === 'bar'" role="listbox" [id]="uid + '-suggest'" [attr.aria-label]="locale.sheetSuggestions">
       @for (s of suggestions; track s.name; let i = $index) {
-        <li role="option" [attr.aria-selected]="i === suggestionIndex" [class.we-sheet__suggest--on]="i === suggestionIndex" (mousedown)="$event.preventDefault(); acceptSuggestion(s)">
+        <li role="option" [id]="uid + '-suggest-' + i" [attr.aria-selected]="i === suggestionIndex" [class.we-sheet__suggest--on]="i === suggestionIndex" (mousedown)="$event.preventDefault(); acceptSuggestion(s)">
           <strong>{{ s.name }}</strong><span>{{ s.signature }}</span>
         </li>
       }

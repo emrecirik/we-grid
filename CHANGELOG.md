@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.24.1 — 2026-10-20
+
+Screen-reader fixes for the spreadsheet. A patch release.
+
+### Fixed
+
+- `<we-sheet>`: the focused grid names its active cell (`aria-activedescendant`, cells with
+  ids and `aria-rowindex`/`aria-colindex`), so screen readers follow the cursor; the `role="grid"`
+  moved from the table to the focusable container, the table is presentational.
+- Formula suggestions (cell editor and formula bar) and the ƒ list are comboboxes that point at the
+  highlighted option; the ƒ list keeps the highlighted function in view.
+
 ## 0.24.0 — 2026-10-20
 
 Insert function, and a closer Excel round trip. A minor release.

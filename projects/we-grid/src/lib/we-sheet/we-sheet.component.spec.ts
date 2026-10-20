@@ -58,6 +58,14 @@ describe('WeSheetComponent', () => {
     expect(el().querySelector('.we-sheet__name')!.getAttribute('value') ?? (el().querySelector('.we-sheet__name') as HTMLInputElement).value).toBe('A1');
   });
 
+  it('names the active cell to assistive technology', () => {
+    const grid = el().querySelector<HTMLElement>('[role="grid"]')!;
+    expect(grid.classList).toContain('we-sheet__scroll');
+    sheet().select('B3');
+    fixture.detectChanges();
+    expect(document.getElementById(grid.getAttribute('aria-activedescendant')!)?.getAttribute('data-cell')).toBe('B3');
+  });
+
   it('evaluates formulas and recalculates when an input changes', () => {
     sheet().setCell('A1', '2');
     sheet().setCell('A2', '3');
