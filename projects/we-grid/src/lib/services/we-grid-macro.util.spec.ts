@@ -156,3 +156,15 @@ describe('we-grid macro scripts', () => {
     expect(weGridMacroScript(lines.map((l) => l.step))).toBe('COLUMN [Margin] CURRENCY = [Price] - [Cost]\nCOLUMN [Note] = "x"');
   });
 });
+
+describe('DELETE COLUMN', () => {
+  it('reads, writes and records a deleted formula column', () => {
+    const { lines, errors } = weGridParseMacro('DELETE COLUMN [Margin]\nDELETE [Margin]');
+    expect(lines.map((l) => l.step)).toEqual([{ op: 'deleteColumn', header: 'Margin' }]);
+    expect(errors.map((e) => e.line)).toEqual([2]);
+    expect(weGridMacroScript(lines.map((l) => l.step))).toBe('DELETE COLUMN [Margin]');
+    const base: WeGridSavedView = { name: 'v', columns: [], sort: null, filters: [], groupField: null };
+    const before: WeGridSavedView = { ...base, formulaColumns: [{ field: 'fx:1', header: 'Margin', formula: '=1' }] };
+    expect(weGridMacroScript(weGridDiffViews(before, base, (f) => f))).toBe('DELETE COLUMN [Margin]');
+  });
+});

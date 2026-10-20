@@ -200,7 +200,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   readonly chartTypes: WeSheetChart['type'][] = ['column', 'bar', 'line', 'area', 'pie', 'donut'];
 
   readonly colors = WE_SHEET_COLORS;
-  readonly formats: WeSheetNumberFormat[] = ['general', 'number', 'integer', 'currency', 'percent', 'date', 'text'];
+  readonly formats: WeSheetNumberFormat[] = ['general', 'number', 'integer', 'currency', 'percent', 'date', 'time', 'text'];
 
   private evaluator!: WeGridSheetEvaluator;
   private undoStack: WeSheetData[] = [];
@@ -605,6 +605,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
         lower === 'd' ? (this.fillDown(), true) :
         // Shift is allowed: on several layouts (Turkish Q among them) ; is a shifted key
         key === ';' ? (this.insertToday(), true) :
+        // Ctrl+Shift+; in Excel — the key that gives : on the layout
+        key === ':' ? (this.insertToday(true), true) :
         key.startsWith('Arrow') ? (this.jump(key, event.shiftKey), true) :
         false;
       if (handled) event.preventDefault();
@@ -1084,8 +1086,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (!f || !f.text) return;
     const needle = f.matchCase ? f.text : f.text.toLocaleLowerCase(this.locale.intlLocale);
     const norm = (t: string) => (f.matchCase ? t : t.toLocaleLowerCase(this.locale.intlLocale));
+    // Hidden rows and columns are left out, as Excel's Find does with values
     for (let r = 0; r < this.sheet.rows; r++) {
+      if (this.hiddenRows.has(r)) continue;
       for (let c = 0; c < this.sheet.cols; c++) {
+        if (this.hiddenCols.has(c)) continue;
         const shown = this.view[r]?.[c]?.text ?? '';
         const raw = this.rawText(c, r);
         if (norm(shown).includes(needle) || (raw.startsWith('=') && norm(raw).includes(needle))) this.findMatches.push({ col: c, row: r });
@@ -1107,28 +1112,40 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.updateRange((cell) => ({ v: cell.v, l: cell.l, n: cell.n }));
   }
 
-  /** The format painter's copied look, while it is on — the next selection made with the mouse gets it */
-  painter: Pick<WeSheetCell, 's' | 'a' | 'f' | 'd' | 'b' | 'w'> | null = null;
+  /** The format painter's copied looks, row by row, while it is on — the next selection made with the mouse gets them */
+  painter: Pick<WeSheetCell, 's' | 'a' | 'f' | 'd' | 'b' | 'w'>[][] | null = null;
 
-  /** Format painter: copies the active cell's look; again (or Esc) to put it away */
+  /** Format painter: copies the selection's look (a pattern, when several cells are selected); again (or Esc) to put it away */
   toggleFormatPainter(): void {
     if (this.painter || this.readonly) {
       this.painter = null;
       this.cdr.markForCheck();
       return;
     }
-    // shortcut: copies the active cell only, not a pattern from a multi-cell selection
-    const { s, a, f, d, b, w } = this.sheet.cells[weSheetAddress(this.active.col, this.active.row)] ?? {};
-    this.painter = { s, a, f, d, b, w };
+    const sel = this.selection;
+    // A whole-column or whole-sheet selection repeats its first 100 rows and columns at most
+    const looks: Pick<WeSheetCell, 's' | 'a' | 'f' | 'd' | 'b' | 'w'>[][] = [];
+    for (let r = sel.r1; r <= Math.min(sel.r2, sel.r1 + 99); r++) {
+      const row: Pick<WeSheetCell, 's' | 'a' | 'f' | 'd' | 'b' | 'w'>[] = [];
+      for (let c = sel.c1; c <= Math.min(sel.c2, sel.c1 + 99); c++) {
+        const { s, a, f, d, b, w } = this.sheet.cells[weSheetAddress(c, r)] ?? {};
+        row.push({ s, a, f, d, b, w });
+      }
+      looks.push(row);
+    }
+    this.painter = looks;
     this.cdr.markForCheck();
   }
 
-  /** Gives the selection the format painter's look and puts the painter away */
+  /** Gives the selection the format painter's looks — the pattern repeated over it — and puts the painter away */
   applyFormatPainter(): void {
-    const look = this.painter;
-    if (!look) return;
+    const looks = this.painter;
+    if (!looks) return;
     this.painter = null;
-    this.updateRange((cell) => {
+    const s = this.selection;
+    this.updateRange((cell, c, r) => {
+      const row = looks[(r - s.r1) % looks.length];
+      const look = row[(c - s.c1) % row.length];
       const next: WeSheetCell = { v: cell.v, l: cell.l, n: cell.n };
       for (const key of ['s', 'a', 'f', 'd', 'b', 'w'] as const) if (look[key] !== undefined) (next as Record<string, unknown>)[key] = look[key];
       return next;
@@ -1708,8 +1725,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.cdr.markForCheck();
   }
 
-  /** Today's date in the active cell, as a date — Ctrl+; */
-  insertToday(): void {
+  /** Today's date in the active cell, as a date — Ctrl+;; with `time`, the time now — Ctrl+Shift+: */
+  insertToday(time = false): void {
     if (this.readonly) return;
     // A dropdown-list cell takes only its choices
     if (this.sheet.cells[weSheetAddress(this.active.col, this.active.row)]?.l) {
@@ -1718,7 +1735,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       return;
     }
     const now = new Date();
-    const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const two = (n: number) => String(n).padStart(2, '0');
+    const iso = time ? `${two(now.getHours())}:${two(now.getMinutes())}` : `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
     const next = this.cloneForEdit(this.active.row + 1, this.active.col + 1);
     this.writeInput(next, this.active.col, this.active.row, iso);
     this.commit(next);
@@ -2239,6 +2257,12 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       const ms = Date.UTC(1899, 11, 30) + Math.round(v) * 86400000;
       return new Intl.DateTimeFormat(this.locale.intlLocale, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(new Date(ms));
     }
+    if (typeof v === 'number' && this.sheet.cells[weSheetAddress(col, row)]?.f === 'time') {
+      // As it is typed back in: 14:30, or 14:30:15
+      const t = Math.round((((v % 1) + 1) % 1) * 86400) % 86400;
+      const two = (n: number) => String(n).padStart(2, '0');
+      return `${Math.floor(t / 3600)}:${two(Math.floor(t / 60) % 60)}${t % 60 ? `:${two(t % 60)}` : ''}`;
+    }
     if (typeof v === 'number') return new Intl.NumberFormat(this.locale.intlLocale, { maximumFractionDigits: 15, useGrouping: false }).format(v);
     return v;
   }
@@ -2279,7 +2303,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   /** Rewrites every selected cell — capped at the used area plus the selection's first row/column */
-  private updateRange(fn: (cell: WeSheetCell) => WeSheetCell): void {
+  private updateRange(fn: (cell: WeSheetCell, col: number, row: number) => WeSheetCell): void {
     if (this.readonly) return;
     this.commitEdit();
     const s = this.selection;
@@ -2288,7 +2312,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       if (this.hiddenRows.has(r)) continue;
       for (let c = s.c1; c <= s.c2; c++) {
         const key = weSheetAddress(c, r);
-        const updated = fn(next.cells[key] ?? {});
+        const updated = fn(next.cells[key] ?? {}, c, r);
         this.putCell(next, c, r, this.compact(updated));
       }
     }

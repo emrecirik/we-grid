@@ -143,4 +143,12 @@ describe('WeGridComponent — macros', () => {
     expect(errors).toEqual([]);
     expect(host.grid.userFormulaColumns.map((c) => [c.field, c.formula])).toEqual([['fx:1', '=[Quantity] * 4']]);
   });
+
+  it('deletes a formula column with DELETE COLUMN', async () => {
+    await host.grid.runScript('COLUMN [Triple] = [Quantity] * 3');
+    expect(host.grid.userFormulaColumns.length).toBe(1);
+    const errors = await host.grid.runScript('DELETE COLUMN [triple]\nDELETE COLUMN [Nope]');
+    expect(errors).toEqual([{ line: 2, message: 'there is no column called Nope' }]);
+    expect(host.grid.userFormulaColumns).toEqual([]);
+  });
 });

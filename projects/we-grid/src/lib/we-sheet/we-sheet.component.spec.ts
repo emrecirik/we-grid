@@ -648,4 +648,36 @@ describe('WeSheetComponent', () => {
     sheet().undo();
     expect(sheet().getData().cells['A5']?.v).toBe('Izmir');
   });
+
+  it('puts the time now in the active cell with Ctrl+Shift+: and edits it as typed', () => {
+    sheet().select('A1');
+    el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: ':', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+    const cell = sheet().getData().cells['A1'];
+    expect(cell.f).toBe('time');
+    expect(cell.v as number).toBeGreaterThanOrEqual(0);
+    expect(cell.v as number).toBeLessThan(1);
+    sheet().setCell('B1', '7:05');
+    sheet().select('B1');
+    fixture.detectChanges();
+    expect(sheet().barText).toBe('7:05');
+  });
+
+  it('repeats a copied pattern of looks with the format painter', () => {
+    sheet().setData({ version: 1, rows: 3, cols: 4, cells: { A1: { s: { bold: true } }, B1: { s: { italic: true } }, A3: { v: 1 }, D3: { v: 4 } } });
+    sheet().select('A1:B1');
+    sheet().toggleFormatPainter();
+    sheet().select('A3:D3');
+    sheet().applyFormatPainter();
+    const cells = sheet().getData().cells;
+    expect(['A3', 'B3', 'C3', 'D3'].map((a) => cells[a]?.s)).toEqual([{ bold: true }, { italic: true }, { bold: true }, { italic: true }]);
+    expect(cells['D3'].v).toBe(4);
+  });
+
+  it('leaves hidden rows and columns out of Find', () => {
+    sheet().setData({ version: 1, rows: 3, cols: 3, hidden: [1], hiddenColumns: ['C'], cells: { A1: { v: 'x' }, A2: { v: 'x' }, C1: { v: 'x' } } });
+    fixture.detectChanges();
+    sheet().openFind();
+    sheet().onFindInput('x');
+    expect(sheet().findMatches).toEqual([{ col: 0, row: 0 }]);
+  });
 });

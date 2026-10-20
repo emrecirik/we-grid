@@ -9,7 +9,7 @@ export const WE_SHEET_MAX_ROWS = 5000;
 export const WE_SHEET_MAX_COLS = 200;
 const MAX_CELLS = 200_000;
 const MAX_TEXT = 32_767;
-const FORMATS = new Set<WeSheetNumberFormat>(['general', 'number', 'integer', 'currency', 'percent', 'date', 'text']);
+const FORMATS = new Set<WeSheetNumberFormat>(['general', 'number', 'integer', 'currency', 'percent', 'date', 'time', 'text']);
 const CHART_TYPES = new Set(['column', 'bar', 'line', 'area', 'pie', 'donut']);
 
 /** A rectangle of cells, 0-based and inclusive, always with c1 <= c2 and r1 <= r2 */
@@ -70,7 +70,18 @@ export function weSheetParseInput(
   if (n !== null) return percent ? { value: n / 100, format: 'percent' } : { value: n };
   const date = weSheetParseDate(trimmed, dateOrder);
   if (date !== null) return { value: date, format: 'date' };
+  const time = weSheetParseTime(trimmed);
+  if (time !== null) return { value: time, format: 'time' };
   return { value: text.slice(0, MAX_TEXT) };
+}
+
+/** A time of day as Excel's fraction of a day, or null: `14:30`, `9:05:30` */
+export function weSheetParseTime(text: string): number | null {
+  const m = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(text.trim());
+  if (!m) return null;
+  const [h, min, sec] = [Number(m[1]), Number(m[2]), Number(m[3] ?? 0)];
+  if (h > 23 || min > 59 || sec > 59) return null;
+  return (h * 3600 + min * 60 + sec) / 86400;
 }
 
 /**
@@ -296,6 +307,11 @@ export function weSheetFormatValue(value: unknown, format: WeSheetNumberFormat |
       // Excel serial date — day 1 is 1900-01-01 (with Excel's 1900 leap-year quirk)
       const ms = Date.UTC(1899, 11, 30) + Math.round(value) * 86400000;
       return new Intl.DateTimeFormat(intlLocale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(ms));
+    }
+    case 'time': {
+      // The fraction of the day, to the second
+      const seconds = Math.round((((value % 1) + 1) % 1) * 86400) % 86400;
+      return new Intl.DateTimeFormat(intlLocale, { timeStyle: seconds % 60 ? 'medium' : 'short', timeZone: 'UTC' }).format(new Date(seconds * 1000));
     }
     case 'text':
       return String(value);
@@ -861,7 +877,9 @@ function sheetFormatOf(code: string): { f: WeSheetNumberFormat; d?: number } | n
   // Quoted text and [colour] sections say nothing about the kind of number
   const bare = code.split(';')[0].replace(/"[^"]*"|\[[^\]]*\]|\\./g, '');
   const decimals = /\.(0+)/.exec(bare)?.[1].length;
-  // shortcut: times, durations ([h]:mm) and scientific notation have no sheet format — they stay General, keeping the value; add formats if they are wanted
+  // A time of day (h:mm, h:mm:ss AM/PM) — with no day, month or year in it
+  if (/h/i.test(bare) && !/[dy]/i.test(bare) && !/\[[hms]+\]/i.test(code)) return { f: 'time' };
+  // shortcut: dates with times, durations ([h]:mm) and scientific notation have no sheet format — they stay General, keeping the value; add formats if they are wanted
   if (/[hs]|E[+-]/i.test(bare.replace(/[dmy]+/gi, '')) || /\[[hms]+\]/i.test(code)) return null;
   if (/[dmy]/i.test(bare) && !/[#0]/.test(bare.replace(/[dmyhs]+/gi, ''))) return { f: 'date' };
   if (bare.includes('%')) return { f: 'percent', d: decimals ?? 0 };
@@ -1008,6 +1026,8 @@ function excelNumberFormat(cell: WeSheetCell): string | undefined {
       return `0${places(d ?? 2)}%`;
     case 'date':
       return 'mm-dd-yy';
+    case 'time':
+      return 'h:mm';
     case 'text':
       return '@';
     default:

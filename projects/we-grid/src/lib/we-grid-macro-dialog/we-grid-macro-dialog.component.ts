@@ -22,6 +22,7 @@ const CHEAT_SHEET = [
   'ICONSET [Column] ARROWS | DOTS [REVERSE]',
   'SET [Column] = formula WHERE condition',
   'COLUMN [Name] [NUMBER | CURRENCY | …] = formula',
+  'DELETE COLUMN [Name]',
   'DENSITY COMPACT · ZEBRA ON',
   'VIEW "Name" · EXPORT XLSX | CSV | PDF',
   'RUN command · MESSAGE "Done"'

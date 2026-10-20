@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.45.0 — 2026-10-20
+
+### Added
+
+- Times of day in the sheet: typed `14:30` / `9:05:30` becomes a time (new number format `time`,
+  `weSheetParseTime`), Ctrl+Shift+: writes the time now, and Excel files keep it as `h:mm` both
+  ways (`h:mm`-style codes read as `time`). `WeGridLocale.sheetFormatLabels` gains `time`.
+- The format painter copies a pattern: with several cells selected their looks repeat over the
+  target.
+- Macro step `DELETE COLUMN [Name]` removes a formula column; recordings write it.
+
+### Fixed
+
+- Find and replace no longer stops on cells in hidden rows or columns.
+
 ## 0.44.0 — 2026-10-20
 
 ### Added

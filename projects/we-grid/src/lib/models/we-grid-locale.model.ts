@@ -277,7 +277,7 @@ export interface WeGridLocale {
   sheetAlignCenter: string;
   sheetAlignEnd: string;
   sheetNumberFormat: string;
-  sheetFormatLabels: Record<'general' | 'number' | 'integer' | 'currency' | 'percent' | 'date' | 'text', string>;
+  sheetFormatLabels: Record<'general' | 'number' | 'integer' | 'currency' | 'percent' | 'date' | 'time' | 'text', string>;
   sheetSortAsc: string;
   sheetSortDesc: string;
   sheetFillDown: string;
@@ -670,7 +670,7 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetAlignCenter: 'Centre',
   sheetAlignEnd: 'Align right',
   sheetNumberFormat: 'Number format',
-  sheetFormatLabels: { general: 'General', number: 'Number', integer: 'Whole number', currency: 'Currency', percent: 'Percent', date: 'Date', text: 'Text' },
+  sheetFormatLabels: { general: 'General', number: 'Number', integer: 'Whole number', currency: 'Currency', percent: 'Percent', date: 'Date', time: 'Time', text: 'Text' },
   sheetSortAsc: 'Sort A → Z',
   sheetSortDesc: 'Sort Z → A',
   sheetFillDown: 'Fill down',
@@ -1045,7 +1045,7 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetAlignCenter: 'Ortala',
   sheetAlignEnd: 'Sağa hizala',
   sheetNumberFormat: 'Sayı biçimi',
-  sheetFormatLabels: { general: 'Genel', number: 'Sayı', integer: 'Tam sayı', currency: 'Para', percent: 'Yüzde', date: 'Tarih', text: 'Metin' },
+  sheetFormatLabels: { general: 'Genel', number: 'Sayı', integer: 'Tam sayı', currency: 'Para', percent: 'Yüzde', date: 'Tarih', time: 'Saat', text: 'Metin' },
   sheetSortAsc: 'A → Z sırala',
   sheetSortDesc: 'Z → A sırala',
   sheetFillDown: 'Aşağı doldur',

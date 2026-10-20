@@ -507,7 +507,7 @@ export interface WeGridXlsxConditionalFormat {
 }
 
 const BUILTIN_FORMATS: Record<string, number> = {
-  General: 0, '0': 1, '0.00': 2, '#,##0': 3, '#,##0.00': 4, '0%': 9, '0.00%': 10, 'mm-dd-yy': 14, 'm/d/yy h:mm': 22, '@': 49
+  General: 0, '0': 1, '0.00': 2, '#,##0': 3, '#,##0.00': 4, '0%': 9, '0.00%': 10, 'mm-dd-yy': 14, 'h:mm': 20, 'm/d/yy h:mm': 22, '@': 49
 };
 
 /**
@@ -850,7 +850,7 @@ function stringItemText(item: Element): string {
 /** The format codes of Excel's built-in number formats a file refers to by id */
 const BUILTIN_FORMAT_CODES: Record<number, string> = {
   1: '0', 2: '0.00', 3: '#,##0', 4: '#,##0.00', 9: '0%', 10: '0.00%', 11: '0.00E+00', 14: 'mm-dd-yy', 15: 'd-mmm-yy',
-  16: 'd-mmm', 17: 'mmm-yy', 22: 'm/d/yy h:mm', 37: '#,##0 ;(#,##0)', 38: '#,##0 ;[Red](#,##0)', 39: '#,##0.00;(#,##0.00)',
+  16: 'd-mmm', 17: 'mmm-yy', 18: 'h:mm AM/PM', 19: 'h:mm:ss AM/PM', 20: 'h:mm', 21: 'h:mm:ss', 22: 'm/d/yy h:mm', 37: '#,##0 ;(#,##0)', 38: '#,##0 ;[Red](#,##0)', 39: '#,##0.00;(#,##0.00)',
   40: '#,##0.00;[Red](#,##0.00)', 49: '@'
 };
 

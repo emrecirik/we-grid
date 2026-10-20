@@ -36,6 +36,7 @@ export type WeGridMacroStep =
   | { op: 'clearFormats'; field: string | null }
   | { op: 'set'; field: string; formula: string; where: string | null }
   | { op: 'column'; header: string; formula: string; type?: WeGridFormulaColumn['type'] }
+  | { op: 'deleteColumn'; header: string }
   | { op: 'view'; name: string }
   | { op: 'export'; format: WeGridExportFormat }
   | { op: 'run'; command: string }

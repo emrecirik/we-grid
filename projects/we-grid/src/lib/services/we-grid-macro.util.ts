@@ -248,6 +248,11 @@ function parseLine(c: Cursor): WeGridMacroStep {
       step = { op: 'set', field, formula: `=${formula}`, where: where === null ? null : `=${where}` };
       break;
     }
+    case 'DELETE': {
+      if (c.word() !== 'COLUMN') throw new Error('write DELETE COLUMN [Name]');
+      step = { op: 'deleteColumn', header: c.field() };
+      break;
+    }
     case 'COLUMN': {
       const header = c.field();
       const typeWord = c.acceptChar('=') ? null : c.word();
@@ -476,6 +481,8 @@ function stepText(step: WeGridMacroStep): string {
       return `ZEBRA ${step.on ? 'ON' : 'OFF'}`;
     case 'clearFormats':
       return step.field ? `CLEAR FORMATS [${step.field}]` : 'CLEAR FORMATS';
+    case 'deleteColumn':
+      return `DELETE COLUMN [${step.header}]`;
     case 'column':
       return `COLUMN [${step.header}]${step.type ? ` ${step.type.toUpperCase()}` : ''} = ${step.formula.replace(/^=/, '')}`;
     case 'set':
@@ -542,8 +549,9 @@ export function weGridDiffViews(
   const name = headerOf;
 
   // Formula columns added or changed come first — later steps may sort or filter by them
-  // shortcut: a deleted formula column is not recorded, add a step for it if macros need to remove columns
   const columnsBefore = new Map((before.formulaColumns ?? []).map((c) => [c.field, c]));
+  const fieldsAfter = new Set((after.formulaColumns ?? []).map((c) => c.field));
+  for (const c of before.formulaColumns ?? []) if (!fieldsAfter.has(c.field)) steps.push({ op: 'deleteColumn', header: c.header });
   for (const c of after.formulaColumns ?? []) {
     const was = columnsBefore.get(c.field);
     if (!was || was.formula !== c.formula || was.header !== c.header || was.type !== c.type) {

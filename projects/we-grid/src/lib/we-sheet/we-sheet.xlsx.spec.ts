@@ -319,3 +319,13 @@ describe('hidden columns in Excel files', () => {
     expect(weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats, read).data.hiddenColumns).toEqual(['B']);
   });
 });
+
+describe('times in Excel files', () => {
+  it('writes a time as Excel\'s h:mm and reads it back as a time', async () => {
+    const blob = weSheetWorkbookXlsx([{ name: 'T', data: { version: 1, rows: 1, cols: 1, cells: { A1: { v: 0.5, f: 'time' } } } }]);
+    const text = await new Response(blob).text();
+    expect(text).toContain('numFmtId="20"');
+    const [read] = await weGridReadXlsxCells(blob);
+    expect(weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats, read).data.cells['A1']).toEqual({ v: 0.5, f: 'time' });
+  });
+});

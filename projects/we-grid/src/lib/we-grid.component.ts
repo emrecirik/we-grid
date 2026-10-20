@@ -1745,6 +1745,13 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       case 'set':
         flush();
         return this.macroSet(step.field, step.formula, step.where);
+      case 'deleteColumn': {
+        flush();
+        const target = this.userFormulaColumns.find((c) => c.header.toLocaleLowerCase() === step.header.toLocaleLowerCase());
+        if (!target) return this.locale.macroUnknownColumn(step.header);
+        this.deleteFormulaColumn(target.field);
+        return null;
+      }
       case 'column': {
         // A formula column of that name gets the new formula; otherwise the column is added
         flush();

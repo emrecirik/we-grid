@@ -4,7 +4,7 @@ import { WeGridCellStyle, WeGridFormatRule } from '../models/we-grid-format.mode
 import { WeGridAlign } from '../models/we-grid-column.model';
 
 /** How a sheet cell shows a number */
-export type WeSheetNumberFormat = 'general' | 'number' | 'integer' | 'currency' | 'percent' | 'date' | 'text';
+export type WeSheetNumberFormat = 'general' | 'number' | 'integer' | 'currency' | 'percent' | 'date' | 'time' | 'text';
 
 /** One cell of a sheet. Only cells with content or formatting are stored. */
 export interface WeSheetCell {

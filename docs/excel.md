@@ -11,7 +11,7 @@ browser with no dependency beyond Angular CDK.
 | References to other sheets (`=Sales!B2`) | Same syntax, renames and inserts follow | Sheet (`<we-workbook>`) — [sheet.md](sheet.md) |
 | AutoSum (Σ, Alt+=) | Σ button, Alt+= | Sheet |
 | Fill handle, Ctrl+D | Drag the corner square, double-click it, Ctrl+D | Sheet |
-| Ctrl+; (today's date) | Ctrl+; | Sheet |
+| Ctrl+; (today's date), Ctrl+Shift+: (the time) | The same keys | Sheet |
 | Paste Special → Values (Ctrl+Shift+V) | Ctrl+Shift+V | Sheet |
 | Copy / paste with Excel | Ctrl+C / Ctrl+V both ways | Grid and Sheet |
 | Sort, custom sort by several columns | Click a header; Shift+click more | Grid · Sheet: sort the selection |

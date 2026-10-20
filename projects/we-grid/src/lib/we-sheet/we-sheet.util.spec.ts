@@ -322,3 +322,13 @@ describe('weSheetRemoveDuplicates', () => {
     expect(weSheetRemoveDuplicates(out, { c1: 0, r1: 0, c2: 2, r2: 1 }, () => String(Math.random())).removed).toBe(0);
   });
 });
+
+describe('times of day', () => {
+  it('reads typed times and shows them in the locale', () => {
+    expect(weSheetParseInput('14:30', '.')).toEqual({ value: 14.5 / 24, format: 'time' });
+    expect(weSheetParseInput('9:05:30', '.').format).toBe('time');
+    expect(weSheetParseInput('24:00', '.')).toEqual({ value: '24:00' });
+    expect(weSheetFormatValue(14.5 / 24, 'time', 'en-GB', 'EUR')).toBe('14:30');
+    expect(weSheetFormatValue(45000.75, 'time', 'en-GB', 'EUR')).toBe('18:00');
+  });
+});
