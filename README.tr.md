@@ -187,6 +187,15 @@ ek bundle yok. Her renk, ezebileceğiniz bir `--we-grid-*` custom property'sidir
 
 ![Aynı ekranın koyu temalı hâli](docs/images/dark-theme.png)
 
+### Hesap tablosu: `<we-sheet>` ve `<we-workbook>`
+
+Excel formülleri ve sayı biçimleri, adlandırılmış aralık (`=SUM(Planned)`), filtre düğmeleri, seçili
+kolonların grafiği, seçimi toplayan durum çubuğu ve renkli sayfa sekmeleri —
+[Studio](https://emrecirik.github.io/we-grid/studio/)'nun Bütçe ekranı. Hepsi gerçek bir `.xlsx`
+dosyasına gider ve oradan geri gelir.
+
+![Formüller, adlandırılmış aralık, sütun grafiği, durum çubuğu toplamları ve renkli sekmelerle bir bütçe sayfası](docs/images/sheet.png)
+
 ## Örnek uygulamalar
 
 Üçü de bu workspace'te kayıtlı ve Angular CLI ile çalıştırılabilir

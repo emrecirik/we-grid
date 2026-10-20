@@ -1,5 +1,7 @@
 # `<we-sheet>` — a spreadsheet
 
+![A budget sheet with formulas, a named range, a column chart, status bar totals and coloured sheet tabs](images/sheet.png)
+
 *(0.9.0)* A small spreadsheet in the same package as the grid. It uses the grid's formula engine,
 format palette, theme variables, locale and exporters, so it looks and reads like the grid next to
 it. Where the grid shows records, the sheet is for the tables people otherwise build in Excel:

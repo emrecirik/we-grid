@@ -228,6 +228,15 @@ extra bundle. Every colour is a `--we-grid-*` custom property you can override.
 
 ![Column list submenu with per-column checkboxes](docs/images/column-menu.png)
 
+### The spreadsheet: `<we-sheet>` and `<we-workbook>`
+
+Excel formulas and number formats, a named range (`=SUM(Planned)`), filter buttons, a chart over
+the selection's columns, the status bar adding up the selection and coloured sheet tabs — the
+Budget screen of the [Studio](https://emrecirik.github.io/we-grid/studio/). All of it goes to and
+comes back from a real `.xlsx` file.
+
+![A budget sheet with formulas, a named range, a column chart, status bar totals and coloured sheet tabs](docs/images/sheet.png)
+
 ## Examples
 
 Three full sample applications live in [`SampleUsageProjects/`](SampleUsageProjects/README.md), each
