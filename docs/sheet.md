@@ -35,6 +35,7 @@ export class BudgetComponent {}
 | Insert function *(0.24.0)* | The ƒ button by the formula bar lists every function with its arguments; search by English or Turkish name, pick one (or ↑ ↓ Enter) and it goes into the cell's formula. |
 | Paste values *(0.21.0)* | Ctrl+Shift+V after copying in the sheet pastes the values the copy showed — no formulas, the target cells keep their formats. |
 | Fill down | Ctrl+D copies the top row of the selection down through it, shifting relative references. |
+| Today's date *(0.44.0)* | Ctrl+; writes today's date into the active cell, as a date (`insertToday()`). |
 | Fill handle *(0.17.0)* | Drag the square at the selection's corner down, up or sideways: numbers continue their step (`1, 2` → `3, 4`), dates go on by a day, `Item 9` → `Item 10`, formulas shift, anything else repeats. Double-click it to fill down as far as the column beside goes. `fill(range)` does the same from code; from the keyboard, select the start of the series and the empty cells under it and choose **Fill series down** in the context menu (Shift+F10). |
 | Header row, zebra rows | Row 1 as a header (bold, kept out of sorting, the column titles of an export) and alternate row tint. |
 | Grow | Add a row or a column; pasting past the edge grows the sheet. Drag a column header's edge to resize. |

@@ -621,6 +621,21 @@ describe('WeSheetComponent', () => {
     expect(sheet().painter).toBeNull();
   });
 
+  it('puts today\'s date in the active cell with Ctrl+;', () => {
+    sheet().select('B2');
+    el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: ';', ctrlKey: true, bubbles: true, cancelable: true }));
+    const cell = sheet().getData().cells['B2'];
+    const now = new Date();
+    expect(cell.f).toBe('date');
+    expect(cell.v).toBe(Math.round((Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()) - Date.UTC(1899, 11, 30)) / 86400000));
+    // A dropdown-list cell refuses it
+    sheet().setData({ version: 1, rows: 2, cols: 2, cells: { A1: { l: ['Yes', 'No'] } } });
+    sheet().select('A1');
+    sheet().insertToday();
+    expect(sheet().getData().cells['A1']).toEqual({ l: ['Yes', 'No'] });
+    expect(sheet().notice).toBe(sheet().locale.sheetListInvalid);
+  });
+
   it('removes duplicate rows under the header, ignoring case, and says how many', () => {
     sheet().setData({ version: 1, rows: 6, cols: 2, headerRow: true, cells: { A1: { v: 'City' }, A2: { v: 'Izmir' }, A3: { v: 'izmir' }, A4: { v: 'Bursa' }, A5: { v: 'Izmir' } } });
     fixture.detectChanges();

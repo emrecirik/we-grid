@@ -2,6 +2,12 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.44.0 — 2026-10-20
+
+### Added
+
+- Ctrl+; in the sheet writes today's date into the active cell, as in Excel (`insertToday()`).
+
 ## 0.43.0 — 2026-10-20
 
 ### Added

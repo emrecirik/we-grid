@@ -603,6 +603,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
         lower === 'i' ? (this.toggleFlag('italic'), true) :
         lower === 'u' ? (this.toggleFlag('underline'), true) :
         lower === 'd' ? (this.fillDown(), true) :
+        // Shift is allowed: on several layouts (Turkish Q among them) ; is a shifted key
+        key === ';' ? (this.insertToday(), true) :
         key.startsWith('Arrow') ? (this.jump(key, event.shiftKey), true) :
         false;
       if (handled) event.preventDefault();
@@ -1704,6 +1706,22 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (removed) this.commit(data);
     this.notice = this.locale.sheetDuplicatesRemoved(removed);
     this.cdr.markForCheck();
+  }
+
+  /** Today's date in the active cell, as a date — Ctrl+; */
+  insertToday(): void {
+    if (this.readonly) return;
+    // A dropdown-list cell takes only its choices
+    if (this.sheet.cells[weSheetAddress(this.active.col, this.active.row)]?.l) {
+      this.notice = this.locale.sheetListInvalid;
+      this.cdr.markForCheck();
+      return;
+    }
+    const now = new Date();
+    const iso = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const next = this.cloneForEdit(this.active.row + 1, this.active.col + 1);
+    this.writeInput(next, this.active.col, this.active.row, iso);
+    this.commit(next);
   }
 
   /** Copies the top row of the selection down through it, shifting relative references — Ctrl+D */
