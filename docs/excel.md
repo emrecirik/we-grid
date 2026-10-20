@@ -30,6 +30,7 @@ browser with no dependency beyond Angular CDK.
 | Subtotals, outline | Grouping with group summaries, several levels | Grid — [grouping.md](grouping.md) |
 | Macros (record, edit, buttons) | A safe step language — recorder, editor, toolbar buttons, your own TypeScript commands | Grid — [macros.md](macros.md) |
 | Custom views | Saved views, shareable as a link | Grid — [saved-views.md](saved-views.md) |
+| Print / Save as PDF | The PDF button — the rows shown, in the theme's print colours | Grid and Sheet |
 | Open / save .xlsx | Import and export; the sheet keeps formulas, number formats and every sheet | Grid and Sheet — [export-import.md](export-import.md) |
 | Get Data (a database) | The we-report data protocol with .NET, Java, Node.js, Python, Go and PHP backends | [data-sources.md](data-sources.md) |
 

@@ -47,7 +47,8 @@ const en = {
     'Ctrl+D fills a formula down, Ctrl+Z undoes, the toolbar styles and formats cells.',
     'Drag the small square at the corner of a selection to fill a series (1, 2 → 3, 4…); the Approval column is a dropdown list — right-click → Dropdown list… to make your own.',
     'Right-click for insert/delete rows and columns, notes, conditional formatting and dropdown lists; Σ sums, Ctrl+F finds and replaces, the chart button charts a selection.',
-    'The filter buttons in the header row hide rows like Excel’s AutoFilter; Excel (.xlsx) saves every sheet with its formulas, and opening an .xlsx brings them back.'
+    'The filter buttons in the header row hide rows like Excel’s AutoFilter; Excel (.xlsx) saves every sheet with its formulas, and opening an .xlsx brings them back.',
+    'The toolbar merges and centres a selection, draws borders and wraps text; Table options → Freeze panes keeps the rows above and the columns before the active cell in view; PDF prints the sheet.'
   ],
   tabData: 'Your database',
   tabPivot: 'Pivot',
@@ -109,7 +110,8 @@ const tr: typeof en = {
     'Ctrl+D formülü aşağı doldurur, Ctrl+Z geri alır; araç çubuğu hücreleri biçimlendirir.',
     'Seçimin köşesindeki küçük kareyi sürükleyerek seri doldurun (1, 2 → 3, 4…); Onay kolonu bir açılır liste — kendi listeniz için sağ tık → Açılır liste…',
     'Sağ tıkla satır/kolon ekleyip silin, not, koşullu biçimlendirme ve açılır liste ekleyin; Σ toplasın, Ctrl+F bulup değiştirsin, grafik düğmesi seçimi grafiğe çevirsin.',
-    'Başlık satırındaki filtre düğmeleri Excel’in Otomatik Filtresi gibi satır gizler; Excel (.xlsx) her sayfayı formülleriyle kaydeder, bir .xlsx açınca hepsi geri gelir.'
+    'Başlık satırındaki filtre düğmeleri Excel’in Otomatik Filtresi gibi satır gizler; Excel (.xlsx) her sayfayı formülleriyle kaydeder, bir .xlsx açınca hepsi geri gelir.',
+    'Araç çubuğu seçimi birleştirip ortalar, kenarlık çizer, metni kaydırır; Tablo seçenekleri → Bölmeleri dondur etkin hücrenin üstündeki satırları ve solundaki kolonları sabitler; PDF sayfayı yazdırır.'
   ],
   tabData: 'Veritabanınız',
   tabPivot: 'Pivot',

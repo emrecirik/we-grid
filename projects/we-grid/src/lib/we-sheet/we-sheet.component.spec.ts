@@ -259,6 +259,30 @@ describe('WeSheetComponent', () => {
     expect(sheet().getData().cells['C3'].b).toBe('trbl');
   });
 
+  it('keeps merges whole for fill, AutoSum and borders, and edits dates as dates', () => {
+    sheet().setData({ version: 1, rows: 6, cols: 4, cells: { A1: { v: 'a' }, B1: { v: 'b' } }, merges: ['A2:B3'] });
+    sheet().select('A1:B1');
+    sheet().fill({ c1: 0, r1: 0, c2: 1, r2: 3 });
+    expect(sheet().getData().cells['B2']).toBeUndefined();
+    expect(sheet().getData().cells['A3']).toBeUndefined();
+    sheet().setData({ version: 1, rows: 6, cols: 4, cells: { A1: { v: 1 }, A2: { v: 2 } }, merges: ['A3:B3'] });
+    sheet().select('A3');
+    sheet().autoSum();
+    expect(sheet().getData().cells['A3'].v).toBe('=SUM(A1:A2)');
+    sheet().setData({ version: 1, rows: 6, cols: 4, cells: {}, merges: ['A1:C1'] });
+    sheet().select('A1');
+    sheet().setBorders('outside');
+    expect(sheet().getData().cells['A1'].b).toBe('trbl');
+    sheet().select('D4');
+    sheet().setCell('D4', '1/15/2026');
+    sheet().select('D4');
+    fixture.detectChanges();
+    expect(el().querySelector<HTMLInputElement>('.we-sheet__formula')!.value).toBe('01/15/2026');
+    sheet().setFormat('number');
+    sheet().setCell('D4', '2/1/2026');
+    expect(sheet().getData().cells['D4'].f).toBe('date');
+  });
+
   it('pastes values only after Ctrl+Shift+V', () => {
     sheet().setCell('A1', 4);
     sheet().setCell('B1', '=A1*2');

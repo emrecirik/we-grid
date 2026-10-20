@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.30.1 — 2026-10-20
+
+Spreadsheet fixes. A patch release.
+
+### Fixed
+
+- Excel export writes the formatting of empty cells (borders, wrap, alignment, number formats),
+  and a bordered merge's outline on its edge cells, as Excel draws it.
+- The fill handle and *Fill series* no longer write hidden values under a merge.
+- AutoSum on a selected merge sums into it; *Outside* and *Bottom* borders reach a merge's far
+  edges; a border on a line a merge covers is drawn on the merge; borders respect `readonly` and
+  leave filtered-out rows alone.
+- Dates are edited as the locale writes them (the formula bar showed `46037`), so Find and Replace
+  on dates works; a date (or a percentage) typed into a number-formatted cell takes its format.
+- Typed dates: `2026/01/15` is a date; `1.2.10` stays text where the month comes first (en-US);
+  serials before March 1900 match Excel's, and years before 1900 stay text.
+- Studio tips and the Excel guide mention merge, borders, wrap, freeze panes and PDF.
+
 ## 0.30.0 — 2026-10-20
 
 PDF from the spreadsheet. A minor release.

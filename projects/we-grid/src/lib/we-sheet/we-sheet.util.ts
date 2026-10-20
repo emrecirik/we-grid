@@ -82,9 +82,10 @@ export function weSheetParseDate(text: string, order: 'dmy' | 'mdy' = 'dmy'): nu
   let y: number;
   let m: number;
   let d: number;
-  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(text);
-  const local = iso ? null : /^(\d{1,2})([./-])(\d{1,2})\2(\d{4}|\d{2})$/.exec(text);
-  if (iso) [y, m, d] = [Number(iso[1]), Number(iso[2]), Number(iso[3])];
+  const iso = /^(\d{4})([-/.])(\d{1,2})\2(\d{1,2})$/.exec(text);
+  // A dot separates dates only where the day comes first — `1.2.10` in en-US is a version, not a date
+  const local = iso ? null : (order === 'dmy' ? /^(\d{1,2})([./-])(\d{1,2})\2(\d{4}|\d{2})$/ : /^(\d{1,2})([/-])(\d{1,2})\2(\d{4}|\d{2})$/).exec(text);
+  if (iso) [y, m, d] = [Number(iso[1]), Number(iso[3]), Number(iso[4])];
   else if (local) {
     const [a, b] = [Number(local[1]), Number(local[3])];
     [d, m] = order === 'dmy' ? [a, b] : [b, a];
@@ -93,8 +94,10 @@ export function weSheetParseDate(text: string, order: 'dmy' | 'mdy' = 'dmy'): nu
   } else return null;
   const ms = Date.UTC(y, m - 1, d);
   const check = new Date(ms);
-  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== m - 1 || check.getUTCDate() !== d) return null;
-  return Math.round((ms - Date.UTC(1899, 11, 30)) / 86400000);
+  if (y < 1900 || check.getUTCFullYear() !== y || check.getUTCMonth() !== m - 1 || check.getUTCDate() !== d) return null;
+  const serial = Math.round((ms - Date.UTC(1899, 11, 30)) / 86400000);
+  // Excel counts a 29 February 1900 that never was, so its serials before March 1900 are one lower
+  return serial < 61 ? serial - 1 : serial;
 }
 
 /** A number written with the locale's separators (the other one as an optional thousands separator), or null */
@@ -847,7 +850,9 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
       const cells: WeGridXlsxCell[] = [];
       for (const [ref, cell] of Object.entries(data.cells)) {
         const at = weSheetParseAddress(ref);
-        if (!at || cell.v === undefined || cell.v === null || cell.v === '') continue;
+        if (!at) continue;
+        const empty = cell.v === undefined || cell.v === null || cell.v === '';
+        if (empty && !cell.b && !cell.a && !cell.w && !cell.f && !cell.s) continue;
         const isFormula = typeof cell.v === 'string' && cell.v.startsWith('=');
         const value = isFormula ? evaluator.value(at.col, at.row) : cell.v;
         const error = value instanceof WeGridFormulaError;
@@ -863,6 +868,22 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
           align: cell.a,
           wrap: cell.w
         });
+      }
+      // Excel draws a merge's outline from its edge cells: the top-left cell's borders go round it
+      for (const label of data.merges ?? []) {
+        const [a, b] = label.split(':').map((p) => weSheetParseAddress(p));
+        const sides = a ? data.cells[weSheetAddress(a.col, a.row)]?.b : undefined;
+        if (!a || !b || !sides) continue;
+        for (let r = a.row; r <= b.row; r++) {
+          for (let c = a.col; c <= b.col; c++) {
+            if (r === a.row && c === a.col) continue;
+            const edge = weSheetBorderSides(
+              (r === a.row && sides.includes('t') ? 't' : '') + (r === b.row && sides.includes('b') ? 'b' : '') +
+              (c === a.col && sides.includes('l') ? 'l' : '') + (c === b.col && sides.includes('r') ? 'r' : '')
+            );
+            if (edge) cells.push({ ref: weSheetAddress(c, r), value: null, borders: edge });
+          }
+        }
       }
       const widths: Record<number, number> = {};
       for (const [letter, w] of Object.entries(data.widths ?? {})) widths[weGridColumnIndex(letter)] = w;

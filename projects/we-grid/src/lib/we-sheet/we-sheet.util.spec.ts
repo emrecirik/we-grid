@@ -8,6 +8,7 @@ import {
   weSheetFill,
   weSheetCleanList,
   weSheetFromCells,
+  weSheetParseDate,
   weSheetSanitizeMerges,
   weSheetEmpty,
   weSheetFormatValue,
@@ -278,5 +279,15 @@ describe('frozen panes', () => {
     expect(weSheetInsert(data, 'row', 0, -2).freeze).toEqual({ rows: 0, cols: 1 });
     expect(weSheetInsert(data, 'col', 0, -1).freeze).toEqual({ rows: 2, cols: 0 });
     expect(weSheetInsert({ ...data, freeze: { rows: 0, cols: 1 } }, 'col', 0, -1).freeze).toBeUndefined();
+  });
+});
+
+describe('typed dates (0.30.1 fixes)', () => {
+  it('reads year-first dates with any separator, keeps versions as text and matches Excel serials', () => {
+    expect(weSheetParseDate('2026/01/15')).toBe(46037);
+    expect(weSheetParseInput('1.2.10', '.', 'mdy').value).toBe('1.2.10');
+    expect(weSheetParseDate('1900-01-01')).toBe(1);
+    expect(weSheetParseDate('1900-03-01')).toBe(61);
+    expect(weSheetParseDate('1899-12-31')).toBeNull();
   });
 });

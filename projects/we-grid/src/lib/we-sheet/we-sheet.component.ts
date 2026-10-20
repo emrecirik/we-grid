@@ -432,7 +432,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (this.readonly) return;
     const s = this.selection;
     if (target.c1 > s.c1 || target.r1 > s.r1 || target.c2 < s.c2 || target.r2 < s.r2) return;
-    this.commit(weSheetFill(this.cloneForEdit(target.r2 + 1, target.c2 + 1), s, target));
+    this.commit(this.keepCovered(weSheetFill(this.cloneForEdit(target.r2 + 1, target.c2 + 1), s, target)));
     this.selection = target;
     this.afterSelection();
   }
@@ -451,7 +451,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     let r2 = s.r1;
     while (r2 < s.r2 && filled(r2 + 1)) r2++;
     if (r2 === s.r2 || !filled(s.r1) || this.readonly) return;
-    this.commit(weSheetFill(this.cloneForEdit(s.r2 + 1, s.c2 + 1), { ...s, r2 }, s));
+    this.commit(this.keepCovered(weSheetFill(this.cloneForEdit(s.r2 + 1, s.c2 + 1), { ...s, r2 }, s)));
     this.afterSelection(false);
   }
 
@@ -1322,7 +1322,9 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.closeMenu();
     if (this.readonly) return;
     this.commitEdit();
-    const writes = weSheetAutoSum(this.selection, (c, r) => typeof this.evaluator.value(c, r) === 'number');
+    const s = this.selection;
+    const range = this.selectionIsMerge ? { c1: s.c1, r1: s.r1, c2: s.c1, r2: s.r1 } : s;
+    const writes = weSheetAutoSum(range, (c, r) => typeof this.evaluator.value(c, r) === 'number');
     if (!writes.length) return;
     const next = this.cloneForEdit(Math.max(...writes.map((w) => w.row)) + 1, this.sheet.cols);
     for (const w of writes) this.writeInput(next, w.col, w.row, w.formula);
@@ -1803,8 +1805,10 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
    */
   private applyBorders(view: CellView[][]): void {
     const ink = 'var(--we-grid-font-color, #212529)';
+    const merges = this.parseMerges();
     const paint = (r: number, c: number, side: 'right' | 'bottom') => {
-      const target = view[r]?.[c];
+      const m = merges.find((x) => c >= x.c1 && c <= x.c2 && r >= x.r1 && r <= x.r2);
+      const target = m ? view[m.r1]?.[m.c1] : view[r]?.[c];
       if (target) target.css = { ...(target.css ?? {}), [`border-${side}-color`]: ink };
     };
     for (const [key, cell] of Object.entries(this.sheet.cells)) {
@@ -1821,19 +1825,26 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** Borders on the selection: every line, the outline, the bottom line, or none */
   setBorders(kind: 'all' | 'outside' | 'bottom' | 'none'): void {
     this.openPalette = null;
+    if (this.readonly) return;
+    this.commitEdit();
     const s = this.selection;
     const next = this.cloneForEdit(0, 0);
     for (let r = s.r1; r <= s.r2; r++) {
+      if (this.hiddenRows.has(r)) continue;
       for (let c = s.c1; c <= s.c2; c++) {
         const key = weSheetAddress(c, r);
         const cell = next.cells[key] ?? {};
+        // A merge's top-left cell stands for the whole merge: its right and bottom are the merge's
+        const m = this.mergeAt({ col: c, row: r });
+        const endCol = m && m.c1 === c && m.r1 === r ? m.c2 : c;
+        const endRow = m && m.c1 === c && m.r1 === r ? m.r2 : r;
         let sides = kind === 'none' ? '' : kind === 'all' ? 'trbl' : cell.b ?? '';
         if (kind === 'outside') {
           if (r === s.r1) sides += 't';
-          if (r === s.r2) sides += 'b';
+          if (endRow === s.r2) sides += 'b';
           if (c === s.c1) sides += 'l';
-          if (c === s.c2) sides += 'r';
-        } else if (kind === 'bottom' && r === s.r2) sides += 'b';
+          if (endCol === s.c2) sides += 'r';
+        } else if (kind === 'bottom' && endRow === s.r2) sides += 'b';
         const b = weSheetBorderSides(sides);
         const { b: _b, ...rest } = cell;
         this.putCell(next, c, r, this.compact(b ? { ...rest, b } : rest));
@@ -1861,6 +1872,21 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
         if (target && css[field]) target.css = { ...(target.css ?? {}), ...css[field] };
       }
     }
+  }
+
+  /** `next` with the cells under each merge's top-left cell as they were — what a fill must not change */
+  private keepCovered(next: WeSheetData): WeSheetData {
+    for (const m of this.mergeRanges) {
+      for (let r = m.r1; r <= m.r2; r++) {
+        for (let c = m.c1; c <= m.c2; c++) {
+          if (r === m.r1 && c === m.c1) continue;
+          const key = weSheetAddress(c, r);
+          if (this.sheet.cells[key]) next.cells[key] = this.sheet.cells[key];
+          else delete next.cells[key];
+        }
+      }
+    }
+    return next;
   }
 
   /** Merged cells: the top-left one spans the range (its shown rows), the others are not drawn */
@@ -2022,6 +2048,10 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const v = this.sheet.cells[weSheetAddress(col, row)]?.v;
     if (v === null || v === undefined) return '';
     if (typeof v === 'boolean') return v ? 'TRUE' : 'FALSE';
+    if (typeof v === 'number' && this.sheet.cells[weSheetAddress(col, row)]?.f === 'date') {
+      const ms = Date.UTC(1899, 11, 30) + Math.round(v) * 86400000;
+      return new Intl.DateTimeFormat(this.locale.intlLocale, { day: '2-digit', month: '2-digit', year: 'numeric', timeZone: 'UTC' }).format(new Date(ms));
+    }
     if (typeof v === 'number') return new Intl.NumberFormat(this.locale.intlLocale, { maximumFractionDigits: 15, useGrouping: false }).format(v);
     return v;
   }
@@ -2043,7 +2073,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const cell: WeSheetCell = { ...(target.cells[key] ?? {}) };
     if (parsed.value === null || parsed.value === undefined) delete cell.v;
     else cell.v = parsed.value;
-    if (parsed.format && !cell.f) cell.f = parsed.format;
+    if (parsed.format) cell.f = parsed.format;
     this.putCell(target, col, row, cell);
   }
 

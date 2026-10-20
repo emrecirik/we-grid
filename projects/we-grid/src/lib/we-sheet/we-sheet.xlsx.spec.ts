@@ -166,3 +166,14 @@ describe('borders in Excel files', () => {
     expect(wrapped).toContain('<alignment wrapText="1"/>');
   });
 });
+
+describe('formatting of empty cells in Excel files', () => {
+  it('writes borders and wrap of empty cells and the outline of a bordered merge', async () => {
+    const text = await new Response(
+      weSheetWorkbookXlsx([{ name: 'E', data: { version: 1, rows: 3, cols: 4, cells: { A1: { v: 'T', b: 'trbl' }, D1: { w: true } }, merges: ['A1:C1'] } }])
+    ).text();
+    expect(text).toContain('<c r="B1"');
+    expect(text).toContain('<c r="C1"');
+    expect(text).toContain('<c r="D1"');
+  });
+});
