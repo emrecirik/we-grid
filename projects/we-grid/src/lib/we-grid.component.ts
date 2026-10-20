@@ -3479,7 +3479,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.recording?.extra.push({ op: 'export', format });
     const scope = this.exportScope;
     const rows = scope === 'selected' ? this.selectedRows : this.treeActive ? this.treeFilteredRows : this.displayData;
-    const table = this.buildExportTable(rows);
+    // Only an Excel file carries the cells' look — CSV and PDF are spared working it out
+    const table = this.buildExportTable(rows, format === 'xlsx');
     this.exportRequest.emit({ format, scope, rows, table });
     if (this.isServerExport) return;
     void Promise.resolve(this.exporter.export(table, format)).catch((error: unknown) => {
@@ -3488,14 +3489,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   /** Flattens the current column/row state into the renderer-agnostic shape every exporter consumes */
-  private buildExportTable(rows: T[]): WeGridExportTable {
+  private buildExportTable(rows: T[], withStyles = false): WeGridExportTable {
     const columns = this.exportColumns;
     const title = this.exportFileName || this.gridKey;
     // The look of each cell — column styles and format rules — for exporters that can carry it
     const looks = new Map<T, Record<string, WeGridCellStyle>>();
     const columnStyles = new Map<string, WeGridCellStyle>();
     for (const c of columns) if (c.style) columnStyles.set(c.field, c.style);
-    weGridResolveFormats(rows, this.activeFormatRules, columns.map((c) => c.field), this.readCellValue, columnStyles, this.evaluateRowFormula, looks);
+    if (withStyles) weGridResolveFormats(rows, this.activeFormatRules, columns.map((c) => c.field), this.readCellValue, columnStyles, this.evaluateRowFormula, looks);
     return {
       fileName: title,
       title,

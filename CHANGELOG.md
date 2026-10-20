@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.36.1 — 2026-10-20
+
+### Fixed
+
+- CSV and PDF exports no longer work out the cells' look, which only the Excel file uses
+  (`WeGridExportRow.styles` is set on Excel exports).
+
 ## 0.36.0 — 2026-10-20
 
 The grid's look in its Excel export. A minor release.

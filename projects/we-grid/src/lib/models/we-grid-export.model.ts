@@ -43,7 +43,7 @@ export interface WeGridExportRow {
   values: unknown[];
   /** Display text of the same cells — exactly what the grid renders (including `displayValue`) */
   text: string[];
-  /** How each cell looks — the column's style and the matching format rules; absent when no cell is styled */
+  /** How each cell looks — the column's style and the matching format rules. Set on Excel exports; absent when no cell is styled */
   styles?: (WeGridCellStyle | null)[];
 }
 
