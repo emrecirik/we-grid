@@ -973,6 +973,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * affect this warning's visibility any more.
    */
   get isFilteringPageOnly(): boolean {
+    if (this.serverSide && this.searchText && !this.isServerSearch) return true;
     return this.serverSide && !this.isServerFilter && this.hasColumnFilters && this.hasActiveFilters;
   }
 

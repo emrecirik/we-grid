@@ -116,6 +116,9 @@ describe('weGridResolveFormats', () => {
 
   it('ignores rules on columns that are not shown', () => {
     expect(weGridResolveFormats(rows, [cond('gt', 0)], ['name'], read).size).toBe(0);
+    // …but a whole-row rule still styles the row
+    const rowRule = weGridResolveFormats(rows, [{ ...cond('gt', 40), applyTo: 'row' }], ['name'], read);
+    expect(rowRule.get(rows[2])?.['name']['font-weight']).toBe('600');
   });
 });
 

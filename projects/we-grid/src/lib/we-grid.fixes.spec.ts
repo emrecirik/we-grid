@@ -100,6 +100,12 @@ describe('WeGridComponent — 0.33.1 fixes', () => {
     expect(String(grid.cellValue(host.data[1], a))).toBe('#CIRC!');
   });
 
+  it('warns that only the loaded page is searched on a server-side grid that searches itself', () => {
+    host.grid.serverSide = true;
+    host.grid.setSearch('A');
+    expect(host.grid.isFilteringPageOnly).toBeTrue();
+  });
+
   it('stripes rows within each group', () => {
     host.grid.setGrouping(['name']);
     fixture.detectChanges();

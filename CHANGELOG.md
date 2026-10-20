@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.35.2 — 2026-10-20
+
+### Fixed
+
+- A server-side grid that searches only its loaded page says so ("Only this page is searched"),
+  as it does for filters.
+- A whole-row format rule keeps working while its own column is hidden.
+
 ## 0.35.1 — 2026-10-20
 
 ### Fixed

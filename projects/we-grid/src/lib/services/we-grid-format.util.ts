@@ -112,7 +112,8 @@ export function weGridResolveFormats<T>(
   formula?: WeGridFormatFormulaFn<T>
 ): Map<T, Record<string, WeGridCellCss>> {
   const result = new Map<T, Record<string, WeGridCellCss>>();
-  const active = rules.filter((r) => fields.includes(r.field));
+  // A rule that styles the whole row keeps working while its own column is hidden
+  const active = rules.filter((r) => fields.includes(r.field) || r.applyTo === 'row');
   if (active.length === 0 && columnStyles.size === 0) return result;
 
   const stats = new Map<WeGridFormatRule, RuleStats>();
