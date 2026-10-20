@@ -255,6 +255,12 @@ export interface WeGridColumnDef<T> {
    */
   summary?: WeGridSummaryFunction;
   /**
+   * Makes the column's average (`'avg'`, in the summary row and in group subtotals) a weighted one:
+   * sum(value × weight) / sum(weight), the weight read from this field of the same row — a unit
+   * cost averaged by quantity, say. Rows whose value or weight isn't a number are left out.
+   */
+  summaryWeightField?: string;
+  /**
    * Base text style of the column's cells — bold, italic, a text colour and a fill from the theme's
    * format palette. With the grid's `formatting` input on, the user can change it from the column
    * menu's Format panel; their choice is saved with the layout and wins over this default.

@@ -538,6 +538,11 @@ A few rules the grid follows:
   a page that was never loaded.
 - **Ticks survive**: a ticked value missing from the unsearched result stays listed and ticked. A
   search result is shown as returned.
+- **Columns the backend can't list** *(0.50.0)*: emit `null` instead of a result (`return of(null)`
+  for a date, a counter, free text). The grid switches that column to the operator filter —
+  the popover reopens as one, the funnel stays — and never asks the provider about it again while
+  the grid lives. Writing `headerFilterMode: 'operator'` on the column up front does the same
+  without the round trip.
 - **Failure** shows an error line and a Retry button instead of an empty list.
 - **Keep `limit` at or below what your backend accepts** in one `IN (...)`, so a select-all over the
   listed values can always be applied.

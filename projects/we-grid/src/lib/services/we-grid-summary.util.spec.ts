@@ -22,6 +22,18 @@ describe('computeWeGridSummary', () => {
     expect(computeWeGridSummary(rows, 'qty', 'avg')).toBe(35 / 3);
   });
 
+  it('avg with a weight field — sum(value × weight) / sum(weight), skipping rows without both numbers', () => {
+    const costs = [
+      { unit: 10, qty: 1 },
+      { unit: 20, qty: 3 },
+      { unit: null, qty: 5 },
+      { unit: 99, qty: null }
+    ];
+    expect(computeWeGridSummary(costs, 'unit', 'avg', undefined, 'qty')).toBe(70 / 4);
+    expect(computeWeGridSummary(costs, 'unit', 'sum', undefined, 'qty')).toBe(129);
+    expect(computeWeGridSummary([{ unit: 5, qty: 0 }], 'unit', 'avg', undefined, 'qty')).toBeNull();
+  });
+
   it('min/max — returns the smallest/largest value, excluding null', () => {
     expect(computeWeGridSummary(rows, 'qty', 'min')).toBe(5);
     expect(computeWeGridSummary(rows, 'qty', 'max')).toBe(20);

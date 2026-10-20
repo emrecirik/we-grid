@@ -107,6 +107,7 @@ export function mergeGridLayout<T>(
           ? 'none'
           : def.groupSummary,
       summary,
+      summaryWeightField: def.summaryWeightField,
       formula: def.formula,
       userFormula: !!(def as { userFormula?: boolean }).userFormula,
       style: savedCol?.style ? (weGridSanitizeCellStyle(savedCol.style) ?? {}) : def.cellStyle,

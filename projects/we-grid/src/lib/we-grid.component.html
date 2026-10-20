@@ -309,6 +309,20 @@
     </div>
   }
 
+  @if (pendingSharedView) {
+    <div class="we-grid__notice we-grid__shared-view" role="alert">
+      <span [innerHTML]="icon('link')" aria-hidden="true"></span>
+      <span class="we-grid__notice-text">
+        {{ locale.sharedViewPrompt(pendingSharedView.name) }}
+        @for (line of pendingSharedViewDetails; track $index) {
+          <br />{{ line }}
+        }
+      </span>
+      <button type="button" class="we-grid__filter-toggle-btn" (click)="applySharedView()">{{ locale.sharedViewApply }}</button>
+      <button type="button" class="we-grid__filter-toggle-btn" (click)="dismissSharedView()">{{ locale.sharedViewIgnore }}</button>
+    </div>
+  }
+
   @if (notice) {
     <div class="we-grid__notice" [class.we-grid__notice--error]="notice.error" role="status" aria-live="polite">
       <span [innerHTML]="icon(notice.error ? 'warning' : 'check')" aria-hidden="true"></span>

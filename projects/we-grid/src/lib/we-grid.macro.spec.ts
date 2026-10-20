@@ -95,6 +95,13 @@ describe('WeGridComponent — macros', () => {
     expect(host.grid.density).toBe('compact');
   });
 
+  it('leaves the name of the active view alone — a macro is not a saved view', async () => {
+    host.grid.activeViewName = 'Mine';
+    await host.grid.runScript('SORT [Quantity] DESC');
+    expect(ids()).toEqual([3, 2, 1]);
+    expect(host.grid.activeViewName).toBe('Mine');
+  });
+
   it('sets values through formulas, only where the condition holds, and skips read-only columns', async () => {
     const errors = await host.grid.runScript('SET [Status] = IF([Quantity] > 10, "bulk", [Status]) WHERE [City] = "Izmir"\nSET [Double] = 1');
     expect(host.data.map((r) => r.status)).toEqual(['open', 'open', 'bulk']);

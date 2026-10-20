@@ -82,8 +82,11 @@ export interface WeGridChecklistValuesResult {
  * Supplies a checklist's values from outside the loaded rows — typically a thin wrapper around an
  * HTTP call. An Observable rather than a Promise so the grid can cancel a request as soon as the
  * search box changes again; the library itself still makes no request of its own.
+ *
+ * Emitting `null` says the backend can't list this column's values (a date, a counter, free text):
+ * the grid then switches the column to the operator filter for the rest of the grid's life.
  */
-export type WeGridChecklistValuesProvider = (request: WeGridChecklistValuesRequest) => Observable<WeGridChecklistValuesResult>;
+export type WeGridChecklistValuesProvider = (request: WeGridChecklistValuesRequest) => Observable<WeGridChecklistValuesResult | null>;
 
 /** Key of the "(Empty)" checklist entry — every blank cell value normalizes to it */
 export const WE_GRID_BLANK_FILTER_KEY = '\u0000blank';

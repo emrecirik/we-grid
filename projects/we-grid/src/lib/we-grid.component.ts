@@ -745,6 +745,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private readonly warnedFilterOperatorFields = new Set<string>();
   /** Same once-per-field rule for a checklist whose provider is missing or can't apply */
   private readonly warnedChecklistSourceFields = new Set<string>();
+  /** Columns whose checklist the provider declined (emitted null) — they filter with operators from then on */
+  private readonly checklistUnsupportedFields = new Set<string>();
 
   // ─── Row editing state ───────────────────────────────────────────────
   /** The user's saved views, see `savedViews` */
@@ -755,6 +757,13 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   activeViewName: string | null = null;
   /** A view link is applied once, on the first layout load, not again on every reload of the layout */
   private sharedViewChecked = false;
+  /**
+   * The view a shared link carries, held until the user applies or ignores it — a link must not be
+   * able to filter rows away or rename headers behind the user's back
+   */
+  pendingSharedView: WeGridSavedView | null = null;
+  /** What the pending shared view changes, one line per kind — its filters, renamed headers, added columns */
+  pendingSharedViewDetails: string[] = [];
 
   /**
    * The paste target cell — set by a click on an editable grid, see `allowPaste`. Held by row key,
@@ -989,10 +998,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /**
    * Whether this column's header shows a funnel icon. A checklist column carries its own, so
    * `headerFilterMode: 'checklist'` works without turning the whole filter row on; every other
-   * column keeps the previous rule (visible only while `filterRow` is true).
+   * column keeps the previous rule (visible only while `filterRow` is true). A checklist column the
+   * provider declined keeps its funnel, now opening the operator filter.
    */
   showFilterIcon(col: WeGridInternalColumn<T>): boolean {
-    return col.filterable && (this.filterRow || col.headerFilterMode === 'checklist');
+    return col.filterable && (this.filterRow || col.headerFilterMode === 'checklist' || this.checklistUnsupportedFields.has(col.field));
   }
 
   /** Active filter chips — "Column: value ×" style, shown in the strip above the table (see we-grid.component.html) */
@@ -1467,11 +1477,13 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** The developer's columns plus the formula columns the user added */
   get columnDefs(): WeGridColumnDef<T>[] {
-    if (this.userFormulaColumns.length === 0) return this.columns;
+    const unsupported = this.checklistUnsupportedFields;
+    const columns = unsupported.size ? this.columns.map((c) => (unsupported.has(c.field) ? { ...c, headerFilterMode: 'operator' as const } : c)) : this.columns;
+    if (this.userFormulaColumns.length === 0) return columns;
     const added = this.userFormulaColumns.map(
       (c) => ({ field: c.field, header: c.header, formula: c.formula, type: c.type ?? 'number', align: 'end', userFormula: true }) as WeGridColumnDef<T>
     );
-    return [...this.columns, ...added];
+    return [...columns, ...added];
   }
 
   /** The column a formula's `[Name]` means — its field or its header, case-insensitively */
@@ -1639,7 +1651,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.macroRunning = true;
     let view: WeGridSavedView | null = null;
     const flush = (): void => {
+      // The gathered steps are not a saved view — the Views button keeps the name it had
+      const active = this.activeViewName;
       if (view) this.applyView(view);
+      this.activeViewName = active;
       view = null;
     };
     const work = (): WeGridSavedView => (view ??= this.getCurrentView('macro'));
@@ -2508,7 +2523,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     componentRef.setInput('valueScale', this.inputScale(col));
 
     componentRef.instance.action.pipe(takeUntil(this.destroy$)).subscribe((action) => this.handleFilterPopoverAction(col, action, origin));
-    if (source === 'provider') this.startChecklistRequests(col);
+    if (source === 'provider') this.startChecklistRequests(col, origin);
 
     componentRef.changeDetectorRef.detectChanges();
     componentRef.instance.focusFirstControl();
@@ -2520,7 +2535,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * outdated request as soon as a newer term arrives — a slow answer for "ist" can never overwrite
    * the list for "istanbul" — and the stream ends with the popover.
    */
-  private startChecklistRequests(col: WeGridInternalColumn<T>): void {
+  private startChecklistRequests(col: WeGridInternalColumn<T>, origin: HTMLElement): void {
     const provider = this.checklistValuesProvider;
     if (!provider) return;
     const requests$ = new Subject<{ search: string | null; debounce: boolean }>();
@@ -2536,8 +2551,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
               const request = this.buildChecklistValuesRequest(col, search);
               this.updateChecklistPopover({ loading: true, loadError: false });
               return defer(() => provider(request)).pipe(
-                map((result): { request: WeGridChecklistValuesRequest; result: WeGridChecklistValuesResult | null } => ({ request, result })),
-                catchError(() => of({ request, result: null }))
+                map((result): { request: WeGridChecklistValuesRequest; result: WeGridChecklistValuesResult | null | 'failed' } => ({ request, result })),
+                catchError(() => of({ request, result: 'failed' as const }))
               );
             })
           );
@@ -2545,7 +2560,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         takeUntil(merge(this.filterPopoverClosed$, this.destroy$))
       )
       .subscribe(({ request, result }) => {
-        if (!result) {
+        if (result === null) {
+          this.useOperatorFilter(col, origin);
+          return;
+        }
+        if (result === 'failed') {
           this.updateChecklistPopover({ loading: false, loadError: true, hasMore: false, options: [] });
           return;
         }
@@ -2558,6 +2577,17 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       });
 
     requests$.next({ search: null, debounce: false });
+  }
+
+  /** The provider can't list this column — reopen its funnel as the operator filter, now and from then on */
+  private useOperatorFilter(col: WeGridInternalColumn<T>, origin: HTMLElement): void {
+    this.checklistUnsupportedFields.add(col.field);
+    for (const c of this.internalColumns) {
+      if (c.field === col.field) c.headerFilterMode = 'operator';
+    }
+    this.closeFilterPopover();
+    if (origin.isConnected) this.openFilterPopover(origin, col);
+    this.cdr.markForCheck();
   }
 
   private buildChecklistValuesRequest(col: WeGridInternalColumn<T>, search: string | null): WeGridChecklistValuesRequest {
@@ -4008,14 +4038,50 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     navigator.clipboard.writeText(link).then(() => this.showNotice(this.locale.viewLinkCopied, false), failed);
   }
 
-  /** Opens the grid in the view a shared link carries — offered for saving under its own name */
+  /** Offers the view a shared link carries — applied only once the user says so, see applySharedView */
   private applyViewFromUrl(): void {
     if (!this.savedViews || typeof window === 'undefined') return;
     const token = new URLSearchParams(window.location.search).get(weGridViewParamName(this.gridKey));
     const view = token ? weGridDecodeView(token) : null;
     if (!view) return;
+    this.pendingSharedView = view;
+    this.pendingSharedViewDetails = this.describeSharedView(view);
+    this.cdr.markForCheck();
+  }
+
+  /** Applies the view a shared link carried — offered for saving under its own name */
+  applySharedView(): void {
+    const view = this.pendingSharedView;
+    if (!view) return;
+    this.dismissSharedView();
     this.applyView(view);
     this.newViewName = view.name;
+  }
+
+  dismissSharedView(): void {
+    this.pendingSharedView = null;
+    this.pendingSharedViewDetails = [];
+    this.cdr.markForCheck();
+  }
+
+  private describeSharedView(view: WeGridSavedView): string[] {
+    const columnOf = (field: string): WeGridInternalColumn<T> | undefined => this.internalColumns.find((c) => c.field === field);
+    const filters = (view.filters ?? []).flatMap((filter) => {
+      const col = columnOf(filter.field);
+      if (!col || !isWeGridFilterActive(filter)) return [];
+      const chipColumn = { type: col.type, format: col.format, minorUnits: col.minorUnits, formatter: col.formatter, header: weGridDisplayHeader(col) };
+      return [weGridFilterChipLabel(chipColumn, filter, this.locale, (value) => this.checklistValueLabel(col, value))];
+    });
+    const renamed = view.columns.flatMap((c) => {
+      const col = columnOf(c.field);
+      return col && c.headerOverride && c.headerOverride !== weGridDisplayHeader(col) ? [`${weGridDisplayHeader(col)} → ${c.headerOverride}`] : [];
+    });
+    const added = (view.formulaColumns ?? []).filter((f) => !columnOf(f.field)).map((f) => f.header);
+    return [
+      ...(filters.length ? [`${this.locale.sharedViewFilters}: ${filters.join('; ')}`] : []),
+      ...(renamed.length ? [`${this.locale.sharedViewRenamed}: ${renamed.join('; ')}`] : []),
+      ...(added.length ? [`${this.locale.sharedViewAdded}: ${added.join('; ')}`] : [])
+    ];
   }
 
   // ─── Copying to Excel ────────────────────────────────────────────────
@@ -4733,15 +4799,33 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
   }
 
+  /**
+   * The width, in px, a column's header needs to show its whole label — the label in the header's
+   * own font plus padding, the funnel and menu buttons and room for a sort arrow. Use it as the
+   * column's `minWidth` to keep long headers from being clipped. Null for an unknown field, or
+   * before the grid is attached to the page (there is no font to measure with yet).
+   */
+  headerFitWidth(field: string): number | null {
+    const col = this.internalColumns.find((c) => c.field === field);
+    const ctx = this.measureCanvas?.getContext('2d');
+    if (!col || !ctx || !(this.elementRef.nativeElement as HTMLElement).isConnected) return null;
+    ctx.font = `600 ${this.gridFont()}`;
+    return Math.ceil(ctx.measureText(weGridDisplayHeader(col)).width + this.headerChromeWidth(col)) + 4;
+  }
+
+  /** The grid's own font — its size differs from the host's (and between densities) */
+  private gridFont(): string {
+    const host = this.elementRef.nativeElement as HTMLElement;
+    const rootStyle = this.computedStyle(host.querySelector<HTMLElement>('.we-grid') ?? host);
+    return rootStyle ? `${rootStyle.fontSize} ${rootStyle.fontFamily}` : '13px sans-serif';
+  }
+
   private autofitColumn(col: WeGridInternalColumn<T>, maxWidth?: number): void {
     const ctx = this.measureCanvas?.getContext('2d');
     if (!ctx) return;
     const host = this.elementRef.nativeElement as HTMLElement;
-    const root = host.querySelector<HTMLElement>('.we-grid') ?? host;
-    // Header and cells are measured in the font they actually render in — the grid's own font
-    // size differs from the host's (and between densities), and the header is bold.
-    const rootStyle = this.computedStyle(root);
-    const font = rootStyle ? `${rootStyle.fontSize} ${rootStyle.fontFamily}` : '13px sans-serif';
+    // Header and cells are measured in the font they actually render in; the header is bold.
+    const font = this.gridFont();
     ctx.font = `600 ${font}`;
     const header = ctx.measureText(weGridDisplayHeader(col)).width + this.headerChromeWidth(col);
     ctx.font = font;

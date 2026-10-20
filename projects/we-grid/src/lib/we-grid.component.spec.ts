@@ -2064,6 +2064,22 @@ describe('WeGridComponent — checklist values from a provider (checklistValuesP
     });
   });
 
+  it('switches a column the provider declines (null) to the operator filter, for good', () => {
+    const provider = jasmine.createSpy('provider').and.returnValue(of(null));
+    open('amount', provider);
+
+    expect(column('amount').headerFilterMode).toBe('operator');
+    expect(popoverRef().instance.column?.headerFilterMode).toBe('operator');
+    expect(component.showFilterIcon(column('amount'))).toBeTrue();
+
+    // A layout re-merge keeps the fallback, and the provider is not asked again
+    (component as unknown as { handleMenuAction: (action: WeGridMenuAction) => void }).handleMenuAction({ type: 'reset-layout' });
+    expect(column('amount').headerFilterMode).toBe('operator');
+    (component as unknown as { closeFilterPopover: () => void }).closeFilterPopover();
+    open('amount');
+    expect(provider).toHaveBeenCalledTimes(1);
+  });
+
   it('labels values by the provider label, then checklistValueLabel, then plain formatting', () => {
     const provider = jasmine
       .createSpy('provider')
@@ -2535,8 +2551,12 @@ describe('WeGridComponent — saved views', () => {
     expect(weGridDecodeView(shared[0].token)).toEqual(component.views[0]);
   });
 
-  it('opens in the view a shared link carries', async () => {
-    const view: WeGridSavedView = { name: 'From a link', columns: [], filters: [{ field: 'city', operator: 'equals', value: 'Izmir' }] };
+  it('offers the view a shared link carries and applies it only on Apply', async () => {
+    const view: WeGridSavedView = {
+      name: 'From a link',
+      columns: [{ field: 'city', visible: true, order: 1, pinned: null, headerOverride: 'Town' }],
+      filters: [{ field: 'city', operator: 'equals', value: 'Izmir' }]
+    };
     const original = window.location.href;
     const url = new URL(original);
     url.searchParams.set(weGridViewParamName('spec-views-grid'), weGridEncodeView(view));
@@ -2544,9 +2564,47 @@ describe('WeGridComponent — saved views', () => {
     try {
       fixture.detectChanges();
       await fixture.whenStable();
+      fixture.detectChanges();
+      expect(component.displayData.length).toBe(3);
+      expect(component.activeViewName).toBeNull();
+      const banner = fixture.nativeElement.querySelector('.we-grid__shared-view') as HTMLElement;
+      expect(banner.textContent).toContain('From a link');
+      expect(component.pendingSharedViewDetails).toEqual(['Filters: City: Izmir', 'Renamed headers: City → Town']);
+
+      component.applySharedView();
+      fixture.detectChanges();
       expect(component.displayData.map((r) => r.code)).toEqual(['B2']);
       expect(component.activeViewName).toBe('From a link');
       expect(component.newViewName).toBe('From a link');
+      expect(fixture.nativeElement.querySelector('.we-grid__shared-view')).toBeNull();
+    } finally {
+      window.history.replaceState(null, '', original);
+    }
+  });
+
+  it('measures the width a header needs to show its whole label', () => {
+    fixture.detectChanges();
+    const short = component.headerFitWidth('city')!;
+    component.applyView({ name: 'Long', columns: [{ field: 'city', visible: true, order: 1, pinned: null, headerOverride: 'A much longer city header' }] });
+    fixture.detectChanges();
+    expect(short).toBeGreaterThan(40);
+    expect(component.headerFitWidth('city')!).toBeGreaterThan(short + 60);
+    expect(component.headerFitWidth('nope')).toBeNull();
+  });
+
+  it('leaves the grid as it was when a shared view is ignored', async () => {
+    const view: WeGridSavedView = { name: 'Ignored', columns: [], filters: [{ field: 'city', operator: 'equals', value: 'Izmir' }] };
+    const original = window.location.href;
+    const url = new URL(original);
+    url.searchParams.set(weGridViewParamName('spec-views-grid'), weGridEncodeView(view));
+    window.history.replaceState(null, '', url.toString());
+    try {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      component.dismissSharedView();
+      expect(component.pendingSharedView).toBeNull();
+      expect(component.displayData.length).toBe(3);
+      expect(component.filterState.size).toBe(0);
     } finally {
       window.history.replaceState(null, '', original);
     }

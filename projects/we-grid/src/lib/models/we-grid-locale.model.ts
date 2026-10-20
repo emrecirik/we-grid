@@ -176,6 +176,14 @@ export interface WeGridLocale {
   viewLinkCopied: string;
   /** Shown with the link itself when the clipboard refused it, so the user can copy it by hand */
   viewLinkCopyFailed: string;
+  /** Banner over a grid opened from a shared view link — the view is applied only on Apply */
+  sharedViewPrompt: (name: string) => string;
+  /** Prefixes of the banner's lines that say what the shared view changes */
+  sharedViewFilters: string;
+  sharedViewRenamed: string;
+  sharedViewAdded: string;
+  sharedViewApply: string;
+  sharedViewIgnore: string;
 
   // ─── Header hint, column moving and resizing from the keyboard ───
   /** Accessible name prefix of the ⓘ icon — the hint text follows it */
@@ -580,6 +588,12 @@ export const weGridLocaleEn: WeGridLocale = {
   noSavedViews: 'No saved views yet',
   viewLinkCopied: 'Link copied',
   viewLinkCopyFailed: 'Copy this link:',
+  sharedViewPrompt: (name) => `Shared view: ${name}`,
+  sharedViewFilters: 'Filters',
+  sharedViewRenamed: 'Renamed headers',
+  sharedViewAdded: 'Added columns',
+  sharedViewApply: 'Apply',
+  sharedViewIgnore: 'Ignore',
   headerHintAria: 'About this column',
   columnMoved: (title, position) => `${title} moved to position ${position}`,
   columnResizeAria: (title) => `Resize column ${title}`,
@@ -971,6 +985,12 @@ export const weGridLocaleTr: WeGridLocale = {
   noSavedViews: 'Henüz kayıtlı görünüm yok',
   viewLinkCopied: 'Bağlantı kopyalandı',
   viewLinkCopyFailed: 'Bu bağlantıyı kopyalayın:',
+  sharedViewPrompt: (name) => `Paylaşılan görünüm: ${name}`,
+  sharedViewFilters: 'Filtreler',
+  sharedViewRenamed: 'Yeniden adlandırılan başlıklar',
+  sharedViewAdded: 'Eklenen kolonlar',
+  sharedViewApply: 'Uygula',
+  sharedViewIgnore: 'Yok say',
   headerHintAria: 'Kolon hakkında',
   columnMoved: (title, position) => `${title} ${position}. sıraya taşındı`,
   columnResizeAria: (title) => `${title} kolonunu yeniden boyutlandır`,
@@ -1204,7 +1224,7 @@ export const weGridLocaleTr: WeGridLocale = {
   macroDelete: 'Sil',
   macroPin: 'Araç çubuğunda göster',
   macroNew: 'Yeni makro',
-  macroRecord: 'Kaydet',
+  macroRecord: 'Kaydı başlat',
   macroStopRecording: 'Kaydı durdur',
   macroRecording: 'Kaydediliyor — tabloyu kullanın, sonra durdurun',
   macroNoMacros: 'Henüz makro yok. Bir tane kaydedin ya da betik yazın.',

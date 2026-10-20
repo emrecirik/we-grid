@@ -2,6 +2,34 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.50.0 — 2026-10-20
+
+### Added
+
+- `summaryWeightField` on a column turns its `'avg'` summary and group subtotal into a weighted
+  average (sum of value × weight / sum of weight) — a unit cost averaged by quantity.
+- A `checklistValuesProvider` may emit `null` for a column it can't list; the grid then switches
+  that column to the operator filter for good instead of showing an error.
+- `headerFitWidth(field)` returns the width a header needs to show its whole label, measured with
+  the rendered font and header buttons — a `minWidth` that doesn't drift when the header changes.
+- Locale keys `sharedViewPrompt`, `sharedViewFilters`, `sharedViewRenamed`, `sharedViewAdded`,
+  `sharedViewApply`, `sharedViewIgnore`.
+
+### Changed
+
+A minor release: no input, output or locale key changes meaning. The shared link only gains a
+confirmation step.
+
+- A shared view link no longer applies itself: a banner names the view, lists the filters it sets
+  and the headers it renames, and waits for Apply or Ignore (`pendingSharedView`,
+  `applySharedView()`, `dismissSharedView()`). A crafted link could otherwise hide rows from a
+  list the user was about to approve.
+- Turkish `macroRecord` reads "Kaydı başlat" instead of "Kaydet", which read as "Save".
+
+### Fixed
+
+- Running a macro no longer renames the Views button to "Views: macro"; the active view name stays.
+
 ## 0.49.0 — 2026-10-20
 
 ### Added

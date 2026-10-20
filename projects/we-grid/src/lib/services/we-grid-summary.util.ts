@@ -10,6 +10,7 @@ interface SummaryColumnLike extends WeGridFormattableColumn {
   type: WeGridColumnType;
   format?: string;
   summary: WeGridSummaryFunction;
+  summaryWeightField?: string;
 }
 
 function summaryLabels(locale: WeGridLocale): Record<WeGridSummaryScope, Record<Exclude<WeGridSummaryFunction, 'none'>, string>> {
@@ -45,15 +46,32 @@ export function weGridSummaryLabel(fn: Exclude<WeGridSummaryFunction, 'none'>, s
  * Computes a single column's summary value over the loaded rows.
  * null/undefined/'' values don't count. For sum/avg/min/max, values that don't convert to a
  * number (NaN) are skipped too. Returns null when there's no valid value to compute (the summary
- * row then shows '-').
+ * row then shows '-'). With `weightField`, 'avg' is weighted by that field of each row and only
+ * rows where both the value and the weight are numbers count.
  */
 export function computeWeGridSummary<T>(
   rows: T[],
   field: string,
   fn: WeGridSummaryFunction,
-  valueOf: (row: T, field: string) => unknown = getNestedValue
+  valueOf: (row: T, field: string) => unknown = getNestedValue,
+  weightField?: string
 ): number | null {
   if (fn === 'none') return null;
+  if (fn === 'avg' && weightField) {
+    let total = 0;
+    let weights = 0;
+    for (const row of rows) {
+      const raw = valueOf(row, field);
+      const rawWeight = valueOf(row, weightField);
+      if (raw === null || raw === undefined || raw === '' || rawWeight === null || rawWeight === undefined || rawWeight === '') continue;
+      const value = Number(raw);
+      const weight = Number(rawWeight);
+      if (isNaN(value) || isNaN(weight)) continue;
+      total += value * weight;
+      weights += weight;
+    }
+    return weights === 0 ? null : total / weights;
+  }
 
   const raw = rows.map((row) => valueOf(row, field)).filter((v) => v !== null && v !== undefined && v !== '');
 
@@ -108,7 +126,7 @@ export function buildWeGridSummaryText<T>(
     return `${weGridSummaryLabel(fn, 'override', locale)}: ${formatSummaryNumber(overrideValue, col, fn, locale)}`;
   }
 
-  const computed = computeWeGridSummary(rows, col.field, fn, valueOf);
+  const computed = computeWeGridSummary(rows, col.field, fn, valueOf, col.summaryWeightField);
   const label = weGridSummaryLabel(fn, scope, locale);
   if (computed === null) return `${label}: -`;
   return `${label}: ${formatSummaryNumber(computed, col, fn, locale)}`;

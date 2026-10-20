@@ -240,6 +240,12 @@ parser's own messages are English too.
 
 - `sheetNames`, `sheetNamesHint`, `sheetNameRemove`, `sheetNameInvalid`
 
+## Keys added in 0.50.0
+
+- Shared view banner: `sharedViewPrompt(name)`, `sharedViewFilters`, `sharedViewRenamed`,
+  `sharedViewAdded`, `sharedViewApply`, `sharedViewIgnore`
+- Changed: Turkish `macroRecord` is now "Kaydı başlat" (was "Kaydet", read as "Save")
+
 ## Keys added in 0.47.0
 
 - `sheetExpandPrompt`, `sheetExpandSelection`, `sheetKeepSelection`

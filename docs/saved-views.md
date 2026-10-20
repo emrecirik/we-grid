@@ -42,8 +42,11 @@ therefore keeps them without any change, and "Reset layout" never deletes them.
 
 The link icon next to a view copies the current page's URL with the view in a
 `we-grid-view-<gridKey>` query parameter. A grid with `savedViews` on reads that parameter when it
-first loads and opens in the view; its name is pre-filled in the panel so the recipient can save
-it. Two grids on one page use different parameters.
+first loads and shows a banner above the rows — "Shared view: <name>", the filters it sets and the
+headers it renames — with **Apply** and **Ignore**. Nothing changes until Apply; then the view's
+name is pre-filled in the panel so the recipient can save it. Two grids on one page use different
+parameters. (Before 0.50.0 the view was applied straight away, so a crafted link could hide rows
+from a list the user was about to approve.)
 
 To build the link yourself — a short-link service, your router's own query params — bind
 `(viewShare)`. The grid then only emits `{ view, token }`; `weGridDecodeView(token)` turns the

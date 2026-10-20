@@ -115,7 +115,11 @@
 - `notice` — the strip under the toolbar reporting the last import/commit/delete/paste outcome, `dismissNotice()`
 - `activeCell`, `pasteEnabled` — the paste target
 - `views`, `activeViewName`, `getCurrentView(name)`, `saveCurrentView(name)`, `applyView(view)`,
-  `deleteView(name)`, `shareView(view)` — saved views
+  `deleteView(name)`, `shareView(view)` — saved views; `pendingSharedView`, `pendingSharedViewDetails`,
+  `applySharedView()`, `dismissSharedView()` *(0.50.0)* — the banner a shared view link raises
+- `headerFitWidth(field)` *(0.50.0)* — the px width the header needs to show its whole label (label
+  in the header font + padding, funnel, menu button and a sort arrow); use it as the column's
+  `minWidth` so long headers aren't clipped. `null` before the grid is attached
 - `refreshRows()` — the imperative twin of `rowStateVersion`
 - Tree: `treeActive`, `toggleTreeNode(row, force?)`, `isTreeExpanded(row)`, `expandAllTree()`,
   `collapseAllTree()`, `treeAllExpanded`, `scrollToRow(key, opts?)`, `treeNodes`, `treeExpandedKeys`,
@@ -235,6 +239,7 @@ Several sheets behind tabs — inputs `workbookKey`, `data` (`WeWorkbookData`), 
   | `fixed` *(0.7.0)* | `lockVisible` + `lockRename` + `lockPinned` + `lockOrder`; an explicit sub-flag wins. |
   | `childField` / `treeValue` *(0.7.0)* | Tree mode — how child rows read the column. See [tree.md](tree.md#values-per-level). |
   | `groupSummary` *(0.7.0)* | The column's function in group headers/footers, independent of `summary`. See [grouping.md](grouping.md#group-summaries). |
+  | `summaryWeightField` *(0.50.0)* | Makes the column's `'avg'` (summary row and group subtotals) weighted: sum(value × weight) / sum(weight), weight read from this field — a unit cost averaged by quantity. Rows without both numbers are left out. |
   | `cellStyle` *(0.9.0)* | `WeGridCellStyle` — the column's base style (bold, italic, palette text colour and fill). The user's Format panel choice wins. See [formatting.md](formatting.md). |
   | `formula` *(0.9.0)* | An Excel formula, e.g. `'=[Price] * [Qty]'` — a computed, read-only column that sorts, filters, sums and exports by its result. See [formulas.md](formulas.md). |
 - `WeGridColumnType` = `'text' | 'number' | 'integer' | 'date' | 'datetime' | 'time' | 'currency' | 'percent' | 'boolean' | 'email' | 'url' | 'phone' | 'custom'` — see [column-types.md](column-types.md)

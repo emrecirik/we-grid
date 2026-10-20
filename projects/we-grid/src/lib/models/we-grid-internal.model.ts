@@ -76,6 +76,8 @@ export interface WeGridInternalColumn<T> {
   groupSummary: WeGridSummaryFunction | undefined;
   /** Subtotal (summary row) function — chosen by the user from the header menu, persisted */
   summary: WeGridSummaryFunction;
+  /** See WeGridColumnDef.summaryWeightField */
+  summaryWeightField: string | undefined;
   /** Base cell style — the user's choice from the format panel, else WeGridColumnDef.cellStyle */
   style: WeGridCellStyle | undefined;
   /** See WeGridColumnDef.formula */
