@@ -596,4 +596,28 @@ describe('WeSheetComponent', () => {
     expect(cellEl('A3')).toBeNull();
     expect(!!cellEl('B3') && !!cellEl('C3')).toBeTrue();
   });
+
+  it('copies a cell\'s look onto the next mouse selection with the format painter', () => {
+    sheet().setData({ version: 1, rows: 3, cols: 3, cells: { A1: { v: 1, s: { bold: true, fill: 'yellow' }, f: 'percent', d: 1, b: 'tb' }, B1: { v: 2, a: 'center', n: 'keep' }, B2: { v: 3 } } });
+    fixture.detectChanges();
+    sheet().select('A1');
+    sheet().toggleFormatPainter();
+    fixture.detectChanges();
+    expect(el().querySelector('[aria-label^="Format painter"]')!.getAttribute('aria-pressed')).toBe('true');
+    cellEl('B1').dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    cellEl('B2').dispatchEvent(new MouseEvent('mouseenter', { bubbles: true }));
+    document.dispatchEvent(new MouseEvent('mouseup'));
+    fixture.detectChanges();
+    const cells = sheet().getData().cells;
+    expect(cells['B1']).toEqual({ v: 2, n: 'keep', s: { bold: true, fill: 'yellow' }, f: 'percent', d: 1, b: 'tb' });
+    expect(cells['B2']).toEqual({ v: 3, s: { bold: true, fill: 'yellow' }, f: 'percent', d: 1, b: 'tb' });
+    expect(sheet().painter).toBeNull();
+    // A row picked by its number gets it too
+    sheet().toggleFormatPainter();
+    sheet().onRowHeaderClick(new MouseEvent('click'), 2);
+    expect(sheet().getData().cells['C3']?.b).toBe('tb');
+    sheet().toggleFormatPainter();
+    el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+    expect(sheet().painter).toBeNull();
+  });
 });

@@ -236,6 +236,10 @@ parser's own messages are English too.
 - `sheetOptions`, `formatTypeIconSet`, `formatIconSetLabels`, `formatIconSetReverse`, `sheetImportTruncated`,
   `sheetFull`
 
+## Keys added in 0.42.0
+
+- `sheetFormatPainter`
+
 ## Keys added in 0.41.0
 
 - `sheetHideColumns`, `sheetUnhideColumns`

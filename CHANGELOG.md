@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.42.0 — 2026-10-20
+
+### Added
+
+- Format painter in the sheet's toolbar: copies the active cell's look onto the next mouse
+  selection, Esc cancels (`toggleFormatPainter()`, `applyFormatPainter()`, `painter`). New icon
+  `formatPainter` and locale key `sheetFormatPainter`.
+
 ## 0.41.0 — 2026-10-20
 
 ### Added

@@ -97,6 +97,9 @@
         <button type="button" class="we-sheet__btn" (click)="insertChart()" [attr.aria-label]="locale.chartInsert" [title]="locale.chartInsert">
           <span [innerHTML]="icon('chart')" aria-hidden="true"></span>
         </button>
+        <button type="button" class="we-sheet__btn" (click)="toggleFormatPainter()" [disabled]="readonly" [attr.aria-pressed]="painter !== null" [attr.aria-label]="locale.sheetFormatPainter" [title]="locale.sheetFormatPainter">
+          <span [innerHTML]="icon('formatPainter')" aria-hidden="true"></span>
+        </button>
         <button type="button" class="we-sheet__btn" (click)="clearFormatting()" [attr.aria-label]="locale.sheetClearFormat" [title]="locale.sheetClearFormat">
           <span [innerHTML]="icon('eraser')" aria-hidden="true"></span>
         </button>

@@ -282,6 +282,8 @@ export interface WeGridLocale {
   sheetSortDesc: string;
   sheetFillDown: string;
   sheetClearFormat: string;
+  /** Toolbar button: copy the active cell's formatting onto the next selection */
+  sheetFormatPainter: string;
   sheetHeaderRow: string;
   sheetAddRow: string;
   sheetAddColumn: string;
@@ -669,6 +671,7 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetSortDesc: 'Sort Z → A',
   sheetFillDown: 'Fill down',
   sheetClearFormat: 'Clear formatting',
+  sheetFormatPainter: 'Format painter — then select the cells to format (Esc to cancel)',
   sheetHeaderRow: 'Header row',
   sheetAddRow: 'Add row',
   sheetAddColumn: 'Add column',
@@ -1040,6 +1043,7 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetSortDesc: 'Z → A sırala',
   sheetFillDown: 'Aşağı doldur',
   sheetClearFormat: 'Biçimi temizle',
+  sheetFormatPainter: 'Biçim boyacısı — sonra biçimlenecek hücreleri seçin (iptal için Esc)',
   sheetHeaderRow: 'Başlık satırı',
   sheetAddRow: 'Satır ekle',
   sheetAddColumn: 'Kolon ekle',

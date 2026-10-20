@@ -485,6 +485,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.active = { col: event.shiftKey ? this.active.col : col, row: 0 };
     this.selection = weSheetNormalize({ col: from.col, row: 0 }, { col, row: this.sheet.rows - 1 });
     this.afterSelection();
+    this.applyFormatPainter();
   }
 
   onRowHeaderClick(event: MouseEvent, row: number): void {
@@ -494,6 +495,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.active = { col: 0, row: event.shiftKey ? this.active.row : row };
     this.selection = weSheetNormalize({ col: 0, row: from.row }, { col: this.sheet.cols - 1, row });
     this.afterSelection();
+    this.applyFormatPainter();
   }
 
   selectAll(): void {
@@ -520,7 +522,9 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   @HostListener('document:mouseup')
   onDocumentMouseUp(): void {
+    const selected = this.dragging;
     this.dragging = false;
+    if (selected && this.painter) this.applyFormatPainter();
     if (this.filling) {
       this.filling = false;
       const target = this.fillRange;
@@ -538,6 +542,12 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   // ─── Keyboard ────────────────────────────────────────────────────────
 
   onGridKeydown(event: KeyboardEvent): void {
+    if (this.painter && event.key === 'Escape') {
+      event.preventDefault();
+      this.painter = null;
+      this.cdr.markForCheck();
+      return;
+    }
     if (this.editing) return;
     if (this.pickerKey(event)) return;
     // Alt+↓ on a header cell opens its filter, as in Excel
@@ -1092,6 +1102,34 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   clearFormatting(): void {
     this.updateRange((cell) => ({ v: cell.v, l: cell.l, n: cell.n }));
+  }
+
+  /** The format painter's copied look, while it is on — the next selection made with the mouse gets it */
+  painter: Pick<WeSheetCell, 's' | 'a' | 'f' | 'd' | 'b' | 'w'> | null = null;
+
+  /** Format painter: copies the active cell's look; again (or Esc) to put it away */
+  toggleFormatPainter(): void {
+    if (this.painter || this.readonly) {
+      this.painter = null;
+      this.cdr.markForCheck();
+      return;
+    }
+    // shortcut: copies the active cell only, not a pattern from a multi-cell selection
+    const { s, a, f, d, b, w } = this.sheet.cells[weSheetAddress(this.active.col, this.active.row)] ?? {};
+    this.painter = { s, a, f, d, b, w };
+    this.cdr.markForCheck();
+  }
+
+  /** Gives the selection the format painter's look and puts the painter away */
+  applyFormatPainter(): void {
+    const look = this.painter;
+    if (!look) return;
+    this.painter = null;
+    this.updateRange((cell) => {
+      const next: WeSheetCell = { v: cell.v, l: cell.l, n: cell.n };
+      for (const key of ['s', 'a', 'f', 'd', 'b', 'w'] as const) if (look[key] !== undefined) (next as Record<string, unknown>)[key] = look[key];
+      return next;
+    });
   }
 
   toggleHeaderRow(): void {

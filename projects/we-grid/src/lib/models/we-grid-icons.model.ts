@@ -57,6 +57,7 @@ export const weGridDefaultIcons: WeGridIcons = {
   alignCenter: svg('<path d="M3 4h18v2H3V4Zm3 4h12v2H6V8Zm-3 4h18v2H3v-2Zm3 4h12v2H6v-2Z"/>'),
   alignEnd: svg('<path d="M3 4h18v2H3V4Zm6 4h12v2H9V8Zm-6 4h18v2H3v-2Zm6 4h12v2H9v-2Z"/>'),
   fillDown: svg('<path d="M11 3h2v11.2l3.6-3.6L18 12l-6 6-6-6 1.4-1.4 3.6 3.6V3ZM4 19h16v2H4v-2Z"/>'),
+  formatPainter: svg('<path d="M5 3h12a1 1 0 0 1 1 1v1h2v6h-8v3h1v7h-4v-7h1v-5h8V7h-1v1a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Zm1 2v2h10V5H6Z"/>'),
   eraser: svg('<path d="M15.1 3.6a2 2 0 0 1 2.8 0l3.5 3.5a2 2 0 0 1 0 2.8L12.3 19H20v2H8.7l-5.1-5.1a2 2 0 0 1 0-2.8L15.1 3.6ZM9.6 19l2.3-2.3-4.6-4.6L5 14.5 9.5 19h.1Z"/>'),
   table: svg('<path d="M3 4h18v16H3V4Zm2 2v3h6V6H5Zm8 0v3h6V6h-6Zm-8 5v3h6v-3H5Zm8 0v3h6v-3h-6Zm-8 5v2h6v-2H5Zm8 0v2h6v-2h-6Z"/>'),
   play: svg('<path d="M8 5.1v13.8a.6.6 0 0 0 .9.5l10.8-6.9a.6.6 0 0 0 0-1L8.9 4.6a.6.6 0 0 0-.9.5Z"/>'),
