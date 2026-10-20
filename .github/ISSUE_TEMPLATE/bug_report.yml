@@ -1,0 +1,46 @@
+name: Bug report
+description: Something in we-grid-angular does not work as documented
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for taking the time. A small reproduction (a StackBlitz, or the column definitions and a few rows) gets a fix fastest.
+  - type: input
+    id: version
+    attributes:
+      label: we-grid-angular version
+      placeholder: "0.36.1"
+    validations:
+      required: true
+  - type: input
+    id: angular
+    attributes:
+      label: Angular version
+      placeholder: "19.2"
+    validations:
+      required: true
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options: ['<we-grid>', '<we-sheet> / <we-workbook>', '<we-pivot>', '<we-chart>', 'Formulas', 'Macros', 'Excel / CSV / PDF export or import', 'Data protocol client', 'Theming / localization', 'Other']
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what you expected
+      description: Steps to reproduce, then what you saw and what you expected to see.
+    validations:
+      required: true
+  - type: textarea
+    id: code
+    attributes:
+      label: Code
+      description: Template and column definitions, or a link to a reproduction.
+      render: ts
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Chrome 131, Windows 11

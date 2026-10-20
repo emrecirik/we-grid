@@ -1,0 +1,21 @@
+name: Feature request
+description: Something you would like the grid, the sheet or the other components to do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What you are trying to do
+      description: The task, as your users see it — "my users paste price lists from Excel and…". If Excel or another grid does it, say how.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How you picture it
+      description: Optional — an input, a menu item, a keyboard shortcut…
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options: ['<we-grid>', '<we-sheet> / <we-workbook>', '<we-pivot>', '<we-chart>', 'Formulas', 'Macros', 'Export / import', 'Data protocol', 'Other']

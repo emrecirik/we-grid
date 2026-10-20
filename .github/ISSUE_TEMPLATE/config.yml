@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Try it in the Studio
+    url: https://emrecirik.github.io/we-grid/studio/
+    about: The grid, the spreadsheet and the pivot, live — handy for checking whether something already works.
+  - name: Documentation
+    url: https://github.com/emrecirik/we-grid#documentation
+    about: Guides and the API reference.
