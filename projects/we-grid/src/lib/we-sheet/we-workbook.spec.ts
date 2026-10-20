@@ -71,6 +71,21 @@ describe('WeWorkbookComponent', () => {
     expect(sheet().getValue('A1')).toBe(5);
   });
 
+  it('adds the sheets of an Excel file, renaming taken names and the formulas that use them', () => {
+    book().importSheets([
+      { name: 'Sheet1', cells: { A1: '5' } },
+      { name: 'Data', cells: { A1: '=Sheet1!A1*2', B3: 'x' } }
+    ]);
+    fixture.detectChanges();
+    expect(tabs()).toEqual(['Sheet1', 'Sheet1 2', 'Data']);
+    expect(book().getData().active).toBe(1);
+    const data = book().getData().sheets[2].data;
+    expect(data.cells['A1'].v).toBe("='Sheet1 2'!A1*2");
+    book().activate(2);
+    fixture.detectChanges();
+    expect(sheet().getValue('A1')).toBe(10);
+  });
+
   it('keeps each sheet’s cells and saves the workbook under one key', async () => {
     sheet().setCell('A1', 'first');
     book().addSheet();

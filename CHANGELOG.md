@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.21.0 — 2026-10-20
+
+Multi-sheet Excel import and paste values. A minor release.
+
+### Added
+
+- `<we-workbook>`: opening an Excel file with several worksheets adds every one as a sheet, with
+  its formulas; a name already taken gets a number and the formulas pointing at it follow.
+  `<we-sheet [importSheets]>`, `weSheetFromCells` util.
+- `<we-sheet>`: **Ctrl+Shift+V pastes values only** — what the copied cells showed, without
+  formulas, into the target cells' own formats.
+
 ## 0.20.0 — 2026-10-20
 
 Excel round trip for the spreadsheet, and fixes to filtered sheets. A minor release.

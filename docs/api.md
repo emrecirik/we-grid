@@ -160,7 +160,7 @@ Adding or removing a column needs no bump.
 
 ## `<we-sheet>` (`WeSheetComponent`) *(0.9.0)*
 
-A spreadsheet component — inputs `sheetKey`, `data`, `rows`, `cols`, `readonly`, `exportFileName`, `xlsxSheets`,
+A spreadsheet component — inputs `sheetKey`, `data`, `rows`, `cols`, `readonly`, `exportFileName`, `xlsxSheets`, `importSheets`,
 `height`; output `dataChange`; token `WE_SHEET_STORE` (`WeSheetStore`, default
 `LocalStorageSheetStore`); models `WeSheetData`, `WeSheetCell`, `WeSheetNumberFormat`. Full
 reference in [sheet.md](sheet.md).

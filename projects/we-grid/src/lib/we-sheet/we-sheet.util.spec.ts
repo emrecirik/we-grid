@@ -7,6 +7,7 @@ import {
   weSheetMoveSheetReferences,
   weSheetFill,
   weSheetCleanList,
+  weSheetFromCells,
   weSheetEmpty,
   weSheetFormatValue,
   weSheetNormalize,
@@ -233,5 +234,14 @@ describe('sheet filters', () => {
     const data = { version: 1 as const, rows: 3, cols: 3, cells: {}, headerRow: true, autoFilter: true, filters: { A: ['x'], B: ['y'] } };
     expect(weSheetInsert(data, 'col', 0, 1).filters).toEqual({ B: ['x'], C: ['y'] });
     expect(weSheetInsert(data, 'col', 0, -1).filters).toEqual({ A: ['y'] });
+  });
+});
+
+describe('weSheetFromCells', () => {
+  it('builds a sheet from typed cells, within the limits', () => {
+    const { data, truncated } = weSheetFromCells({ A1: 'Name', B2: '1.5', C3: '=B2*2', A5001: 'x', GS1: 'y' }, '.', 4, 2);
+    expect(truncated).toBeTrue();
+    expect(data.cells).toEqual({ A1: { v: 'Name' }, B2: { v: 1.5 }, C3: { v: '=B2*2' } });
+    expect([data.rows, data.cols]).toEqual([13, 3]);
   });
 });

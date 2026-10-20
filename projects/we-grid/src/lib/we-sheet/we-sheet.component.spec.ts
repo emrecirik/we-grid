@@ -138,6 +138,22 @@ describe('WeSheetComponent', () => {
     expect(sheet().getData().cells['C1']).toBeUndefined();
   });
 
+  it('pastes values only after Ctrl+Shift+V', () => {
+    sheet().setCell('A1', 4);
+    sheet().setCell('B1', '=A1*2');
+    sheet().select('B1');
+    const scroll = el().querySelector('.we-sheet__scroll')!;
+    const data = new DataTransfer();
+    scroll.dispatchEvent(new ClipboardEvent('copy', { clipboardData: data, bubbles: true, cancelable: true }));
+    sheet().select('C2');
+    scroll.dispatchEvent(new KeyboardEvent('keydown', { key: 'V', ctrlKey: true, shiftKey: true, bubbles: true, cancelable: true }));
+    scroll.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    expect(sheet().getData().cells['C2'].v).toBe(8);
+    sheet().select('C3');
+    scroll.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    expect(sheet().getData().cells['C3'].v).toBe('=B3*2');
+  });
+
   it('refuses to insert rows that would push content off a full sheet', () => {
     sheet().setData({ version: 1, rows: 5000, cols: 2, cells: { A1: { v: 1 }, A5000: { v: 'last' } } });
     sheet().select('A1');

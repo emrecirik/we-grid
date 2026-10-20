@@ -28,6 +28,7 @@ export class BudgetComponent {}
 | Style | Bold, italic, underline, strikethrough (Ctrl+B / I / U), text colour and fill from the nine-colour palette, alignment. |
 | Number format | General, number, whole number, currency (the locale's `intlCurrency`), percent, date (Excel serial dates), text. |
 | Sort | A → Z / Z → A by the active column — the selected rows, or every used row below the header row. Numbers before text, blanks last. |
+| Paste values *(0.21.0)* | Ctrl+Shift+V after copying in the sheet pastes the values the copy showed — no formulas, the target cells keep their formats. |
 | Fill down | Ctrl+D copies the top row of the selection down through it, shifting relative references. |
 | Fill handle *(0.17.0)* | Drag the square at the selection's corner down, up or sideways: numbers continue their step (`1, 2` → `3, 4`), dates go on by a day, `Item 9` → `Item 10`, formulas shift, anything else repeats. Double-click it to fill down as far as the column beside goes. `fill(range)` does the same from code; from the keyboard, select the start of the series and the empty cells under it and choose **Fill series down** in the context menu (Shift+F10). |
 | Header row, zebra rows | Row 1 as a header (bold, kept out of sorting, the column titles of an export) and alternate row tint. |
@@ -35,7 +36,7 @@ export class BudgetComponent {}
 | Status bar | Average, min, max, count and sum of the selection, as in Excel. |
 | Right-click menu *(0.11.0)* | Insert rows above/below, insert columns left/right, delete rows or columns, clear contents or formatting, AutoSum, sort — also on the context-menu key or Shift+F10. Every formula's references follow: inserted rows push them down, deleted cells turn them into `#REF!`, a range that loses an end shrinks. |
 | Σ AutoSum *(0.11.0)* | Alt+= or the Σ button: a block gets a `=SUM()` under each column; one cell sums the numbers right above it, or to its left. |
-| Open a file *(0.11.0)* | Excel (`.xlsx`) or CSV into the sheet from A1, with row 1 as the header — undoable. *(0.20.0)* An Excel file keeps its layout and its formulas (filled formulas included). |
+| Open a file *(0.11.0)* | Excel (`.xlsx`) or CSV into the sheet from A1, with row 1 as the header — undoable. *(0.20.0)* An Excel file keeps its layout and its formulas (filled formulas included). *(0.21.0)* In a `<we-workbook>`, a file with several worksheets adds them all as sheets; a taken name gets a number and the formulas that point at it follow. |
 | Freeze *(0.11.0)* | Column A stays in view while scrolling sideways; with a header row, row 1 stays at the top. |
 | Function suggestions *(0.11.0)* | Typing `=SU` (or `=TOP` in Turkish) lists matching functions with their arguments; arrows choose, Tab or Enter inserts `SUM(`, Escape closes. |
 | Find and replace *(0.14.0)* | Ctrl+F finds text in what the cells show (and in formulas), Enter / Shift+Enter walk the matches, "Match case" narrows them; Ctrl+H (or Replace…) replaces one match or all of them — undoable. |
@@ -60,6 +61,7 @@ All formula functions, their Turkish names and the error values are listed in
 | `readonly` | `boolean` | `false` | No editing; selection, copy and export remain |
 | `exportFileName` | `string` | `'sheet'` | File name of exports, without extension |
 | `height` | `number \| string` | `420` | Height of the scrolling area (px or any CSS length) |
+| `importSheets` *(0.21.0)* | `(sheets) => void` | — | Takes the worksheets of an opened Excel file with more than one — `<we-workbook>` sets it |
 | `xlsxSheets` *(0.20.0)* | `() => { name, data }[]` | this sheet | The sheets the Excel export writes, when this sheet is one of several — `<we-workbook>` sets it |
 
 | Output | |
@@ -117,7 +119,7 @@ never inject CSS or markup. Formulas are evaluated by the formula engine — nev
 `weSheetAddress`, `weSheetParseAddress`, `weSheetRangeLabel`, `weSheetParseInput`,
 `weSheetParseNumber`, `weSheetShiftFormula`, `weSheetStats`, `weSheetSortRange`,
 `weSheetFormatValue`, `weSheetSanitize`, `weSheetEmpty`, `weSheetInsert`, `weSheetMoveReferences`,
-`weSheetAutoSum`, `weSheetFill`, `weSheetCleanList` *(0.17.0)*, `weSheetSanitizeFormats` *(0.18.0)*, `weSheetMoveSheetReferences` *(0.16.0)* — the pure functions the component is built
+`weSheetAutoSum`, `weSheetFill`, `weSheetCleanList` *(0.17.0)*, `weSheetSanitizeFormats` *(0.18.0)*, `weSheetFromCells` *(0.21.0)*, `weSheetMoveSheetReferences` *(0.16.0)* — the pure functions the component is built
 on, exported for servers and tests.
 
 ## Workbooks: several sheets *(0.14.0)*

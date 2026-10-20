@@ -57,6 +57,7 @@ import {
   weSheetFill,
   weSheetCleanList,
   weSheetWorkbookXlsx,
+  weSheetFromCells,
   weSheetParseInput,
   weSheetRangeLabel,
   weSheetSanitize,
@@ -131,6 +132,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   @Input() resolveSheet?: (name: string) => WeSheetData | null;
   /** The sheets the Excel export writes — `<we-workbook>` passes all of its sheets; this sheet alone by default */
   @Input() xlsxSheets?: () => readonly { name: string; data: WeSheetData }[];
+  /** Takes the sheets of an opened Excel file with more than one — `<we-workbook>` adds them as sheets */
+  @Input() importSheets?: (sheets: readonly { name: string; cells: Record<string, string> }[]) => void;
 
   /** Every change, with the new content */
   @Output() dataChange = new EventEmitter<WeSheetData>();
@@ -196,7 +199,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   formatPanel: { range: string; column: { field: string; defaultHeader: string; type: 'number' | 'text' }; rules: WeGridFormatRule[] } | null = null;
   private resizing: { col: number; startX: number; startWidth: number } | null = null;
   /** What this sheet last copied — pasted back as raw cells (formulas shifted) instead of text */
-  private clip: { text: string; range: WeSheetRange; cells: (WeSheetCell | undefined)[][]; rows: number[]; cut: boolean } | null = null;
+  private clip: { text: string; range: WeSheetRange; cells: (WeSheetCell | undefined)[][]; values: unknown[][]; rows: number[]; cut: boolean } | null = null;
+  private pasteValues = false;
   private readonly save$ = new Subject<void>();
   private readonly destroy$ = new Subject<void>();
 
@@ -550,6 +554,13 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       if (lower === 'f' || lower === 'h') {
         this.openFind(lower === 'h');
         event.preventDefault();
+        return;
+      }
+      // Ctrl+Shift+V: the paste that follows writes values only — no formulas, no formats
+      if (lower === 'v' && event.shiftKey) {
+        this.pasteValues = true;
+        // Only the paste that follows at once — a browser that sends none must not change the next Ctrl+V
+        setTimeout(() => (this.pasteValues = false), 500);
         return;
       }
       const handled =
@@ -1246,17 +1257,20 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       const isXlsx = /\.xlsx$/i.test(file.name);
       let all: string[][];
       if (isXlsx) {
-        // The first worksheet, cell by cell where it stands — formulas included
-        const [first] = await weGridReadXlsxCells(file, weSheetShiftFormula);
-        all = [];
-        for (const [ref, text] of Object.entries(first?.cells ?? {})) {
-          const at = weSheetParseAddress(ref);
-          if (!at || at.row >= WE_SHEET_MAX_ROWS + 1) continue;
-          while (all.length <= at.row) all.push([]);
-          const line = all[at.row];
-          while (line.length < at.col) line.push('');
-          line[at.col] = text;
+        const sheets = await weGridReadXlsxCells(file, weSheetShiftFormula);
+        if (sheets.length > 1 && this.importSheets) {
+          this.importSheets(sheets);
+          return;
         }
+        // The first worksheet, cell by cell where it stands — formulas included
+        const { data, truncated } = weSheetFromCells(sheets[0]?.cells ?? {}, '.', this.sheet.rows, this.sheet.cols);
+        this.commit({ ...data, headerRow: true, striped: this.sheet.striped });
+        this.moveTo({ col: 0, row: 0 });
+        if (truncated) {
+          this.notice = this.locale.sheetImportTruncated;
+          this.cdr.markForCheck();
+        }
+        return;
       } else {
         const table = weGridParseCsv(await file.text());
         all = [table.headers, ...table.rows];
@@ -1410,10 +1424,12 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const lines: string[] = [];
     const cells: (WeSheetCell | undefined)[][] = [];
     const rows: number[] = [];
+    const values: unknown[][] = [];
     for (let r = s.r1; r <= r2; r++) {
       // Rows the filters hide are left out, as Excel copies the visible cells of a filtered range
       if (this.hiddenRows.has(r)) continue;
       rows.push(r);
+      values.push(Array.from({ length: c2 - s.c1 + 1 }, (_, i) => this.evaluator.value(s.c1 + i, r)));
       const line: string[] = [];
       const row: (WeSheetCell | undefined)[] = [];
       for (let c = s.c1; c <= c2; c++) {
@@ -1424,7 +1440,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       cells.push(row);
     }
     const text = lines.join('\n');
-    this.clip = { text, range: { c1: s.c1, r1: s.r1, c2, r2 }, cells, rows, cut };
+    this.clip = { text, range: { c1: s.c1, r1: s.r1, c2, r2 }, cells, values, rows, cut };
     event.clipboardData?.setData('text/plain', text);
     event.preventDefault();
     if (cut && !this.readonly) this.clearContents();
@@ -1435,6 +1451,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const text = event.clipboardData?.getData('text/plain') ?? '';
     if (!text) return;
     event.preventDefault();
+    const valuesOnly = this.pasteValues;
+    this.pasteValues = false;
     const at = { col: this.selection.c1, row: this.selection.r1 };
     // Our own copy: whole cells, formulas shifted like Excel. Anything else: values as if typed.
     const own = this.clip && this.clip.text === text.replace(/\r\n/g, '\n').replace(/\n$/, '') ? this.clip : null;
@@ -1445,7 +1463,14 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const next = this.cloneForEdit(at.row + height, at.col + maxWidth);
     for (let r = 0; r < height; r++) {
       for (let c = 0; c < widthOf(r); c++) {
-        if (own) {
+        if (own && valuesOnly) {
+          // The values the copy showed, into the cells as they are formatted here
+          const v = own.values[r][c];
+          const key = weSheetAddress(at.col + c, at.row + r);
+          const value = typeof v === 'number' || typeof v === 'boolean' || typeof v === 'string' || v === null ? v : weGridFormulaValueToText(v);
+          // Text is written as it is: "007" stays "007", as Excel's Paste Values keeps it
+          this.putCell(next, at.col + c, at.row + r, this.compact({ ...(next.cells[key] ?? {}), v: value === '' ? null : value }));
+        } else if (own) {
           const dCol = own.cut ? 0 : at.col - own.range.c1;
           const dRow = own.cut ? 0 : at.row + r - own.rows[r];
           this.putCell(next, at.col + c, at.row + r, this.shiftedCell(own.cells[r][c], dCol, dRow));

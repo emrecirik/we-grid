@@ -6,7 +6,7 @@ import { WE_GRID_ICONS, WeGridIcons } from '../models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 import { WeSheetComponent } from './we-sheet.component';
 import { WE_SHEET_STORE, WeSheetData, WeSheetStore } from './we-sheet.model';
-import { weSheetEmpty, weSheetMoveSheetReferences, weSheetRenameReferences, weSheetSanitize } from './we-sheet.util';
+import { weSheetEmpty, weSheetFromCells, weSheetMoveSheetReferences, weSheetRenameReferences, weSheetSanitize } from './we-sheet.util';
 
 /** A workbook: named sheets in order, like the tabs at the bottom of Excel */
 export interface WeWorkbookData {
@@ -114,6 +114,37 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
   resolveSheet: (name: string) => WeSheetData | null = () => null;
   /** Every sheet, for the Excel export */
   readonly xlsxSheets = () => this.book.sheets;
+
+  /**
+   * The sheets of an opened Excel file, added after the workbook's own (as many as fit). A name
+   * already taken gets a number, and the file's formulas that point at it follow.
+   */
+  readonly importSheets = (sheets: readonly { name: string; cells: Record<string, string> }[]): void => {
+    if (this.readonly) return;
+    const taken = new Set(this.book.sheets.map((s) => s.name.toLocaleLowerCase()));
+    const added: WeWorkbookData['sheets'] = [];
+    const renames: [string, string][] = [];
+    for (const sheet of sheets.slice(0, MAX_SHEETS - this.book.sheets.length)) {
+      const base = sheet.name.trim().slice(0, 60) || `${this.locale.workbookSheetName}${this.book.sheets.length + added.length + 1}`;
+      let name = base;
+      for (let n = 2; taken.has(name.toLocaleLowerCase()); n++) name = `${base} ${n}`;
+      taken.add(name.toLocaleLowerCase());
+      if (name !== sheet.name) renames.push([sheet.name, name]);
+      added.push({ name, data: { ...weSheetFromCells(sheet.cells, '.', this.rows, this.cols).data, headerRow: true } });
+    }
+    if (!added.length) return;
+    const fixed = added.map((s) => {
+      if (!renames.length) return s;
+      const cells: WeSheetData['cells'] = {};
+      for (const [key, cell] of Object.entries(s.data.cells)) {
+        const v = typeof cell.v === 'string' && cell.v.startsWith('=') ? renames.reduce((f, [from, to]) => weSheetRenameReferences(f, from, to), cell.v) : cell.v;
+        cells[key] = v === cell.v ? cell : { ...cell, v };
+      }
+      return { ...s, data: { ...s.data, cells } };
+    });
+    const all = [...this.book.sheets, ...fixed];
+    this.update({ ...this.book, sheets: all, active: this.book.sheets.length });
+  };
 
   private refreshResolver(): void {
     const byName = new Map(this.book.sheets.map((s) => [s.name.toLocaleLowerCase(), s.data] as const));

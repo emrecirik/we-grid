@@ -765,3 +765,38 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
     })
   );
 }
+
+/**
+ * A sheet from cells as a user would type them, by A1 address — what an Excel file reads into
+ * (`weGridReadXlsxCells`). Kept within the sheet's limits; `truncated` tells when cells were left
+ * out. At least `minRows` × `minCols`, with ten spare rows below the content.
+ */
+export function weSheetFromCells(
+  input: Readonly<Record<string, string>>,
+  decimalSeparator: '.' | ',',
+  minRows = 1,
+  minCols = 1
+): { data: WeSheetData; truncated: boolean } {
+  const cells: Record<string, WeSheetCell> = {};
+  let rows = 0;
+  let cols = 0;
+  let truncated = false;
+  for (const [ref, text] of Object.entries(input)) {
+    const at = weSheetParseAddress(ref);
+    if (!at) continue;
+    if (at.row >= WE_SHEET_MAX_ROWS || at.col >= WE_SHEET_MAX_COLS) {
+      truncated = true;
+      continue;
+    }
+    const parsed = weSheetParseInput(text, decimalSeparator);
+    if (parsed.value === null || parsed.value === undefined) continue;
+    cells[weSheetAddress(at.col, at.row)] = parsed.format ? { v: parsed.value, f: parsed.format } : { v: parsed.value };
+    rows = Math.max(rows, at.row + 1);
+    cols = Math.max(cols, at.col + 1);
+  }
+  const data: WeSheetData = {
+    ...weSheetEmpty(Math.min(WE_SHEET_MAX_ROWS, Math.max(minRows, rows + 10)), Math.min(WE_SHEET_MAX_COLS, Math.max(minCols, cols))),
+    cells
+  };
+  return { data, truncated };
+}
