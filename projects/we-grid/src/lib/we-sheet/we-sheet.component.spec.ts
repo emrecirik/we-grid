@@ -620,4 +620,17 @@ describe('WeSheetComponent', () => {
     el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
     expect(sheet().painter).toBeNull();
   });
+
+  it('removes duplicate rows under the header, ignoring case, and says how many', () => {
+    sheet().setData({ version: 1, rows: 6, cols: 2, headerRow: true, cells: { A1: { v: 'City' }, A2: { v: 'Izmir' }, A3: { v: 'izmir' }, A4: { v: 'Bursa' }, A5: { v: 'Izmir' } } });
+    fixture.detectChanges();
+    sheet().select('A1');
+    sheet().removeDuplicates();
+    fixture.detectChanges();
+    const cells = sheet().getData().cells;
+    expect(['A1', 'A2', 'A3', 'A4'].map((a) => cells[a]?.v)).toEqual(['City', 'Izmir', 'Bursa', undefined]);
+    expect(sheet().notice).toBe('2 duplicate rows removed');
+    sheet().undo();
+    expect(sheet().getData().cells['A5']?.v).toBe('Izmir');
+  });
 });

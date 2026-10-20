@@ -67,6 +67,7 @@ import {
   weSheetSanitizeHiddenColumns,
   weSheetShiftFormula,
   weSheetSortRange,
+  weSheetRemoveDuplicates,
   weSheetStats
 } from './we-sheet.util';
 
@@ -1674,6 +1675,35 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     }
     const sorted = weSheetSortRange(this.sheet, range, this.active.col, direction, (c, r) => this.evaluator.value(c, r), this.locale.intlLocale);
     this.commit(sorted);
+  }
+
+  /** Remove Duplicates: the selected rows (or every used row under the header) that repeat an earlier row in the selected columns */
+  removeDuplicates(): void {
+    this.optionsOpen = false;
+    if (this.readonly) return;
+    this.commitEdit();
+    const s = this.selection;
+    const used = this.usedSize();
+    const block = s.r2 > s.r1 && !(s.r1 === 0 && s.r2 === this.sheet.rows - 1);
+    const range: WeSheetRange = block
+      ? { ...s, r1: this.sheet.headerRow && s.r1 === 0 ? 1 : s.r1 }
+      : { c1: 0, r1: this.sheet.headerRow ? 1 : 0, c2: Math.max(used.cols - 1, 0), r2: Math.max(used.rows - 1, 0) };
+    if (range.r2 <= range.r1) return;
+    if (this.mergeRanges.some((m) => m.c1 <= range.c2 && range.c1 <= m.c2 && m.r1 <= range.r2 && range.r1 <= m.r2)) {
+      this.notice = this.locale.sheetMergeDuplicates;
+      this.cdr.markForCheck();
+      return;
+    }
+    // Compared as shown, ignoring case — as Excel does
+    const keyOf = (r: number) => {
+      const parts: string[] = [];
+      for (let c = range.c1; c <= range.c2; c++) parts.push((this.view[r]?.[c]?.text ?? '').toLocaleLowerCase(this.locale.intlLocale));
+      return parts.join('\u0000');
+    };
+    const { data, removed } = weSheetRemoveDuplicates(this.sheet, range, keyOf);
+    if (removed) this.commit(data);
+    this.notice = this.locale.sheetDuplicatesRemoved(removed);
+    this.cdr.markForCheck();
   }
 
   /** Copies the top row of the selection down through it, shifting relative references — Ctrl+D */

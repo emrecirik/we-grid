@@ -126,6 +126,7 @@
             <button type="button" role="menuitemcheckbox" [attr.aria-checked]="!!sheet.autoFilter" [disabled]="!sheet.headerRow" (click)="toggleAutoFilter()">
               <span class="we-sheet__check" [innerHTML]="sheet.autoFilter ? icon('check') : ''" aria-hidden="true"></span>{{ locale.sheetAutoFilter }}
             </button>
+            <button type="button" role="menuitem" [disabled]="readonly" (click)="removeDuplicates()"><span class="we-sheet__check"></span>{{ locale.sheetRemoveDuplicates }}</button>
             <div class="we-sheet__menu-sep" role="separator"></div>
             <button type="button" role="menuitem" (click)="optionsOpen = false; addRow()"><span class="we-sheet__check"></span>{{ locale.sheetAddRow }}</button>
             <button type="button" role="menuitem" (click)="optionsOpen = false; addColumn()"><span class="we-sheet__check"></span>{{ locale.sheetAddColumn }}</button>

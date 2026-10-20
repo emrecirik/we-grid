@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.43.0 — 2026-10-20
+
+### Added
+
+- Remove duplicates in the sheet (Table options → Remove duplicates, `removeDuplicates()`,
+  `weSheetRemoveDuplicates`): rows repeating an earlier row in the selected columns go, compared
+  as shown and ignoring case; undoable. New locale keys `sheetRemoveDuplicates`,
+  `sheetDuplicatesRemoved(count)`, `sheetMergeDuplicates`.
+
 ## 0.42.0 — 2026-10-20
 
 ### Added

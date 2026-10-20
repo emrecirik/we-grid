@@ -244,6 +244,34 @@ export function weSheetSortRange(
   return { ...data, cells };
 }
 
+/**
+ * Excel's Remove Duplicates over a range: a row whose key matches an earlier row's is dropped, the
+ * rows kept move up inside the range (formulas follow) and the freed rows at the bottom are emptied.
+ */
+export function weSheetRemoveDuplicates(data: WeSheetData, range: WeSheetRange, keyOf: (row: number) => string): { data: WeSheetData; removed: number } {
+  const seen = new Set<string>();
+  const kept: number[] = [];
+  for (let r = range.r1; r <= range.r2; r++) {
+    const key = keyOf(r);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    kept.push(r);
+  }
+  const removed = range.r2 - range.r1 + 1 - kept.length;
+  if (!removed) return { data, removed };
+  const cells = { ...data.cells };
+  for (let r = range.r1; r <= range.r2; r++) {
+    const source = kept[r - range.r1];
+    for (let c = range.c1; c <= range.c2; c++) {
+      const key = weSheetAddress(c, r);
+      const from = source === undefined ? undefined : data.cells[weSheetAddress(c, source)];
+      if (from) cells[key] = typeof from.v === 'string' && from.v.startsWith('=') ? { ...from, v: weSheetShiftFormula(from.v, 0, r - source!) } : from;
+      else delete cells[key];
+    }
+  }
+  return { data: { ...data, cells }, removed };
+}
+
 /** Formats a computed value for display — errors show their code */
 export function weSheetFormatValue(value: unknown, format: WeSheetNumberFormat | undefined, intlLocale: string, currency: string, decimals?: number): string {
   if (value === null || value === undefined) return '';

@@ -349,6 +349,10 @@ export interface WeGridLocale {
   sheetBorderNone: string;
   /** Sorting a range with merged cells is refused */
   sheetMergeSort: string;
+  /** Table options item, the notice after it, and the refusal when merged cells are in the way */
+  sheetRemoveDuplicates: string;
+  sheetDuplicatesRemoved: (count: number) => string;
+  sheetMergeDuplicates: string;
   sheetFunctionSearch: string;
   sheetOptions: string;
 
@@ -717,6 +721,9 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetBorderBottom: 'Bottom border',
   sheetBorderNone: 'No border',
   sheetMergeSort: 'Merged cells cannot be sorted — unmerge them first',
+  sheetRemoveDuplicates: 'Remove duplicates',
+  sheetDuplicatesRemoved: (n) => (n ? `${n} duplicate row${n === 1 ? '' : 's'} removed` : 'No duplicate rows found'),
+  sheetMergeDuplicates: 'Merged cells are in the way — unmerge them first',
   sheetFunctionSearch: 'Search functions',
   sheetOptions: 'Table options',
   pivotLabel: 'Pivot table',
@@ -1089,6 +1096,9 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetBorderBottom: 'Alt kenarlık',
   sheetBorderNone: 'Kenarlık yok',
   sheetMergeSort: 'Birleştirilmiş hücreler sıralanamaz — önce ayırın',
+  sheetRemoveDuplicates: 'Yinelenenleri kaldır',
+  sheetDuplicatesRemoved: (n) => (n ? `${n} yinelenen satır kaldırıldı` : 'Yinelenen satır bulunamadı'),
+  sheetMergeDuplicates: 'Birleştirilmiş hücreler engel — önce ayırın',
   sheetFunctionSearch: 'İşlev ara',
   sheetOptions: 'Tablo seçenekleri',
   pivotLabel: 'Pivot tablo',

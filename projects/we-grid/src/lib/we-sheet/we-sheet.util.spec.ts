@@ -1,4 +1,5 @@
 import { WeGridFormulaError } from '../services/we-grid-formula.util';
+import { WeSheetData } from './we-sheet.model';
 import {
   weSheetAddress,
   weSheetAutoSum,
@@ -20,6 +21,7 @@ import {
   weSheetSanitize,
   weSheetShiftFormula,
   weSheetSortRange,
+  weSheetRemoveDuplicates,
   weSheetStats
 } from './we-sheet.util';
 
@@ -300,5 +302,23 @@ describe('Excel number formats read back', () => {
     expect(look('0.00E+00')).toEqual({ v: 1.5 });
     expect(look('[$-409]mmmm d, yyyy')).toEqual({ v: 1.5, f: 'date' });
     expect(look('#,##0.00 "TL"')).toEqual({ v: 1.5, f: 'number', d: 2 });
+  });
+});
+
+describe('weSheetRemoveDuplicates', () => {
+  it('keeps the first of each row, moves the rest up with their formulas and empties the bottom', () => {
+    const data: WeSheetData = {
+      version: 1, rows: 6, cols: 3,
+      cells: { A1: { v: 'a' }, B1: { v: 1 }, A2: { v: 'a' }, B2: { v: 1 }, A3: { v: 'b' }, B3: { v: 2 }, C3: { v: '=B3*2' }, A4: { v: 'a' }, B4: { v: 1 }, A5: { v: 'out' } }
+    };
+    const key = (r: number) => `${data.cells[`A${r + 1}`]?.v}|${data.cells[`B${r + 1}`]?.v}`;
+    const { data: out, removed } = weSheetRemoveDuplicates(data, { c1: 0, r1: 0, c2: 2, r2: 3 }, key);
+    expect(removed).toBe(2);
+    expect(out.cells['A2']).toEqual({ v: 'b' });
+    expect(out.cells['C2']).toEqual({ v: '=B2*2' });
+    expect(out.cells['A3']).toBeUndefined();
+    expect(out.cells['A4']).toBeUndefined();
+    expect(out.cells['A5']).toEqual({ v: 'out' });
+    expect(weSheetRemoveDuplicates(out, { c1: 0, r1: 0, c2: 2, r2: 1 }, () => String(Math.random())).removed).toBe(0);
   });
 });

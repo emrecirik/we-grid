@@ -134,7 +134,7 @@ describe('WeSheetComponent — structure, AutoSum, suggestions, import', () => {
     el().querySelector<HTMLButtonElement>('[aria-haspopup="menu"][aria-label="Table options"]')!.click();
     fixture.detectChanges();
     const items = Array.from(el().querySelectorAll<HTMLButtonElement>('.we-sheet__options button'));
-    expect(items.length).toBe(7);
+    expect(items.length).toBe(8);
     items[0].click();
     fixture.detectChanges();
     expect(sheet.getData().headerRow).toBeTrue();
