@@ -2,6 +2,15 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.39.0 — 2026-10-20
+
+### Added
+
+- Hide and unhide rows in the sheet (right-click → Hide rows / Unhide rows, `hideRows()`,
+  `unhideRows()`, `WeSheetData.hidden`, `weSheetSanitizeHidden`). Hidden rows move with inserted
+  and deleted rows and travel with Excel files both ways (`WeGridXlsxSheet.hiddenRows`,
+  `WeGridXlsxCellSheet.hiddenRows`). New locale keys `sheetHideRows`, `sheetUnhideRows`.
+
 ## 0.38.0 — 2026-10-20
 
 ### Added

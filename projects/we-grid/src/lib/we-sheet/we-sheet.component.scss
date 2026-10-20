@@ -597,6 +597,11 @@
   display: none;
 }
 
+// Rows hidden by hand: a thicker line on the row number below them, as in Excel
+.we-sheet__rowhead--after-hidden {
+  box-shadow: inset 0 2px 0 var(--we-grid-muted-color, #878a99);
+}
+
 // Freeze panes: the frozen columns stick past the row numbers, the frozen rows under the letters
 .we-sheet__cell--frozen-col {
   position: sticky;

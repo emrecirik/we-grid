@@ -533,4 +533,39 @@ describe('WeSheetComponent', () => {
       [4, null]
     ]);
   });
+
+  it('hides rows by hand, skips them, and unhides them from a selection around them', () => {
+    sheet().setData({ version: 1, rows: 6, cols: 2, merges: ['B3:B4'], cells: { A1: { v: 1 }, A2: { v: 2 }, A3: { v: 3 }, A4: { v: 4 }, B3: { v: 'M' } } });
+    fixture.detectChanges();
+    sheet().select('A2:A3');
+    sheet().hideRows();
+    fixture.detectChanges();
+    expect(sheet().getData().hidden).toEqual([1, 2]);
+    // The merge goes with its top-left row
+    expect(['A1', 'A2', 'A3', 'A4', 'A5'].map((a) => !!cellEl(a))).toEqual([true, false, false, false, true]);
+    expect(el().querySelectorAll('.we-sheet__rowhead--after-hidden').length).toBe(1);
+    sheet().select('A1');
+    el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true }));
+    expect(sheet().selectionLabel).toBe('A5');
+    sheet().select('A1:A5');
+    expect(sheet().selectionHasHiddenRows).toBeTrue();
+    sheet().unhideRows();
+    fixture.detectChanges();
+    expect(sheet().getData().hidden).toBeUndefined();
+    expect(!!cellEl('A2')).toBeTrue();
+  });
+
+  it('never hides the last rows in view, and hidden rows follow inserted rows', () => {
+    sheet().setData({ version: 1, rows: 3, cols: 1, cells: {} });
+    fixture.detectChanges();
+    sheet().select('A1:A3');
+    expect(sheet().canHideRows).toBeFalse();
+    sheet().hideRows();
+    expect(sheet().getData().hidden).toBeUndefined();
+    sheet().select('A3');
+    sheet().hideRows();
+    sheet().select('A1');
+    sheet().insertRows('before');
+    expect(sheet().getData().hidden).toEqual([3]);
+  });
 });

@@ -286,7 +286,7 @@
       <tbody>
         @for (r of visibleRows; track r; let i = $index) {
           <tr role="row" [class.we-sheet__row--alt]="sheet.striped && i % 2 === (sheet.headerRow ? 0 : 1)" [class.we-sheet__row--header]="sheet.headerRow && r === 0">
-            <th role="rowheader" class="we-sheet__rowhead" [class.we-sheet__rowhead--frozen]="r < frozenRows" [style.top]="r < frozenRows ? frozenTop(r) : null" [class.we-sheet__head--on]="r >= selection.r1 && r <= selection.r2" (click)="onRowHeaderClick($event, r)">{{ r + 1 }}</th>
+            <th role="rowheader" class="we-sheet__rowhead" [class.we-sheet__rowhead--frozen]="r < frozenRows" [class.we-sheet__rowhead--after-hidden]="isAfterHiddenRow(r)" [style.top]="r < frozenRows ? frozenTop(r) : null" [class.we-sheet__head--on]="r >= selection.r1 && r <= selection.r2" (click)="onRowHeaderClick($event, r)">{{ r + 1 }}</th>
             @for (c of colIndexes; track c) {
               @if (!view[r][c].covered) {
               <td
@@ -402,6 +402,10 @@
       <button type="button" role="menuitem" (click)="insertRows('before')">{{ locale.sheetInsertRowAbove }}</button>
       <button type="button" role="menuitem" (click)="insertRows('after')">{{ locale.sheetInsertRowBelow }}</button>
       <button type="button" role="menuitem" (click)="deleteRows()" [disabled]="selection.r2 - selection.r1 + 1 >= sheet.rows">{{ locale.sheetDeleteRows }}</button>
+      <button type="button" role="menuitem" (click)="hideRows()" [disabled]="!canHideRows">{{ locale.sheetHideRows }}</button>
+      @if (selectionHasHiddenRows) {
+        <button type="button" role="menuitem" (click)="unhideRows()">{{ locale.sheetUnhideRows }}</button>
+      }
       <div class="we-sheet__menu-sep" role="separator"></div>
       <button type="button" role="menuitem" (click)="insertColumns('before')">{{ locale.sheetInsertColumnLeft }}</button>
       <button type="button" role="menuitem" (click)="insertColumns('after')">{{ locale.sheetInsertColumnRight }}</button>

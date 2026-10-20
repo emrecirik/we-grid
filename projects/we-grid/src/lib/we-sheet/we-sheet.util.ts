@@ -344,6 +344,8 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
   }
   const merges = weSheetSanitizeMerges(o['merges'], rows, cols);
   if (merges.length) data.merges = merges;
+  const hidden = weSheetSanitizeHidden(o['hidden'], rows);
+  if (hidden.length) data.hidden = hidden;
   const formats = weSheetSanitizeFormats(o['formats']);
   if (formats.length) data.formats = formats;
   return data;
@@ -497,6 +499,13 @@ export function weSheetMoveReferences(formula: string, axis: 'row' | 'col', at: 
   return out;
 }
 
+/** Hidden rows as stored: whole numbers inside the sheet, once each, ascending — never every row */
+export function weSheetSanitizeHidden(value: unknown, rows: number): number[] {
+  if (!Array.isArray(value)) return [];
+  const out = [...new Set(value.filter((r): r is number => Number.isInteger(r) && r >= 0 && r < rows))].sort((a, b) => a - b);
+  return out.length >= rows ? [] : out;
+}
+
 /**
  * Inserts `count` empty rows or columns before `at` (a negative count deletes them): cells move,
  * every formula's references follow, column widths move with their columns.
@@ -530,6 +539,12 @@ export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number
     const range = weSheetMoveReferences(data.chart.range, axis, at, count);
     if (range.includes('#REF!')) delete out.chart;
     else out.chart = { ...data.chart, range };
+  }
+  if (data.hidden && axis === 'row') {
+    // Hidden rows move with their rows; deleted ones are gone
+    const hidden = weSheetSanitizeHidden(data.hidden.map(shift).filter((r): r is number => r !== null), rows);
+    if (hidden.length) out.hidden = hidden;
+    else delete out.hidden;
   }
   if (data.merges) {
     const merges = data.merges.map((m) => weSheetMoveReferences(m, axis, at, count)).filter((m) => !m.includes('#REF!'));
@@ -1050,7 +1065,8 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
         autoFilter: data.autoFilter && data.headerRow && used.length ? `A1:${weSheetAddress(lastCol, lastRow)}` : undefined,
         freeze: data.freeze ?? (data.freezeColumn ? { rows: 0, cols: 1 } : undefined),
         conditionalFormats: (data.formats ?? []).map(excelConditionalFormat).filter((f): f is WeGridXlsxConditionalFormat => f !== null),
-        notes: Object.fromEntries(Object.entries(data.cells).filter(([, c]) => !!c.n).map(([ref, c]) => [ref, c.n as string]))
+        notes: Object.fromEntries(Object.entries(data.cells).filter(([, c]) => !!c.n).map(([ref, c]) => [ref, c.n as string])),
+        hiddenRows: data.hidden?.map((r) => r + 1)
       };
     })
   );
@@ -1074,6 +1090,7 @@ export function weSheetFromCells(
     freeze?: { rows: number; cols: number };
     conditionalFormats?: readonly WeGridXlsxConditionalFormat[];
     notes?: Readonly<Record<string, string>>;
+    hiddenRows?: readonly number[];
   } = {}
 ): { data: WeSheetData; truncated: boolean } {
   const cells: Record<string, WeSheetCell> = {};
@@ -1157,6 +1174,11 @@ export function weSheetFromCells(
     data.rows = Math.max(data.rows, at.row + 1);
     data.cols = Math.max(data.cols, at.col + 1);
   }
+  // Hidden rows, as the file numbers them (1-based); the sheet grows to hold them
+  const hiddenRows = (extras.hiddenRows ?? []).filter((r) => Number.isInteger(r) && r >= 1 && r <= WE_SHEET_MAX_ROWS).map((r) => r - 1);
+  if (hiddenRows.length) data.rows = Math.max(data.rows, Math.max(...hiddenRows) + 2);
+  const hidden = weSheetSanitizeHidden(hiddenRows, data.rows);
+  if (hidden.length) data.hidden = hidden;
   // Conditional formatting, one rule per column of each range (the sheet's rules cover one column)
   const rules: WeSheetFormatRule[] = [];
   for (const cf of extras.conditionalFormats ?? []) {

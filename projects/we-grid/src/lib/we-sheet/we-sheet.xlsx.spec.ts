@@ -294,3 +294,17 @@ describe('notes in Excel files', () => {
     expect(back['B2']).toEqual({ n: 'empty but noted' });
   });
 });
+
+describe('hidden rows in Excel files', () => {
+  it('writes hidden rows, empty ones too, and reads them back', async () => {
+    const blob = weSheetWorkbookXlsx([{ name: 'H', data: { version: 1, rows: 6, cols: 1, hidden: [1, 4], cells: { A1: { v: 1 }, A2: { v: 2 } } } }]);
+    const text = await new Response(blob).text();
+    expect(text).toContain('<row r="2" hidden="1">');
+    expect(text).toContain('<row r="5" hidden="1"></row>');
+    const [read] = await weGridReadXlsxCells(blob);
+    expect(read.hiddenRows).toEqual([2, 5]);
+    const back = weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats, read).data;
+    expect(back.hidden).toEqual([1, 4]);
+    expect(back.rows).toBeGreaterThanOrEqual(6);
+  });
+});

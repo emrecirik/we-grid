@@ -45,6 +45,7 @@ export class BudgetComponent {}
 | Freeze *(0.11.0)* | Column A stays in view while scrolling sideways; with a header row, row 1 stays at the top. *(0.29.0)* **Freeze panes at the active cell** (Table options) keeps every row above it and every column before it in view, as Excel's Freeze Panes does; the same item unfreezes (`WeSheetData.freeze`, `toggleFreezePanes()`). |
 | Function suggestions *(0.11.0)* | Typing `=SU` (or `=TOP` in Turkish) lists matching functions with their arguments; arrows choose, Tab or Enter inserts `SUM(`, Escape closes. |
 | Find and replace *(0.14.0)* | Ctrl+F finds text in what the cells show (and in formulas), Enter / Shift+Enter walk the matches, "Match case" narrows them; Ctrl+H (or Replace…) replaces one match or all of them — undoable. |
+| Hide rows *(0.39.0)* | Right-click → **Hide rows** hides the selected rows; select the rows around them and **Unhide rows** brings them back. A thicker line on the row number marks the gap. Like filtered rows, they keep their numbers and arrow keys, copy and the status bar skip them; inserted and deleted rows move them, and Excel files keep them both ways (`WeSheetData.hidden`, 0-based; `hideRows()`, `unhideRows()`). |
 | Filter *(0.19.0)* | **Table options → Filter buttons** (with a header row) puts a button in each header cell: tick the values to show, as in Excel's AutoFilter. Alt+↓ on a header cell opens its filter. Hidden rows keep their numbers; arrow keys and Enter skip them, copy and the status bar leave them out. Kept in `WeSheetData.autoFilter` / `filters` (per column, the texts hidden). |
 | Conditional formatting *(0.18.0)* | Right-click → **Conditional formatting** opens the grid's Format panel for the active cell's column — over the selected rows, or its used rows below the header row when one cell is selected. Highlight rules, top/bottom, above/below average, duplicates, colour scales, data bars and icon sets, recomputed on every change (`WeSheetData.formats`, `WeSheetFormatRule` = a `WeGridFormatRule` plus its `range`). Ranges follow inserted and deleted rows and columns. Formula rules are left out. |
 | Notes *(0.18.0)* | Right-click → **Note…** adds a note to the selected cells (`WeSheetCell.n`, up to 1000 characters): a triangle marks the corner and the note shows when the cell is pointed at. |
@@ -81,7 +82,7 @@ Public methods: `getData()`, `setData(data)`, `getValue('B3')`, `setCell('C2', '
 `openFind(withReplace?)`, `findNext(step?)`, `replaceOne()`, `replaceAll()`, `changeDecimals(delta)`,
 `insertChart(type?)`, `setChartType(type)`, `removeChart()`,
 `exportAs('xlsx' \| 'csv' \| 'pdf')`, `buildExportTable()`, `fill(range)`, `fillSeries()` *(0.17.0)*,
-`saveList(text)`, `saveNote(text)`, `openFormatPanel()` *(0.18.0)*, `toggleAutoFilter()` *(0.19.0)*,
+`saveList(text)`, `saveNote(text)`, `openFormatPanel()` *(0.18.0)*, `toggleAutoFilter()` *(0.19.0)*, `hideRows()`, `unhideRows()` *(0.39.0)*,
 `insertFunction(name)` *(0.24.0)*, `toggleMerge()` *(0.26.0)*,
 `setBorders('all' \| 'outside' \| 'bottom' \| 'none')` *(0.27.0)*, `toggleWrap()` *(0.28.0)*, `toggleFreezePanes()` *(0.29.0)*.
 

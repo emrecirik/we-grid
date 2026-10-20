@@ -473,6 +473,8 @@ export interface WeGridXlsxSheet {
   conditionalFormats?: WeGridXlsxConditionalFormat[];
   /** Notes, by A1 address — written as Excel comments */
   notes?: Record<string, string>;
+  /** Hidden rows, numbered as in Excel (1-based) */
+  hiddenRows?: number[];
 }
 
 /** One conditional format rule for `weGridBuildXlsxWorkbook`, as Excel names it (a `cfRule`) */
@@ -586,11 +588,13 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
       const row = Number(m[2]);
       byRow.set(row, [...(byRow.get(row) ?? []), cell]);
     }
+    const hiddenRows = new Set(sheet.hiddenRows ?? []);
+    for (const r of hiddenRows) if (Number.isInteger(r) && r >= 1 && !byRow.has(r)) byRow.set(r, []);
     const rows = [...byRow.entries()]
       .sort((a, b) => a[0] - b[0])
       .map(([r, cells]) => {
         cells.sort((a, b) => refToColumnIndex(a.ref) - refToColumnIndex(b.ref));
-        return `<row r="${r}">${cells.map((c) => workbookCell(c, styleOf(c))).join('')}</row>`;
+        return `<row r="${r}"${hiddenRows.has(r) ? ' hidden="1"' : ''}>${cells.map((c) => workbookCell(c, styleOf(c))).join('')}</row>`;
       });
     const widths = Object.entries(sheet.widths ?? {})
       .map(([c, w]) => `<col min="${Number(c) + 1}" max="${Number(c) + 1}" width="${Math.max(4, Math.round(w / 7))}" customWidth="1"/>`)
@@ -1050,6 +1054,8 @@ export interface WeGridXlsxCellSheet {
   conditionalFormats: WeGridXlsxConditionalFormat[];
   /** Notes (Excel comments) by A1 address */
   notes: Record<string, string>;
+  /** Hidden rows, numbered as in Excel (1-based) */
+  hiddenRows: number[];
 }
 
 /** A cell's look as an .xlsx file stores it, read by `weGridReadXlsxCells` */
@@ -1119,8 +1125,10 @@ export async function weGridReadXlsxCells(
     const formats: Record<string, WeGridXlsxCellFormat> = {};
     // Namespace-blind (`<x:c>` too); a row or cell without its `r` follows the one before it
     let rowNumber = 0;
+    const hiddenRows: number[] = [];
     for (const rowEl of Array.from(doc.getElementsByTagNameNS('*', 'row'))) {
       rowNumber = Number(rowEl.getAttribute('r')) || rowNumber + 1;
+      if (/^(1|true)$/.test(rowEl.getAttribute('hidden') ?? '')) hiddenRows.push(rowNumber);
       let col = -1;
       for (const cellEl of Array.from(rowEl.children)) {
         if (cellEl.localName !== 'c') continue;
@@ -1201,7 +1209,7 @@ export async function weGridReadXlsxCells(
         }
       }
     }
-    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, notes, ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
+    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, notes, hiddenRows, ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
   }
   return out;
 }

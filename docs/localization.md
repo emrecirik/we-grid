@@ -236,6 +236,10 @@ parser's own messages are English too.
 - `sheetOptions`, `formatTypeIconSet`, `formatIconSetLabels`, `formatIconSetReverse`, `sheetImportTruncated`,
   `sheetFull`
 
+## Keys added in 0.39.0
+
+- `sheetHideRows`, `sheetUnhideRows`
+
 ## Keys added in 0.29.0
 
 - `sheetFreezePanes`, `sheetUnfreezePanes`

@@ -291,6 +291,9 @@ export interface WeGridLocale {
   sheetInsertRowAbove: string;
   sheetInsertRowBelow: string;
   sheetDeleteRows: string;
+  /** Context-menu items: hide the selected rows, show the hidden rows inside the selection */
+  sheetHideRows: string;
+  sheetUnhideRows: string;
   sheetInsertColumnLeft: string;
   sheetInsertColumnRight: string;
   sheetDeleteColumns: string;
@@ -669,6 +672,8 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetInsertRowAbove: 'Insert row above',
   sheetInsertRowBelow: 'Insert row below',
   sheetDeleteRows: 'Delete rows',
+  sheetHideRows: 'Hide rows',
+  sheetUnhideRows: 'Unhide rows',
   sheetInsertColumnLeft: 'Insert column left',
   sheetInsertColumnRight: 'Insert column right',
   sheetDeleteColumns: 'Delete columns',
@@ -1035,6 +1040,8 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetInsertRowAbove: 'Üste satır ekle',
   sheetInsertRowBelow: 'Alta satır ekle',
   sheetDeleteRows: 'Satırları sil',
+  sheetHideRows: 'Satırları gizle',
+  sheetUnhideRows: 'Satırları göster',
   sheetInsertColumnLeft: 'Sola kolon ekle',
   sheetInsertColumnRight: 'Sağa kolon ekle',
   sheetDeleteColumns: 'Kolonları sil',

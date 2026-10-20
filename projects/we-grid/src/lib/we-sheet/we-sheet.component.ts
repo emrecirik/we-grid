@@ -63,6 +63,7 @@ import {
   weSheetParseInput,
   weSheetRangeLabel,
   weSheetSanitize,
+  weSheetSanitizeHidden,
   weSheetShiftFormula,
   weSheetSortRange,
   weSheetStats
@@ -1292,6 +1293,46 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.structure('row', s.r1, -(s.r2 - s.r1 + 1));
   }
 
+  /** Hides the selected rows (Excel's Hide) — never every row of the sheet */
+  hideRows(): void {
+    this.closeMenu();
+    if (this.readonly || !this.canHideRows) return;
+    this.commitEdit();
+    const s = this.selection;
+    const hidden = [...(this.sheet.hidden ?? [])];
+    for (let r = s.r1; r <= s.r2; r++) hidden.push(r);
+    this.commit({ ...this.sheet, hidden: weSheetSanitizeHidden(hidden, this.sheet.rows) });
+  }
+
+  /** Shows the hidden rows inside the selection — select the rows around them, as in Excel */
+  unhideRows(): void {
+    this.closeMenu();
+    if (this.readonly || !this.selectionHasHiddenRows) return;
+    const s = this.selection;
+    const next: WeSheetData = { ...this.sheet, hidden: (this.sheet.hidden ?? []).filter((r) => r < s.r1 || r > s.r2) };
+    if (!next.hidden!.length) delete next.hidden;
+    this.commit(next);
+  }
+
+  /** Whether hiding the selected rows leaves at least one row in view */
+  get canHideRows(): boolean {
+    const s = this.selection;
+    return this.visibleRows.some((r) => r < s.r1 || r > s.r2);
+  }
+
+  /** Whether rows hidden by hand lie inside the selection */
+  get selectionHasHiddenRows(): boolean {
+    const s = this.selection;
+    return (this.sheet.hidden ?? []).some((r) => r >= s.r1 && r <= s.r2);
+  }
+
+  /** Whether the hidden rows just above `r` include one hidden by hand — its row number shows the gap */
+  isAfterHiddenRow(r: number): boolean {
+    if (!this.sheet.hidden?.length) return false;
+    for (let k = r - 1; k >= 0 && this.hiddenRows.has(k); k--) if (this.sheet.hidden.includes(k)) return true;
+    return false;
+  }
+
   deleteColumns(): void {
     const s = this.selection;
     if (s.c2 - s.c1 + 1 >= this.sheet.cols) return;
@@ -1992,7 +2033,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   /** The rows the header-row filters hide, and the rows left to draw */
   private applyFilters(): void {
-    const hidden = new Set<number>();
+    const hidden = new Set<number>(this.sheet.hidden ?? []);
     const filters = this.sheet.headerRow && this.sheet.autoFilter ? Object.entries(this.sheet.filters ?? {}) : [];
     if (filters.length) {
       const used = this.usedSize();
@@ -2000,7 +2041,9 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       for (let r = 1; r < used.rows; r++) {
         if (columns.some(([c, texts]) => texts.has(this.view[r]?.[c]?.text ?? ''))) hidden.add(r);
       }
-      // A merge is shown or hidden whole, by its top-left row — never a row of it without the cell that spans it
+    }
+    // A merge is shown or hidden whole, by its top-left row — never a row of it without the cell that spans it
+    if (hidden.size) {
       for (const m of this.mergeRanges) {
         const hide = hidden.has(m.r1);
         for (let r = m.r1 + 1; r <= m.r2; r++) {

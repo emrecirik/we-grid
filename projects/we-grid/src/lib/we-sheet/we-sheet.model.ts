@@ -52,6 +52,8 @@ export interface WeSheetData {
   autoFilter?: boolean;
   /** Per column letter, the shown texts whose rows the filter hides (`''` for blanks) */
   filters?: Record<string, string[]>;
+  /** Rows hidden by hand (Excel's Hide), 0-based and ascending — the filter's rows are not in here */
+  hidden?: number[];
   /** A chart of a range, shown under the cells — `{ range: 'A1:C9', type: 'column' }` */
   chart?: WeSheetChart;
   /** Conditional formatting — the grid's format rules, each over a range of one column */
