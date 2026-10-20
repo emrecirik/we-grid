@@ -386,7 +386,10 @@ describe('more Excel functions (0.22.0)', () => {
   it('tells what a value is and catches #N/A', () => {
     expect(calc('=ISBLANK("")')).toBeFalse();
     expect(calc('=ISTEXT("")')).toBeTrue();
-    expect(code(calc('=CEILING(-5, 2)'))).toBe('#NUM!');
+    expect(calc('=CEILING(-2.5, 2)')).toBe(-2);
+    expect(calc('=FLOOR(-2.5, 2)')).toBe(-4);
+    expect(calc('=FLOOR(0.3, 0.1)')).toBe(0.3);
+    expect(code(calc('=CEILING(5, -2)'))).toBe('#NUM!');
     expect(at('=SIRA(5; C2:C4)')).toBe(2);
     expect(calc('=ISNUMBER(3)')).toBeTrue();
     expect(calc('=ISTEXT(3)')).toBeFalse();
@@ -404,5 +407,34 @@ describe('more Excel functions (0.22.0)', () => {
     expect(calc('=DAYS(DATE(2026, 3, 1), DATE(2026, 2, 1))')).toBe(28);
     expect(calc('=HOUR(NOW())')).toBe(14);
     expect(calc('=MINUTE(NOW())')).toBe(30);
+  });
+});
+
+describe('Excel edge cases (0.24.0 fixes)', () => {
+  const grid = (rows: unknown[][], src: string) => sheet([...rows, [src]]).value(0, rows.length);
+
+  it('looks up with XLOOKUP the way Excel does', () => {
+    const rows = [[1, 'a', 'b'], [2, 'c', 'd'], [2, 'e', 'f']];
+    expect(code(grid(rows, '=XLOOKUP(9, A1:A3, B1:B3, , 1)'))).toBe('#N/A');
+    expect(grid(rows, '=XLOOKUP(2, A1:A3, B1:B3, "none", 0, -1)')).toBe('e');
+    expect(grid(rows, '=INDEX(XLOOKUP(2, A1:A3, B1:C3), 2)')).toBe('d');
+    expect(grid([['apple', 1], ['banana', 2]], '=XLOOKUP("ban*", A1:A2, B1:B2, "", 2)')).toBe(2);
+  });
+
+  it('counts, sums and searches with Excel wildcards and booleans', () => {
+    expect(grid([['a*'], ['ab']], '=COUNTIFS(A1:A2, "a~*")')).toBe(1);
+    expect(grid([['a*'], ['ab']], '=COUNTIF(A1:A2, "a*")')).toBe(2);
+    expect(calc('=SEARCH("~?", "a?b")')).toBe(2);
+    expect(grid([[true], [false], [true]], '=COUNTIFS(A1:A3, "TRUE")')).toBe(2);
+    expect(grid([['TRUE'], [false]], '=XOR(A1:A2)')).toBeFalse();
+  });
+
+  it('gets the small cases right', () => {
+    expect(grid([[''], ['']], '=PRODUCT(A1:A2)')).toBe(0);
+    expect(calc('=DAYS(DATE(2024, 1, 2) + 0.75, DATE(2024, 1, 1))')).toBe(1);
+    expect(calc('=WEEKDAY(DATE(2024, 1, 1), 11)')).toBe(1);
+    expect(calc('=WEEKDAY(DATE(2024, 1, 1), 17)')).toBe(2);
+    expect(code(calc('=LOG(10, 1)'))).toBe('#DIV/0!');
+    expect(calc('=VALUE("10%")')).toBe(0.1);
   });
 });

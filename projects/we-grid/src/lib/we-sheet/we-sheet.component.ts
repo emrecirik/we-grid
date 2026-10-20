@@ -143,6 +143,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   @ViewChild('scroll', { static: true }) scrollRef!: ElementRef<HTMLElement>;
   @ViewChild('editor') editorRef?: ElementRef<HTMLInputElement>;
   @ViewChild('importInput') importInputRef?: ElementRef<HTMLInputElement>;
+  @ViewChild('formulaBar') formulaBarRef?: ElementRef<HTMLInputElement>;
 
   sheet: WeSheetData = weSheetEmpty();
   view: CellView[][] = [];
@@ -195,6 +196,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   listEditor: { kind: 'list' | 'note'; text: string; x: number; y: number } | null = null;
   /** The open choices of the active cell's dropdown list */
   picker: { options: string[]; index: number; x: number; y: number } | null = null;
+  /** The ƒ button's list of every function, searchable by English or Turkish name */
+  functionPicker: { query: string; index: number; x: number; y: number } | null = null;
   /** The conditional-formatting panel: the column it shows (as the panel expects one) and that range's rules */
   formatPanel: { range: string; column: { field: string; defaultHeader: string; type: 'number' | 'text' }; rules: WeGridFormatRule[] } | null = null;
   private resizing: { col: number; startX: number; startWidth: number } | null = null;
@@ -725,6 +728,65 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.commit(next);
   }
 
+  // ─── Insert function (ƒ) ─────────────────────────────────────────────
+
+  toggleFunctionPicker(event: MouseEvent): void {
+    if (this.functionPicker || this.readonly) {
+      this.functionPicker = null;
+      return;
+    }
+    const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    this.functionPicker = { query: '', index: 0, x: Math.min(box.left, window.innerWidth - 300), y: box.bottom + 4 };
+    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLInputElement>('.we-sheet__functions-search')?.focus());
+  }
+
+  /** The functions whose English or Turkish name holds the search, English names first */
+  get functionMatches(): WeSheetSuggestion[] {
+    const q = (this.functionPicker?.query ?? '').trim().toLocaleUpperCase('tr');
+    const seen = new Set<string>();
+    const out: WeSheetSuggestion[] = [];
+    for (const f of FUNCTION_NAMES) {
+      if (seen.has(f.canonical) || (q && !f.name.toLocaleUpperCase('tr').includes(q))) continue;
+      seen.add(f.canonical);
+      out.push({ name: f.canonical, signature: `${f.canonical}(${WE_GRID_FORMULA_SIGNATURES[f.canonical] ?? ''})${f.name !== f.canonical ? ` · ${f.name}` : ''}` });
+    }
+    return out;
+  }
+
+  /** Puts `name(` into the active cell's formula — a new formula when the cell holds none — and edits it in the formula bar */
+  insertFunction(name: string): void {
+    this.functionPicker = null;
+    if (this.readonly || this.hiddenRows.has(this.active.row)) return;
+    const current = this.editing ? this.editing.text : this.rawText(this.active.col, this.active.row);
+    const text = !current.startsWith('=') ? `=${name}(` : /[=(,;+\-*/^&<>\s]$/.test(current) ? `${current}${name}(` : `${current}+${name}(`;
+    this.barText = text;
+    this.editing = { ...this.active, text, fromBar: true };
+    this.cdr.detectChanges();
+    const bar = this.formulaBarRef?.nativeElement;
+    if (!bar) return;
+    bar.value = text;
+    bar.focus({ preventScroll: true });
+    bar.setSelectionRange(text.length, text.length);
+  }
+
+  onFunctionPickerKeydown(event: KeyboardEvent): void {
+    const p = this.functionPicker;
+    if (!p) return;
+    const n = this.functionMatches.length;
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      if (n) p.index = (p.index + (event.key === 'ArrowDown' ? 1 : -1) + n) % n;
+      event.preventDefault();
+    } else if (event.key === 'Enter') {
+      const f = this.functionMatches[p.index];
+      if (f) this.insertFunction(f.name);
+      event.preventDefault();
+    } else if (event.key === 'Escape') {
+      event.stopPropagation();
+      this.functionPicker = null;
+      this.scrollRef.nativeElement.focus({ preventScroll: true });
+    }
+  }
+
   // ─── Dropdown lists ──────────────────────────────────────────────────
 
   /** The active cell's dropdown list, or null */
@@ -1227,6 +1289,10 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (this.menu && !target.closest?.('.we-sheet__menu')) this.closeMenu();
     if (this.listEditor && !target.closest?.('.we-sheet__list-editor')) this.closeListEditor();
     if (this.filterMenu && !target.closest?.('.we-sheet__filter')) this.closeFilter();
+    if (this.functionPicker && !target.closest?.('.we-sheet__functions, .we-sheet__fx')) {
+      this.functionPicker = null;
+      this.cdr.markForCheck();
+    }
     if (this.picker && !target.closest?.('.we-sheet__picker, .we-sheet__pick-btn')) {
       this.picker = null;
       this.cdr.markForCheck();

@@ -209,7 +209,59 @@
 
 .we-sheet__fx {
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.3rem;
+  border: none;
+  border-radius: calc(var(--we-grid-radius, 0.25rem) - 1px);
+  background: transparent;
   color: var(--we-grid-muted-color, #878a99);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover:not(:disabled),
+  &[aria-expanded='true'] {
+    background: var(--we-grid-row-selected-bg, rgba(64, 81, 137, 0.1));
+    color: var(--we-grid-accent-color, #405189);
+  }
+
+  &:disabled {
+    cursor: default;
+  }
+}
+
+// The ƒ list: a search box over every function
+.we-sheet__functions {
+  gap: 0.4rem;
+  width: 18rem;
+  padding: 0.5rem;
+}
+
+.we-sheet__functions-search {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-bg, #fff);
+  color: var(--we-grid-font-color, #212529);
+  font: inherit;
+}
+
+.we-sheet__functions-list {
+  display: flex;
+  flex-direction: column;
+  max-height: 16rem;
+  overflow-y: auto;
+
+  button {
+    display: flex;
+    flex-direction: column;
+    gap: 0.1rem;
+  }
+
+  span {
+    color: var(--we-grid-muted-color, #878a99);
+    font-size: 0.8em;
+  }
 }
 
 // ─── Cells ───────────────────────────────────────────────────────────

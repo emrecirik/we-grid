@@ -199,14 +199,14 @@ function inlineStringCell(ref: string, text: string, style: number): string {
 }
 
 /** Worksheet names may not exceed 31 characters nor contain any of `[]:*?/\` */
-function sanitiseSheetName(name: string): string {
+export function weGridXlsxSheetName(name: string): string {
   const cleaned = name.replace(/[\\/?*[\]:]/g, ' ').trim();
   return (cleaned || 'Sheet1').slice(0, 31);
 }
 
 /** Builds a real .xlsx workbook out of an export table — one sheet, a bold header and a summary row */
 export function weGridBuildXlsx(table: WeGridExportTable): Blob {
-  const sheetName = sanitiseSheetName(table.title);
+  const sheetName = weGridXlsxSheetName(table.title);
 
   const cols = table.columns
     .map((col, i) => `<col min="${i + 1}" max="${i + 1}" width="${Math.max(8, Math.round(col.width / 7))}" customWidth="1"/>`)
@@ -380,8 +380,9 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
 
   const used = new Set<string>();
   const parts = sheets.map((sheet, i) => {
-    let name = sanitiseSheetName(sheet.name || `Sheet${i + 1}`);
-    for (let n = 2; used.has(name.toLowerCase()); n++) name = `${name.slice(0, 28)} ${n}`;
+    const base = weGridXlsxSheetName(sheet.name || `Sheet${i + 1}`);
+    let name = base;
+    for (let n = 2; used.has(name.toLowerCase()); n++) name = `${base.slice(0, 28)} ${n}`;
     used.add(name.toLowerCase());
     const byRow = new Map<number, WeGridXlsxCell[]>();
     for (const cell of sheet.cells) {
@@ -513,11 +514,25 @@ function refToColumnIndex(ref: string): number {
 
 function parseSharedStrings(xml: string): string[] {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
-  return Array.from(doc.getElementsByTagName('si')).map((si) =>
-    Array.from(si.getElementsByTagName('t'))
-      .map((t) => t.textContent ?? '')
-      .join('')
-  );
+  return Array.from(doc.getElementsByTagNameNS('*', 'si')).map(stringItemText);
+}
+
+/** The text of a string item (`<si>` or `<is>`): its `<t>`, or the `<t>` of each `<r>` run — never the phonetic `<rPh>` */
+function stringItemText(item: Element): string {
+  let text = '';
+  for (const child of Array.from(item.children)) {
+    if (child.localName === 't') text += child.textContent ?? '';
+    else if (child.localName === 'r') {
+      for (const t of Array.from(child.children)) if (t.localName === 't') text += t.textContent ?? '';
+    }
+  }
+  return text;
+}
+
+/** Text that a spreadsheet would read as a number, a boolean or a formula if it were typed */
+function looksTyped(text: string): boolean {
+  const t = text.trim();
+  return /^[='\-+]/.test(text) || /^[-+]?[\d.,]+(e[-+]?\d+)?%?$/i.test(t) || /^(TRUE|FALSE|DOĞRU|YANLIŞ)$/i.test(t);
 }
 
 /**
@@ -605,14 +620,14 @@ export async function weGridReadXlsxCells(
   const targets = new Map<string, string>();
   const relsXml = await read('xl/_rels/workbook.xml.rels');
   if (relsXml) {
-    for (const rel of Array.from(new DOMParser().parseFromString(relsXml, 'application/xml').getElementsByTagName('Relationship'))) {
+    for (const rel of Array.from(new DOMParser().parseFromString(relsXml, 'application/xml').getElementsByTagNameNS('*', 'Relationship'))) {
       const target = rel.getAttribute('Target') ?? '';
       targets.set(rel.getAttribute('Id') ?? '', target.startsWith('/') ? target.slice(1) : `xl/${target}`);
     }
   }
   const workbookXml = await read('xl/workbook.xml');
   const listed = workbookXml
-    ? Array.from(new DOMParser().parseFromString(workbookXml, 'application/xml').getElementsByTagName('sheet')).map((el) => ({
+    ? Array.from(new DOMParser().parseFromString(workbookXml, 'application/xml').getElementsByTagNameNS('*', 'sheet')).map((el) => ({
         name: el.getAttribute('name') ?? '',
         path: targets.get(el.getAttribute('r:id') ?? el.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') ?? '') ?? ''
       }))
@@ -626,41 +641,52 @@ export async function weGridReadXlsxCells(
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
     const cells: Record<string, string> = {};
     const masters = new Map<string, { formula: string; col: number; row: number }>();
-    for (const cellEl of Array.from(doc.getElementsByTagName('c'))) {
-      const ref = cellEl.getAttribute('r') ?? '';
-      const m = /^([A-Z]{1,3})(\d+)$/.exec(ref);
-      if (!m) continue;
-      const fEl = cellEl.getElementsByTagName('f')[0];
-      if (fEl) {
-        const text = fEl.textContent ?? '';
-        const si = fEl.getAttribute('si');
-        if (fEl.getAttribute('t') === 'shared' && si !== null) {
-          const col = refToColumnIndex(ref);
-          const row = Number(m[2]);
-          if (text) masters.set(si, { formula: `=${text}`, col, row });
-          const master = masters.get(si);
-          if (text) {
+    // Namespace-blind (`<x:c>` too); a row or cell without its `r` follows the one before it
+    let rowNumber = 0;
+    for (const rowEl of Array.from(doc.getElementsByTagNameNS('*', 'row'))) {
+      rowNumber = Number(rowEl.getAttribute('r')) || rowNumber + 1;
+      let col = -1;
+      for (const cellEl of Array.from(rowEl.children)) {
+        if (cellEl.localName !== 'c') continue;
+        const given = /^([A-Z]{1,3})(\d+)$/.exec(cellEl.getAttribute('r') ?? '');
+        col = given ? refToColumnIndex(given[1]) : col + 1;
+        const row = given ? Number(given[2]) : rowNumber;
+        const ref = `${columnLetter(col)}${row}`;
+        const child = (name: string) => Array.from(cellEl.children).find((el) => el.localName === name);
+        const fEl = child('f');
+        if (fEl) {
+          // Functions newer than Excel 2007 are stored as _xlfn.IFS(…)
+          const text = (fEl.textContent ?? '').replace(/_xl(?:fn|ws)\./gi, '');
+          const si = fEl.getAttribute('si');
+          if (fEl.getAttribute('t') === 'shared' && si !== null) {
+            if (text) masters.set(si, { formula: `=${text}`, col, row });
+            const master = masters.get(si);
+            if (text) {
+              cells[ref] = `=${text}`;
+              continue;
+            }
+            if (master && shift) {
+              cells[ref] = shift(master.formula, col - master.col, row - master.row);
+              continue;
+            }
+          } else if (text) {
             cells[ref] = `=${text}`;
             continue;
           }
-          if (master && shift) {
-            cells[ref] = shift(master.formula, col - master.col, row - master.row);
-            continue;
-          }
-        } else if (text) {
-          cells[ref] = `=${text}`;
-          continue;
         }
+        const type = cellEl.getAttribute('t');
+        let text: string;
+        if (type === 'inlineStr') {
+          const is = child('is');
+          text = is ? stringItemText(is) : '';
+        } else {
+          const value = child('v')?.textContent ?? '';
+          text = type === 's' ? (sharedStrings[Number(value)] ?? '') : type === 'b' ? (value === '1' ? 'TRUE' : 'FALSE') : value;
+        }
+        // Text stays text: "00123", "TRUE" or "=x" stored as a string come back with a leading '
+        if ((type === 's' || type === 'inlineStr' || type === 'str') && looksTyped(text)) text = `'${text}`;
+        if (text !== '') cells[ref] = text;
       }
-      const type = cellEl.getAttribute('t');
-      let text: string;
-      if (type === 'inlineStr') {
-        text = Array.from(cellEl.getElementsByTagName('t')).map((t) => t.textContent ?? '').join('');
-      } else {
-        const value = cellEl.getElementsByTagName('v')[0]?.textContent ?? '';
-        text = type === 's' ? (sharedStrings[Number(value)] ?? '') : type === 'b' ? (value === '1' ? 'TRUE' : 'FALSE') : value;
-      }
-      if (text !== '') cells[ref] = text;
     }
     out.push({ name: sheet.name, cells });
   }

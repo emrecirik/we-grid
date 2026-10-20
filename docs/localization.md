@@ -236,6 +236,10 @@ parser's own messages are English too.
 - `sheetOptions`, `formatTypeIconSet`, `formatIconSetLabels`, `formatIconSetReverse`, `sheetImportTruncated`,
   `sheetFull`
 
+## Keys added in 0.24.0
+
+- `sheetInsertFunction`, `sheetFunctionSearch`
+
 ## Keys added in 0.23.0
 
 - `sortThenBy(order, ascending)`

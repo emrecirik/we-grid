@@ -1,6 +1,6 @@
 import { weGridReadXlsxCells } from '../services/we-grid-xlsx.util';
 import { WeSheetData } from './we-sheet.model';
-import { weSheetFormulaToExcel, weSheetShiftFormula, weSheetWorkbookXlsx } from './we-sheet.util';
+import { weSheetFormulaToExcel, weSheetFromCells, weSheetShiftFormula, weSheetWorkbookXlsx } from './we-sheet.util';
 
 describe('weSheetFormulaToExcel', () => {
   it('writes Turkish names, semicolons and booleans the way Excel reads them', () => {
@@ -64,5 +64,82 @@ describe('weSheetWorkbookXlsx', () => {
     expect(read.cells['B2']).toBe('=A2*2');
     const [plain] = await weGridReadXlsxCells(file);
     expect(plain.cells['B2']).toBe('4');
+  });
+});
+
+describe('Excel round trip (0.24.0 fixes)', () => {
+  it('keeps text as text, numbers in exponent form as numbers and newer functions working', async () => {
+    const data: WeSheetData = {
+      version: 1, rows: 4, cols: 4,
+      cells: { A1: { v: '00123', f: 'text' }, B1: { v: 'TRUE' }, C1: { v: 1e-7 }, D1: { v: '=IFS(C1>0;"ok";TRUE;"no")' } }
+    };
+    const blob = weSheetWorkbookXlsx([{ name: 'S', data }]);
+    expect(await new Response(blob).text()).toContain('<f>_xlfn.IFS(C1&gt;0,&quot;ok&quot;,TRUE,&quot;no&quot;)</f>');
+    const [read] = await weGridReadXlsxCells(blob);
+    expect(read.cells['A1']).toBe("'00123");
+    expect(read.cells['B1']).toBe("'TRUE");
+    expect(read.cells['D1']).toBe('=IFS(C1>0,"ok",TRUE,"no")');
+    const { data: back } = weSheetFromCells(read.cells, '.');
+    expect(back.cells['A1']).toEqual({ v: '00123', f: 'text' });
+    expect(back.cells['C1'].v).toBe(1e-7);
+  });
+
+  it('renames sheets the file cannot hold and makes the formulas follow', async () => {
+    const long = 'Quarterly revenue by region 2024 north';
+    const blob = weSheetWorkbookXlsx([
+      { name: long, data: { version: 1, rows: 2, cols: 1, cells: { A1: { v: 5 } } } },
+      { name: 'Q1/Q2', data: { version: 1, rows: 2, cols: 1, cells: { A1: { v: 7 } } } },
+      { name: 'Sum', data: { version: 1, rows: 2, cols: 1, cells: { A1: { v: `='${long}'!A1+'Q1/Q2'!A1` } } } }
+    ]);
+    const sheets = await weGridReadXlsxCells(blob);
+    expect(sheets.map((s) => s.name)).toEqual(['Quarterly revenue by region 202', 'Q1 Q2', 'Sum']);
+    expect(sheets[2].cells['A1']).toBe("='Quarterly revenue by region 202'!A1+'Q1 Q2'!A1");
+  });
+
+  it('reads prefixed namespaces, cells without addresses and leaves phonetic guides out', async () => {
+    const enc = new TextEncoder();
+    // A minimal stored ZIP with a workbook, shared strings and one worksheet written the unusual way
+    const files: Record<string, string> = {
+      'xl/workbook.xml': '<x:workbook xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><x:sheets><x:sheet name="P" sheetId="1" r:id="rId1"/></x:sheets></x:workbook>',
+      'xl/_rels/workbook.xml.rels': '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="t" Target="worksheets/sheet1.xml"/></Relationships>',
+      'xl/sharedStrings.xml': '<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><r><t>Tok</t></r><r><t>yo</t></r><rPh sb="0" eb="1"><t>TOH</t></rPh></si></sst>',
+      'xl/worksheets/sheet1.xml': '<x:worksheet xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><x:sheetData><x:row r="2"><x:c t="s"><x:v>0</x:v></x:c><x:c><x:v>1.5E+3</x:v></x:c></x:row></x:sheetData></x:worksheet>'
+    };
+    const parts: Uint8Array[] = [];
+    const central: Uint8Array[] = [];
+    let offset = 0;
+    for (const [name, text] of Object.entries(files)) {
+      const nameBytes = enc.encode(name);
+      const data = enc.encode(text);
+      const local = new Uint8Array(30 + nameBytes.length);
+      const lv = new DataView(local.buffer);
+      lv.setUint32(0, 0x04034b50, true);
+      lv.setUint32(18, data.length, true);
+      lv.setUint32(22, data.length, true);
+      lv.setUint16(26, nameBytes.length, true);
+      local.set(nameBytes, 30);
+      const dir = new Uint8Array(46 + nameBytes.length);
+      const dv = new DataView(dir.buffer);
+      dv.setUint32(0, 0x02014b50, true);
+      dv.setUint32(20, data.length, true);
+      dv.setUint32(24, data.length, true);
+      dv.setUint16(28, nameBytes.length, true);
+      dv.setUint32(42, offset, true);
+      dir.set(nameBytes, 46);
+      parts.push(local, data);
+      central.push(dir);
+      offset += local.length + data.length;
+    }
+    const size = central.reduce((n, d) => n + d.length, 0);
+    const end = new Uint8Array(22);
+    const ev = new DataView(end.buffer);
+    ev.setUint32(0, 0x06054b50, true);
+    ev.setUint16(10, central.length, true);
+    ev.setUint32(12, size, true);
+    ev.setUint32(16, offset, true);
+    const [read] = await weGridReadXlsxCells(new Blob([...parts, ...central, end]));
+    expect(read.name).toBe('P');
+    expect(read.cells).toEqual({ A2: 'Tokyo', B2: '1.5E+3' });
+    expect(weSheetFromCells(read.cells, '.').data.cells['B2'].v).toBe(1500);
   });
 });

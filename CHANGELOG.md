@@ -2,6 +2,35 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.24.0 — 2026-10-20
+
+Insert function, and a closer Excel round trip. A minor release.
+
+### Added
+
+- `<we-sheet>` **Insert function**: the ƒ button by the formula bar lists every function with its
+  arguments, searchable by English or Turkish name; the pick goes into the cell's formula. Locale
+  keys `sheetInsertFunction`, `sheetFunctionSearch`.
+- Docs: [Coming from Excel](docs/excel.md) — every Excel habit and where it is in we-grid.
+- `weSheetRenameSheets(formula, renames)` (several sheets in one pass) and `weGridXlsxSheetName`.
+
+### Fixed
+
+- Excel import: text stays text (`00123`, `TRUE`, `15%`, `=x` stored as text come in with a
+  leading `'`); numbers in exponent form (`1E-3`) are numbers; functions Excel stores as
+  `_xlfn.IFS(…)` work; phonetic guides no longer leak into text; files with prefixed XML
+  namespaces or cells without addresses are read.
+- Excel export: functions newer than Excel 2007 are written with their `_xlfn.` prefix, so Excel
+  does not show `#NAME?`; sheet names Excel cannot hold (over 31 characters, `/` and the like) are
+  shortened in the file and the formulas pointing at them follow; duplicates are numbered from
+  the base name (`A 2`, `A 3`).
+- `<we-workbook>` import: a reference is renamed once, never twice.
+- Formulas: `XLOOKUP` takes empty arguments, `search_mode` (-1 searches from the end), wildcard
+  match mode 2 and 2-D result ranges; `FLOOR`/`CEILING` without float drift (`FLOOR(0.3,0.1)` is
+  0.3) and with negative numbers; `DAYS` counts whole days; `PRODUCT` of nothing is 0; `WEEKDAY`
+  types 11-17; `~` escapes in wildcards (`COUNTIF`, `SUMIFS`, `SEARCH`); `"TRUE"`/`"FALSE"`
+  criteria match booleans; `XOR` skips text in ranges; `LOG(x, 1)` is `#DIV/0!`; `VALUE("10%")`.
+
 ## 0.23.0 — 2026-10-20
 
 Sorting by several columns. A minor release.

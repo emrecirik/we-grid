@@ -1,6 +1,6 @@
 import { WE_GRID_FORMAT_COLORS } from '../models/we-grid-format.model';
 import { WE_GRID_FORMULA_ALIASES, WeGridFormulaError, WeGridSheetEvaluator, weGridColumnIndex, weGridColumnLetter } from '../services/we-grid-formula.util';
-import { WeGridXlsxCell, weGridBuildXlsxWorkbook } from '../services/we-grid-xlsx.util';
+import { WeGridXlsxCell, weGridBuildXlsxWorkbook, weGridXlsxSheetName } from '../services/we-grid-xlsx.util';
 import { weGridSanitizeCellStyle, weGridSanitizeFormatRules } from '../services/we-grid-format.util';
 import { WeSheetCell, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat } from './we-sheet.model';
 
@@ -70,7 +70,7 @@ export function weSheetParseInput(text: string, decimalSeparator: '.' | ','): { 
 export function weSheetParseNumber(text: string, decimalSeparator: '.' | ','): number | null {
   const thousands = decimalSeparator === ',' ? '.' : ',';
   const pattern = new RegExp(
-    `^[-+]?(\\d{1,3}(\\${thousands}\\d{3})+|\\d+)(\\${decimalSeparator}\\d+)?$|^[-+]?\\${decimalSeparator}\\d+$`
+    `^[-+]?(\\d{1,3}(\\${thousands}\\d{3})+|\\d+)(\\${decimalSeparator}\\d+)?([eE][-+]?\\d+)?$|^[-+]?\\${decimalSeparator}\\d+([eE][-+]?\\d+)?$`
   );
   const s = text.trim();
   if (!pattern.test(s)) {
@@ -625,7 +625,12 @@ export function weSheetMoveSheetReferences(formula: string, sheetName: string, a
 }
 
 export function weSheetRenameReferences(formula: string, oldName: string, newName: string): string {
-  const target = oldName.toLocaleLowerCase();
+  return weSheetRenameSheets(formula, new Map([[oldName, newName]]));
+}
+
+/** `weSheetRenameReferences` for several sheets at once — each reference is renamed once, by its old name */
+export function weSheetRenameSheets(formula: string, renames: ReadonlyMap<string, string>): string {
+  const byName = new Map([...renames].map(([from, to]) => [from.toLocaleLowerCase(), to]));
   let out = '';
   let i = 0;
   while (i < formula.length) {
@@ -642,8 +647,9 @@ export function weSheetRenameReferences(formula: string, oldName: string, newNam
     const bare = quoted ? null : /^([\p{L}\p{N}_.]+)!/u.exec(rest);
     const prev = i > 0 ? formula[i - 1] : '';
     const name = quoted ? quoted[1].replace(/''/g, "'") : bare && !/[\p{L}\p{N}_.]/u.test(prev) ? bare[1] : null;
-    if (name !== null && name.toLocaleLowerCase() === target) {
-      out += `${weSheetNameRef(newName)}!`;
+    const renamed = name === null ? undefined : byName.get(name.toLocaleLowerCase());
+    if (renamed !== undefined) {
+      out += `${weSheetNameRef(renamed)}!`;
       i += (quoted ?? bare)![0].length;
       continue;
     }
@@ -657,6 +663,9 @@ export function weSheetRenameReferences(formula: string, oldName: string, newNam
   }
   return out;
 }
+
+/** Functions newer than Excel 2007, which a file names with the `_xlfn.` prefix */
+const XLFN = new Set(['IFS', 'SWITCH', 'XLOOKUP', 'TEXTJOIN', 'CONCAT', 'XOR', 'IFNA', 'DAYS', 'STDEV.S', 'RANK.EQ']);
 
 /**
  * A sheet formula in Excel's own syntax: Turkish function names become English (`TOPLA` → `SUM`),
@@ -686,7 +695,10 @@ export function weSheetFormulaToExcel(formula: string): string {
       const name = word[0];
       const upper = name.toLocaleUpperCase('tr');
       const next = formula.slice(i + name.length).trimStart()[0];
-      if (next === '(') out += WE_GRID_FORMULA_ALIASES[upper] ?? WE_GRID_FORMULA_ALIASES[name.toUpperCase()] ?? name.toUpperCase();
+      if (next === '(') {
+        const fn = WE_GRID_FORMULA_ALIASES[upper] ?? WE_GRID_FORMULA_ALIASES[name.toUpperCase()] ?? name.toUpperCase();
+        out += XLFN.has(fn) ? `_xlfn.${fn}` : fn;
+      }
       else if (upper === 'DOĞRU') out += 'TRUE';
       else if (upper === 'YANLIŞ') out += 'FALSE';
       else out += name;
@@ -728,6 +740,16 @@ function excelNumberFormat(cell: WeSheetCell): string | undefined {
  * formats are not written.
  */
 export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeSheetData }[]): Blob {
+  // The names the file can hold (31 characters, no []:*?/\, unique) — formulas follow them
+  const used = new Set<string>();
+  const renames = new Map<string, string>();
+  for (const { name } of sheets) {
+    const base = weGridXlsxSheetName(name);
+    let fileName = base;
+    for (let n = 2; used.has(fileName.toLowerCase()); n++) fileName = `${base.slice(0, 28)} ${n}`;
+    used.add(fileName.toLowerCase());
+    if (fileName !== name) renames.set(name, fileName);
+  }
   const evaluators = new Map<string, WeGridSheetEvaluator>();
   for (const { name, data } of sheets) {
     evaluators.set(
@@ -752,7 +774,7 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
         cells.push({
           ref,
           value: error ? (value as WeGridFormulaError).code : (value as WeGridXlsxCell['value']),
-          formula: isFormula ? weSheetFormulaToExcel(cell.v as string) : undefined,
+          formula: isFormula ? weSheetFormulaToExcel(renames.size ? weSheetRenameSheets(cell.v as string, renames) : (cell.v as string)) : undefined,
           error: error || undefined,
           bold: cell.s?.bold || (data.headerRow && at.row === 0) || undefined,
           italic: cell.s?.italic,
@@ -761,7 +783,7 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
       }
       const widths: Record<number, number> = {};
       for (const [letter, w] of Object.entries(data.widths ?? {})) widths[weGridColumnIndex(letter)] = w;
-      return { name, cells, widths };
+      return { name: renames.get(name) ?? name, cells, widths };
     })
   );
 }

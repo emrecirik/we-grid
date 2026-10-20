@@ -140,8 +140,21 @@
       [attr.aria-label]="locale.sheetNameBox"
       spellcheck="false"
     />
-    <span class="we-sheet__fx" aria-hidden="true" [innerHTML]="icon('function')"></span>
+    <button
+      type="button"
+      class="we-sheet__fx"
+      [disabled]="readonly"
+      aria-haspopup="dialog"
+      [attr.aria-expanded]="!!functionPicker"
+      [attr.aria-label]="locale.sheetInsertFunction"
+      [title]="locale.sheetInsertFunction"
+      (mousedown)="$event.preventDefault()"
+      (click)="toggleFunctionPicker($event)"
+    >
+      <span aria-hidden="true" [innerHTML]="icon('function')"></span>
+    </button>
     <input
+      #formulaBar
       class="we-sheet__formula"
       [value]="editing ? editing.text : barText"
       [readOnly]="readonly"
@@ -385,6 +398,27 @@
         <button type="button" (click)="applyFilter(true)" [disabled]="!isFiltered(filterMenu.col)">{{ locale.clearFilters }}</button>
         <button type="button" (click)="closeFilter()">{{ locale.cancel }}</button>
         <button type="button" class="we-sheet__list-save" (click)="applyFilter()">{{ locale.apply }}</button>
+      </div>
+    </div>
+  }
+
+  @if (functionPicker) {
+    <div class="we-sheet__menu we-sheet__functions" role="dialog" [attr.aria-label]="locale.sheetInsertFunction" [style.left.px]="functionPicker.x" [style.top.px]="functionPicker.y" (keydown)="onFunctionPickerKeydown($event)">
+      <input
+        class="we-sheet__functions-search"
+        type="search"
+        [value]="functionPicker.query"
+        (input)="functionPicker.query = $any($event.target).value; functionPicker.index = 0"
+        [placeholder]="locale.sheetFunctionSearch"
+        [attr.aria-label]="locale.sheetFunctionSearch"
+        spellcheck="false"
+      />
+      <div class="we-sheet__functions-list" role="listbox" [attr.aria-label]="locale.sheetInsertFunction">
+        @for (f of functionMatches; track f.name; let i = $index) {
+          <button type="button" role="option" tabindex="-1" [attr.aria-selected]="i === functionPicker.index" [class.we-sheet__picker--on]="i === functionPicker.index" (mousedown)="$event.preventDefault()" (click)="insertFunction(f.name)">
+            <strong>{{ f.name }}</strong><span>{{ f.signature }}</span>
+          </button>
+        }
       </div>
     </div>
   }

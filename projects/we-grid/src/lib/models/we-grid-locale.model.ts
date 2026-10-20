@@ -326,6 +326,9 @@ export interface WeGridLocale {
   /** A header cell's filter button, e.g. `(h) => \`Filter ${h}\`` */
   sheetFilterColumn: (header: string) => string;
   sheetSuggestions: string;
+  /** The ƒ button by the formula bar, and the list it opens */
+  sheetInsertFunction: string;
+  sheetFunctionSearch: string;
   sheetOptions: string;
 
   // ─── <we-pivot> ───
@@ -676,6 +679,8 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetAutoFilter: 'Filter buttons',
   sheetFilterColumn: (h) => `Filter “${h}”`,
   sheetSuggestions: 'Functions',
+  sheetInsertFunction: 'Insert function',
+  sheetFunctionSearch: 'Search functions',
   sheetOptions: 'Table options',
   pivotLabel: 'Pivot table',
   pivotRows: 'Rows',
@@ -1031,6 +1036,8 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetAutoFilter: 'Filtre düğmeleri',
   sheetFilterColumn: (h) => `“${h}” filtresi`,
   sheetSuggestions: 'Fonksiyonlar',
+  sheetInsertFunction: 'İşlev ekle',
+  sheetFunctionSearch: 'İşlev ara',
   sheetOptions: 'Tablo seçenekleri',
   pivotLabel: 'Pivot tablo',
   pivotRows: 'Satırlar',

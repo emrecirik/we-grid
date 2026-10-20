@@ -245,6 +245,7 @@ npm run start:ecommerce           # then any sample app
 ## Documentation
 
 - [Getting started](docs/getting-started.md)
+- [Coming from Excel](docs/excel.md) — every Excel habit and where it is here
 - [Column types and formatters](docs/column-types.md) — `integer`, `percent`, kuruş/cents `currency`, `time`, links, `formatter`
 - [API reference](docs/api.md)
 - [Server-side pagination/sorting/filtering](docs/server-side.md) — **filtering the whole table, not just the loaded page**

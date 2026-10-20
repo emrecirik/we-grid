@@ -28,6 +28,7 @@ export class BudgetComponent {}
 | Style | Bold, italic, underline, strikethrough (Ctrl+B / I / U), text colour and fill from the nine-colour palette, alignment. |
 | Number format | General, number, whole number, currency (the locale's `intlCurrency`), percent, date (Excel serial dates), text. |
 | Sort | A → Z / Z → A by the active column — the selected rows, or every used row below the header row. Numbers before text, blanks last. |
+| Insert function *(0.24.0)* | The ƒ button by the formula bar lists every function with its arguments; search by English or Turkish name, pick one (or ↑ ↓ Enter) and it goes into the cell's formula. |
 | Paste values *(0.21.0)* | Ctrl+Shift+V after copying in the sheet pastes the values the copy showed — no formulas, the target cells keep their formats. |
 | Fill down | Ctrl+D copies the top row of the selection down through it, shifting relative references. |
 | Fill handle *(0.17.0)* | Drag the square at the selection's corner down, up or sideways: numbers continue their step (`1, 2` → `3, 4`), dates go on by a day, `Item 9` → `Item 10`, formulas shift, anything else repeats. Double-click it to fill down as far as the column beside goes. `fill(range)` does the same from code; from the keyboard, select the start of the series and the empty cells under it and choose **Fill series down** in the context menu (Shift+F10). |

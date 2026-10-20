@@ -147,4 +147,26 @@ describe('WeSheetComponent — structure, AutoSum, suggestions, import', () => {
     expect(el().querySelector('.we-sheet--freeze-col')).toBeTruthy();
     expect(cell('A1').classList).toContain('we-sheet__cell--first');
   });
+
+  it('inserts a function from the ƒ list into the formula bar', () => {
+    sheet.select('D1');
+    el().querySelector<HTMLButtonElement>('.we-sheet__fx')!.click();
+    fixture.detectChanges();
+    const search = el().querySelector<HTMLInputElement>('.we-sheet__functions-search')!;
+    search.value = 'topla';
+    search.dispatchEvent(new Event('input'));
+    fixture.detectChanges();
+    const names = Array.from(el().querySelectorAll('.we-sheet__functions-list strong')).map((s) => s.textContent);
+    expect(names).toContain('SUM');
+    expect(names).toContain('SUMPRODUCT');
+    search.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    fixture.detectChanges();
+    const bar = el().querySelector<HTMLInputElement>('.we-sheet__formula')!;
+    expect(bar.value).toBe('=SUM(');
+    expect(document.activeElement).toBe(bar);
+    bar.value = '=SUM(A1:A3)';
+    bar.dispatchEvent(new Event('input'));
+    bar.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    expect(sheet.getValue('D1')).toBe(6);
+  });
 });

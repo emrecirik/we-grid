@@ -239,9 +239,22 @@ function numbersOf(args: unknown[]): number[] | WeGridFormulaError {
   return out;
 }
 
+/** An Excel wildcard pattern as regex source: `*` any run, `?` one character, `~*` `~?` `~~` themselves */
+function wildcardSource(pattern: string): string {
+  let src = '';
+  for (let i = 0; i < pattern.length; i++) {
+    const ch = pattern[i];
+    if (ch === '~' && i + 1 < pattern.length && '*?~'.includes(pattern[i + 1])) {
+      src += '\\' + pattern[++i];
+    } else if (ch === '*') src += '[\\s\\S]*';
+    else if (ch === '?') src += '[\\s\\S]';
+    else src += ch.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  }
+  return src;
+}
+
 function wildcard(pattern: string): RegExp {
-  const src = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '.*').replace(/\?/g, '.');
-  return new RegExp(`^${src}$`, 'is');
+  return new RegExp(`^${wildcardSource(pattern)}$`, 'i');
 }
 
 /** COUNTIF-style criteria: 5, ">10", "<>x", "ab*", "" (blank) */
@@ -259,6 +272,11 @@ function criteria(c: unknown): (v: unknown) => boolean {
       const n = typeof v === 'number' ? v : v instanceof Date ? toSerial(v) : null;
       return n === null ? op === '<>' : test(Math.sign(clean(n) - num));
     };
+  }
+  const bool = normName(rhs.trim());
+  if ((op === '=' || op === '<>') && (bool === 'TRUE' || bool === 'FALSE' || bool === 'DOĞRU' || bool === 'YANLIŞ')) {
+    const want = bool === 'TRUE' || bool === 'DOĞRU';
+    return op === '=' ? v => v === want : v => v !== want;
   }
   if (op === '=' || op === '<>') {
     const re = wildcard(rhs);
@@ -502,7 +520,7 @@ const FUNCTIONS: Record<string, FnDef> = {
   AVERAGEIFS: { fn: a => ifsAggregate(a[0], a.slice(1), 'avg') },
   COUNTIFS: { fn: a => ifsAggregate(null, a, 'count') },
   COUNTBLANK: { errors: true, fn: a => flatten(a[0]).filter(isBlank).length },
-  PRODUCT: { refs: true, fn: a => { const n = numbersOf(a); return isErr(n) ? n : numResult(n.reduce((p, x) => p * x, 1)); } },
+  PRODUCT: { refs: true, fn: a => { const n = numbersOf(a); return isErr(n) ? n : n.length ? numResult(n.reduce((p, x) => p * x, 1)) : 0; } },
   SUMPRODUCT: {
     fn: a => {
       const lists = a.map(x => flatten(x));
@@ -550,7 +568,7 @@ const FUNCTIONS: Record<string, FnDef> = {
       const b = a[1] === undefined ? 10 : toNumber(a[1]);
       if (isErr(n)) return n;
       if (isErr(b)) return b;
-      return n <= 0 || b <= 0 || b === 1 ? err('#NUM!') : clean(Math.log(n) / Math.log(b));
+      return n <= 0 || b <= 0 ? err('#NUM!') : b === 1 ? err('#DIV/0!') : clean(Math.log(n) / Math.log(b));
     }
   },
 
@@ -595,7 +613,16 @@ const FUNCTIONS: Record<string, FnDef> = {
     }
   },
   EXACT: { fn: a => { const [x, y] = [toText(a[0]), toText(a[1])]; return isErr(x) ? x : isErr(y) ? y : x === y; } },
-  VALUE: { fn: a => toNumber(a[0]) },
+  VALUE: {
+    fn: a => {
+      const v = scalar(a[0]);
+      if (typeof v === 'string' && /%\s*$/.test(v)) {
+        const n = toNumber(v.replace(/%\s*$/, ''));
+        return isErr(n) ? n : clean(n / 100);
+      }
+      return toNumber(v);
+    }
+  },
   TEXTJOIN: {
     fn: a => {
       const delim = toText(a[0]);
@@ -625,7 +652,20 @@ const FUNCTIONS: Record<string, FnDef> = {
     }
   },
   NA: { fn: () => err('#N/A') },
-  XOR: { fn: a => { const r = logical(a, false); if (isErr(r)) return r; return flatten(a).filter(x => toBool(x) === true).length % 2 === 1; } },
+  XOR: {
+    fn: a => {
+      let trues = 0;
+      let seen = 0;
+      for (const x of a) {
+        for (const v of Array.isArray(x) ? flatten(x).filter(y => isErr(y) || typeof y === 'number' || typeof y === 'boolean') : [toBool(x)]) {
+          if (isErr(v)) return v;
+          seen++;
+          if (Boolean(v)) trues++;
+        }
+      }
+      return seen ? trues % 2 === 1 : err('#VALUE!');
+    }
+  },
   CHOOSE: {
     lazy: true,
     fn: (a: Thunk[]) => {
@@ -653,24 +693,37 @@ const FUNCTIONS: Record<string, FnDef> = {
     fn: a => {
       const value = scalar(a[0]);
       if (isErr(value)) return value;
+      const given = (x: unknown) => x !== undefined && x !== null;
+      const keyRows = rowsOf(a[1]);
       const keys = flatten(a[1]);
-      const results = flatten(a[2]);
-      if (keys.length !== results.length) return err('#VALUE!');
-      const mode = a[4] === undefined ? 0 : toInt(a[4]);
+      // Keys down a column return rows of the results; keys across a row return columns
+      const vertical = keyRows.length > 1 || (keyRows[0]?.length ?? 0) <= 1;
+      const results = rowsOf(a[2]);
+      if (vertical ? results.length !== keys.length : (results[0]?.length ?? 0) !== keys.length) return err('#VALUE!');
+      const pick = (i: number): unknown => {
+        if (vertical) return results[i].length === 1 ? results[i][0] ?? null : [results[i]];
+        return results.length === 1 ? results[0][i] ?? null : results.map(r => [r[i]]);
+      };
+      const mode = given(a[4]) ? toInt(a[4]) : 0;
+      const search = given(a[5]) ? toInt(a[5]) : 1;
       if (isErr(mode)) return mode;
-      let i = keys.findIndex(k => compare(k, value) === 0);
+      if (isErr(search)) return search;
+      const order = keys.map((_, k) => k);
+      if (search < 0) order.reverse();
+      const re = mode === 2 && typeof value === 'string' ? wildcard(value) : null;
+      let i = order.find(k => (re ? typeof keys[k] === 'string' && re.test(keys[k] as string) : compare(keys[k], value) === 0)) ?? -1;
       // -1: the next smaller value, 1: the next larger one, when there is no exact match
       if (i < 0 && (mode === -1 || mode === 1)) {
         let best = -1;
-        keys.forEach((k, j) => {
-          const c = compare(k, value);
-          if (isBlank(k) || (mode === -1 ? c > 0 : c < 0)) return;
-          if (best < 0 || (mode === -1 ? compare(k, keys[best]) > 0 : compare(k, keys[best]) < 0)) best = j;
-        });
+        for (const k of order) {
+          const c = compare(keys[k], value);
+          if (isBlank(keys[k]) || (mode === -1 ? c > 0 : c < 0)) continue;
+          if (best < 0 || (mode === -1 ? compare(keys[k], keys[best]) > 0 : compare(keys[k], keys[best]) < 0)) best = k;
+        }
         i = best;
       }
-      if (i >= 0) return results[i] ?? null;
-      return a[3] === undefined ? err('#N/A') : a[3];
+      if (i >= 0) return pick(i);
+      return given(a[3]) ? a[3] : err('#N/A');
     }
   },
   HLOOKUP: {
@@ -697,6 +750,7 @@ const FUNCTIONS: Record<string, FnDef> = {
       if (isErr(d)) return d;
       if (isErr(type)) return type;
       const day = d.getDay();
+      if (type >= 11 && type <= 17) return ((day - ((type - 10) % 7) + 7) % 7) + 1;
       return type === 1 ? day + 1 : type === 2 ? ((day + 6) % 7) + 1 : type === 3 ? (day + 6) % 7 : err('#NUM!');
     }
   },
@@ -707,7 +761,7 @@ const FUNCTIONS: Record<string, FnDef> = {
       const [end, start] = [toDate(a[0]), toDate(a[1])];
       if (isErr(end)) return end;
       if (isErr(start)) return start;
-      return Math.round(toSerial(end)) - Math.round(toSerial(start));
+      return Math.floor(toSerial(end)) - Math.floor(toSerial(start));
     }
   },
   HOUR: { fn: a => { const d = toDate(a[0]); return isErr(d) ? d : d.getHours(); } },
@@ -782,8 +836,8 @@ function toMultiple(value: unknown, significance: unknown, round: (x: number) =>
   if (isErr(n)) return n;
   if (isErr(s)) return s;
   if (s === 0) return 0;
-  if ((n > 0 && s < 0) || (n < 0 && s > 0)) return err('#NUM!');
-  return clean(round(n / s) * s);
+  if (n > 0 && s < 0) return err('#NUM!');
+  return clean(round(clean(n / s)) * s);
 }
 
 function findText(a: unknown[], insensitive: boolean): unknown {
@@ -796,7 +850,7 @@ function findText(a: unknown[], insensitive: boolean): unknown {
   let at: number;
   if (insensitive) {
     // SEARCH takes ? and * wildcards and ignores case
-    const re = new RegExp(find.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[\\s\\S]*').replace(/\?/g, '[\\s\\S]'), 'i');
+    const re = new RegExp(wildcardSource(find), 'i');
     const m = re.exec(within.slice(start - 1));
     at = m ? m.index + start - 1 : -1;
   } else {

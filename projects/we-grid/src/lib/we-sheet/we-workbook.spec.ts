@@ -81,6 +81,14 @@ describe('WeWorkbookComponent', () => {
     expect(book().getData().active).toBe(1);
     const data = book().getData().sheets[2].data;
     expect(data.cells['A1'].v).toBe("='Sheet1 2'!A1*2");
+    // Renames happen once each: Sheet1 → "Sheet1 2" is not renamed again as the file's own "Sheet1 2"
+    book().importSheets([
+      { name: 'Data', cells: { A1: '1' } },
+      { name: 'Data 2', cells: { A1: '2' } },
+      { name: 'Use', cells: { A1: '=Data!A1+\'Data 2\'!A1' } }
+    ]);
+    const use = book().getData().sheets.find((s) => s.name === 'Use')!;
+    expect(use.data.cells['A1'].v).toBe("='Data 2'!A1+'Data 2 2'!A1");
     book().activate(2);
     fixture.detectChanges();
     expect(sheet().getValue('A1')).toBe(10);
