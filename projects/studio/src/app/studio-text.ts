@@ -36,7 +36,7 @@ const en = {
     'Double-click a row to edit it; paste rows straight from Excel with Ctrl+V.',
     'Press a macro button (Top sellers, By city) — or Macros → Record, use the grid, Stop, and save your own.',
     'Type in the search box to find text in every column; tick rows and press Ctrl+C to paste them into Excel.',
-    'Export to Excel, CSV or PDF from the toolbar.'
+    'Export to Excel, CSV or PDF from the toolbar — cell styles, colour scales and data bars come along.'
   ],
   sheetTitle: 'Budget',
   sheetIntro: 'A spreadsheet with Excel formulas, copy and paste, undo and export — saved in this browser.',
@@ -48,7 +48,8 @@ const en = {
     'Drag the small square at the corner of a selection to fill a series (1, 2 → 3, 4…); the Approval column is a dropdown list — right-click → Dropdown list… to make your own.',
     'Right-click for insert/delete rows and columns, notes, conditional formatting and dropdown lists; Σ sums, Ctrl+F finds and replaces, the chart button charts a selection.',
     'The filter buttons in the header row hide rows like Excel’s AutoFilter; Excel (.xlsx) saves every sheet with its formulas, and opening an .xlsx brings them back.',
-    'The toolbar merges and centres a selection, draws borders and wraps text; Table options → Freeze panes keeps the rows above and the columns before the active cell in view; PDF prints the sheet.'
+    'The toolbar merges and centres a selection, draws borders and wraps text; Table options → Freeze panes keeps the rows above and the columns before the active cell in view; PDF prints the sheet.',
+    'Right-click → Hide rows or Hide columns tucks them away; select around them and Unhide brings them back. Notes and hidden rows travel with the Excel file.'
   ],
   tabData: 'Your database',
   tabPivot: 'Pivot',
@@ -99,7 +100,7 @@ const tr: typeof en = {
     'Bir satırı düzenlemek için çift tıklayın; Excel’den satırları Ctrl+V ile doğrudan yapıştırın.',
     'Bir makro butonuna basın (En çok satanlar, Şehre göre) — ya da Makrolar → Kaydet, tabloyu kullanın, Durdurun ve kendi makronuzu kaydedin.',
     'Arama kutusuna yazarak tüm kolonlarda arayın; satırları seçip Ctrl+C ile Excel’e yapıştırın.',
-    'Araç çubuğundan Excel, CSV ya da PDF olarak dışa aktarın.'
+    'Araç çubuğundan Excel, CSV ya da PDF olarak dışa aktarın — hücre stilleri, renk skalaları ve veri çubukları da gider.'
   ],
   sheetTitle: 'Bütçe',
   sheetIntro: 'Excel formülleri, kopyala-yapıştır, geri al ve dışa aktarma ile bir hesap tablosu — bu tarayıcıda saklanır.',
@@ -111,7 +112,8 @@ const tr: typeof en = {
     'Seçimin köşesindeki küçük kareyi sürükleyerek seri doldurun (1, 2 → 3, 4…); Onay kolonu bir açılır liste — kendi listeniz için sağ tık → Açılır liste…',
     'Sağ tıkla satır/kolon ekleyip silin, not, koşullu biçimlendirme ve açılır liste ekleyin; Σ toplasın, Ctrl+F bulup değiştirsin, grafik düğmesi seçimi grafiğe çevirsin.',
     'Başlık satırındaki filtre düğmeleri Excel’in Otomatik Filtresi gibi satır gizler; Excel (.xlsx) her sayfayı formülleriyle kaydeder, bir .xlsx açınca hepsi geri gelir.',
-    'Araç çubuğu seçimi birleştirip ortalar, kenarlık çizer, metni kaydırır; Tablo seçenekleri → Bölmeleri dondur etkin hücrenin üstündeki satırları ve solundaki kolonları sabitler; PDF sayfayı yazdırır.'
+    'Araç çubuğu seçimi birleştirip ortalar, kenarlık çizer, metni kaydırır; Tablo seçenekleri → Bölmeleri dondur etkin hücrenin üstündeki satırları ve solundaki kolonları sabitler; PDF sayfayı yazdırır.',
+    'Sağ tık → Satırları gizle ya da Kolonları gizle ile saklayın; çevresini seçip Göster ile geri getirin. Notlar ve gizli satırlar Excel dosyasında da korunur.'
   ],
   tabData: 'Veritabanınız',
   tabPivot: 'Pivot',
