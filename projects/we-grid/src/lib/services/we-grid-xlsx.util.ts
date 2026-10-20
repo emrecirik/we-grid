@@ -327,13 +327,16 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
 }
 
 /** The .xlsx package around worksheet XML: content types, relationships, workbook and styles */
-function buildPackage(sheets: { name: string; xml: string }[], styles: string): Blob {
+function buildPackage(sheets: { name: string; xml: string; notes?: Record<string, string> }[], styles: string): Blob {
   const encoder = new TextEncoder();
+  const noted = sheets.map((s) => !!s.notes && Object.keys(s.notes).length > 0);
   const contentTypes =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
     `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>` +
     `<Default Extension="xml" ContentType="application/xml"/>` +
+    (noted.some(Boolean) ? `<Default Extension="vml" ContentType="application/vnd.openxmlformats-officedocument.vmlDrawing"/>` : '') +
+    sheets.map((_, i) => (noted[i] ? `<Override PartName="/xl/comments${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"/>` : '')).join('') +
     `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
     sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') +
     `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
@@ -366,8 +369,48 @@ function buildPackage(sheets: { name: string; xml: string }[], styles: string): 
     { name: 'xl/workbook.xml', data: encoder.encode(workbook) },
     { name: 'xl/_rels/workbook.xml.rels', data: encoder.encode(workbookRels) },
     { name: 'xl/styles.xml', data: encoder.encode(styles) },
-    ...sheets.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: encoder.encode(s.xml) }))
+    ...sheets.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: encoder.encode(s.xml) })),
+    ...sheets.flatMap((s, i) => (noted[i] ? notesParts(s.notes!, i + 1).map((p) => ({ name: p.name, data: encoder.encode(p.xml) })) : []))
   ]);
+}
+
+/** A sheet's notes as Excel's comments, with the VML drawing that puts the red corner and the box on screen */
+function notesParts(notes: Record<string, string>, n: number): { name: string; xml: string }[] {
+  const refs = Object.keys(notes).filter((ref) => /^[A-Z]{1,3}\d+$/.test(ref));
+  const comments =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<comments xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><authors><author>we-grid</author></authors><commentList>` +
+    refs.map((ref) => `<comment ref="${ref}" authorId="0"><text><r><t xml:space="preserve">${escapeXml(sanitiseXmlText(notes[ref]))}</t></r></text></comment>`).join('') +
+    `</commentList></comments>`;
+  const shapes = refs
+    .map((ref, i) => {
+      const col = refToColumnIndex(ref);
+      const row = Number(/\d+$/.exec(ref)![0]) - 1;
+      return (
+        `<v:shape id="_x0000_s${1025 + i}" type="#_x0000_t202" style="position:absolute;margin-left:80pt;margin-top:2pt;width:120pt;height:60pt;z-index:${i + 1};visibility:hidden" fillcolor="#ffffe1" o:insetmode="auto">` +
+        `<v:fill color2="#ffffe1"/><v:shadow on="t" color="black" obscured="t"/><v:path o:connecttype="none"/>` +
+        `<v:textbox style="mso-direction-alt:auto"><div style="text-align:left"></div></v:textbox>` +
+        `<x:ClientData ObjectType="Note"><x:MoveWithCells/><x:SizeWithCells/><x:AutoFill>False</x:AutoFill><x:Row>${row}</x:Row><x:Column>${col}</x:Column></x:ClientData></v:shape>`
+      );
+    })
+    .join('');
+  const vml =
+    `<xml xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">` +
+    `<o:shapelayout v:ext="edit"><o:idmap v:ext="edit" data="${n}"/></o:shapelayout>` +
+    `<v:shapetype id="_x0000_t202" coordsize="21600,21600" o:spt="202" path="m,l,21600r21600,l21600,xe"><v:stroke joinstyle="miter"/><v:path gradientshapeok="t" o:connecttype="rect"/></v:shapetype>` +
+    shapes +
+    `</xml>`;
+  const rels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="../comments${n}.xml"/>` +
+    `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing" Target="../drawings/vmlDrawing${n}.vml"/>` +
+    `</Relationships>`;
+  return [
+    { name: `xl/comments${n}.xml`, xml: comments },
+    { name: `xl/drawings/vmlDrawing${n}.vml`, xml: vml },
+    { name: `xl/worksheets/_rels/sheet${n}.xml.rels`, xml: rels }
+  ];
 }
 
 // ─── Workbooks with formulas ───────────────────────────────────────────────────────────
@@ -415,6 +458,8 @@ export interface WeGridXlsxSheet {
   freeze?: { rows: number; cols: number };
   /** Conditional formatting, in Excel's own terms */
   conditionalFormats?: WeGridXlsxConditionalFormat[];
+  /** Notes, by A1 address — written as Excel comments */
+  notes?: Record<string, string>;
 }
 
 /** One conditional format rule for `weGridBuildXlsxWorkbook`, as Excel names it (a `cfRule`) */
@@ -539,7 +584,7 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
       .join('');
     const xml =
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-      `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
+      `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
       sheetViewXml(sheet.freeze) +
       (widths ? `<cols>${widths}</cols>` : '') +
       `<sheetData>${rows.join('')}</sheetData>` +
@@ -547,8 +592,9 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
       (sheet.merges?.length ? `<mergeCells count="${sheet.merges.length}">${sheet.merges.map((m) => `<mergeCell ref="${escapeXml(m)}"/>`).join('')}</mergeCells>` : '') +
       conditionalFormattingXml(sheet.conditionalFormats ?? [], dxfOf) +
       dataValidationsXml(sheet.lists ?? []) +
+      (sheet.notes && Object.keys(sheet.notes).length ? `<legacyDrawing r:id="rId2"/>` : '') +
       `</worksheet>`;
-    return { name, xml };
+    return { name, xml, notes: sheet.notes };
   });
 
   const styles =
@@ -989,6 +1035,8 @@ export interface WeGridXlsxCellSheet {
   freeze?: { rows: number; cols: number };
   /** Conditional formatting, in Excel's terms — colours as hex; rules in theme colours lose them */
   conditionalFormats: WeGridXlsxConditionalFormat[];
+  /** Notes (Excel comments) by A1 address */
+  notes: Record<string, string>;
 }
 
 /** A cell's look as an .xlsx file stores it, read by `weGridReadXlsxCells` */
@@ -1121,7 +1169,26 @@ export async function weGridReadXlsxCells(
     const frozen = paneEl && (paneEl.getAttribute('state') === 'frozen' || paneEl.getAttribute('state') === 'frozenSplit');
     const freeze = frozen ? { rows: Math.round(Number(paneEl.getAttribute('ySplit') ?? 0)) || 0, cols: Math.round(Number(paneEl.getAttribute('xSplit') ?? 0)) || 0 } : undefined;
     const conditionalFormats = parseConditionalFormats(doc, dxfs);
-    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
+    // Notes live in a comments part the sheet's relationships point at
+    const notes: Record<string, string> = {};
+    const sheetRels = await read(sheet.path.replace(/([^/]+)$/, '_rels/$1.rels'));
+    const commentsTarget = sheetRels
+      ? Array.from(new DOMParser().parseFromString(sheetRels, 'application/xml').getElementsByTagNameNS('*', 'Relationship')).find((r) => /\/comments$/.test(r.getAttribute('Type') ?? ''))?.getAttribute('Target')
+      : undefined;
+    if (commentsTarget) {
+      const base = sheet.path.replace(/[^/]+$/, '');
+      const path = commentsTarget.startsWith('/') ? commentsTarget.slice(1) : new URL(commentsTarget, `http://x/${base}`).pathname.slice(1);
+      const commentsXml = await read(path);
+      if (commentsXml) {
+        for (const c of Array.from(new DOMParser().parseFromString(commentsXml, 'application/xml').getElementsByTagNameNS('*', 'comment'))) {
+          const ref = c.getAttribute('ref') ?? '';
+          const textEl = Array.from(c.children).find((e) => e.localName === 'text');
+          const text = textEl ? stringItemText(textEl).trim() : '';
+          if (/^[A-Z]{1,3}\d+$/.test(ref) && text) notes[ref] = text;
+        }
+      }
+    }
+    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, notes, ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
   }
   return out;
 }

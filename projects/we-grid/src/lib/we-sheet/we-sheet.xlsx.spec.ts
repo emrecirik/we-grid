@@ -279,3 +279,18 @@ describe('conditional formatting read from Excel files', () => {
     );
   });
 });
+
+describe('notes in Excel files', () => {
+  it('writes notes as Excel comments and reads them back', async () => {
+    const blob = weSheetWorkbookXlsx([{ name: 'N', data: { version: 1, rows: 3, cols: 2, cells: { A1: { v: 1, n: 'Checked <with> finance' }, B2: { n: 'empty but noted' } } } }]);
+    const text = await new Response(blob).text();
+    expect(text).toContain('<legacyDrawing r:id="rId2"/>');
+    expect(text).toContain('<comment ref="A1" authorId="0"><text><r><t xml:space="preserve">Checked &lt;with&gt; finance</t></r></text></comment>');
+    expect(text).toContain('<x:Row>1</x:Row><x:Column>1</x:Column>');
+    const [read] = await weGridReadXlsxCells(blob);
+    expect(read.notes).toEqual({ A1: 'Checked <with> finance', B2: 'empty but noted' });
+    const back = weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats, read).data.cells;
+    expect(back['A1']).toEqual({ v: 1, n: 'Checked <with> finance' });
+    expect(back['B2']).toEqual({ n: 'empty but noted' });
+  });
+});

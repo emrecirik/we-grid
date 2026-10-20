@@ -1049,7 +1049,8 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
         lists: [...byList.values()].map((l) => ({ ref: l.ref.join(' '), values: l.values })),
         autoFilter: data.autoFilter && data.headerRow && used.length ? `A1:${weSheetAddress(lastCol, lastRow)}` : undefined,
         freeze: data.freeze ?? (data.freezeColumn ? { rows: 0, cols: 1 } : undefined),
-        conditionalFormats: (data.formats ?? []).map(excelConditionalFormat).filter((f): f is WeGridXlsxConditionalFormat => f !== null)
+        conditionalFormats: (data.formats ?? []).map(excelConditionalFormat).filter((f): f is WeGridXlsxConditionalFormat => f !== null),
+        notes: Object.fromEntries(Object.entries(data.cells).filter(([, c]) => !!c.n).map(([ref, c]) => [ref, c.n as string]))
       };
     })
   );
@@ -1072,6 +1073,7 @@ export function weSheetFromCells(
     autoFilter?: string;
     freeze?: { rows: number; cols: number };
     conditionalFormats?: readonly WeGridXlsxConditionalFormat[];
+    notes?: Readonly<Record<string, string>>;
   } = {}
 ): { data: WeSheetData; truncated: boolean } {
   const cells: Record<string, WeSheetCell> = {};
@@ -1147,6 +1149,14 @@ export function weSheetFromCells(
     }
   }
   if (extras.autoFilter) data.autoFilter = true;
+  for (const [ref, note] of Object.entries(extras.notes ?? {})) {
+    const at = weSheetParseAddress(ref);
+    if (!at || at.row >= WE_SHEET_MAX_ROWS || at.col >= WE_SHEET_MAX_COLS || !note.trim()) continue;
+    const key = weSheetAddress(at.col, at.row);
+    cells[key] = { ...(cells[key] ?? {}), n: note.trim().slice(0, 1000) };
+    data.rows = Math.max(data.rows, at.row + 1);
+    data.cols = Math.max(data.cols, at.col + 1);
+  }
   // Conditional formatting, one rule per column of each range (the sheet's rules cover one column)
   const rules: WeSheetFormatRule[] = [];
   for (const cf of extras.conditionalFormats ?? []) {

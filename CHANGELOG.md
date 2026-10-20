@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.37.0 — 2026-10-20
+
+### Added
+
+- Sheet notes travel with Excel files: the sheet's Excel export writes them as comments (with the
+  drawing Excel shows them in), and opening an `.xlsx` turns its comments into notes.
+  `WeGridXlsxSheet.notes`, `WeGridXlsxCellSheet.notes`.
+
 ## 0.36.1 — 2026-10-20
 
 ### Fixed
