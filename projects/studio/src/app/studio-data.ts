@@ -147,6 +147,8 @@ export function studioBudget(lang: StudioLanguage): WeSheetData {
     cells[`${col}${total}`] = { v: `=SUM(${col}2:${col}${rows.length + 1})`, f: 'currency', s: { bold: true } };
   }
   cells[`E${total}`] = { v: `=D${total}/B${total}`, f: 'percent', s: { bold: true, fill: 'yellow', color: 'yellow' } };
+  // A top border over the totals, as an accountant would draw it
+  for (const col of ['A', 'B', 'C', 'D', 'E']) cells[`${col}${total}`] = { ...cells[`${col}${total}`], b: 't' };
   // Reads the other sheet of the workbook
   cells[`A${total + 2}`] = { v: tr ? 'Altı aylık satış (Satışlar sayfası)' : 'Six months of sales (Sales sheet)' };
   cells[`B${total + 2}`] = { v: tr ? '=TOPLA(Satışlar!D2:D7)' : '=SUM(Sales!D2:D7)', f: 'currency', s: { bold: true, color: 'blue' } };

@@ -162,5 +162,7 @@ describe('borders in Excel files', () => {
     expect(text).toContain('borderId="1"');
     const aligned = await new Response(weSheetWorkbookXlsx([{ name: 'C', data: { version: 1, rows: 1, cols: 1, cells: { A1: { v: 'x', a: 'center' } } } }])).text();
     expect(aligned).toContain('applyAlignment="1"><alignment horizontal="center"/></xf>');
+    const wrapped = await new Response(weSheetWorkbookXlsx([{ name: 'W', data: { version: 1, rows: 1, cols: 1, cells: { A1: { v: 'x', w: true } } } }])).text();
+    expect(wrapped).toContain('<alignment wrapText="1"/>');
   });
 });

@@ -343,6 +343,8 @@ export interface WeGridXlsxCell {
   borders?: string;
   /** Horizontal alignment */
   align?: 'start' | 'center' | 'end';
+  /** Wrap text */
+  wrap?: boolean;
 }
 
 /** One worksheet for `weGridBuildXlsxWorkbook` — widths in pixels by column index */
@@ -366,7 +368,7 @@ const BUILTIN_FORMATS: Record<string, number> = {
 export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blob {
   const custom = new Map<string, number>();
   const xfs = new Map<string, number>([['0:0:0:', 0]]);
-  const xfList: { font: number; fmt: number; border: number; align?: string }[] = [{ font: 0, fmt: 0, border: 0 }];
+  const xfList: { font: number; fmt: number; border: number; align?: string; wrap?: boolean }[] = [{ font: 0, fmt: 0, border: 0 }];
   const borders = new Map<string, number>([['', 0]]);
   const styleOf = (cell: WeGridXlsxCell): number => {
     const font = (cell.bold ? 1 : 0) + (cell.italic ? 2 : 0);
@@ -382,12 +384,13 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
       if (fmt >= 164 && !custom.has(cell.numFmt)) custom.set(cell.numFmt, fmt);
     }
     const align = cell.align === 'start' ? 'left' : cell.align === 'end' ? 'right' : cell.align;
-    const key = `${font}:${fmt}:${border}:${align ?? ''}`;
+    const wrap = !!cell.wrap;
+    const key = `${font}:${fmt}:${border}:${align ?? ''}${wrap ? ':w' : ''}`;
     let index = xfs.get(key);
     if (index === undefined) {
       index = xfList.length;
       xfs.set(key, index);
-      xfList.push({ font, fmt, border, align });
+      xfList.push({ font, fmt, border, align, wrap });
     }
     return index;
   };
@@ -445,7 +448,9 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
       .map(
         (x) =>
           `<xf numFmtId="${x.fmt}" fontId="${x.font}" fillId="0" borderId="${x.border}" xfId="0"${x.font ? ' applyFont="1"' : ''}${x.fmt ? ' applyNumberFormat="1"' : ''}${x.border ? ' applyBorder="1"' : ''}` +
-          (x.align ? ` applyAlignment="1"><alignment horizontal="${x.align}"/></xf>` : '/>')
+          (x.align || x.wrap
+            ? ` applyAlignment="1"><alignment${x.align ? ` horizontal="${x.align}"` : ''}${x.wrap ? ' wrapText="1"' : ''}/></xf>`
+            : '/>')
       )
       .join('') +
     `</cellXfs>` +

@@ -24,6 +24,8 @@ export interface WeSheetCell {
   n?: string;
   /** Borders: the sides drawn, any of `t` `r` `b` `l` (`'tb'`, `'trbl'`) */
   b?: string;
+  /** Wrap text: long text breaks onto more lines and the row grows */
+  w?: boolean;
 }
 
 /**

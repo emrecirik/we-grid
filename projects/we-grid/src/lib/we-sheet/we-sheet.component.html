@@ -64,6 +64,9 @@
         <button type="button" class="we-sheet__btn" [attr.aria-pressed]="activeCell?.a === 'end'" (click)="setAlign('end')" [attr.aria-label]="locale.sheetAlignEnd" [title]="locale.sheetAlignEnd">
           <span [innerHTML]="icon('alignEnd')" aria-hidden="true"></span>
         </button>
+        <button type="button" class="we-sheet__btn" [attr.aria-pressed]="!!activeCell?.w" (click)="toggleWrap()" [disabled]="readonly" [attr.aria-label]="locale.wrapText" [title]="locale.wrapText">
+          <span [innerHTML]="icon('wrapText')" aria-hidden="true"></span>
+        </button>
         <button type="button" class="we-sheet__btn" [attr.aria-pressed]="selectionIsMerge" (click)="toggleMerge()" [disabled]="readonly" [attr.aria-label]="locale.sheetMerge" [title]="locale.sheetMerge">
           <span [innerHTML]="icon('merge')" aria-hidden="true"></span>
         </button>

@@ -204,6 +204,17 @@ describe('WeSheetComponent', () => {
     expect(cellEl('A3')).toBeNull();
   });
 
+  it('wraps long text in the selection and back', () => {
+    sheet().setCell('A1', 'a long piece of text that does not fit');
+    sheet().select('A1');
+    sheet().toggleWrap();
+    fixture.detectChanges();
+    expect(sheet().getData().cells['A1'].w).toBeTrue();
+    expect(cellEl('A1').style.whiteSpace).toBe('normal');
+    sheet().toggleWrap();
+    expect(sheet().getData().cells['A1'].w).toBeUndefined();
+  });
+
   it('draws borders on the selection and writes them to Excel', () => {
     sheet().select('B2:C3');
     sheet().setBorders('outside');

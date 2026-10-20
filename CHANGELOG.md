@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.28.0 — 2026-10-20
+
+Wrap text in the spreadsheet. A minor release.
+
+### Added
+
+- `<we-sheet>` **wrap text**: the toolbar's wrap button breaks long text onto more lines and lets
+  the row grow (`WeSheetCell.w`, `toggleWrap()`); Excel files keep it (`WeGridXlsxCell.wrap`).
+  Reuses the `wrapText` locale key.
+- Studio: the Budget sheet's totals have a top border.
+
 ## 0.27.0 — 2026-10-20
 
 Cell borders in the spreadsheet. A minor release.

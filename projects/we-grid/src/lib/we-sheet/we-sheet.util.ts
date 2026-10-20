@@ -301,6 +301,7 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
     if (typeof r['n'] === 'string' && r['n'].trim()) cell.n = r['n'].trim().slice(0, 1000);
     const sides = typeof r['b'] === 'string' ? weSheetBorderSides(r['b']) : '';
     if (sides) cell.b = sides;
+    if (r['w'] === true) cell.w = true;
     if (Object.keys(cell).length) cells[key] = cell;
   }
   const data: WeSheetData = { version: 1, rows, cols, cells };
@@ -844,7 +845,8 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
           italic: cell.s?.italic,
           numFmt: excelNumberFormat(cell),
           borders: cell.b || undefined,
-          align: cell.a
+          align: cell.a,
+          wrap: cell.w
         });
       }
       const widths: Record<number, number> = {};

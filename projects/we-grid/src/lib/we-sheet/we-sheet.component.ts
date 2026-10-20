@@ -971,6 +971,12 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.updateRange((cell) => ({ ...cell, a: cell.a === align ? undefined : align }));
   }
 
+  /** Wrap text on the selection, or off again when the active cell already wraps */
+  toggleWrap(): void {
+    const on = !this.activeCell?.w;
+    this.updateRange((cell) => ({ ...cell, w: on || undefined }));
+  }
+
   /** One decimal place more or fewer for the selection — Excel's Increase / Decrease Decimal */
   changeDecimals(delta: number): void {
     const current = this.activeCell?.d ?? (this.activeCell?.f === 'percent' || this.activeCell?.f === 'integer' ? 0 : 2);
@@ -1922,7 +1928,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
         const error = typeof value === 'object' && value !== null && !(value instanceof Date);
         const numeric = typeof value === 'number' && cell?.f !== 'text';
         const css = cell?.s ? weGridCellStyleCss(cell.s) : null;
-        line.push({ text, css: css && Object.keys(css).length ? css : null, align: cell?.a ?? (numeric || error ? 'end' : 'start'), error, note: cell?.n ?? null });
+        const wrapCss = cell?.w ? { 'white-space': 'normal', 'overflow-wrap': 'anywhere', height: 'auto' } : null;
+        line.push({ text, css: wrapCss ? { ...(css ?? {}), ...wrapCss } : css && Object.keys(css).length ? css : null, align: cell?.a ?? (numeric || error ? 'end' : 'start'), error, note: cell?.n ?? null });
       }
       view.push(line);
     }
@@ -2006,6 +2013,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (cell.l?.length) out.l = cell.l;
     if (cell.n) out.n = cell.n;
     if (cell.b) out.b = cell.b;
+    if (cell.w) out.w = true;
     return out;
   }
 

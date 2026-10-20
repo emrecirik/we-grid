@@ -21,6 +21,7 @@ browser with no dependency beyond Angular CDK.
 | Freeze panes | Pinned columns, sticky header · first column freeze | Grid · Sheet |
 | Merge & Center | The merge button | Sheet |
 | Borders | The borders button — all, outside, bottom, none | Sheet |
+| Wrap Text | The wrap button | Sheet |
 | Data validation list | Dropdown lists | Sheet: right-click → Dropdown list… |
 | Notes / comments | Notes | Sheet: right-click → Note… |
 | Find and replace (Ctrl+F, Ctrl+H) | Same keys | Sheet · Grid: the search box finds across columns |
