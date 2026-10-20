@@ -28,6 +28,7 @@ export class BudgetComponent {}
 | Style | Bold, italic, underline, strikethrough (Ctrl+B / I / U), text colour and fill from the nine-colour palette, alignment. |
 | Number format | General, number, whole number, currency (the locale's `intlCurrency`), percent, date (Excel serial dates), text. |
 | Sort | A → Z / Z → A by the active column — the selected rows, or every used row below the header row. Numbers before text, blanks last. |
+| Typed dates *(0.25.0)* | `2026-01-15`, or `15.01.2026` / `1/15/2026` in the order your locale writes dates, becomes a date (an Excel serial with the date format) that date functions and sorting understand. `weSheetParseDate`. |
 | Insert function *(0.24.0)* | The ƒ button by the formula bar lists every function with its arguments; search by English or Turkish name, pick one (or ↑ ↓ Enter) and it goes into the cell's formula. |
 | Paste values *(0.21.0)* | Ctrl+Shift+V after copying in the sheet pastes the values the copy showed — no formulas, the target cells keep their formats. |
 | Fill down | Ctrl+D copies the top row of the selection down through it, shifting relative references. |

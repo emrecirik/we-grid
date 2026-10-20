@@ -900,7 +900,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const cell = this.scrollRef.nativeElement.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(this.active.col, this.active.row)}"]`);
     const box = cell?.getBoundingClientRect();
     const current = String(this.sheet.cells[weSheetAddress(this.active.col, this.active.row)]?.v ?? '');
-    const index = options.findIndex((o) => o === current || String(weSheetParseInput(o, this.decimalSeparator).value) === current);
+    const index = options.findIndex((o) => o === current || String(weSheetParseInput(o, this.decimalSeparator, this.dateOrder).value) === current);
     this.picker = { options, index: Math.max(0, index), x: box ? box.left : 40, y: box ? box.bottom : 40 };
     this.cdr.markForCheck();
   }
@@ -1358,7 +1358,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       const separator: '.' | ',' = isXlsx ? '.' : this.decimalSeparator;
       lines.forEach((line, r) =>
         line.forEach((text, c) => {
-          const parsed = weSheetParseInput(text, separator);
+          const parsed = weSheetParseInput(text, separator, this.dateOrder);
           if (parsed.value !== null && parsed.value !== undefined) next.cells[weSheetAddress(c, r)] = parsed.format ? { v: parsed.value, f: parsed.format } : { v: parsed.value };
         })
       );
@@ -1614,6 +1614,12 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     return new Intl.NumberFormat(this.locale.intlLocale).format(1.5).includes(',') ? ',' : '.';
   }
 
+  /** Whether the locale writes the day or the month first — how a typed `3/4/2026` is read */
+  private get dateOrder(): 'dmy' | 'mdy' {
+    const parts = new Intl.DateTimeFormat(this.locale.intlLocale).formatToParts(new Date(2000, 10, 22));
+    return parts.findIndex((p) => p.type === 'month') < parts.findIndex((p) => p.type === 'day') ? 'mdy' : 'dmy';
+  }
+
   private load(input: WeSheetData | null): void {
     const data = (input && weSheetSanitize(input)) || weSheetEmpty(this.clampRows(this.rows), this.clampCols(this.cols));
     this.undoStack = [];
@@ -1780,7 +1786,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   private writeInput(target: WeSheetData, col: number, row: number, input: string | number | boolean | null): void {
     const key = weSheetAddress(col, row);
     const asText = target.cells[key]?.f === 'text' && typeof input === 'string' && !input.startsWith('=') && !input.startsWith("'");
-    const parsed = asText ? { value: input === '' ? null : input } : typeof input === 'string' ? weSheetParseInput(input, this.decimalSeparator) : { value: input };
+    const parsed = asText ? { value: input === '' ? null : input } : typeof input === 'string' ? weSheetParseInput(input, this.decimalSeparator, this.dateOrder) : { value: input };
     const cell: WeSheetCell = { ...(target.cells[key] ?? {}) };
     if (parsed.value === null || parsed.value === undefined) delete cell.v;
     else cell.v = parsed.value;

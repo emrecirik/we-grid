@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.25.0 — 2026-10-20
+
+Dates typed into the spreadsheet. A minor release.
+
+### Added
+
+- `<we-sheet>`: **typed dates** — `2026-01-15`, or `15.01.2026` / `1/15/2026` in the order the
+  locale writes dates, become dates (an Excel serial with the date format), in typing, pasting
+  and CSV import. `weSheetParseInput` takes the order; `weSheetParseDate` util.
+
 ## 0.24.1 — 2026-10-20
 
 Screen-reader fixes for the spreadsheet. A patch release.

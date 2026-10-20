@@ -245,3 +245,15 @@ describe('weSheetFromCells', () => {
     expect([data.rows, data.cols]).toEqual([13, 3]);
   });
 });
+
+describe('typed dates', () => {
+  it('reads ISO and local dates in the locale\'s order, and refuses days that do not exist', () => {
+    expect(weSheetParseInput('2026-01-15', ',')).toEqual({ value: 46037, format: 'date' });
+    expect(weSheetParseInput('15.01.2026', ',')).toEqual({ value: 46037, format: 'date' });
+    expect(weSheetParseInput('1/15/2026', '.', 'mdy')).toEqual({ value: 46037, format: 'date' });
+    expect(weSheetParseInput('15/1/26', '.', 'dmy').value).toBe(46037);
+    expect(weSheetParseInput('31.02.2026', ',').value).toBe('31.02.2026');
+    expect(weSheetParseInput('1.5', '.').value).toBe(1.5);
+    expect(weSheetFormatValue(46037, 'date', 'en-US', 'USD')).toBe('Jan 15, 2026');
+  });
+});

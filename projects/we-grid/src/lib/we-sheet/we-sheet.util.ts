@@ -49,10 +49,15 @@ export function weSheetEmpty(rows = 50, cols = 12): WeSheetData {
 /**
  * Turns what the user typed into a cell value, the way Excel does: `=…` stays a formula, numbers in
  * the user's locale (`1.234,5` with a comma decimal separator) become numbers, `15%` becomes 0.15
- * with a percent format, TRUE/FALSE become booleans, `'123` keeps 123 as text. An empty input
- * clears the value.
+ * with a percent format, TRUE/FALSE become booleans, `'123` keeps 123 as text, and a date
+ * (`2026-01-15`, or `15.01.2026` / `1/15/2026` in the order of `dateOrder`) becomes an Excel date
+ * serial with the date format. An empty input clears the value.
  */
-export function weSheetParseInput(text: string, decimalSeparator: '.' | ','): { value: WeSheetCell['v']; format?: WeSheetNumberFormat } {
+export function weSheetParseInput(
+  text: string,
+  decimalSeparator: '.' | ',',
+  dateOrder: 'dmy' | 'mdy' = 'dmy'
+): { value: WeSheetCell['v']; format?: WeSheetNumberFormat } {
   if (text === '') return { value: null };
   if (text.startsWith('=')) return { value: text };
   if (text.startsWith("'")) return { value: text.slice(1), format: 'text' };
@@ -63,7 +68,33 @@ export function weSheetParseInput(text: string, decimalSeparator: '.' | ','): { 
   const percent = trimmed.endsWith('%');
   const n = weSheetParseNumber(percent ? trimmed.slice(0, -1) : trimmed, decimalSeparator);
   if (n !== null) return percent ? { value: n / 100, format: 'percent' } : { value: n };
+  const date = weSheetParseDate(trimmed, dateOrder);
+  if (date !== null) return { value: date, format: 'date' };
   return { value: text.slice(0, MAX_TEXT) };
+}
+
+/**
+ * A date as an Excel serial (days since 1899-12-30), or null: `2026-01-15`, or day, month and year
+ * separated by `.`, `/` or `-` in the given order (`15.01.2026`, `1/15/26`). Two-digit years are
+ * 2000-2029 or 1930-1999. Days that do not exist (`31.02.2026`) are not dates.
+ */
+export function weSheetParseDate(text: string, order: 'dmy' | 'mdy' = 'dmy'): number | null {
+  let y: number;
+  let m: number;
+  let d: number;
+  const iso = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(text);
+  const local = iso ? null : /^(\d{1,2})([./-])(\d{1,2})\2(\d{4}|\d{2})$/.exec(text);
+  if (iso) [y, m, d] = [Number(iso[1]), Number(iso[2]), Number(iso[3])];
+  else if (local) {
+    const [a, b] = [Number(local[1]), Number(local[3])];
+    [d, m] = order === 'dmy' ? [a, b] : [b, a];
+    y = Number(local[4]);
+    if (local[4].length === 2) y += y < 30 ? 2000 : 1900;
+  } else return null;
+  const ms = Date.UTC(y, m - 1, d);
+  const check = new Date(ms);
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== m - 1 || check.getUTCDate() !== d) return null;
+  return Math.round((ms - Date.UTC(1899, 11, 30)) / 86400000);
 }
 
 /** A number written with the locale's separators (the other one as an optional thousands separator), or null */
