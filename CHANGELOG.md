@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.36.0 — 2026-10-20
+
+The grid's look in its Excel export. A minor release.
+
+### Added
+
+- `<we-grid>` Excel export keeps how each cell looks: the column's style and the matching format
+  rules — bold, italic, underline, strikethrough, text and fill colours — on top of each type's
+  number format. `WeGridExportRow.styles` carries it to custom exporters;
+  `weGridResolveFormats(…, stylesOut)` fills it. Colour scales, data bars and icon sets are not
+  written.
+
 ## 0.35.2 — 2026-10-20
 
 ### Fixed

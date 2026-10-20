@@ -3491,6 +3491,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private buildExportTable(rows: T[]): WeGridExportTable {
     const columns = this.exportColumns;
     const title = this.exportFileName || this.gridKey;
+    // The look of each cell — column styles and format rules — for exporters that can carry it
+    const looks = new Map<T, Record<string, WeGridCellStyle>>();
+    const columnStyles = new Map<string, WeGridCellStyle>();
+    for (const c of columns) if (c.style) columnStyles.set(c.field, c.style);
+    weGridResolveFormats(rows, this.activeFormatRules, columns.map((c) => c.field), this.readCellValue, columnStyles, this.evaluateRowFormula, looks);
     return {
       fileName: title,
       title,
@@ -3517,7 +3522,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
           text[0] = indent + text[0];
           if (typeof values[0] === 'string') values[0] = indent + values[0];
         }
-        return { values, text };
+        const look = looks.get(row);
+        return look ? { values, text, styles: columns.map((col) => look[col.field] ?? null) } : { values, text };
       }),
       summary: this.hasSummaryRow ? columns.map((col) => this.summaryCellText(col)) : null,
       cssVariables: this.readExportThemeVariables()

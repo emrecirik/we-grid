@@ -91,3 +91,27 @@ describe('weGridBuildXlsx — scaled numeric columns', () => {
     expect(text).toContain('numFmtId="10"');
   });
 });
+
+describe('weGridBuildXlsx — cell styles', () => {
+  it('writes the grid\'s bold, italic and palette colours on top of each type\'s format', async () => {
+    const table: WeGridExportTable = {
+      fileName: 't', title: 't', summary: null, cssVariables: {},
+      columns: [
+        { field: 'a', header: 'A', type: 'text', format: undefined, align: 'start', width: 100, useDisplayText: false },
+        { field: 'p', header: 'P', type: 'percent', format: undefined, align: 'end', width: 100, useDisplayText: false }
+      ],
+      rows: [
+        { values: ['x', 0.5], text: ['x', '50%'], styles: [{ bold: true, color: 'red' }, { fill: 'green' }] },
+        { values: ['y', 0.25], text: ['y', '25%'] }
+      ]
+    };
+    const text = await new Response(weGridBuildXlsx(table)).text();
+    expect(text).toContain('<fonts count="4">');
+    expect(text).toContain('<color rgb="FFC41E16"/>');
+    expect(text).toContain('<fgColor rgb="FFE1F6E6"/>');
+    expect(text).toContain('<xf numFmtId="10" fontId="3" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyNumberFormat="1"/>');
+    expect(text).toContain('<c r="A2" t="inlineStr" s="5">');
+    expect(text).toContain('<c r="B2" s="6">');
+    expect(text).toContain('<c r="B3" s="4">');
+  });
+});

@@ -1,5 +1,7 @@
 import { weGridValueKind } from '../models/we-grid-column.model';
 import { WeGridExportTable, WeGridImportSheet } from '../models/we-grid-export.model';
+import { WeGridCellStyle } from '../models/we-grid-format.model';
+import { weGridFormatHex } from './we-grid-format.util';
 
 /**
  * A minimal, dependency-free XLSX reader/writer.
@@ -170,20 +172,62 @@ const STYLE_DATE = 2;
 const STYLE_DATETIME = 3;
 const STYLE_PERCENT = 4;
 
-function buildStyles(): string {
+/** Number format ids of the fixed styles, by style index */
+const STYLE_FORMATS = [0, 0, 14, 22, 10];
+
+/**
+ * Cell styles beyond the five fixed ones: a fixed style (its number format) with a cell's own font
+ * and fill — the grid's column styles and format rules, as the grid shows them
+ */
+class ExtraStyles {
+  readonly fonts: string[] = [];
+  readonly fills: string[] = [];
+  readonly xfs: { fmt: number; font: number; fill: number }[] = [];
+  private readonly keys = new Map<string, number>();
+
+  of(base: number, style: WeGridCellStyle | null | undefined): number {
+    if (!style || !(style.bold || style.italic || style.underline || style.strike || style.color || style.fill)) return base;
+    const bold = style.bold || base === STYLE_HEADER;
+    const font =
+      `<font>${bold ? '<b/>' : ''}${style.italic ? '<i/>' : ''}${style.strike ? '<strike/>' : ''}${style.underline ? '<u/>' : ''}<sz val="11"/>` +
+      `${style.color ? `<color rgb="FF${weGridFormatHex(style.color, 'fg').slice(1).toUpperCase()}"/>` : ''}<name val="Calibri"/></font>`;
+    const fill = style.fill ? `<fill><patternFill patternType="solid"><fgColor rgb="FF${weGridFormatHex(style.fill, 'bg').slice(1).toUpperCase()}"/><bgColor indexed="64"/></patternFill></fill>` : '';
+    const key = `${base}|${font}|${fill}`;
+    const known = this.keys.get(key);
+    if (known !== undefined) return known;
+    const fontIndex = this.index(this.fonts, font) + 2;
+    const fillIndex = fill ? this.index(this.fills, fill) + 2 : 0;
+    this.xfs.push({ fmt: STYLE_FORMATS[base] ?? 0, font: fontIndex, fill: fillIndex });
+    const at = STYLE_FORMATS.length + this.xfs.length - 1;
+    this.keys.set(key, at);
+    return at;
+  }
+
+  private index(list: string[], xml: string): number {
+    const at = list.indexOf(xml);
+    if (at >= 0) return at;
+    list.push(xml);
+    return list.length - 1;
+  }
+}
+
+function buildStyles(extra = new ExtraStyles()): string {
   return (
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
-    `<fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>` +
-    `<fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>` +
+    `<fonts count="${2 + extra.fonts.length}"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font>${extra.fonts.join('')}</fonts>` +
+    `<fills count="${2 + extra.fills.length}"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>${extra.fills.join('')}</fills>` +
     `<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>` +
     `<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>` +
-    `<cellXfs count="5">` +
+    `<cellXfs count="${5 + extra.xfs.length}">` +
     `<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>` +
     `<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/>` +
     `<xf numFmtId="14" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
     `<xf numFmtId="22" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
     `<xf numFmtId="10" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/>` +
+    extra.xfs
+      .map((x) => `<xf numFmtId="${x.fmt}" fontId="${x.font}" fillId="${x.fill}" borderId="0" xfId="0" applyFont="1"${x.fill ? ' applyFill="1"' : ''}${x.fmt ? ' applyNumberFormat="1"' : ''}/>`)
+      .join('') +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
     `</styleSheet>`
@@ -219,6 +263,7 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
       `</row>`
   );
 
+  const extra = new ExtraStyles();
   table.rows.forEach((row, rowIndex) => {
     const r = rowIndex + 2;
     const cells: string[] = [];
@@ -226,12 +271,14 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
       const ref = `${columnLetter(colIndex)}${r}`;
       const raw = row.values[colIndex];
       const text = row.text[colIndex] ?? '';
+      // The cell's own look on top of the style its type gives it
+      const st = (base: number) => extra.of(base, row.styles?.[colIndex]);
       if (raw === null || raw === undefined || raw === '') return;
 
       // A column with a `displayValue` mapper is text as far as the file is concerned — see
       // WeGridExportColumn.useDisplayText.
       if (col.useDisplayText) {
-        cells.push(inlineStringCell(ref, text, STYLE_DEFAULT));
+        cells.push(inlineStringCell(ref, text, st(STYLE_DEFAULT)));
         return;
       }
 
@@ -242,22 +289,22 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
         // instead of writing NaN, which Excel rejects.
         if (!isNaN(num)) {
           // A percent cell keeps the fraction and lets Excel's own 0.00% format show it
-          const style = col.type === 'percent' ? STYLE_PERCENT : STYLE_DEFAULT;
+          const style = st(col.type === 'percent' ? STYLE_PERCENT : STYLE_DEFAULT);
           cells.push(`<c r="${ref}" s="${style}"><v>${num}</v></c>`);
           return;
         }
       } else if (col.type === 'boolean') {
-        cells.push(`<c r="${ref}" t="b" s="${STYLE_DEFAULT}"><v>${raw ? 1 : 0}</v></c>`);
+        cells.push(`<c r="${ref}" t="b" s="${st(STYLE_DEFAULT)}"><v>${raw ? 1 : 0}</v></c>`);
         return;
       } else if (col.type === 'date' || col.type === 'datetime') {
         const date = toDateOrNull(raw);
         if (date) {
-          const style = col.type === 'date' ? STYLE_DATE : STYLE_DATETIME;
+          const style = st(col.type === 'date' ? STYLE_DATE : STYLE_DATETIME);
           cells.push(`<c r="${ref}" s="${style}"><v>${toExcelSerial(date)}</v></c>`);
           return;
         }
       }
-      cells.push(inlineStringCell(ref, text, STYLE_DEFAULT));
+      cells.push(inlineStringCell(ref, text, st(STYLE_DEFAULT)));
     });
     rowsXml.push(`<row r="${r}">${cells.join('')}</row>`);
   });
@@ -276,7 +323,7 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
     (cols ? `<cols>${cols}</cols>` : '') +
     `<sheetData>${rowsXml.join('')}</sheetData></worksheet>`;
 
-  return buildPackage([{ name: sheetName, xml: sheet }], buildStyles());
+  return buildPackage([{ name: sheetName, xml: sheet }], buildStyles(extra));
 }
 
 /** The .xlsx package around worksheet XML: content types, relationships, workbook and styles */

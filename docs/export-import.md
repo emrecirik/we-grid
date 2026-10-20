@@ -23,7 +23,7 @@ or `importFormats` renders exactly the toolbar it rendered before.
 |---|---|
 | **Rows** | The loaded rows, after the client-side filter and sort, in the order shown. When rows are selected, only those. |
 | **Columns** | Only the columns the user currently has visible, in their current order, under their current (possibly renamed) headers. A column with `exportable: false` is always skipped. |
-| **Values** | The formatted text the grid shows, including `displayValue` labels and `formatter` output. Excel additionally keeps numbers numeric and dates as real dates: a `minorUnits` currency column is written in lira (`12345` kuruş → `123.45`), a `percent` column as its fraction with Excel's `0.00%` format. |
+| **Values** | The formatted text the grid shows, including `displayValue` labels and `formatter` output. Excel additionally keeps numbers numeric and dates as real dates: a `minorUnits` currency column is written in lira (`12345` kuruş → `123.45`), a `percent` column as its fraction with Excel's `0.00%` format. *(0.36.0)* Excel also keeps each cell's look: the column's style and the format rules that match it — bold, italic, underline, strikethrough and the palette colours (as the light theme's RGB). Colour scales, data bars and icon sets are not written. |
 | **Summary** | The subtotal row, when one is shown. |
 
 The button's tooltip says which scope will be used before it is pressed — "Excel (.xlsx) ·

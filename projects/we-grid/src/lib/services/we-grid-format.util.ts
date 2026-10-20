@@ -109,7 +109,9 @@ export function weGridResolveFormats<T>(
   fields: readonly string[],
   read: (row: T, field: string) => unknown,
   columnStyles: ReadonlyMap<string, WeGridCellStyle> = new Map(),
-  formula?: WeGridFormatFormulaFn<T>
+  formula?: WeGridFormatFormulaFn<T>,
+  /** Filled with each styled cell's resolved style (column style plus matching rules) — what an export writes */
+  stylesOut?: Map<T, Record<string, WeGridCellStyle>>
 ): Map<T, Record<string, WeGridCellCss>> {
   const result = new Map<T, Record<string, WeGridCellCss>>();
   // A rule that styles the whole row keeps working while its own column is hidden
@@ -146,7 +148,13 @@ export function weGridResolveFormats<T>(
     }
     for (const field of fields) {
       const cellStyle = cellStyles.get(field) ?? {};
-      const css = weGridCellStyleCss({ ...(columnStyles.get(field) ?? {}), ...rowStyle, ...cellStyle });
+      const style = { ...(columnStyles.get(field) ?? {}), ...rowStyle, ...cellStyle };
+      if (stylesOut && Object.keys(definedOnly(style)).length) {
+        let rowStyles = stylesOut.get(row);
+        if (!rowStyles) stylesOut.set(row, (rowStyles = {}));
+        rowStyles[field] = style;
+      }
+      const css = weGridCellStyleCss(style);
       // A colour scale or bar beats the column's fill, a matching rule's fill beats both
       if (!cellStyle.fill && !rowStyle.fill) Object.assign(css, extras.get(field));
       Object.assign(css, icons.get(field));
