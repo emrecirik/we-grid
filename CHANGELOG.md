@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.38.0 — 2026-10-20
+
+### Added
+
+- The grid's Excel export writes its colour scales, data bars and icon sets as Excel conditional
+  formatting over each column's data rows (`WeGridExportTable.formatRules`, set on Excel exports).
+
 ## 0.37.0 — 2026-10-20
 
 ### Added

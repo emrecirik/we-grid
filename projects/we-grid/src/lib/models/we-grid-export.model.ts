@@ -1,4 +1,4 @@
-import { WeGridCellStyle } from './we-grid-format.model';
+import { WeGridCellStyle, WeGridFormatRule } from './we-grid-format.model';
 import { InjectionToken, inject } from '@angular/core';
 import { WeGridAlign, WeGridColumnType } from './we-grid-column.model';
 import { WeGridDefaultExporter } from '../services/we-grid-default-exporter';
@@ -61,6 +61,8 @@ export interface WeGridExportTable {
   rows: WeGridExportRow[];
   /** Summary-row text per column (aligned with `columns`), or null when no summary row is shown */
   summary: (string | null)[] | null;
+  /** Colour scales, data bars and icon sets on exported columns — set on Excel exports, which write them as Excel's own conditional formatting */
+  formatRules?: WeGridFormatRule[];
   /**
    * Resolved `--we-grid-*` custom properties read off the live grid element. The PDF/print
    * document renders in a separate document that does not inherit the host page's stylesheet, so

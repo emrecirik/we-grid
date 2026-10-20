@@ -317,11 +317,24 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
     rowsXml.push(`<row r="${r}">${cells}</row>`);
   }
 
+  // Visual rules cover the column's data rows — not the header, not the summary row
+  const visuals: WeGridXlsxConditionalFormat[] = [];
+  for (const rule of table.formatRules ?? []) {
+    const i = table.columns.findIndex((c) => c.field === rule.field);
+    if (i < 0 || !table.rows.length) continue;
+    const ref = `${columnLetter(i)}2:${columnLetter(i)}${table.rows.length + 1}`;
+    if (rule.type === 'colorScale' && (rule.colors?.length ?? 0) >= 2) visuals.push({ ref, type: 'colorScale', colors: rule.colors!.map((c) => weGridFormatHex(c, 'fg')) });
+    else if (rule.type === 'dataBar') visuals.push({ ref, type: 'dataBar', colors: [weGridFormatHex(rule.color ?? 'blue', 'fg')] });
+    else if (rule.type === 'iconSet') visuals.push({ ref, type: 'iconSet', iconSet: rule.icons === 'dots' ? '3TrafficLights1' : '3Arrows', reverse: rule.reverse });
+  }
+
   const sheet =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
     (cols ? `<cols>${cols}</cols>` : '') +
-    `<sheetData>${rowsXml.join('')}</sheetData></worksheet>`;
+    `<sheetData>${rowsXml.join('')}</sheetData>` +
+    conditionalFormattingXml(visuals, () => 0) +
+    `</worksheet>`;
 
   return buildPackage([{ name: sheetName, xml: sheet }], buildStyles(extra));
 }

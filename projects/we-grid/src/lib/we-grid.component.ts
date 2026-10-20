@@ -3527,7 +3527,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         return look ? { values, text, styles: columns.map((col) => look[col.field] ?? null) } : { values, text };
       }),
       summary: this.hasSummaryRow ? columns.map((col) => this.summaryCellText(col)) : null,
-      cssVariables: this.readExportThemeVariables()
+      cssVariables: this.readExportThemeVariables(),
+      ...(withStyles ? { formatRules: this.activeFormatRules.filter((r) => r.type !== 'condition' && columns.some((c) => c.field === r.field)) } : {})
     };
   }
 

@@ -115,3 +115,28 @@ describe('weGridBuildXlsx — cell styles', () => {
     expect(text).toContain('<c r="B3" s="4">');
   });
 });
+
+describe('weGridBuildXlsx — visual format rules', () => {
+  it('writes colour scales, data bars and icon sets over the column\'s data rows', async () => {
+    const table: WeGridExportTable = {
+      fileName: 't', title: 't', summary: ['', 'Σ 3'], cssVariables: {},
+      columns: [
+        { field: 'a', header: 'A', type: 'text', format: undefined, align: 'start', width: 100, useDisplayText: false },
+        { field: 'n', header: 'N', type: 'number', format: undefined, align: 'end', width: 100, useDisplayText: false }
+      ],
+      rows: [
+        { values: ['x', 1], text: ['x', '1'] },
+        { values: ['y', 2], text: ['y', '2'] }
+      ],
+      formatRules: [
+        { id: '1', field: 'n', type: 'dataBar', color: 'blue' },
+        { id: '2', field: 'n', type: 'iconSet', icons: 'arrows' },
+        { id: '3', field: 'gone', type: 'colorScale', colors: ['red', 'green'] }
+      ]
+    };
+    const text = await new Response(weGridBuildXlsx(table)).text();
+    expect(text).toContain('</sheetData><conditionalFormatting sqref="B2:B3"><cfRule type="dataBar" priority="1">');
+    expect(text).toContain('<iconSet iconSet="3Arrows">');
+    expect(text).not.toContain('colorScale');
+  });
+});

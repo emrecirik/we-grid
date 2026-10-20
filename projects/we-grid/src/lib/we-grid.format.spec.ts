@@ -139,3 +139,19 @@ describe('WeGridComponent — formatting', () => {
     expect(cell(2, 0).style.color).toBe('');
   });
 });
+
+describe('WeGridComponent — format rules in Excel exports', () => {
+  it('hands colour scales and data bars to Excel exports only', () => {
+    TestBed.configureTestingModule({ imports: [FormatHostComponent], providers: [{ provide: WE_GRID_LAYOUT_STORE, useValue: new MemoryStore() }] });
+    const fixture = TestBed.createComponent(FormatHostComponent);
+    fixture.componentInstance.rules = [
+      { id: 'r1', field: 'amount', type: 'condition', operator: 'gt', value: 100, style: { fill: 'red' } },
+      { id: 'r2', field: 'amount', type: 'dataBar', color: 'green' }
+    ];
+    fixture.detectChanges();
+    const build = (withStyles: boolean) =>
+      (fixture.componentInstance.grid as unknown as { buildExportTable(rows: Row[], withStyles: boolean): { formatRules?: WeGridFormatRule[] } }).buildExportTable(fixture.componentInstance.data, withStyles);
+    expect(build(true).formatRules?.map((r) => r.id)).toEqual(['r2']);
+    expect(build(false).formatRules).toBeUndefined();
+  });
+});
