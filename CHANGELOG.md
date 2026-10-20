@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.26.0 — 2026-10-20
+
+Merged cells in the spreadsheet. A minor release.
+
+### Added
+
+- `<we-sheet>` **merge and center**: the toolbar's merge button joins the selection into one cell
+  (the top-left value stays, centred) or splits it again. The keyboard steps over a merge, a
+  selection grows to hold any merge it touches, inserting and deleting rows and columns move
+  merges, sorting through one is refused with a notice, and `.xlsx` files keep them on export and
+  import. `WeSheetData.merges`, `WeGridXlsxSheet.merges`, `WeGridXlsxCellSheet.merges`,
+  `weSheetSanitizeMerges`; icon `merge`; locale keys `sheetMerge`, `sheetMergeSort`.
+  Filters show or hide a merge whole; paste, fill and edits never write under a merge's top-left
+  cell.
+
 ## 0.25.0 — 2026-10-20
 
 Dates typed into the spreadsheet. A minor release.

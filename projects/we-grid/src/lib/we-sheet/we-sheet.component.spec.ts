@@ -146,6 +146,64 @@ describe('WeSheetComponent', () => {
     expect(sheet().getData().cells['C1']).toBeUndefined();
   });
 
+  it('merges and centres a range, moves past it and splits it again', () => {
+    sheet().setCell('A1', 'Title');
+    sheet().setCell('B1', 'gone');
+    sheet().select('A1:C1');
+    sheet().toggleMerge();
+    fixture.detectChanges();
+    expect(sheet().getData().merges).toEqual(['A1:C1']);
+    expect(sheet().getData().cells['B1']).toBeUndefined();
+    expect(cellEl('A1').getAttribute('colspan')).toBe('3');
+    expect(cellEl('A1').style.textAlign).toBe('center');
+    expect(cellEl('B1')).toBeNull();
+    // A click in it selects all of it; → moves past it
+    sheet().select('B1');
+    expect(sheet().selectionLabel).toBe('A1:C1');
+    const scroll = el().querySelector('.we-sheet__scroll')!;
+    scroll.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    expect(sheet().selectionLabel).toBe('D1');
+    scroll.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true, cancelable: true }));
+    expect(sheet().selectionLabel).toBe('A1:C1');
+    // A selection that touches it grows to hold it; sorting it is refused
+    sheet().select('B2');
+    el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', shiftKey: true, bubbles: true, cancelable: true }));
+    expect(sheet().selectionLabel).toBe('A1:C2');
+    // Pasting over it writes the top-left cell only
+    sheet().setCell('A2', 'x');
+    sheet().setCell('B2', 'y');
+    sheet().select('A2:B2');
+    const data = new DataTransfer();
+    scroll.dispatchEvent(new ClipboardEvent('copy', { clipboardData: data, bubbles: true, cancelable: true }));
+    sheet().select('A1');
+    scroll.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }));
+    expect(sheet().getValue('A1')).toBe('x');
+    expect(sheet().getData().cells['B1']).toBeUndefined();
+    sheet().select('A1:C1');
+    sheet().toggleMerge();
+    fixture.detectChanges();
+    expect(sheet().getData().merges).toBeUndefined();
+    expect(cellEl('B1')).toBeTruthy();
+  });
+
+  it('shows or hides a merge whole when filters hide rows', () => {
+    sheet().setData({
+      version: 1, rows: 8, cols: 3, headerRow: true, autoFilter: true, filters: { A: ['b'] }, merges: ['B2:B3'],
+      cells: { A1: { v: 'K' }, A2: { v: 'a' }, A3: { v: 'b' }, A4: { v: 'b' }, B2: { v: 'M' } }
+    });
+    fixture.detectChanges();
+    expect(cellEl('A3')).toBeTruthy();
+    expect(cellEl('A4')).toBeNull();
+    expect(cellEl('B2').getAttribute('rowspan')).toBe('2');
+    sheet().setData({
+      version: 1, rows: 8, cols: 3, headerRow: true, autoFilter: true, filters: { A: ['a'] }, merges: ['B2:B3'],
+      cells: { A1: { v: 'K' }, A2: { v: 'a' }, A3: { v: 'b' }, B2: { v: 'M' } }
+    });
+    fixture.detectChanges();
+    expect(cellEl('A2')).toBeNull();
+    expect(cellEl('A3')).toBeNull();
+  });
+
   it('pastes values only after Ctrl+Shift+V', () => {
     sheet().setCell('A1', 4);
     sheet().setCell('B1', '=A1*2');

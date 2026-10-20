@@ -8,6 +8,7 @@ import {
   weSheetFill,
   weSheetCleanList,
   weSheetFromCells,
+  weSheetSanitizeMerges,
   weSheetEmpty,
   weSheetFormatValue,
   weSheetNormalize,
@@ -255,5 +256,16 @@ describe('typed dates', () => {
     expect(weSheetParseInput('31.02.2026', ',').value).toBe('31.02.2026');
     expect(weSheetParseInput('1.5', '.').value).toBe(1.5);
     expect(weSheetFormatValue(46037, 'date', 'en-US', 'USD')).toBe('Jan 15, 2026');
+  });
+});
+
+describe('merged cells', () => {
+  it('keeps valid, non-overlapping merges and moves them with inserted rows and columns', () => {
+    expect(weSheetSanitizeMerges(['A1:B2', 'B2:C3', 'D4:D4', 'x', 'E1:F1', 'A1:Z9999'], 100, 20)).toEqual(['A1:B2', 'E1:F1']);
+    const data = { version: 1 as const, rows: 10, cols: 6, cells: {}, merges: ['B2:C3'] };
+    expect(weSheetInsert(data, 'row', 0, 1).merges).toEqual(['B3:C4']);
+    expect(weSheetInsert(data, 'col', 1, -1).merges).toEqual(['B2:B3']);
+    expect(weSheetInsert(data, 'row', 1, -1).merges).toEqual(['B2:C2']);
+    expect(weSheetInsert({ ...data, merges: ['B2:B3'] }, 'row', 1, -1).merges).toBeUndefined();
   });
 });

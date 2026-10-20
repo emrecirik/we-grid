@@ -330,9 +330,29 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
       data.chart = { range, type: type as NonNullable<WeSheetData['chart']>['type'] };
     }
   }
+  const merges = weSheetSanitizeMerges(o['merges'], rows, cols);
+  if (merges.length) data.merges = merges;
   const formats = weSheetSanitizeFormats(o['formats']);
   if (formats.length) data.formats = formats;
   return data;
+}
+
+/** Merge ranges that are well formed, inside the sheet, bigger than one cell and not overlapping an earlier one — at most 1000 */
+export function weSheetSanitizeMerges(input: unknown, rows = WE_SHEET_MAX_ROWS, cols = WE_SHEET_MAX_COLS): string[] {
+  if (!Array.isArray(input)) return [];
+  const kept: WeSheetRange[] = [];
+  const out: string[] = [];
+  for (const raw of input.slice(0, 1000)) {
+    if (typeof raw !== 'string') continue;
+    const [a, b] = raw.split(':').map((p) => weSheetParseAddress(p));
+    if (!a || !b) continue;
+    const r = weSheetNormalize(a, b);
+    if ((r.c1 === r.c2 && r.r1 === r.r2) || r.r2 >= rows || r.c2 >= cols) continue;
+    if (kept.some((k) => k.c1 <= r.c2 && r.c1 <= k.c2 && k.r1 <= r.r2 && r.r1 <= k.r2)) continue;
+    kept.push(r);
+    out.push(weSheetRangeLabel(r));
+  }
+  return out;
 }
 
 /** Well-formed conditional format rules of a sheet: a valid grid rule over a one-column range, at most 100 */
@@ -493,6 +513,12 @@ export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number
     const range = weSheetMoveReferences(data.chart.range, axis, at, count);
     if (range.includes('#REF!')) delete out.chart;
     else out.chart = { ...data.chart, range };
+  }
+  if (data.merges) {
+    const merges = data.merges.map((m) => weSheetMoveReferences(m, axis, at, count)).filter((m) => !m.includes('#REF!'));
+    const clean = weSheetSanitizeMerges(merges, rows, cols);
+    if (clean.length) out.merges = clean;
+    else delete out.merges;
   }
   if (data.formats) {
     // A rule's range follows its cells; one whose cells are all gone goes with them
@@ -814,7 +840,7 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
       }
       const widths: Record<number, number> = {};
       for (const [letter, w] of Object.entries(data.widths ?? {})) widths[weGridColumnIndex(letter)] = w;
-      return { name: renames.get(name) ?? name, cells, widths };
+      return { name: renames.get(name) ?? name, cells, widths, merges: data.merges };
     })
   );
 }
@@ -828,7 +854,8 @@ export function weSheetFromCells(
   input: Readonly<Record<string, string>>,
   decimalSeparator: '.' | ',',
   minRows = 1,
-  minCols = 1
+  minCols = 1,
+  merges: readonly string[] = []
 ): { data: WeSheetData; truncated: boolean } {
   const cells: Record<string, WeSheetCell> = {};
   let rows = 0;
@@ -851,5 +878,14 @@ export function weSheetFromCells(
     ...weSheetEmpty(Math.min(WE_SHEET_MAX_ROWS, Math.max(minRows, rows + 10)), Math.min(WE_SHEET_MAX_COLS, Math.max(minCols, cols))),
     cells
   };
+  // The sheet grows to hold every merge, as it does for every cell
+  for (const m of merges) {
+    const end = weSheetParseAddress(m.split(':')[1] ?? '');
+    if (!end) continue;
+    data.rows = Math.min(WE_SHEET_MAX_ROWS, Math.max(data.rows, end.row + 1));
+    data.cols = Math.min(WE_SHEET_MAX_COLS, Math.max(data.cols, end.col + 1));
+  }
+  const kept = weSheetSanitizeMerges([...merges], data.rows, data.cols);
+  if (kept.length) data.merges = kept;
   return { data, truncated };
 }

@@ -143,3 +143,13 @@ describe('Excel round trip (0.24.0 fixes)', () => {
     expect(weSheetFromCells(read.cells, '.').data.cells['B2'].v).toBe(1500);
   });
 });
+
+describe('merged cells in Excel files', () => {
+  it('writes and reads merges', async () => {
+    const blob = weSheetWorkbookXlsx([{ name: 'M', data: { version: 1, rows: 3, cols: 3, cells: { A1: { v: 'T' } }, merges: ['A1:C1'] } }]);
+    expect(await new Response(blob).text()).toContain('<mergeCells count="1"><mergeCell ref="A1:C1"/></mergeCells>');
+    const [read] = await weGridReadXlsxCells(blob);
+    expect(read.merges).toEqual(['A1:C1']);
+    expect(weSheetFromCells(read.cells, '.', 1, 1, read.merges).data.merges).toEqual(['A1:C1']);
+  });
+});

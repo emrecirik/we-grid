@@ -346,6 +346,8 @@ export interface WeGridXlsxSheet {
   name: string;
   cells: WeGridXlsxCell[];
   widths?: Record<number, number>;
+  /** Merged ranges, `'A1:C1'` */
+  merges?: string[];
 }
 
 const BUILTIN_FORMATS: Record<string, number> = {
@@ -404,7 +406,9 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
       `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
       (widths ? `<cols>${widths}</cols>` : '') +
-      `<sheetData>${rows.join('')}</sheetData></worksheet>`;
+      `<sheetData>${rows.join('')}</sheetData>` +
+      (sheet.merges?.length ? `<mergeCells count="${sheet.merges.length}">${sheet.merges.map((m) => `<mergeCell ref="${escapeXml(m)}"/>`).join('')}</mergeCells>` : '') +
+      `</worksheet>`;
     return { name, xml };
   });
 
@@ -595,6 +599,8 @@ export interface WeGridXlsxCellSheet {
   name: string;
   /** What a user would type: numbers as written (a dot decimal), booleans `TRUE`/`FALSE`, formulas with `=` */
   cells: Record<string, string>;
+  /** Merged ranges, `'A1:C1'` */
+  merges: string[];
 }
 
 /**
@@ -688,7 +694,10 @@ export async function weGridReadXlsxCells(
         if (text !== '') cells[ref] = text;
       }
     }
-    out.push({ name: sheet.name, cells });
+    const merges = Array.from(doc.getElementsByTagNameNS('*', 'mergeCell'))
+      .map((el) => el.getAttribute('ref') ?? '')
+      .filter((ref) => /^[A-Z]{1,3}\d+:[A-Z]{1,3}\d+$/.test(ref));
+    out.push({ name: sheet.name, cells, merges });
   }
   return out;
 }

@@ -78,6 +78,11 @@ interface CellView {
   align: WeGridAlign;
   error: boolean;
   note: string | null;
+  /** Under a merge's top-left cell — not drawn */
+  covered?: boolean;
+  /** The top-left cell of a merge: how far it spans */
+  colspan?: number;
+  rowspan?: number;
 }
 
 const DEFAULT_WIDTH = 104;
@@ -134,7 +139,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** The sheets the Excel export writes — `<we-workbook>` passes all of its sheets; this sheet alone by default */
   @Input() xlsxSheets?: () => readonly { name: string; data: WeSheetData }[];
   /** Takes the sheets of an opened Excel file with more than one — `<we-workbook>` adds them as sheets */
-  @Input() importSheets?: (sheets: readonly { name: string; cells: Record<string, string> }[]) => void;
+  @Input() importSheets?: (sheets: readonly { name: string; cells: Record<string, string>; merges?: string[] }[]) => void;
 
   /** Every change, with the new content */
   @Output() dataChange = new EventEmitter<WeSheetData>();
@@ -155,6 +160,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** The rows drawn — all of them, but those the header-row filters hide */
   visibleRows: number[] = [];
   private hiddenRows = new Set<number>();
+  /** The sheet's merges as ranges, worked out with the view */
+  private mergeRanges: WeSheetRange[] = [];
   /** The open filter of a header cell: its column and the distinct texts below it */
   filterMenu: { col: number; x: number; y: number; values: { text: string; label: string; shown: boolean }[] } | null = null;
   colIndexes: number[] = [];
@@ -306,9 +313,10 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   select(label: string): void {
     const [a, b] = label.split(':').map((p) => weSheetParseAddress(p.trim()));
     if (!a) return;
-    this.anchor = a;
-    this.active = a;
-    this.selection = weSheetNormalize(a, b ?? a);
+    const m = b ? null : this.mergeAt(a);
+    this.anchor = m ? { col: m.c1, row: m.r1 } : a;
+    this.active = this.anchor;
+    this.selection = m ?? this.withMerges(weSheetNormalize(a, b ?? a));
     this.afterSelection();
   }
 
@@ -1333,7 +1341,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         // The first worksheet, cell by cell where it stands — formulas included
-        const { data, truncated } = weSheetFromCells(sheets[0]?.cells ?? {}, '.', this.sheet.rows, this.sheet.cols);
+        const { data, truncated } = weSheetFromCells(sheets[0]?.cells ?? {}, '.', this.sheet.rows, this.sheet.cols, sheets[0]?.merges);
         this.commit({ ...data, headerRow: true, striped: this.sheet.striped });
         this.moveTo({ col: 0, row: 0 });
         if (truncated) {
@@ -1453,6 +1461,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       ? s
       : { c1: 0, r1: this.sheet.headerRow ? 1 : 0, c2: Math.max(used.cols - 1, 0), r2: Math.max(used.rows - 1, 0) };
     if (range.r2 <= range.r1) return;
+    if (this.mergeRanges.some((m) => m.c1 <= range.c2 && range.c1 <= m.c2 && m.r1 <= range.r2 && range.r1 <= m.r2)) {
+      this.notice = this.locale.sheetMergeSort;
+      this.cdr.markForCheck();
+      return;
+    }
     const sorted = weSheetSortRange(this.sheet, range, this.active.col, direction, (c, r) => this.evaluator.value(c, r), this.locale.intlLocale);
     this.commit(sorted);
   }
@@ -1722,6 +1735,106 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     }
   }
 
+  /** Merged cells: the top-left one spans the range (its shown rows), the others are not drawn */
+  private parseMerges(): WeSheetRange[] {
+    const out: WeSheetRange[] = [];
+    for (const label of this.sheet.merges ?? []) {
+      const [a, b] = label.split(':').map((p) => weSheetParseAddress(p));
+      if (!a || !b) continue;
+      const m = weSheetNormalize(a, b);
+      if (m.r2 < this.sheet.rows && m.c2 < this.sheet.cols) out.push(m);
+    }
+    return out;
+  }
+
+  private applyMerges(): void {
+    for (const m of this.mergeRanges) {
+      let shown = 0;
+      for (let r = m.r1; r <= m.r2; r++) if (!this.hiddenRows.has(r)) shown++;
+      for (let r = m.r1; r <= m.r2; r++) {
+        for (let c = m.c1; c <= m.c2; c++) {
+          const cell = this.view[r][c];
+          if (r === m.r1 && c === m.c1) {
+            cell.colspan = m.c2 - m.c1 + 1;
+            cell.rowspan = Math.max(shown, 1);
+          } else cell.covered = true;
+        }
+      }
+    }
+  }
+
+  /** The merge a cell is part of, or null */
+  private mergeAt(p: Pos): WeSheetRange | null {
+    return this.mergeRanges.find((m) => p.col >= m.c1 && p.col <= m.c2 && p.row >= m.r1 && p.row <= m.r2) ?? null;
+  }
+
+  /** `range` grown until it cuts no merge in two */
+  private withMerges(range: WeSheetRange): WeSheetRange {
+    let r = { ...range };
+    for (let changed = true; changed; ) {
+      changed = false;
+      for (const m of this.mergeRanges) {
+        if (m.c1 <= r.c2 && r.c1 <= m.c2 && m.r1 <= r.r2 && r.r1 <= m.r2 && (m.c1 < r.c1 || m.c2 > r.c2 || m.r1 < r.r1 || m.r2 > r.r2)) {
+          r = { c1: Math.min(r.c1, m.c1), r1: Math.min(r.r1, m.r1), c2: Math.max(r.c2, m.c2), r2: Math.max(r.r2, m.r2) };
+          changed = true;
+        }
+      }
+    }
+    return r;
+  }
+
+  /** The selection's bottom-right cell as drawn — a merge's top-left cell when the corner is under one */
+  isCorner(col: number, row: number): boolean {
+    const s = this.selection;
+    const m = this.mergeAt({ col: s.c2, row: s.r2 });
+    return m ? col === m.c1 && row === m.r1 : col === s.c2 && row === s.r2;
+  }
+
+  /** Merge & center: merges the selection (keeping the top-left value, centred), or splits the merge it is */
+  toggleMerge(): void {
+    if (this.readonly) return;
+    this.commitEdit();
+    const s = this.selection;
+    const merges = this.sheet.merges ?? [];
+    const own = this.mergeRanges.find((m) => m.c1 <= s.c2 && s.c1 <= m.c2 && m.r1 <= s.r2 && s.r1 <= m.r2 && m.c1 >= s.c1 && m.c2 <= s.c2 && m.r1 >= s.r1 && m.r2 <= s.r2);
+    if (own && own.c1 === s.c1 && own.c2 === s.c2 && own.r1 === s.r1 && own.r2 === s.r2) {
+      const label = weSheetRangeLabel(own);
+      const next: WeSheetData = { ...this.sheet, merges: merges.filter((m) => m !== label) };
+      if (!next.merges!.length) delete next.merges;
+      this.commit(next);
+      return;
+    }
+    if (s.c1 === s.c2 && s.r1 === s.r2) return;
+    const next = this.cloneForEdit(0, 0);
+    const keep = merges.filter((label) => {
+      const [a, b] = label.split(':').map((p) => weSheetParseAddress(p));
+      const m = a && b ? weSheetNormalize(a, b) : null;
+      return !!m && !(m.c1 <= s.c2 && s.c1 <= m.c2 && m.r1 <= s.r2 && s.r1 <= m.r2);
+    });
+    // As in Excel, only the top-left value stays
+    for (let r = s.r1; r <= s.r2; r++) {
+      for (let c = s.c1; c <= s.c2; c++) {
+        if (r === s.r1 && c === s.c1) continue;
+        const key = weSheetAddress(c, r);
+        const cell = next.cells[key];
+        if (!cell) continue;
+        const kept = this.compact({ ...cell, v: undefined });
+        if (Object.keys(kept).length) next.cells[key] = kept;
+        else delete next.cells[key];
+      }
+    }
+    const anchor = weSheetAddress(s.c1, s.r1);
+    next.cells[anchor] = { ...(next.cells[anchor] ?? {}), a: 'center' };
+    next.merges = [...keep, weSheetRangeLabel(s)];
+    this.commit(next);
+  }
+
+  /** Whether the selection is exactly one merge — the Merge button shows pressed */
+  get selectionIsMerge(): boolean {
+    const s = this.selection;
+    return this.mergeRanges.some((m) => m.c1 === s.c1 && m.c2 === s.c2 && m.r1 === s.r1 && m.r2 === s.r2);
+  }
+
   /** The rows the header-row filters hide, and the rows left to draw */
   private applyFilters(): void {
     const hidden = new Set<number>();
@@ -1731,6 +1844,14 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       const columns = filters.map(([letter, texts]) => [weGridColumnIndex(letter), new Set(texts)] as const);
       for (let r = 1; r < used.rows; r++) {
         if (columns.some(([c, texts]) => texts.has(this.view[r]?.[c]?.text ?? ''))) hidden.add(r);
+      }
+      // A merge is shown or hidden whole, by its top-left row — never a row of it without the cell that spans it
+      for (const m of this.mergeRanges) {
+        const hide = hidden.has(m.r1);
+        for (let r = m.r1 + 1; r <= m.r2; r++) {
+          if (hide) hidden.add(r);
+          else hidden.delete(r);
+        }
       }
     }
     this.hiddenRows = hidden;
@@ -1761,7 +1882,9 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.applyFormats(view);
     this.view = view;
+    this.mergeRanges = this.parseMerges();
     this.applyFilters();
+    this.applyMerges();
     this.rebuildChart();
   }
 
@@ -1796,6 +1919,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   private putCell(target: WeSheetData, col: number, row: number, cell: WeSheetCell | undefined): void {
     if (col >= target.cols || row >= target.rows) return;
+    const m = this.mergeAt({ col, row });
+    if (m && (m.c1 !== col || m.r1 !== row)) return;
     const key = weSheetAddress(col, row);
     if (!cell || Object.keys(cell).length === 0) delete target.cells[key];
     else target.cells[key] = cell;
@@ -1868,15 +1993,26 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   private moveTo(p: Pos): void {
     p = this.toShown(p, Math.sign(p.row - this.active.row));
+    // Moving within the merge the cursor is on goes past it, as in Excel
+    const here = this.mergeAt(this.active);
+    if (here && this.mergeAt(p) === here && (p.col !== this.active.col || p.row !== this.active.row)) {
+      const step = this.clamp({
+        col: p.col > this.active.col ? here.c2 + 1 : p.col < this.active.col ? here.c1 - 1 : p.col,
+        row: p.row > this.active.row ? here.r2 + 1 : p.row < this.active.row ? here.r1 - 1 : p.row
+      });
+      p = this.mergeAt(step) === here ? this.active : this.toShown(step, Math.sign(step.row - this.active.row));
+    }
+    const m = this.mergeAt(p);
+    if (m) p = { col: m.c1, row: m.r1 };
     this.anchor = p;
     this.active = p;
-    this.selection = weSheetNormalize(p, p);
+    this.selection = m ?? weSheetNormalize(p, p);
     this.afterSelection();
   }
 
   private extendTo(p: Pos): void {
     p = this.toShown(p, Math.sign(p.row - this.focusCorner().row));
-    this.selection = weSheetNormalize(this.anchor, p);
+    this.selection = this.withMerges(weSheetNormalize(this.anchor, p));
     this.afterSelection(true, p);
   }
 

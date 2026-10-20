@@ -328,6 +328,10 @@ export interface WeGridLocale {
   sheetSuggestions: string;
   /** The ƒ button by the formula bar, and the list it opens */
   sheetInsertFunction: string;
+  /** Toolbar: merge the selection and centre it, or split the merge */
+  sheetMerge: string;
+  /** Sorting a range with merged cells is refused */
+  sheetMergeSort: string;
   sheetFunctionSearch: string;
   sheetOptions: string;
 
@@ -680,6 +684,8 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetFilterColumn: (h) => `Filter “${h}”`,
   sheetSuggestions: 'Functions',
   sheetInsertFunction: 'Insert function',
+  sheetMerge: 'Merge and center',
+  sheetMergeSort: 'Merged cells cannot be sorted — unmerge them first',
   sheetFunctionSearch: 'Search functions',
   sheetOptions: 'Table options',
   pivotLabel: 'Pivot table',
@@ -1037,6 +1043,8 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetFilterColumn: (h) => `“${h}” filtresi`,
   sheetSuggestions: 'Fonksiyonlar',
   sheetInsertFunction: 'İşlev ekle',
+  sheetMerge: 'Birleştir ve ortala',
+  sheetMergeSort: 'Birleştirilmiş hücreler sıralanamaz — önce ayırın',
   sheetFunctionSearch: 'İşlev ara',
   sheetOptions: 'Tablo seçenekleri',
   pivotLabel: 'Pivot tablo',

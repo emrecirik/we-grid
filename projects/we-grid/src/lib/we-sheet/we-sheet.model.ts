@@ -50,6 +50,8 @@ export interface WeSheetData {
   chart?: WeSheetChart;
   /** Conditional formatting — the grid's format rules, each over a range of one column */
   formats?: WeSheetFormatRule[];
+  /** Merged cells, as ranges (`'A1:C1'`) — the top-left cell holds the content and covers the rest */
+  merges?: string[];
 }
 
 /**

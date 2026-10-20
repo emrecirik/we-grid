@@ -19,6 +19,7 @@ browser with no dependency beyond Angular CDK.
 | Cell styles, number formats, decimals | Toolbar / Format panel | Grid and Sheet |
 | Banded rows | Zebra rows | Grid and Sheet |
 | Freeze panes | Pinned columns, sticky header · first column freeze | Grid · Sheet |
+| Merge & Center | The merge button | Sheet |
 | Data validation list | Dropdown lists | Sheet: right-click → Dropdown list… |
 | Notes / comments | Notes | Sheet: right-click → Note… |
 | Find and replace (Ctrl+F, Ctrl+H) | Same keys | Sheet · Grid: the search box finds across columns |
@@ -30,5 +31,5 @@ browser with no dependency beyond Angular CDK.
 | Open / save .xlsx | Import and export; the sheet keeps formulas, number formats and every sheet | Grid and Sheet — [export-import.md](export-import.md) |
 | Get Data (a database) | The we-report data protocol with .NET, Java, Node.js, Python, Go and PHP backends | [data-sources.md](data-sources.md) |
 
-Not there (yet): merged cells, charts inside the exported .xlsx, array formulas that spill,
+Not there (yet): charts inside the exported .xlsx, array formulas that spill,
 `TEXT` date codes, pivot charts in Excel files.
