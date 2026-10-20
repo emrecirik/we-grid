@@ -563,6 +563,51 @@ function stringItemText(item: Element): string {
   return text;
 }
 
+/** The format codes of Excel's built-in number formats a file refers to by id */
+const BUILTIN_FORMAT_CODES: Record<number, string> = {
+  1: '0', 2: '0.00', 3: '#,##0', 4: '#,##0.00', 9: '0%', 10: '0.00%', 11: '0.00E+00', 14: 'mm-dd-yy', 15: 'd-mmm-yy',
+  16: 'd-mmm', 17: 'mmm-yy', 22: 'm/d/yy h:mm', 37: '#,##0 ;(#,##0)', 38: '#,##0 ;[Red](#,##0)', 39: '#,##0.00;(#,##0.00)',
+  40: '#,##0.00;[Red](#,##0.00)', 49: '@'
+};
+
+/** The cell formats (`cellXfs`) of a styles part, by index — null for the plain ones */
+function parseCellFormats(xml: string): (WeGridXlsxCellFormat | null)[] {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  const all = (parent: Element | Document, name: string) => Array.from(parent.getElementsByTagNameNS('*', name));
+  const codes = new Map<number, string>(Object.entries(BUILTIN_FORMAT_CODES).map(([id, code]) => [Number(id), code]));
+  for (const f of all(doc, 'numFmt')) codes.set(Number(f.getAttribute('numFmtId')), f.getAttribute('formatCode') ?? '');
+  const fontsEl = all(doc, 'fonts')[0];
+  const fonts = fontsEl ? Array.from(fontsEl.children).map((font) => ({
+    bold: Array.from(font.children).some((c) => c.localName === 'b' && c.getAttribute('val') !== '0'),
+    italic: Array.from(font.children).some((c) => c.localName === 'i' && c.getAttribute('val') !== '0')
+  })) : [];
+  const bordersEl = all(doc, 'borders')[0];
+  const borders = bordersEl ? Array.from(bordersEl.children).map((border) =>
+    Array.from(border.children)
+      .filter((side) => side.getAttribute('style') && side.getAttribute('style') !== 'none')
+      .map((side) => ({ top: 't', right: 'r', bottom: 'b', left: 'l' })[side.localName as 'top'] ?? '')
+      .join('')
+  ) : [];
+  const xfsEl = all(doc, 'cellXfs')[0];
+  return xfsEl ? Array.from(xfsEl.children).map((xf) => {
+    const out: WeGridXlsxCellFormat = {};
+    const font = fonts[Number(xf.getAttribute('fontId') ?? 0)];
+    if (font?.bold) out.bold = true;
+    if (font?.italic) out.italic = true;
+    const sides = borders[Number(xf.getAttribute('borderId') ?? 0)];
+    if (sides) out.borders = ['t', 'r', 'b', 'l'].filter((s) => sides.includes(s)).join('');
+    const code = codes.get(Number(xf.getAttribute('numFmtId') ?? 0));
+    if (code && code !== 'General') out.numFmt = code;
+    const alignment = Array.from(xf.children).find((c) => c.localName === 'alignment');
+    const h = alignment?.getAttribute('horizontal');
+    if (h === 'left') out.align = 'start';
+    else if (h === 'center' || h === 'centerContinuous') out.align = 'center';
+    else if (h === 'right') out.align = 'end';
+    if (alignment?.getAttribute('wrapText') === '1' || alignment?.getAttribute('wrapText') === 'true') out.wrap = true;
+    return Object.keys(out).length ? out : null;
+  }) : [];
+}
+
 /** Text that a spreadsheet would read as a number, a boolean or a formula if it were typed */
 function looksTyped(text: string): boolean {
   const t = text.trim();
@@ -631,6 +676,20 @@ export interface WeGridXlsxCellSheet {
   cells: Record<string, string>;
   /** Merged ranges, `'A1:C1'` */
   merges: string[];
+  /** How cells look, by A1 address — empty cells too (a border, say); plain cells are left out */
+  formats: Record<string, WeGridXlsxCellFormat>;
+}
+
+/** A cell's look as an .xlsx file stores it, read by `weGridReadXlsxCells` */
+export interface WeGridXlsxCellFormat {
+  bold?: boolean;
+  italic?: boolean;
+  /** Bordered sides, any of `t` `r` `b` `l` */
+  borders?: string;
+  align?: 'start' | 'center' | 'end';
+  wrap?: boolean;
+  /** The number format code (`'0.00%'`, `'mm-dd-yy'`, `'@'` …), built-in ones included */
+  numFmt?: string;
 }
 
 /**
@@ -651,6 +710,8 @@ export async function weGridReadXlsxCells(
   };
   const sharedXml = await read('xl/sharedStrings.xml');
   const sharedStrings = sharedXml ? parseSharedStrings(sharedXml) : [];
+  const stylesXml = await read('xl/styles.xml');
+  const cellFormats = stylesXml ? parseCellFormats(stylesXml) : [];
 
   // Sheet names and order come from the workbook, their files from its relationships
   const targets = new Map<string, string>();
@@ -677,6 +738,7 @@ export async function weGridReadXlsxCells(
     const doc = new DOMParser().parseFromString(xml, 'application/xml');
     const cells: Record<string, string> = {};
     const masters = new Map<string, { formula: string; col: number; row: number }>();
+    const formats: Record<string, WeGridXlsxCellFormat> = {};
     // Namespace-blind (`<x:c>` too); a row or cell without its `r` follows the one before it
     let rowNumber = 0;
     for (const rowEl of Array.from(doc.getElementsByTagNameNS('*', 'row'))) {
@@ -688,6 +750,8 @@ export async function weGridReadXlsxCells(
         col = given ? refToColumnIndex(given[1]) : col + 1;
         const row = given ? Number(given[2]) : rowNumber;
         const ref = `${columnLetter(col)}${row}`;
+        const look = cellFormats[Number(cellEl.getAttribute('s') ?? 0)];
+        if (look) formats[ref] = look;
         const child = (name: string) => Array.from(cellEl.children).find((el) => el.localName === name);
         const fEl = child('f');
         if (fEl) {
@@ -727,7 +791,7 @@ export async function weGridReadXlsxCells(
     const merges = Array.from(doc.getElementsByTagNameNS('*', 'mergeCell'))
       .map((el) => el.getAttribute('ref') ?? '')
       .filter((ref) => /^[A-Z]{1,3}\d+:[A-Z]{1,3}\d+$/.test(ref));
-    out.push({ name: sheet.name, cells, merges });
+    out.push({ name: sheet.name, cells, merges, formats });
   }
   return out;
 }

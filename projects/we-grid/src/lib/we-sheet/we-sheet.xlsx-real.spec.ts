@@ -1,0 +1,78 @@
+import { weGridReadXlsxCells } from '../services/we-grid-xlsx.util';
+import { weSheetFromCells, weSheetShiftFormula } from './we-sheet.util';
+
+/** A workbook written by openpyxl (Python), the way other tools write .xlsx — compressed, with its own styles */
+const OPENPYXL_FILE =
+  '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';
+
+describe('reading an .xlsx written by another tool', () => {
+  it('reads values, formulas, merges and formats', async () => {
+    const bytes = Uint8Array.from(atob(OPENPYXL_FILE), (c) => c.charCodeAt(0));
+    const [sheet] = await weGridReadXlsxCells(new Blob([bytes]), weSheetShiftFormula);
+    expect(sheet.name).toBe('Real');
+    expect(sheet.merges).toEqual(['A1:C1']);
+    expect(sheet.cells['B3']).toBe('=SUM(A3,1)');
+    const cells = weSheetFromCells(sheet.cells, '.', 1, 1, sheet.merges, sheet.formats).data.cells;
+    expect(cells['A1']).toEqual({ v: 'Title', s: { bold: true }, a: 'center' });
+    expect(cells['A2']).toEqual({ v: 46037, f: 'date' });
+    expect(cells['B2']).toEqual({ v: 0.256, f: 'percent', d: 1 });
+    expect(cells['C2']).toEqual({ v: 'long text', w: true });
+    expect(cells['A3']).toEqual({ v: 5, b: 'tb' });
+  });
+});

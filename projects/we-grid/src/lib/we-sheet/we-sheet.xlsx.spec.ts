@@ -177,3 +177,25 @@ describe('formatting of empty cells in Excel files', () => {
     expect(text).toContain('<c r="D1"');
   });
 });
+
+describe('cell formats read from Excel files', () => {
+  it('brings back bold, borders, alignment, wrap, dates, percentages and decimals', async () => {
+    const data: WeSheetData = {
+      version: 1, rows: 4, cols: 4,
+      cells: {
+        A1: { v: 'Title', s: { bold: true, italic: true }, a: 'center', b: 'tb' },
+        B1: { v: 46037, f: 'date' },
+        C1: { v: 0.256, f: 'percent', d: 1 },
+        D1: { v: 3.14159, f: 'number', d: 3 },
+        A2: { w: true, b: 'l' }
+      }
+    };
+    const [read] = await weGridReadXlsxCells(weSheetWorkbookXlsx([{ name: 'F', data }]));
+    const back = weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats).data.cells;
+    expect(back['A1']).toEqual({ v: 'Title', s: { bold: true, italic: true }, a: 'center', b: 'tb' });
+    expect(back['B1']).toEqual({ v: 46037, f: 'date' });
+    expect(back['C1']).toEqual({ v: 0.256, f: 'percent', d: 1 });
+    expect(back['D1']).toEqual({ v: 3.14159, f: 'number', d: 3 });
+    expect(back['A2']).toEqual({ w: true, b: 'l' });
+  });
+});

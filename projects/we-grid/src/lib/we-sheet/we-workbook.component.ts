@@ -5,6 +5,7 @@ import { Subject, debounceTime, takeUntil } from 'rxjs';
 import { WE_GRID_ICONS, WeGridIcons } from '../models/we-grid-icons.model';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 import { WeSheetComponent } from './we-sheet.component';
+import { WeGridXlsxCellSheet } from '../services/we-grid-xlsx.util';
 import { WE_SHEET_STORE, WeSheetData, WeSheetStore } from './we-sheet.model';
 import { weSheetEmpty, weSheetFromCells, weSheetMoveSheetReferences, weSheetRenameReferences, weSheetRenameSheets, weSheetSanitize } from './we-sheet.util';
 
@@ -119,7 +120,7 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
    * The sheets of an opened Excel file, added after the workbook's own (as many as fit). A name
    * already taken gets a number, and the file's formulas that point at it follow.
    */
-  readonly importSheets = (sheets: readonly { name: string; cells: Record<string, string>; merges?: string[] }[]): void => {
+  readonly importSheets = (sheets: readonly { name: string; cells: Record<string, string>; merges?: string[]; formats?: WeGridXlsxCellSheet['formats'] }[]): void => {
     if (this.readonly) return;
     const taken = new Set(this.book.sheets.map((s) => s.name.toLocaleLowerCase()));
     const added: WeWorkbookData['sheets'] = [];
@@ -130,7 +131,7 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
       for (let n = 2; taken.has(name.toLocaleLowerCase()); n++) name = `${base} ${n}`;
       taken.add(name.toLocaleLowerCase());
       if (name !== sheet.name) renames.set(sheet.name, name);
-      added.push({ name, data: { ...weSheetFromCells(sheet.cells, '.', this.rows, this.cols, sheet.merges).data, headerRow: true } });
+      added.push({ name, data: { ...weSheetFromCells(sheet.cells, '.', this.rows, this.cols, sheet.merges, sheet.formats).data, headerRow: true } });
     }
     if (!added.length) return;
     const fixed = added.map((s) => {

@@ -36,7 +36,7 @@ import {
   weGridFormulaValueToText,
   weGridIsFormula
 } from '../services/we-grid-formula.util';
-import { weGridReadXlsxCells } from '../services/we-grid-xlsx.util';
+import { WeGridXlsxCellSheet, weGridReadXlsxCells } from '../services/we-grid-xlsx.util';
 import { weGridPrintTable } from '../services/we-grid-pdf.util';
 import { WE_SHEET_STORE, WeSheetCell, WeSheetChart, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat, WeSheetStore } from './we-sheet.model';
 import { WeChartComponent } from '../we-chart/we-chart.component';
@@ -141,7 +141,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** The sheets the Excel export writes — `<we-workbook>` passes all of its sheets; this sheet alone by default */
   @Input() xlsxSheets?: () => readonly { name: string; data: WeSheetData }[];
   /** Takes the sheets of an opened Excel file with more than one — `<we-workbook>` adds them as sheets */
-  @Input() importSheets?: (sheets: readonly { name: string; cells: Record<string, string>; merges?: string[] }[]) => void;
+  @Input() importSheets?: (sheets: readonly WeGridXlsxCellSheet[]) => void;
 
   /** Every change, with the new content */
   @Output() dataChange = new EventEmitter<WeSheetData>();
@@ -1415,7 +1415,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
           return;
         }
         // The first worksheet, cell by cell where it stands — formulas included
-        const { data, truncated } = weSheetFromCells(sheets[0]?.cells ?? {}, '.', this.sheet.rows, this.sheet.cols, sheets[0]?.merges);
+        const { data, truncated } = weSheetFromCells(sheets[0]?.cells ?? {}, '.', this.sheet.rows, this.sheet.cols, sheets[0]?.merges, sheets[0]?.formats);
         this.commit({ ...data, headerRow: true, striped: this.sheet.striped });
         this.moveTo({ col: 0, row: 0 });
         if (truncated) {

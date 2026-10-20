@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.31.0 — 2026-10-20
+
+Excel files open with their look. A minor release.
+
+### Added
+
+- **Opening an .xlsx keeps how the cells look**: bold and italic, borders, alignment, wrapped
+  text, dates, percentages and decimal places come in with the values, formulas and merges —
+  from files Excel, LibreOffice or other tools wrote, compressed or not.
+  `WeGridXlsxCellSheet.formats` (`WeGridXlsxCellFormat`), `weSheetFromCells(…, formats)`.
+
 ## 0.30.1 — 2026-10-20
 
 Spreadsheet fixes. A patch release.

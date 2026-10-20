@@ -1,6 +1,6 @@
 import { WE_GRID_FORMAT_COLORS } from '../models/we-grid-format.model';
 import { WE_GRID_FORMULA_ALIASES, WeGridFormulaError, WeGridSheetEvaluator, weGridColumnIndex, weGridColumnLetter } from '../services/we-grid-formula.util';
-import { WeGridXlsxCell, weGridBuildXlsxWorkbook, weGridXlsxSheetName } from '../services/we-grid-xlsx.util';
+import { WeGridXlsxCell, WeGridXlsxCellFormat, weGridBuildXlsxWorkbook, weGridXlsxSheetName } from '../services/we-grid-xlsx.util';
 import { weGridSanitizeCellStyle, weGridSanitizeFormatRules } from '../services/we-grid-format.util';
 import { WeSheetCell, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat } from './we-sheet.model';
 
@@ -794,6 +794,18 @@ export function weSheetFormulaToExcel(formula: string): string {
   return out;
 }
 
+/** A sheet format for an Excel number format code — dates, percentages, text and fixed decimals; null for the rest */
+function sheetFormatOf(code: string): { f: WeSheetNumberFormat; d?: number } | null {
+  if (code === '@') return { f: 'text' };
+  // Quoted text and [colour] sections say nothing about the kind of number
+  const bare = code.split(';')[0].replace(/"[^"]*"|\[[^\]]*\]|\\./g, '');
+  const decimals = /\.(0+)/.exec(bare)?.[1].length;
+  if (/[dmy]/i.test(bare) && !/[#0]/.test(bare.replace(/[dmyhs]+/gi, ''))) return { f: 'date' };
+  if (bare.includes('%')) return { f: 'percent', d: decimals ?? 0 };
+  if (/[#0]/.test(bare)) return decimals ? { f: 'number', d: decimals } : bare.includes(',') ? { f: 'integer' } : null;
+  return null;
+}
+
 /** The Excel number format code of a sheet cell's format */
 function excelNumberFormat(cell: WeSheetCell): string | undefined {
   const d = cell.d;
@@ -902,7 +914,8 @@ export function weSheetFromCells(
   decimalSeparator: '.' | ',',
   minRows = 1,
   minCols = 1,
-  merges: readonly string[] = []
+  merges: readonly string[] = [],
+  formats: Readonly<Record<string, WeGridXlsxCellFormat>> = {}
 ): { data: WeSheetData; truncated: boolean } {
   const cells: Record<string, WeSheetCell> = {};
   let rows = 0;
@@ -925,6 +938,27 @@ export function weSheetFromCells(
     ...weSheetEmpty(Math.min(WE_SHEET_MAX_ROWS, Math.max(minRows, rows + 10)), Math.min(WE_SHEET_MAX_COLS, Math.max(minCols, cols))),
     cells
   };
+  // How the cells looked in the file: bold and italic, borders, alignment, wrapping, number formats
+  for (const [ref, look] of Object.entries(formats)) {
+    const at = weSheetParseAddress(ref);
+    if (!at || at.row >= WE_SHEET_MAX_ROWS || at.col >= WE_SHEET_MAX_COLS) continue;
+    const key = weSheetAddress(at.col, at.row);
+    const cell: WeSheetCell = { ...(cells[key] ?? {}) };
+    if (look.bold || look.italic) cell.s = { ...(cell.s ?? {}), ...(look.bold ? { bold: true } : {}), ...(look.italic ? { italic: true } : {}) };
+    if (look.borders) cell.b = weSheetBorderSides(look.borders);
+    if (look.align) cell.a = look.align;
+    if (look.wrap) cell.w = true;
+    const format = look.numFmt ? sheetFormatOf(look.numFmt) : null;
+    if (format && (format.f !== 'date' || typeof cell.v === 'number')) {
+      cell.f = format.f;
+      if (format.d !== undefined) cell.d = format.d;
+    }
+    if (Object.keys(cell).length) {
+      cells[key] = cell;
+      data.rows = Math.min(WE_SHEET_MAX_ROWS, Math.max(data.rows, at.row + 1));
+      data.cols = Math.min(WE_SHEET_MAX_COLS, Math.max(data.cols, at.col + 1));
+    }
+  }
   // The sheet grows to hold every merge, as it does for every cell
   for (const m of merges) {
     const end = weSheetParseAddress(m.split(':')[1] ?? '');
