@@ -10,7 +10,7 @@ import { weGridParseMacro } from '../services/we-grid-macro.util';
 
 /** The script language at a glance — syntax, so it is the same in every language */
 const CHEAT_SHEET = [
-  'SORT [Column] ASC | DESC',
+  'SORT [Column] ASC | DESC · SORT [A] ASC THEN [B] DESC',
   'FILTER [Column] = "text" | > 10 | < 10 | CONTAINS "x" | BETWEEN 1 AND 9 | IN ("a", "b")',
   'CLEAR FILTERS · CLEAR SORT · CLEAR FORMATS',
   'GROUP BY [Column], [Column] · UNGROUP',

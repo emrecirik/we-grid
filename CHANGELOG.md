@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.23.0 — 2026-10-20
+
+Sorting by several columns. A minor release.
+
+### Added
+
+- **Multi-column sort**: Shift+click more headers to sort by them after the first — ascending,
+  descending, then off again; their place in the order shows next to the arrow. A plain click
+  starts over. Saved views keep the whole sort (`WeGridSavedView.thenBy`), `(sortChange)` reports
+  it (`WeGridSortChange.thenBy`), and macros write it as `SORT [City] ASC THEN [Total] DESC` (the
+  recorder too). Client-side sorting only; a server-side grid sorts by one column, as before.
+  Screen readers hear each extra column's place and direction (locale key `sortThenBy`).
+
 ## 0.22.0 — 2026-10-20
 
 Fifty more Excel functions. A minor release.

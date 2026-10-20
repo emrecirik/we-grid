@@ -378,7 +378,7 @@
               (keydown)="onHeaderKeydown($event, col, thRef)"
             >
               <div class="we-grid__th-inner">
-                <span class="we-grid__th-label" [style.text-align]="col.align" (click)="onHeaderLabelClick(col)">
+                <span class="we-grid__th-label" [style.text-align]="col.align" (click)="onHeaderLabelClick(col, $event)">
                   @if (getHeaderTemplate(col); as headerTmpl) {
                     <ng-container *ngTemplateOutlet="headerTmpl; context: headerContext(col)"></ng-container>
                   } @else {
@@ -413,6 +413,13 @@
                     [innerHTML]="currentSort?.direction === 'asc' ? icon('sortAsc') : icon('sortDesc')"
                     aria-hidden="true"
                   ></span>
+                } @else if (thenBy.length) {
+                  @if (thenSortOf(col); as then) {
+                    <span class="we-grid__sort-icon we-grid__sort-icon--then">
+                      <span aria-hidden="true" [innerHTML]="then.direction === 'asc' ? icon('sortAsc') : icon('sortDesc')"></span><span class="we-grid__sort-order" aria-hidden="true">{{ then.order }}</span>
+                      <span class="we-grid__sr-only">{{ locale.sortThenBy(then.order, then.direction === 'asc') }}</span>
+                    </span>
+                  }
                 }
                 @if (showFilterIcon(col)) {
                   <button

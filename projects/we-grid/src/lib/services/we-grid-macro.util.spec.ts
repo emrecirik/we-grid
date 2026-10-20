@@ -119,6 +119,16 @@ describe('we-grid macro scripts', () => {
     expect(weGridParseMacro(script).errors).toEqual([]);
   });
 
+  it('reads, writes and records sorts on several columns', () => {
+    const { lines, errors } = weGridParseMacro('SORT [City] ASC THEN [Total] DESC THEN [Qty] ASC');
+    expect(errors).toEqual([]);
+    expect(lines[0].step).toEqual({ op: 'sort', field: 'City', direction: 'asc', then: [{ field: 'Total', direction: 'desc' }, { field: 'Qty', direction: 'asc' }] });
+    expect(weGridMacroScript([lines[0].step])).toBe('SORT [City] ASC THEN [Total] DESC THEN [Qty] ASC');
+    expect(weGridParseMacro('SORT [City] ASC THEN [Total]').errors.length).toBe(1);
+    const base: WeGridSavedView = { name: 'a', columns: [], sort: { field: 'city', direction: 'asc' }, filters: [], groupField: null };
+    expect(weGridMacroScript(weGridDiffViews(base, { ...base, thenBy: [{ field: 'qty', direction: 'desc' }] }, (f) => f))).toBe('SORT [city] ASC THEN [qty] DESC');
+  });
+
   it('reads and writes icon sets', () => {
     const { lines, errors } = weGridParseMacro('ICONSET [Total] DOTS REVERSE\nICONSET [Qty]');
     expect(errors).toEqual([]);

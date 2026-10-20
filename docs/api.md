@@ -71,7 +71,7 @@
 | Output | Payload | Description |
 |---|---|---|
 | `pageChange` | `WeGridPageChange` | `{ page, pageSize }` |
-| `sortChange` | `WeGridSortChange` | `{ field, direction }` |
+| `sortChange` | `WeGridSortChange` | `{ field, direction }`, and *(0.23.0)* `thenBy` — the columns sorted after `field` when the user Shift+clicks more headers (client-side sorting only) |
 | `rowClick` / `rowDblClick` | `WeGridRowClickEvent<T>` | `{ row, rowIndex }` |
 | `selectionChange` | `T[]` | Currently selected rows. |
 | `layoutChange` | `WeGridLayout` | Fires whenever the user's layout is persisted, and on "Reset layout" (with the default layout). |

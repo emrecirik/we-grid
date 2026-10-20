@@ -713,6 +713,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private readonly cellTemplateMap = new Map<string, TemplateRef<WeGridCellContext<T>>>();
   private readonly measureCanvas: HTMLCanvasElement | null = typeof document !== 'undefined' ? document.createElement('canvas') : null;
   private clientSort: { field: string; direction: WeGridSortDirection } | null = null;
+  /** Columns sorted after the first one (Shift+click), client-side sorting only */
+  thenBy: { field: string; direction: 'asc' | 'desc' }[] = [];
   private overlayRef: OverlayRef | null = null;
   /** The filter popover opened from a column header's funnel icon — a SEPARATE overlay, independent from the header menu; the two never stay open at once */
   private filterOverlayRef: OverlayRef | null = null;
@@ -1642,11 +1644,20 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       case 'sort': {
         if (!step.field) {
           work().sort = null;
+          delete work().thenBy;
           return null;
         }
         const c = col(step.field);
         if (!c) return this.locale.macroUnknownColumn(step.field);
         work().sort = step.direction ? { field: c.field, direction: step.direction } : null;
+        delete work().thenBy;
+        const then: { field: string; direction: 'asc' | 'desc' }[] = [];
+        for (const t of step.then ?? []) {
+          const tc = col(t.field);
+          if (!tc) return this.locale.macroUnknownColumn(t.field);
+          then.push({ field: tc.field, direction: t.direction });
+        }
+        if (step.direction && then.length) work().thenBy = then;
         return null;
       }
       case 'filter': {
@@ -1958,24 +1969,53 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   // ─── Sorting ─────────────────────────────────────────────────────────
-  onHeaderLabelClick(col: WeGridInternalColumn<T>): void {
+  onHeaderLabelClick(col: WeGridInternalColumn<T>, event?: MouseEvent): void {
     if (!col.sortable) return;
+    // Shift+click: one more sort column after the first — ascending, descending, then off again
+    const primary = this.clientSort;
+    if (event?.shiftKey && !this.isServerSort && primary?.direction && primary.field !== col.field) {
+      const at = this.thenBy.findIndex((t) => t.field === col.field);
+      const thenBy = [...this.thenBy];
+      if (at < 0) thenBy.push({ field: col.field, direction: 'asc' });
+      else if (thenBy[at].direction === 'asc') thenBy[at] = { field: col.field, direction: 'desc' };
+      else thenBy.splice(at, 1);
+      this.applySort(primary.field, primary.direction, thenBy.slice(0, 5));
+      return;
+    }
     let next: WeGridSortDirection;
     const current = this.currentSort;
     if (!current || current.field !== col.field) next = 'asc';
     else if (current.direction === 'asc') next = 'desc';
     else next = null;
-    this.applySort(col.field, next);
+    // Shift+click on the first sort column turns it around and keeps the columns after it
+    this.applySort(col.field, next, event?.shiftKey && current?.field === col.field ? this.thenBy : []);
   }
 
-  private applySort(field: string, direction: WeGridSortDirection): void {
+  private applySort(field: string, direction: WeGridSortDirection, thenBy: { field: string; direction: 'asc' | 'desc' }[] = []): void {
+    this.thenBy = direction && !this.isServerSort ? thenBy.filter((t) => t.field !== field) : [];
     if (!this.isServerSort) {
       this.clientSort = direction ? { field, direction } : null;
       this.refreshDisplayData();
     }
-    this.sortChange.emit({ field: direction ? field : null, direction });
+    this.sortChange.emit({ field: direction ? field : null, direction, ...(this.thenBy.length ? { thenBy: [...this.thenBy] } : {}) });
     this.scheduleLayoutSave();
     this.cdr.markForCheck();
+  }
+
+  /** The column's place and direction in a multi-column sort (2, 3 …), or null */
+  thenSortOf(col: WeGridInternalColumn<T>): { order: number; direction: 'asc' | 'desc' } | null {
+    const i = this.thenBy.findIndex((t) => t.field === col.field);
+    return i < 0 ? null : { order: i + 2, direction: this.thenBy[i].direction };
+  }
+
+  /** Compares two values the way the client sort does: blanks first ascending, last descending */
+  private compareSortValues(va: unknown, vb: unknown, direction: WeGridSortDirection): number {
+    if (va == null && vb == null) return 0;
+    if (va == null) return direction === 'asc' ? -1 : 1;
+    if (vb == null) return direction === 'asc' ? 1 : -1;
+    if ((va as never) < (vb as never)) return direction === 'asc' ? -1 : 1;
+    if ((va as never) > (vb as never)) return direction === 'asc' ? 1 : -1;
+    return 0;
   }
 
   ariaSort(col: WeGridInternalColumn<T>): 'ascending' | 'descending' | 'none' {
@@ -2013,16 +2053,13 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       this.closeDetailsThatCannotExpand();
       return;
     }
-    const { field, direction } = this.clientSort;
+    const keys = [this.clientSort, ...this.thenBy];
     const copy = [...source];
     copy.sort((a, b) => {
-      const va = this.readCellValue(a, field) as never;
-      const vb = this.readCellValue(b, field) as never;
-      if (va == null && vb == null) return 0;
-      if (va == null) return direction === 'asc' ? -1 : 1;
-      if (vb == null) return direction === 'asc' ? 1 : -1;
-      if (va < vb) return direction === 'asc' ? -1 : 1;
-      if (va > vb) return direction === 'asc' ? 1 : -1;
+      for (const { field, direction } of keys) {
+        const c = this.compareSortValues(this.readCellValue(a, field), this.readCellValue(b, field), direction);
+        if (c) return c;
+      }
       return 0;
     });
     this.displayData = copy;
@@ -3061,17 +3098,15 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** Sibling comparator for the client sort — null when the grid isn't sorting itself */
   private treeComparator(): ((a: WeGridTreeModelNode<T>, b: WeGridTreeModelNode<T>) => number) | null {
     if (this.isServerSort || !this.clientSort?.direction) return null;
-    const { field, direction } = this.clientSort;
-    const col = this.internalColumns.find((c) => c.field === field);
-    const read = (row: T): unknown => (col ? this.cellValue(row, col) : getNestedValue(row, field));
+    const keys = [this.clientSort, ...this.thenBy].map(({ field, direction }) => {
+      const col = this.internalColumns.find((c) => c.field === field);
+      return { direction, read: (row: T): unknown => (col ? this.cellValue(row, col) : getNestedValue(row, field)) };
+    });
     return (a, b) => {
-      const va = read(a.row);
-      const vb = read(b.row);
-      if (va == null && vb == null) return 0;
-      if (va == null) return direction === 'asc' ? -1 : 1;
-      if (vb == null) return direction === 'asc' ? 1 : -1;
-      if ((va as number) < (vb as number)) return direction === 'asc' ? -1 : 1;
-      if ((va as number) > (vb as number)) return direction === 'asc' ? 1 : -1;
+      for (const { read, direction } of keys) {
+        const c = this.compareSortValues(read(a.row), read(b.row), direction);
+        if (c) return c;
+      }
       return 0;
     };
   }
@@ -3804,6 +3839,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       columns: toColumnLayout(this.internalColumns, this.columnDefs),
       density: this.density,
       sort: this.currentSort?.direction ? { ...this.currentSort } : null,
+      ...(this.thenBy.length ? { thenBy: this.thenBy.map((t) => ({ ...t })) } : {}),
       filters: Array.from(this.filterState.values())
         .filter(isWeGridFilterActive)
         .map((f) => ({ ...f })),
@@ -3879,8 +3915,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const sortCol = view.sort ? this.internalColumns.find((c) => c.field === view.sort?.field && c.sortable) : undefined;
     const target = sortCol && view.sort ? view.sort : null;
     const current = this.currentSort?.direction ? this.currentSort : null;
-    if (target && (target.field !== current?.field || target.direction !== current?.direction)) {
-      this.applySort(target.field, target.direction);
+    const thenBy = (view.thenBy ?? []).filter((t) => this.internalColumns.some((c) => c.field === t.field && c.sortable));
+    if (target && (target.field !== current?.field || target.direction !== current?.direction || JSON.stringify(thenBy) !== JSON.stringify(this.thenBy))) {
+      this.applySort(target.field, target.direction, thenBy);
     } else if (!target && current) {
       this.applySort(current.field, null);
     }
@@ -4621,6 +4658,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.clearFormulaValues();
     this.formatPanelField = null;
     this.clientSort = null;
+    this.thenBy = [];
     this.filterRowVisible = false;
     const hadActiveFilter = this.hasActiveFilters;
     this.filterState.clear();

@@ -13,6 +13,8 @@ export interface WeGridSavedView {
   columns: WeGridColumnLayout[];
   density?: WeGridDensity;
   sort?: { field: string; direction: WeGridSortDirection } | null;
+  /** Further sort columns after `sort`, in order (Shift+click on a header) */
+  thenBy?: { field: string; direction: 'asc' | 'desc' }[];
   /** Active filters only, in the same shape `(filterChange)` reports them */
   filters?: WeGridColumnFilterState[];
   groupField?: string | null;

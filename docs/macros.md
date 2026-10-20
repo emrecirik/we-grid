@@ -62,6 +62,7 @@ English and case-insensitive. Text values go in double quotes (`""` for a quote 
 | Step | Does |
 |---|---|
 | `SORT [Column] ASC` / `DESC` / `NONE` · `CLEAR SORT` | Sorts (or stops sorting) |
+| `SORT [City] ASC THEN [Total] DESC` | Sorts by several columns *(0.23.0)* |
 | `FILTER [Column] = "text"` · `> 10` · `< 10` | Filters — numbers and dates compare as such, text matches exactly |
 | `FILTER [Column] CONTAINS "x"` · `STARTS WITH "x"` | Text filters |
 | `FILTER [Column] BETWEEN 1 AND 9` · `IN ("a", "b")` | Range and value-list filters |

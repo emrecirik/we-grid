@@ -28,7 +28,7 @@ interface WeGridSavedView {
 
 Applying a view drops whatever no longer fits the grid's columns: a removed column, a filter whose
 operator the column doesn't offer, a sort on a column that can't be sorted, a grouping on a grid
-whose `grouping` input is off. On a server-side screen the grid emits `(sortChange)`,
+whose `grouping` input is off. *(0.23.0)* A view keeps every sort column (`thenBy`) too. On a server-side screen the grid emits `(sortChange)`,
 `(filterChange)` (with `resetPage: true` when the filters changed) and `(groupChange)` — the same
 events the user's own clicks produce, so no extra wiring is needed.
 

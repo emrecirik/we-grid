@@ -160,6 +160,15 @@ function parseLine(c: Cursor): WeGridMacroStep {
       const dir = c.word();
       if (dir !== 'ASC' && dir !== 'DESC' && dir !== 'NONE') throw new Error('SORT needs ASC, DESC or NONE');
       step = { op: 'sort', field, direction: dir === 'NONE' ? null : (dir.toLowerCase() as 'asc' | 'desc') };
+      // SORT [City] ASC THEN [Total] DESC — further sort columns
+      const then: { field: string; direction: 'asc' | 'desc' }[] = [];
+      while (step.direction && c.accept('THEN')) {
+        const f = c.field();
+        const d = c.word();
+        if (d !== 'ASC' && d !== 'DESC') throw new Error('THEN needs a column and ASC or DESC');
+        then.push({ field: f, direction: d.toLowerCase() as 'asc' | 'desc' });
+      }
+      if (then.length) step.then = then;
       break;
     }
     case 'FILTER':
@@ -429,7 +438,9 @@ const OPERATOR_SYMBOLS: Partial<Record<WeGridFormatOperator, string>> = { gt: '>
 function stepText(step: WeGridMacroStep): string {
   switch (step.op) {
     case 'sort':
-      return step.field ? `SORT [${step.field}] ${step.direction ? step.direction.toUpperCase() : 'NONE'}` : 'CLEAR SORT';
+      return step.field
+        ? `SORT [${step.field}] ${step.direction ? step.direction.toUpperCase() : 'NONE'}${(step.then ?? []).map((t) => ` THEN [${t.field}] ${t.direction.toUpperCase()}`).join('')}`
+        : 'CLEAR SORT';
     case 'filter': {
       const v = step.values;
       if (step.operator === 'between') return `FILTER [${step.field}] BETWEEN ${quote(v[0])} AND ${quote(v[1])}`;
@@ -553,8 +564,11 @@ export function weGridDiffViews(
 
   const sb = before.sort ?? null;
   const sa = after.sort ?? null;
-  if (sb?.field !== sa?.field || sb?.direction !== sa?.direction) {
-    steps.push(sa?.direction ? { op: 'sort', field: name(sa.field), direction: sa.direction } : { op: 'sort', field: '', direction: null });
+  if (sb?.field !== sa?.field || sb?.direction !== sa?.direction || JSON.stringify(before.thenBy ?? []) !== JSON.stringify(after.thenBy ?? [])) {
+    const then = (after.thenBy ?? []).map((t) => ({ field: name(t.field), direction: t.direction }));
+    steps.push(
+      sa?.direction ? { op: 'sort', field: name(sa.field), direction: sa.direction, ...(then.length ? { then } : {}) } : { op: 'sort', field: '', direction: null }
+    );
   }
 
   if (after.density && after.density !== before.density) steps.push({ op: 'density', density: after.density });

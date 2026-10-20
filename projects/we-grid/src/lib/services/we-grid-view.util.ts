@@ -66,6 +66,13 @@ export function weGridSanitizeView(input: unknown): WeGridSavedView | null {
   } else {
     view.sort = null;
   }
+  if (view.sort && Array.isArray(input['thenBy'])) {
+    const thenBy = input['thenBy']
+      .filter((t): t is { field: string; direction: 'asc' | 'desc' } => isRecord(t) && typeof t['field'] === 'string' && (t['direction'] === 'asc' || t['direction'] === 'desc'))
+      .slice(0, 5)
+      .map((t) => ({ field: t.field, direction: t.direction }));
+    if (thenBy.length) view.thenBy = thenBy;
+  }
   if (Array.isArray(input['filters'])) {
     view.filters = input['filters'].map(sanitizeFilter).filter((f): f is WeGridColumnFilterState => f !== null);
   }

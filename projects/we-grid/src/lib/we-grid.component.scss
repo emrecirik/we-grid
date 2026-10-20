@@ -775,6 +775,20 @@
   color: var(--we-grid-accent-color, #405189);
 }
 
+// A column sorted after the first: lighter, with its place in the order
+.we-grid__sort-icon--then {
+  display: inline-flex;
+  align-items: center;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-grid__sort-order {
+  margin-inline-start: 0.1rem;
+  font-size: 0.6rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 .we-grid__th-menu-btn {
   border: none;
   background: transparent;

@@ -22,7 +22,7 @@ export type WeGridMacroFilterOperator = '=' | '>' | '<' | 'contains' | 'startsWi
 
 /** One parsed step of a macro script */
 export type WeGridMacroStep =
-  | { op: 'sort'; field: string; direction: 'asc' | 'desc' | null }
+  | { op: 'sort'; field: string; direction: 'asc' | 'desc' | null; then?: { field: string; direction: 'asc' | 'desc' }[] }
   | { op: 'filter'; field: string; operator: WeGridMacroFilterOperator; values: (string | number | boolean)[] }
   | { op: 'clearFilters' }
   | { op: 'group'; fields: string[] }

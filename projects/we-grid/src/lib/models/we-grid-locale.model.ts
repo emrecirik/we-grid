@@ -94,6 +94,8 @@ export interface WeGridLocale {
   unpin: string;
   sortAscending: string;
   sortDescending: string;
+  /** Read out for a column sorted after the first, e.g. `(n, asc) => \`Sort ${n}, ${asc ? 'ascending' : 'descending'}\`` */
+  sortThenBy: (order: number, ascending: boolean) => string;
   clearSort: string;
   summary: string;
   sum: string;
@@ -475,6 +477,7 @@ export const weGridLocaleEn: WeGridLocale = {
   unpin: 'Unpin',
   sortAscending: 'Sort ascending',
   sortDescending: 'Sort descending',
+  sortThenBy: (n, asc) => `Sort ${n}, ${asc ? 'ascending' : 'descending'}`,
   clearSort: 'Clear sort',
   summary: 'Summary',
   sum: 'Sum',
@@ -825,6 +828,7 @@ export const weGridLocaleTr: WeGridLocale = {
   unpin: 'Sabitlemeyi Kaldır',
   sortAscending: 'Artan Sırala',
   sortDescending: 'Azalan Sırala',
+  sortThenBy: (n, asc) => `${n}. sıralama, ${asc ? 'artan' : 'azalan'}`,
   clearSort: 'Sıralamayı Temizle',
   summary: 'Alt Toplam',
   sum: 'Toplam',

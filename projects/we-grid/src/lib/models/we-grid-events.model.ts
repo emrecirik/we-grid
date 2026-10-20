@@ -9,6 +9,8 @@ export interface WeGridPageChange {
 export interface WeGridSortChange {
   field: string | null;
   direction: WeGridSortDirection;
+  /** The columns sorted after `field`, in order — Shift+click on a header adds one (client-side sorting only) */
+  thenBy?: { field: string; direction: 'asc' | 'desc' }[];
 }
 
 export type WeGridSelectionMode = 'none' | 'single' | 'multi';
