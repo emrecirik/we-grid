@@ -256,3 +256,26 @@ describe('conditional formatting in Excel files', () => {
     expect(text).toContain('<dxfs count="3"><dxf><font><b/></font><fill><patternFill patternType="solid"><bgColor rgb="FFE1F6E6"/></patternFill></fill></dxf>');
   });
 });
+
+describe('conditional formatting read from Excel files', () => {
+  it('brings back the rules the sheet can show', async () => {
+    const formats: WeSheetData['formats'] = [
+      { id: 'a', field: 'A', range: 'A1:A5', type: 'condition', operator: 'between', value: 1, value2: 20, style: { bold: true, fill: 'green' } },
+      { id: 'b', field: 'A', range: 'A1:A5', type: 'condition', operator: 'top', value: 3, style: { color: 'red' } },
+      { id: 'c', field: 'B', range: 'B1:B5', type: 'condition', operator: 'contains', value: 'pp', style: { italic: true } },
+      { id: 'd', field: 'A', range: 'A1:A5', type: 'colorScale', colors: ['red', 'green'] },
+      { id: 'e', field: 'A', range: 'A1:A5', type: 'dataBar', color: 'blue' },
+      { id: 'f', field: 'A', range: 'A1:A5', type: 'iconSet', icons: 'dots', reverse: true }
+    ];
+    const blob = weSheetWorkbookXlsx([{ name: 'C', data: { version: 1, rows: 6, cols: 2, cells: { A1: { v: 5 } }, formats } }]);
+    const [read] = await weGridReadXlsxCells(blob);
+    const back = weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats, read).data.formats!;
+    const strip = (r: Record<string, unknown>) => {
+      const { id: _id, ...rest } = r;
+      return rest;
+    };
+    expect(back.map((r) => strip(r as never))).toEqual(
+      jasmine.arrayWithExactContents(formats!.map((r) => strip(r as never)))
+    );
+  });
+});

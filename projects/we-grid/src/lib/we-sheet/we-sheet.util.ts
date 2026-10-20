@@ -1,4 +1,4 @@
-import { WE_GRID_FORMAT_COLORS } from '../models/we-grid-format.model';
+import { WE_GRID_FORMAT_COLORS, WeGridCellStyle } from '../models/we-grid-format.model';
 import { WE_GRID_FORMULA_ALIASES, WeGridFormulaError, WeGridSheetEvaluator, weGridColumnIndex, weGridColumnLetter } from '../services/we-grid-formula.util';
 import { WeGridXlsxCell, WeGridXlsxCellFormat, WeGridXlsxConditionalFormat, weGridBuildXlsxWorkbook, weGridXlsxSheetName } from '../services/we-grid-xlsx.util';
 import { weGridFormatHex, weGridNearestFormatColor, weGridSanitizeCellStyle, weGridSanitizeFormatRules } from '../services/we-grid-format.util';
@@ -808,6 +808,74 @@ function sheetFormatOf(code: string): { f: WeSheetNumberFormat; d?: number } | n
   return null;
 }
 
+/** An Excel conditional format rule as a sheet's rule over one column, or null when the sheet has no such rule */
+function sheetFormatRule(cf: WeGridXlsxConditionalFormat, id: string, field: string, range: string): WeSheetFormatRule | null {
+  const palette = (hex: string | undefined, kind: 'fg' | 'bg') => (hex ? weGridNearestFormatColor(hex, kind) ?? undefined : undefined);
+  const style: WeGridCellStyle = cf.style
+    ? (Object.fromEntries(
+        Object.entries({
+          bold: cf.style.bold,
+          italic: cf.style.italic,
+          underline: cf.style.underline,
+          strike: cf.style.strike,
+          color: palette(cf.style.color, 'fg'),
+          fill: palette(cf.style.fill, 'bg')
+        }).filter(([, v]) => v !== undefined)
+      ) as WeGridCellStyle)
+    : { fill: 'yellow' };
+  const value = (f: string | undefined) => {
+    if (f === undefined) return undefined;
+    const quoted = /^"(.*)"$/s.exec(f);
+    if (quoted) return quoted[1].replace(/""/g, '"');
+    const n = Number(f);
+    return Number.isFinite(n) ? n : null;
+  };
+  const base = { id, field, range };
+  switch (cf.type) {
+    case 'colorScale': {
+      const colors = (cf.colors ?? []).map((c) => palette(c, 'fg')).filter((c): c is NonNullable<typeof c> => !!c);
+      return colors.length >= 2 ? { ...base, type: 'colorScale', colors } : null;
+    }
+    case 'dataBar':
+      return { ...base, type: 'dataBar', color: palette(cf.colors?.[0], 'fg') ?? 'blue' };
+    case 'iconSet':
+      return { ...base, type: 'iconSet', icons: /arrow/i.test(cf.iconSet ?? '') ? 'arrows' : 'dots', ...(cf.reverse ? { reverse: true } : {}) };
+    case 'cellIs': {
+      const ops: Record<string, WeSheetFormatRule['operator']> = {
+        greaterThan: 'gt', greaterThanOrEqual: 'gte', lessThan: 'lt', lessThanOrEqual: 'lte', equal: 'eq', notEqual: 'neq', between: 'between', notBetween: 'notBetween'
+      };
+      const operator = ops[cf.operator ?? ''];
+      const v1 = value(cf.formulas?.[0]);
+      // A value that is itself a formula (a cell, a function) has no place in a sheet rule
+      if (!operator || v1 === null || v1 === undefined) return null;
+      const v2 = value(cf.formulas?.[1]);
+      if ((operator === 'between' || operator === 'notBetween') && (v2 === null || v2 === undefined)) return null;
+      return { ...base, type: 'condition', operator, value: v1, ...(v2 !== undefined && v2 !== null ? { value2: v2 } : {}), style };
+    }
+    case 'top10':
+      return { ...base, type: 'condition', operator: cf.bottom ? 'bottom' : 'top', value: cf.rank ?? 10, style };
+    case 'aboveAverage':
+      return { ...base, type: 'condition', operator: cf.below ? 'belowAverage' : 'aboveAverage', style };
+    case 'duplicateValues':
+      return { ...base, type: 'condition', operator: 'duplicate', style };
+    case 'uniqueValues':
+      return { ...base, type: 'condition', operator: 'unique', style };
+    case 'containsText':
+    case 'notContainsText':
+    case 'beginsWith':
+    case 'endsWith': {
+      const ops = { containsText: 'contains', notContainsText: 'notContains', beginsWith: 'startsWith', endsWith: 'endsWith' } as const;
+      return cf.text ? { ...base, type: 'condition', operator: ops[cf.type], value: cf.text, style } : null;
+    }
+    case 'containsBlanks':
+      return { ...base, type: 'condition', operator: 'empty', style };
+    case 'notContainsBlanks':
+      return { ...base, type: 'condition', operator: 'notEmpty', style };
+    default:
+      return null;
+  }
+}
+
 /** A sheet's conditional format rule in Excel's terms, or null for one Excel has no form for (formula rules) */
 function excelConditionalFormat(rule: WeSheetFormatRule): WeGridXlsxConditionalFormat | null {
   const ref = rule.range;
@@ -999,7 +1067,12 @@ export function weSheetFromCells(
   minCols = 1,
   merges: readonly string[] = [],
   formats: Readonly<Record<string, WeGridXlsxCellFormat>> = {},
-  extras: { lists?: readonly { ref: string; values: string[] }[]; autoFilter?: string; freeze?: { rows: number; cols: number } } = {}
+  extras: {
+    lists?: readonly { ref: string; values: string[] }[];
+    autoFilter?: string;
+    freeze?: { rows: number; cols: number };
+    conditionalFormats?: readonly WeGridXlsxConditionalFormat[];
+  } = {}
 ): { data: WeSheetData; truncated: boolean } {
   const cells: Record<string, WeSheetCell> = {};
   let rows = 0;
@@ -1074,6 +1147,22 @@ export function weSheetFromCells(
     }
   }
   if (extras.autoFilter) data.autoFilter = true;
+  // Conditional formatting, one rule per column of each range (the sheet's rules cover one column)
+  const rules: WeSheetFormatRule[] = [];
+  for (const cf of extras.conditionalFormats ?? []) {
+    for (const part of cf.ref.split(/\s+/).filter(Boolean)) {
+      const [a, b] = part.split(':').map((p) => weSheetParseAddress(p));
+      if (!a) continue;
+      const r = weSheetNormalize(a, b ?? a);
+      for (let c = r.c1; c <= Math.min(r.c2, WE_SHEET_MAX_COLS - 1) && rules.length < 100; c++) {
+        const range = `${weSheetAddress(c, r.r1)}:${weSheetAddress(c, Math.min(r.r2, WE_SHEET_MAX_ROWS - 1))}`;
+        const rule = sheetFormatRule(cf, `x${rules.length + 1}`, weGridColumnLetter(c), range);
+        if (rule) rules.push(rule);
+      }
+    }
+  }
+  const formatRules = weSheetSanitizeFormats(rules);
+  if (formatRules.length) data.formats = formatRules;
   if (extras.freeze && (extras.freeze.rows || extras.freeze.cols)) {
     data.freeze = { rows: Math.min(extras.freeze.rows, 50), cols: Math.min(extras.freeze.cols, 20) };
   }

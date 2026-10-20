@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.35.0 — 2026-10-20
+
+Conditional formatting read from Excel files. A minor release.
+
+### Added
+
+- Opening an .xlsx brings its conditional formatting into `<we-sheet>`: highlight rules,
+  top/bottom, averages, duplicates, text and blank rules, colour scales, data bars and icon sets,
+  with their colours as the nearest palette colours — one rule per column of each range.
+  `WeGridXlsxCellSheet.conditionalFormats`. Rules comparing with a formula are left out.
+
 ## 0.34.0 — 2026-10-20
 
 Conditional formatting in Excel files. A minor release.

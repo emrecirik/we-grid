@@ -738,6 +738,75 @@ const BUILTIN_FORMAT_CODES: Record<number, string> = {
   40: '#,##0.00;[Red](#,##0.00)', 49: '@'
 };
 
+/** The differential formats (`dxfs`) of a styles part — what each conditional rule changes */
+function parseDifferentialFormats(xml: string): NonNullable<WeGridXlsxConditionalFormat['style']>[] {
+  const doc = new DOMParser().parseFromString(xml, 'application/xml');
+  const dxfsEl = doc.getElementsByTagNameNS('*', 'dxfs')[0];
+  if (!dxfsEl) return [];
+  const kids = (el: Element | undefined, name: string) => (el ? Array.from(el.children).filter((c) => c.localName === name) : []);
+  const rgb = (el: Element | undefined) => {
+    const v = el?.getAttribute('rgb');
+    return v && /^[0-9a-f]{8}$/i.test(v) ? `#${v.slice(2).toLowerCase()}` : undefined;
+  };
+  return Array.from(dxfsEl.children).map((dxf) => {
+    const font = kids(dxf, 'font')[0];
+    const on = (name: string) => kids(font, name).some((c) => c.getAttribute('val') !== '0' && c.getAttribute('val') !== 'none');
+    const pattern = kids(kids(dxf, 'fill')[0], 'patternFill')[0];
+    const style: NonNullable<WeGridXlsxConditionalFormat['style']> = {};
+    if (on('b')) style.bold = true;
+    if (on('i')) style.italic = true;
+    if (on('u')) style.underline = true;
+    if (on('strike')) style.strike = true;
+    const color = rgb(kids(font, 'color')[0]);
+    if (color) style.color = color;
+    const fill = rgb(kids(pattern, 'bgColor')[0]) ?? rgb(kids(pattern, 'fgColor')[0]);
+    if (fill) style.fill = fill;
+    return style;
+  });
+}
+
+/** The conditional formatting of a worksheet, rule by rule, with each rule's look from `dxfs` */
+function parseConditionalFormats(doc: Document, dxfs: NonNullable<WeGridXlsxConditionalFormat['style']>[]): WeGridXlsxConditionalFormat[] {
+  const out: WeGridXlsxConditionalFormat[] = [];
+  const types = new Set(['cellIs', 'top10', 'aboveAverage', 'duplicateValues', 'uniqueValues', 'containsText', 'notContainsText', 'beginsWith', 'endsWith', 'containsBlanks', 'notContainsBlanks', 'colorScale', 'dataBar', 'iconSet']);
+  for (const block of Array.from(doc.getElementsByTagNameNS('*', 'conditionalFormatting'))) {
+    const ref = block.getAttribute('sqref') ?? '';
+    const rules = Array.from(block.children)
+      .filter((r) => r.localName === 'cfRule')
+      .sort((a, b) => Number(a.getAttribute('priority') ?? 0) - Number(b.getAttribute('priority') ?? 0));
+    for (const rule of rules) {
+      const type = rule.getAttribute('type') ?? '';
+      if (!types.has(type)) continue;
+      const child = (name: string) => Array.from(rule.children).find((c) => c.localName === name);
+      const colours = (el: Element | undefined) =>
+        Array.from(el?.children ?? []).filter((c) => c.localName === 'color').map((c) => c.getAttribute('rgb') ?? '').filter((v) => /^[0-9a-f]{8}$/i.test(v)).map((v) => `#${v.slice(2).toLowerCase()}`);
+      const cf: WeGridXlsxConditionalFormat = { ref, type: type as WeGridXlsxConditionalFormat['type'] };
+      const dxfId = rule.getAttribute('dxfId');
+      if (dxfId !== null && dxfs[Number(dxfId)]) cf.style = dxfs[Number(dxfId)];
+      const operator = rule.getAttribute('operator');
+      if (operator) cf.operator = operator;
+      const formulas = Array.from(rule.children).filter((c) => c.localName === 'formula').map((c) => c.textContent ?? '');
+      if (formulas.length) cf.formulas = formulas;
+      const text = rule.getAttribute('text');
+      if (text !== null) cf.text = text;
+      if (type === 'top10') {
+        cf.rank = Number(rule.getAttribute('rank') ?? 10) || 10;
+        if (rule.getAttribute('bottom') === '1') cf.bottom = true;
+      }
+      if (type === 'aboveAverage' && rule.getAttribute('aboveAverage') === '0') cf.below = true;
+      if (type === 'colorScale') cf.colors = colours(child('colorScale'));
+      if (type === 'dataBar') cf.colors = colours(child('dataBar'));
+      if (type === 'iconSet') {
+        const set = child('iconSet');
+        cf.iconSet = set?.getAttribute('iconSet') ?? '3TrafficLights1';
+        if (set?.getAttribute('reverse') === '1') cf.reverse = true;
+      }
+      out.push(cf);
+    }
+  }
+  return out;
+}
+
 /** The cell formats (`cellXfs`) of a styles part, by index — null for the plain ones */
 function parseCellFormats(xml: string): (WeGridXlsxCellFormat | null)[] {
   const doc = new DOMParser().parseFromString(xml, 'application/xml');
@@ -871,6 +940,8 @@ export interface WeGridXlsxCellSheet {
   autoFilter?: string;
   /** Frozen rows and columns, when the sheet has them */
   freeze?: { rows: number; cols: number };
+  /** Conditional formatting, in Excel's terms — colours as hex; rules in theme colours lose them */
+  conditionalFormats: WeGridXlsxConditionalFormat[];
 }
 
 /** A cell's look as an .xlsx file stores it, read by `weGridReadXlsxCells` */
@@ -910,6 +981,7 @@ export async function weGridReadXlsxCells(
   const sharedStrings = sharedXml ? parseSharedStrings(sharedXml) : [];
   const stylesXml = await read('xl/styles.xml');
   const cellFormats = stylesXml ? parseCellFormats(stylesXml) : [];
+  const dxfs = stylesXml ? parseDifferentialFormats(stylesXml) : [];
 
   // Sheet names and order come from the workbook, their files from its relationships
   const targets = new Map<string, string>();
@@ -1001,7 +1073,8 @@ export async function weGridReadXlsxCells(
     const paneEl = doc.getElementsByTagNameNS('*', 'pane')[0];
     const frozen = paneEl && (paneEl.getAttribute('state') === 'frozen' || paneEl.getAttribute('state') === 'frozenSplit');
     const freeze = frozen ? { rows: Math.round(Number(paneEl.getAttribute('ySplit') ?? 0)) || 0, cols: Math.round(Number(paneEl.getAttribute('xSplit') ?? 0)) || 0 } : undefined;
-    out.push({ name: sheet.name, cells, merges, formats, lists, ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
+    const conditionalFormats = parseConditionalFormats(doc, dxfs);
+    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
   }
   return out;
 }
