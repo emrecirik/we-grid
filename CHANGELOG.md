@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.47.0 — 2026-10-20
+
+### Added
+
+- Text to columns in the sheet (Table options → Text to columns…): splits the selected cells at a
+  comma, semicolon, tab, space or another character into the columns to the right
+  (`openTextToColumns()`, `textToColumns()`).
+- Sort and Remove duplicates on a block with data beside it ask whether to expand the selection,
+  as Excel does, so rows are no longer split apart by accident (`expandPrompt`, `answerExpand()`;
+  `sort()` and `removeDuplicates()` take an optional `'expand' | 'keep'`).
+- Locale keys `sheetExpandPrompt`, `sheetExpandSelection`, `sheetKeepSelection`,
+  `sheetTextToColumns`, `sheetSplitAt`, `sheetSplitComma`, `sheetSplitSemicolon`, `sheetSplitTab`,
+  `sheetSplitSpace`, `sheetSplitOther`, `sheetReplacePrompt` (asked before Text to columns writes over cells).
+
 ## 0.46.0 — 2026-10-20
 
 ### Added

@@ -309,6 +309,39 @@
   font-variant-numeric: tabular-nums;
 }
 
+// The expand prompt and the Text to columns dialog sit over the top of the grid
+.we-sheet__dialog {
+  left: 50%;
+  top: 4rem;
+  transform: translateX(-50%);
+  max-width: min(26rem, calc(100% - 2rem));
+}
+
+.we-sheet__split {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+  margin: 0 0 0.6rem;
+  padding: 0;
+  border: none;
+
+  label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+  }
+}
+
+.we-sheet__split-other {
+  width: 3rem;
+  padding: 0.1rem 0.3rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font: inherit;
+}
+
 .we-sheet__row-resize {
   position: absolute;
   left: 0;

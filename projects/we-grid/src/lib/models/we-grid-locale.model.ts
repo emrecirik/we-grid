@@ -353,6 +353,20 @@ export interface WeGridLocale {
   sheetRemoveDuplicates: string;
   sheetDuplicatesRemoved: (count: number) => string;
   sheetMergeDuplicates: string;
+  /** The prompt when a sort or Remove duplicates would leave out data next to the selection, and its two answers */
+  sheetExpandPrompt: string;
+  sheetExpandSelection: string;
+  sheetKeepSelection: string;
+  /** Table options item and dialog title; the dialog's choices of where to split */
+  sheetTextToColumns: string;
+  sheetSplitAt: string;
+  sheetSplitComma: string;
+  sheetSplitSemicolon: string;
+  sheetSplitTab: string;
+  sheetSplitSpace: string;
+  sheetSplitOther: string;
+  /** Asked before Text to columns writes over cells that hold something */
+  sheetReplacePrompt: string;
   sheetFunctionSearch: string;
   sheetOptions: string;
 
@@ -726,6 +740,17 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetRemoveDuplicates: 'Remove duplicates',
   sheetDuplicatesRemoved: (n) => (n ? `${n} duplicate row${n === 1 ? '' : 's'} removed` : 'No duplicate rows found'),
   sheetMergeDuplicates: 'Merged cells are in the way — unmerge them first',
+  sheetExpandPrompt: 'There is data next to your selection. Include it?',
+  sheetExpandSelection: 'Expand the selection',
+  sheetKeepSelection: 'Continue with the current selection',
+  sheetTextToColumns: 'Text to columns…',
+  sheetSplitAt: 'Split at',
+  sheetSplitComma: 'Comma',
+  sheetSplitSemicolon: 'Semicolon',
+  sheetSplitTab: 'Tab',
+  sheetSplitSpace: 'Space',
+  sheetSplitOther: 'Other',
+  sheetReplacePrompt: 'There is already data here. Replace it?',
   sheetFunctionSearch: 'Search functions',
   sheetOptions: 'Table options',
   pivotLabel: 'Pivot table',
@@ -1102,6 +1127,17 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetRemoveDuplicates: 'Yinelenenleri kaldır',
   sheetDuplicatesRemoved: (n) => (n ? `${n} yinelenen satır kaldırıldı` : 'Yinelenen satır bulunamadı'),
   sheetMergeDuplicates: 'Birleştirilmiş hücreler engel — önce ayırın',
+  sheetExpandPrompt: 'Seçiminizin yanında veri var. O da dahil edilsin mi?',
+  sheetExpandSelection: 'Seçimi genişlet',
+  sheetKeepSelection: 'Geçerli seçimle devam et',
+  sheetTextToColumns: 'Metni sütunlara böl…',
+  sheetSplitAt: 'Bölme yeri',
+  sheetSplitComma: 'Virgül',
+  sheetSplitSemicolon: 'Noktalı virgül',
+  sheetSplitTab: 'Sekme',
+  sheetSplitSpace: 'Boşluk',
+  sheetSplitOther: 'Diğer',
+  sheetReplacePrompt: 'Burada zaten veri var. Değiştirilsin mi?',
   sheetFunctionSearch: 'İşlev ara',
   sheetOptions: 'Tablo seçenekleri',
   pivotLabel: 'Pivot tablo',

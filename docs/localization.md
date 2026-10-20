@@ -236,6 +236,11 @@ parser's own messages are English too.
 - `sheetOptions`, `formatTypeIconSet`, `formatIconSetLabels`, `formatIconSetReverse`, `sheetImportTruncated`,
   `sheetFull`
 
+## Keys added in 0.47.0
+
+- `sheetExpandPrompt`, `sheetExpandSelection`, `sheetKeepSelection`
+- `sheetTextToColumns`, `sheetSplitAt`, `sheetSplitComma`, `sheetSplitSemicolon`, `sheetSplitTab`, `sheetSplitSpace`, `sheetSplitOther`, `sheetReplacePrompt`
+
 ## Keys added in 0.46.0
 
 - `workbookTabColor`

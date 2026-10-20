@@ -20,6 +20,8 @@ browser with no dependency beyond Angular CDK.
 | Cell styles, number formats, decimals | Toolbar / Format panel | Grid and Sheet |
 | Banded rows | Zebra rows | Grid and Sheet |
 | Row height, tab colour | Drag a row number's edge · the palette button by the tabs | Sheet · `<we-workbook>` |
+| Data → Text to Columns | Table options → Text to columns… | Sheet |
+| Data → Remove Duplicates | Table options → Remove duplicates (asks to expand the selection, as Excel does) | Sheet |
 | Freeze panes | Pinned columns, sticky header · Freeze panes at the active cell | Grid · Sheet |
 | Merge & Center | The merge button | Sheet |
 | Borders | The borders button — all, outside, bottom, none | Sheet |

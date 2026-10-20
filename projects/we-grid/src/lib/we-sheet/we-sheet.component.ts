@@ -1719,15 +1719,53 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
    * Sorts by the active cell's column: the selected rows when a block is selected, otherwise every
    * used row (below the header row).
    */
-  sort(direction: 'asc' | 'desc'): void {
-    if (this.readonly) return;
+  /** Excel's "expand the selection?" — asked when a sort or Remove duplicates would leave out data next to the selected block */
+  expandPrompt: { run: (choice: 'expand' | 'keep') => void } | null = null;
+
+  /** Answers the expand prompt: `true` takes in the data next to the selection, `false` keeps the selection, `null` cancels */
+  answerExpand(expand: boolean | null): void {
+    const prompt = this.expandPrompt;
+    this.expandPrompt = null;
+    this.cdr.markForCheck();
+    if (prompt && expand !== null) prompt.run(expand ? 'expand' : 'keep');
+  }
+
+  /**
+   * The rows a sort or Remove duplicates works on: the selected block, or every used row under the
+   * header row when one cell (or whole columns) is selected. A block with data beside it asks first
+   * (and returns null) unless `choice` already says whether to take that data in.
+   */
+  private actionRange(choice: 'expand' | 'keep' | undefined, skipHeader: boolean, run: (choice: 'expand' | 'keep') => void): WeSheetRange | null {
     const s = this.selection;
     const used = this.usedSize();
     const block = s.r2 > s.r1 && !(s.r1 === 0 && s.r2 === this.sheet.rows - 1);
-    const range: WeSheetRange = block
-      ? s
-      : { c1: 0, r1: this.sheet.headerRow ? 1 : 0, c2: Math.max(used.cols - 1, 0), r2: Math.max(used.rows - 1, 0) };
-    if (range.r2 <= range.r1) return;
+    if (!block) return { c1: 0, r1: this.sheet.headerRow ? 1 : 0, c2: Math.max(used.cols - 1, 0), r2: Math.max(used.rows - 1, 0) };
+    const range: WeSheetRange = { ...s, r1: skipHeader && this.sheet.headerRow && s.r1 === 0 ? 1 : s.r1 };
+    if (choice === 'keep') return range;
+    // The columns next to the block that hold something in its rows, as far as they run on
+    const filled = (c: number) => {
+      for (let r = range.r1; r <= range.r2; r++) {
+        const v = this.sheet.cells[weSheetAddress(c, r)]?.v;
+        if (v !== undefined && v !== null && v !== '') return true;
+      }
+      return false;
+    };
+    let c1 = range.c1;
+    let c2 = range.c2;
+    while (c1 > 0 && filled(c1 - 1)) c1--;
+    while (c2 < this.sheet.cols - 1 && filled(c2 + 1)) c2++;
+    if (c1 === range.c1 && c2 === range.c2) return range;
+    if (choice === 'expand') return { ...range, c1, c2 };
+    this.expandPrompt = { run };
+    this.cdr.markForCheck();
+    this.focusDialog('.we-sheet__list-save');
+    return null;
+  }
+
+  sort(direction: 'asc' | 'desc', choice?: 'expand' | 'keep'): void {
+    if (this.readonly) return;
+    const range = this.actionRange(choice, false, (c) => this.sort(direction, c));
+    if (!range || range.r2 <= range.r1) return;
     if (this.mergeRanges.some((m) => m.c1 <= range.c2 && range.c1 <= m.c2 && m.r1 <= range.r2 && range.r1 <= m.r2)) {
       this.notice = this.locale.sheetMergeSort;
       this.cdr.markForCheck();
@@ -1738,17 +1776,12 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   /** Remove Duplicates: the selected rows (or every used row under the header) that repeat an earlier row in the selected columns */
-  removeDuplicates(): void {
+  removeDuplicates(choice?: 'expand' | 'keep'): void {
     this.optionsOpen = false;
     if (this.readonly) return;
     this.commitEdit();
-    const s = this.selection;
-    const used = this.usedSize();
-    const block = s.r2 > s.r1 && !(s.r1 === 0 && s.r2 === this.sheet.rows - 1);
-    const range: WeSheetRange = block
-      ? { ...s, r1: this.sheet.headerRow && s.r1 === 0 ? 1 : s.r1 }
-      : { c1: 0, r1: this.sheet.headerRow ? 1 : 0, c2: Math.max(used.cols - 1, 0), r2: Math.max(used.rows - 1, 0) };
-    if (range.r2 <= range.r1) return;
+    const range = this.actionRange(choice, true, (c) => this.removeDuplicates(c));
+    if (!range || range.r2 <= range.r1) return;
     if (this.mergeRanges.some((m) => m.c1 <= range.c2 && range.c1 <= m.c2 && m.r1 <= range.r2 && range.r1 <= m.r2)) {
       this.notice = this.locale.sheetMergeDuplicates;
       this.cdr.markForCheck();
@@ -1764,6 +1797,81 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (removed) this.commit(data);
     this.notice = this.locale.sheetDuplicatesRemoved(removed);
     this.cdr.markForCheck();
+  }
+
+  get splitChoices(): { value: ',' | ';' | '\t' | ' '; label: string }[] {
+    return [
+      { value: ',', label: this.locale.sheetSplitComma },
+      { value: ';', label: this.locale.sheetSplitSemicolon },
+      { value: '\t', label: this.locale.sheetSplitTab },
+      { value: ' ', label: this.locale.sheetSplitSpace }
+    ];
+  }
+
+  /** "Replace the data there?" — asked before Text to columns writes over cells */
+  replacePrompt: { run: () => void } | null = null;
+
+  answerReplace(replace: boolean): void {
+    const prompt = this.replacePrompt;
+    this.replacePrompt = null;
+    this.cdr.markForCheck();
+    if (prompt && replace) prompt.run();
+  }
+
+  /** The Text to columns dialog, while open */
+  splitDialog: { delimiter: ',' | ';' | '\t' | ' ' | 'other'; other: string } | null = null;
+
+  openTextToColumns(): void {
+    this.optionsOpen = false;
+    if (this.readonly) return;
+    this.commitEdit();
+    this.splitDialog = { delimiter: ',', other: '' };
+    this.cdr.markForCheck();
+    this.focusDialog('.we-sheet__split input');
+  }
+
+  /** Moves focus into a dialog that just opened */
+  private focusDialog(selector: string): void {
+    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLElement>(`.we-sheet__dialog ${selector}`)?.focus());
+  }
+
+  /**
+   * Text to columns: splits the text of the selected cells in the active column at `delimiter`,
+   * the pieces going into that cell and the ones to its right (numbers and dates read as typed)
+   */
+  textToColumns(delimiter: string, replace = false): void {
+    this.splitDialog = null;
+    if (this.readonly || !delimiter) return;
+    const s = this.selection;
+    const col = s.c1;
+    const pieces: { row: number; parts: string[] }[] = [];
+    let widest = 1;
+    for (let r = s.r1; r <= Math.min(s.r2, this.sheet.rows - 1); r++) {
+      if (this.hiddenRows.has(r)) continue;
+      const v = this.sheet.cells[weSheetAddress(col, r)]?.v;
+      if (typeof v !== 'string' || v.startsWith('=') || !v.includes(delimiter)) continue;
+      const parts = v.split(delimiter).map((p) => p.trim()).slice(0, WE_SHEET_MAX_COLS - col);
+      widest = Math.max(widest, parts.length);
+      pieces.push({ row: r, parts });
+    }
+    if (!pieces.length) {
+      this.cdr.markForCheck();
+      return;
+    }
+    // Pieces landing on cells that hold something ask first, as in Excel
+    const taken = pieces.some(({ row, parts }) => parts.slice(1).some((_, i) => {
+      const v = this.sheet.cells[weSheetAddress(col + 1 + i, row)]?.v;
+      return v !== undefined && v !== null && v !== '';
+    }));
+    if (taken && !replace) {
+      this.replacePrompt = { run: () => this.textToColumns(delimiter, true) };
+      this.cdr.markForCheck();
+      this.focusDialog('.we-sheet__list-save');
+      return;
+    }
+    const next = this.cloneForEdit(s.r2 + 1, col + widest);
+    for (const { row, parts } of pieces) parts.forEach((part, i) => this.writeInput(next, col + i, row, part));
+    this.commit(next);
   }
 
   /** Today's date in the active cell, as a date — Ctrl+;; with `time`, the time now — Ctrl+Shift+: */

@@ -694,4 +694,52 @@ describe('WeSheetComponent', () => {
     handle.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
     expect(sheet().getData().heights).toBeUndefined();
   });
+
+  it('asks before sorting a block with data beside it, and sorts as answered', () => {
+    const data: WeSheetData = { version: 1, rows: 4, cols: 3, cells: { A1: { v: 'b' }, B1: { v: 2 }, A2: { v: 'c' }, B2: { v: 3 }, A3: { v: 'a' }, B3: { v: 1 } } };
+    sheet().setData(data);
+    sheet().select('A1:A3');
+    sheet().sort('asc');
+    fixture.detectChanges();
+    expect(sheet().expandPrompt).not.toBeNull();
+    expect(el().querySelector('[role="alertdialog"]')).toBeTruthy();
+    sheet().answerExpand(true);
+    expect(['A1', 'A2', 'A3', 'B1', 'B2', 'B3'].map((a) => sheet().getValue(a))).toEqual(['a', 'b', 'c', 1, 2, 3]);
+    // Keeping the selection sorts the block alone; cancelling leaves the sheet as it is
+    sheet().setData(data);
+    sheet().select('A1:A3');
+    sheet().sort('asc');
+    sheet().answerExpand(false);
+    expect(['A1', 'B1'].map((a) => sheet().getValue(a))).toEqual(['a', 2]);
+    sheet().setData(data);
+    sheet().select('A1:A3');
+    sheet().sort('asc');
+    sheet().answerExpand(null);
+    expect(sheet().getValue('A1')).toBe('b');
+    expect(sheet().expandPrompt).toBeNull();
+  });
+
+  it('splits text into columns at the chosen delimiter', () => {
+    sheet().setData({ version: 1, rows: 3, cols: 2, cells: { A1: { v: 'Ada;12;2026-01-15' }, A2: { v: 'plain' }, A3: { v: 'Bo;7' } } });
+    sheet().select('A1:A3');
+    sheet().openTextToColumns();
+    fixture.detectChanges();
+    expect(el().querySelector('.we-sheet__split')).toBeTruthy();
+    sheet().textToColumns(';');
+    const cells = sheet().getData().cells;
+    expect(cells['A1'].v).toBe('Ada');
+    expect(cells['B1'].v).toBe(12);
+    expect(cells['C1'].f).toBe('date');
+    expect(cells['A2'].v).toBe('plain');
+    expect([cells['A3'].v, cells['B3'].v]).toEqual(['Bo', 7]);
+    expect(sheet().getData().cols).toBe(3);
+    expect(sheet().splitDialog).toBeNull();    // Writing over cells that hold something asks first
+    sheet().setData({ version: 1, rows: 1, cols: 2, cells: { A1: { v: 'x,y' }, B1: { v: 'keep' } } });
+    sheet().select('A1');
+    sheet().textToColumns(',');
+    expect(sheet().replacePrompt).not.toBeNull();
+    expect(sheet().getValue('B1')).toBe('keep');
+    sheet().answerReplace(true);
+    expect(sheet().getValue('B1')).toBe('y');
+  });
 });

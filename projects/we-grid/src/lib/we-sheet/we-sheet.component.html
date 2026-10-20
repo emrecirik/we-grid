@@ -127,6 +127,7 @@
               <span class="we-sheet__check" [innerHTML]="sheet.autoFilter ? icon('check') : ''" aria-hidden="true"></span>{{ locale.sheetAutoFilter }}
             </button>
             <button type="button" role="menuitem" [disabled]="readonly" (click)="removeDuplicates()"><span class="we-sheet__check"></span>{{ locale.sheetRemoveDuplicates }}</button>
+            <button type="button" role="menuitem" [disabled]="readonly" (click)="openTextToColumns()"><span class="we-sheet__check"></span>{{ locale.sheetTextToColumns }}</button>
             <div class="we-sheet__menu-sep" role="separator"></div>
             <button type="button" role="menuitem" (click)="optionsOpen = false; addRow()"><span class="we-sheet__check"></span>{{ locale.sheetAddRow }}</button>
             <button type="button" role="menuitem" (click)="optionsOpen = false; addColumn()"><span class="we-sheet__check"></span>{{ locale.sheetAddColumn }}</button>
@@ -493,6 +494,46 @@
       @for (o of picker.options; track o; let i = $index) {
         <button type="button" role="option" tabindex="-1" [attr.aria-selected]="i === picker.index" [class.we-sheet__picker--on]="i === picker.index" (mousedown)="$event.preventDefault(); pick(o)">{{ o }}</button>
       }
+    </div>
+  }
+
+  @if (expandPrompt) {
+    <div class="we-sheet__menu we-sheet__list-editor we-sheet__dialog" role="alertdialog" [attr.aria-label]="locale.sheetExpandPrompt" (keydown.escape)="answerExpand(null)">
+      <p class="we-sheet__list-label">{{ locale.sheetExpandPrompt }}</p>
+      <div class="we-sheet__list-actions">
+        <button type="button" (click)="answerExpand(null)">{{ locale.cancel }}</button>
+        <button type="button" (click)="answerExpand(false)">{{ locale.sheetKeepSelection }}</button>
+        <button type="button" class="we-sheet__list-save" (click)="answerExpand(true)">{{ locale.sheetExpandSelection }}</button>
+      </div>
+    </div>
+  }
+
+  @if (replacePrompt) {
+    <div class="we-sheet__menu we-sheet__list-editor we-sheet__dialog" role="alertdialog" [attr.aria-label]="locale.sheetReplacePrompt" (keydown.escape)="answerReplace(false)">
+      <p class="we-sheet__list-label">{{ locale.sheetReplacePrompt }}</p>
+      <div class="we-sheet__list-actions">
+        <button type="button" (click)="answerReplace(false)">{{ locale.cancel }}</button>
+        <button type="button" class="we-sheet__list-save" (click)="answerReplace(true)">{{ locale.apply }}</button>
+      </div>
+    </div>
+  }
+
+  @if (splitDialog) {
+    <div class="we-sheet__menu we-sheet__list-editor we-sheet__dialog" role="dialog" [attr.aria-label]="locale.sheetTextToColumns" (keydown.escape)="splitDialog = null">
+      <fieldset class="we-sheet__split">
+        <legend class="we-sheet__list-label">{{ locale.sheetSplitAt }}</legend>
+        @for (d of splitChoices; track d.value) {
+          <label><input type="radio" [name]="uid + '-split'" [checked]="splitDialog.delimiter === d.value" (change)="splitDialog.delimiter = d.value" /> {{ d.label }}</label>
+        }
+        <label>
+          <input type="radio" [name]="uid + '-split'" [checked]="splitDialog.delimiter === 'other'" (change)="splitDialog.delimiter = 'other'" /> {{ locale.sheetSplitOther }}
+          <input #otherDelim class="we-sheet__split-other" maxlength="5" [value]="splitDialog.other" (input)="splitDialog.other = otherDelim.value; splitDialog.delimiter = 'other'" [attr.aria-label]="locale.sheetSplitOther" />
+        </label>
+      </fieldset>
+      <div class="we-sheet__list-actions">
+        <button type="button" (click)="splitDialog = null">{{ locale.cancel }}</button>
+        <button type="button" class="we-sheet__list-save" (click)="textToColumns(splitDialog.delimiter === 'other' ? splitDialog.other : splitDialog.delimiter)">{{ locale.apply }}</button>
+      </div>
     </div>
   }
 
