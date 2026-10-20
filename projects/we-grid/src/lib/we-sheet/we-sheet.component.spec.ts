@@ -204,6 +204,24 @@ describe('WeSheetComponent', () => {
     expect(cellEl('A3')).toBeNull();
   });
 
+  it('freezes panes at the active cell and unfreezes them', () => {
+    sheet().setData({ version: 1, rows: 10, cols: 5, widths: { A: 80 }, cells: {} });
+    sheet().select('C3');
+    sheet().toggleFreezePanes();
+    fixture.detectChanges();
+    expect(sheet().getData().freeze).toEqual({ rows: 2, cols: 2 });
+    expect(cellEl('B5').classList).toContain('we-sheet__cell--frozen-col');
+    expect(cellEl('B5').style.left).toBe('calc(80px + 3rem)');
+    expect(cellEl('D2').classList).toContain('we-sheet__cell--frozen-row');
+    expect(cellEl('D2').style.top).toBe('calc(3.35rem)');
+    expect(cellEl('C5').classList).not.toContain('we-sheet__cell--frozen-col');
+    sheet().toggleFreezePanes();
+    fixture.detectChanges();
+    expect(sheet().getData().freeze).toBeUndefined();
+    sheet().toggleFreezeColumn();
+    expect(sheet().frozenCols).toBe(1);
+  });
+
   it('wraps long text in the selection and back', () => {
     sheet().setCell('A1', 'a long piece of text that does not fit');
     sheet().select('A1');

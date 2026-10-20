@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.29.0 — 2026-10-20
+
+Freeze panes in the spreadsheet. A minor release.
+
+### Added
+
+- `<we-sheet>` **freeze panes**: *Table options → Freeze panes at the active cell* keeps the rows
+  above and the columns before the active cell in view while scrolling; the same item unfreezes.
+  `WeSheetData.freeze`, `toggleFreezePanes()`; locale keys `sheetFreezePanes`, `sheetUnfreezePanes`.
+  *Freeze first column* keeps working (`freezeColumn` is `freeze: { cols: 1 }`).
+
+### Fixed
+
+- `<we-sheet>`: a highlighted column or row header no longer lets the cells scrolled under it show
+  through; frozen cells stack correctly over each other.
+
 ## 0.28.0 — 2026-10-20
 
 Wrap text in the spreadsheet. A minor release.

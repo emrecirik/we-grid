@@ -44,8 +44,10 @@ export interface WeSheetData {
   headerRow?: boolean;
   /** Zebra rows */
   striped?: boolean;
-  /** Column A stays in view while scrolling sideways */
+  /** Column A stays in view while scrolling sideways — the same as `freeze: { cols: 1 }` */
   freezeColumn?: boolean;
+  /** Freeze panes: the first `rows` rows and `cols` columns stay in view while scrolling (Excel's Freeze Panes) */
+  freeze?: { rows: number; cols: number };
   /** Filter buttons on the header row (Excel's AutoFilter) — needs `headerRow` */
   autoFilter?: boolean;
   /** Per column letter, the shown texts whose rows the filter hides (`''` for blanks) */

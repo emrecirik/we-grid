@@ -288,7 +288,7 @@
 .we-sheet__rowhead,
 .we-sheet__corner {
   position: sticky;
-  z-index: 2;
+  z-index: 4;
   background: var(--we-grid-header-bg, #f3f6f9);
   color: var(--we-grid-muted-color, #878a99);
   font-weight: 500;
@@ -312,7 +312,7 @@
 .we-sheet__corner {
   top: 0;
   left: 0;
-  z-index: 3;
+  z-index: 6;
   padding: 0;
 }
 
@@ -326,7 +326,10 @@
 }
 
 .we-sheet__head--on {
-  background: var(--we-grid-row-selected-bg, rgba(64, 81, 137, 0.1));
+  // Over the header colour, so cells scrolled underneath never show through
+  background:
+    linear-gradient(var(--we-grid-row-selected-bg, rgba(64, 81, 137, 0.1)), var(--we-grid-row-selected-bg, rgba(64, 81, 137, 0.1))),
+    var(--we-grid-header-bg, #f3f6f9);
   color: var(--we-grid-accent-color, #405189);
   font-weight: 600;
 }
@@ -594,18 +597,36 @@
   display: none;
 }
 
-.we-sheet--freeze-col .we-sheet__cell--first,
-.we-sheet--freeze-col .we-sheet__colhead--first {
+// Freeze panes: the frozen columns stick past the row numbers, the frozen rows under the letters
+.we-sheet__cell--frozen-col {
   position: sticky;
-  left: 3rem;
   z-index: 1;
-  box-shadow: inset -1px 0 0 var(--we-grid-border-color, #dee2e6);
+}
+
+.we-sheet__cell--frozen-row {
+  position: sticky;
+  z-index: 2;
+}
+
+.we-sheet__cell--frozen-col.we-sheet__cell--frozen-row,
+.we-sheet__row--header .we-sheet__cell.we-sheet__cell--frozen-col {
+  z-index: 3;
+}
+
+.we-sheet__colhead--frozen,
+.we-sheet__rowhead--frozen {
+  z-index: 5;
+}
+
+// The edge of the frozen columns
+.we-sheet__cell--frozen-edge {
+  box-shadow: inset -1px 0 0 var(--we-grid-muted-color, #878a99);
 }
 
 .we-sheet__row--header .we-sheet__cell {
   position: sticky;
   top: 1.6rem;
-  z-index: 1;
+  z-index: 2;
 }
 
 .we-sheet__menu {

@@ -18,7 +18,7 @@ browser with no dependency beyond Angular CDK.
 | Conditional formatting (highlight rules, top 10, colour scales, data bars, icon sets) | The Format panel | Grid: column menu → Format… · Sheet: right-click → Conditional formatting — [formatting.md](formatting.md) |
 | Cell styles, number formats, decimals | Toolbar / Format panel | Grid and Sheet |
 | Banded rows | Zebra rows | Grid and Sheet |
-| Freeze panes | Pinned columns, sticky header · first column freeze | Grid · Sheet |
+| Freeze panes | Pinned columns, sticky header · Freeze panes at the active cell | Grid · Sheet |
 | Merge & Center | The merge button | Sheet |
 | Borders | The borders button — all, outside, bottom, none | Sheet |
 | Wrap Text | The wrap button | Sheet |

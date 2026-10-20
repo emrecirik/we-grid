@@ -1205,7 +1205,48 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   toggleFreezeColumn(): void {
-    this.commit({ ...this.sheet, freezeColumn: !this.sheet.freezeColumn || undefined });
+    const next: WeSheetData = { ...this.sheet, freezeColumn: !this.frozenCols || undefined };
+    delete next.freeze;
+    if (this.frozenRows) next.freeze = { rows: this.frozenRows, cols: this.frozenCols ? 0 : 1 };
+    if (next.freeze) delete next.freezeColumn;
+    this.commit(next);
+  }
+
+  /** Freeze panes at the active cell: the rows above it and the columns before it stay in view; again to unfreeze */
+  toggleFreezePanes(): void {
+    this.optionsOpen = false;
+    const next: WeSheetData = { ...this.sheet };
+    delete next.freezeColumn;
+    delete next.freeze;
+    const rows = Math.min(this.active.row, 50);
+    const cols = Math.min(this.active.col, 20);
+    if (!this.frozenRows && !this.frozenCols && (rows || cols)) next.freeze = { rows, cols };
+    this.commit(next);
+  }
+
+  /** Columns that stay in view while scrolling sideways */
+  get frozenCols(): number {
+    return this.sheet.freeze?.cols ?? (this.sheet.freezeColumn ? 1 : 0);
+  }
+
+  /** Rows that stay in view while scrolling down (a header row stays as well) */
+  get frozenRows(): number {
+    return this.sheet.freeze?.rows ?? 0;
+  }
+
+  /** Where a frozen column sticks: past the row numbers and the frozen columns before it */
+  frozenLeft(col: number): string | null {
+    if (col >= this.frozenCols) return null;
+    let px = 0;
+    for (let c = 0; c < col; c++) px += this.width(c);
+    return `calc(3rem + ${px}px)`;
+  }
+
+  /** Where a frozen row sticks: under the column letters and the frozen rows above it */
+  frozenTop(row: number): string | null {
+    // shortcut: assumes the standard row height — a wrapped row in the frozen area overlaps the next; measure rows if that matters
+    if (row >= this.frozenRows) return this.sheet.headerRow && row === 0 ? '1.6rem' : null;
+    return `calc(1.6rem + ${row * 1.75}rem)`;
   }
 
   // ─── Rows and columns ────────────────────────────────────────────────

@@ -42,7 +42,7 @@ export class BudgetComponent {}
 | Right-click menu *(0.11.0)* | Insert rows above/below, insert columns left/right, delete rows or columns, clear contents or formatting, AutoSum, sort — also on the context-menu key or Shift+F10. Every formula's references follow: inserted rows push them down, deleted cells turn them into `#REF!`, a range that loses an end shrinks. |
 | Σ AutoSum *(0.11.0)* | Alt+= or the Σ button: a block gets a `=SUM()` under each column; one cell sums the numbers right above it, or to its left. |
 | Open a file *(0.11.0)* | Excel (`.xlsx`) or CSV into the sheet from A1, with row 1 as the header — undoable. *(0.20.0)* An Excel file keeps its layout and its formulas (filled formulas included). *(0.21.0)* In a `<we-workbook>`, a file with several worksheets adds them all as sheets; a taken name gets a number and the formulas that point at it follow. |
-| Freeze *(0.11.0)* | Column A stays in view while scrolling sideways; with a header row, row 1 stays at the top. |
+| Freeze *(0.11.0)* | Column A stays in view while scrolling sideways; with a header row, row 1 stays at the top. *(0.29.0)* **Freeze panes at the active cell** (Table options) keeps every row above it and every column before it in view, as Excel's Freeze Panes does; the same item unfreezes (`WeSheetData.freeze`, `toggleFreezePanes()`). |
 | Function suggestions *(0.11.0)* | Typing `=SU` (or `=TOP` in Turkish) lists matching functions with their arguments; arrows choose, Tab or Enter inserts `SUM(`, Escape closes. |
 | Find and replace *(0.14.0)* | Ctrl+F finds text in what the cells show (and in formulas), Enter / Shift+Enter walk the matches, "Match case" narrows them; Ctrl+H (or Replace…) replaces one match or all of them — undoable. |
 | Filter *(0.19.0)* | **Table options → Filter buttons** (with a header row) puts a button in each header cell: tick the values to show, as in Excel's AutoFilter. Alt+↓ on a header cell opens its filter. Hidden rows keep their numbers; arrow keys and Enter skip them, copy and the status bar leave them out. Kept in `WeSheetData.autoFilter` / `filters` (per column, the texts hidden). |
@@ -83,7 +83,7 @@ Public methods: `getData()`, `setData(data)`, `getValue('B3')`, `setCell('C2', '
 `exportAs('xlsx' \| 'csv')`, `buildExportTable()`, `fill(range)`, `fillSeries()` *(0.17.0)*,
 `saveList(text)`, `saveNote(text)`, `openFormatPanel()` *(0.18.0)*, `toggleAutoFilter()` *(0.19.0)*,
 `insertFunction(name)` *(0.24.0)*, `toggleMerge()` *(0.26.0)*,
-`setBorders('all' \| 'outside' \| 'bottom' \| 'none')` *(0.27.0)*, `toggleWrap()` *(0.28.0)*.
+`setBorders('all' \| 'outside' \| 'bottom' \| 'none')` *(0.27.0)*, `toggleWrap()` *(0.28.0)*, `toggleFreezePanes()` *(0.29.0)*.
 
 Content projected with the `weSheetToolbar` attribute is placed in the toolbar — your own buttons
 next to the built-in ones:

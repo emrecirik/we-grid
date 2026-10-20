@@ -321,6 +321,9 @@ export interface WeGridLocale {
   sheetNoteHint: string;
   sheetNoteRemove: string;
   sheetFreezeColumn: string;
+  /** Table options: freeze the rows above and the columns before the active cell, and undo it */
+  sheetFreezePanes: string;
+  sheetUnfreezePanes: string;
   /** Table options: filter buttons on the header row */
   sheetAutoFilter: string;
   /** A header cell's filter button, e.g. `(h) => \`Filter ${h}\`` */
@@ -686,6 +689,8 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetNoteHint: 'A note shown when the cell is pointed at',
   sheetNoteRemove: 'Remove note',
   sheetFreezeColumn: 'Freeze first column',
+  sheetFreezePanes: 'Freeze panes at the active cell',
+  sheetUnfreezePanes: 'Unfreeze panes',
   sheetAutoFilter: 'Filter buttons',
   sheetFilterColumn: (h) => `Filter “${h}”`,
   sheetSuggestions: 'Functions',
@@ -1050,6 +1055,8 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetNoteHint: 'Hücrenin üzerine gelince gösterilen not',
   sheetNoteRemove: 'Notu kaldır',
   sheetFreezeColumn: 'İlk kolonu dondur',
+  sheetFreezePanes: 'Bölmeleri etkin hücrede dondur',
+  sheetUnfreezePanes: 'Bölmeleri çöz',
   sheetAutoFilter: 'Filtre düğmeleri',
   sheetFilterColumn: (h) => `“${h}” filtresi`,
   sheetSuggestions: 'Fonksiyonlar',

@@ -315,6 +315,12 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
   if (o['headerRow'] === true) data.headerRow = true;
   if (o['striped'] === true) data.striped = true;
   if (o['freezeColumn'] === true) data.freezeColumn = true;
+  const freeze = o['freeze'] as { rows?: unknown; cols?: unknown } | undefined;
+  if (typeof freeze === 'object' && freeze !== null) {
+    const count = (v: unknown, max: number) => (typeof v === 'number' && Number.isInteger(v) && v >= 0 ? Math.min(v, max) : 0);
+    const f = { rows: count(freeze.rows, Math.min(50, rows - 1)), cols: count(freeze.cols, Math.min(20, cols - 1)) };
+    if (f.rows || f.cols) data.freeze = f;
+  }
   if (o['autoFilter'] === true) data.autoFilter = true;
   const filters = o['filters'];
   if (data.autoFilter && typeof filters === 'object' && filters !== null) {

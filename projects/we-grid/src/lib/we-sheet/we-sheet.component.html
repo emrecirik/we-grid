@@ -1,4 +1,4 @@
-<div class="we-sheet" [class.we-sheet--striped]="sheet.striped" [class.we-sheet--readonly]="readonly" [class.we-sheet--freeze-col]="sheet.freezeColumn">
+<div class="we-sheet" [class.we-sheet--striped]="sheet.striped" [class.we-sheet--readonly]="readonly">
   <div class="we-sheet__toolbar" role="toolbar" [attr.aria-label]="locale.sheetToolbar">
     @if (!readonly) {
       <div class="we-sheet__group">
@@ -114,8 +114,11 @@
             <button type="button" role="menuitemcheckbox" [attr.aria-checked]="!!sheet.striped" (click)="toggleStriped()">
               <span class="we-sheet__check" [innerHTML]="sheet.striped ? icon('check') : ''" aria-hidden="true"></span>{{ locale.stripedRows }}
             </button>
-            <button type="button" role="menuitemcheckbox" [attr.aria-checked]="!!sheet.freezeColumn" (click)="toggleFreezeColumn()">
-              <span class="we-sheet__check" [innerHTML]="sheet.freezeColumn ? icon('check') : ''" aria-hidden="true"></span>{{ locale.sheetFreezeColumn }}
+            <button type="button" role="menuitemcheckbox" [attr.aria-checked]="frozenCols > 0" (click)="toggleFreezeColumn()">
+              <span class="we-sheet__check" [innerHTML]="frozenCols > 0 ? icon('check') : ''" aria-hidden="true"></span>{{ locale.sheetFreezeColumn }}
+            </button>
+            <button type="button" role="menuitem" (click)="toggleFreezePanes()" [disabled]="!frozenRows && !frozenCols && !active.row && !active.col">
+              <span class="we-sheet__check"></span>{{ frozenRows || frozenCols ? locale.sheetUnfreezePanes : locale.sheetFreezePanes }}
             </button>
             <button type="button" role="menuitemcheckbox" [attr.aria-checked]="!!sheet.autoFilter" [disabled]="!sheet.headerRow" (click)="toggleAutoFilter()">
               <span class="we-sheet__check" [innerHTML]="sheet.autoFilter ? icon('check') : ''" aria-hidden="true"></span>{{ locale.sheetAutoFilter }}
@@ -268,7 +271,8 @@
             <th
               role="columnheader"
               class="we-sheet__colhead"
-              [class.we-sheet__colhead--first]="c === 0"
+              [class.we-sheet__colhead--frozen]="c < frozenCols"
+              [style.left]="frozenLeft(c)"
               [class.we-sheet__head--on]="c >= selection.c1 && c <= selection.c2"
               (click)="onColumnHeaderClick($event, c)"
             >
@@ -281,7 +285,7 @@
       <tbody>
         @for (r of visibleRows; track r; let i = $index) {
           <tr role="row" [class.we-sheet__row--alt]="sheet.striped && i % 2 === (sheet.headerRow ? 0 : 1)" [class.we-sheet__row--header]="sheet.headerRow && r === 0">
-            <th role="rowheader" class="we-sheet__rowhead" [class.we-sheet__head--on]="r >= selection.r1 && r <= selection.r2" (click)="onRowHeaderClick($event, r)">{{ r + 1 }}</th>
+            <th role="rowheader" class="we-sheet__rowhead" [class.we-sheet__rowhead--frozen]="r < frozenRows" [style.top]="r < frozenRows ? frozenTop(r) : null" [class.we-sheet__head--on]="r >= selection.r1 && r <= selection.r2" (click)="onRowHeaderClick($event, r)">{{ r + 1 }}</th>
             @for (c of colIndexes; track c) {
               @if (!view[r][c].covered) {
               <td
@@ -293,6 +297,11 @@
                 [attr.aria-colindex]="c + 2"
                 class="we-sheet__cell"
                 [class.we-sheet__cell--first]="c === 0"
+                [class.we-sheet__cell--frozen-col]="c < frozenCols"
+                [class.we-sheet__cell--frozen-edge]="c === frozenCols - 1"
+                [class.we-sheet__cell--frozen-row]="r < frozenRows"
+                [style.left]="frozenLeft(c)"
+                [style.top]="frozenTop(r)"
                 [attr.data-cell]="columnLetters[c] + (r + 1)"
                 [class.we-sheet__cell--sel]="inSelection(c, r)"
                 [class.we-sheet__cell--active]="c === active.col && r === active.row"

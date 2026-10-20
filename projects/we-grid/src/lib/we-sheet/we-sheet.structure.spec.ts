@@ -134,7 +134,7 @@ describe('WeSheetComponent — structure, AutoSum, suggestions, import', () => {
     el().querySelector<HTMLButtonElement>('[aria-haspopup="menu"][aria-label="Table options"]')!.click();
     fixture.detectChanges();
     const items = Array.from(el().querySelectorAll<HTMLButtonElement>('.we-sheet__options button'));
-    expect(items.length).toBe(6);
+    expect(items.length).toBe(7);
     items[0].click();
     fixture.detectChanges();
     expect(sheet.getData().headerRow).toBeTrue();
@@ -144,7 +144,7 @@ describe('WeSheetComponent — structure, AutoSum, suggestions, import', () => {
   it('freezes the first column', () => {
     sheet.toggleFreezeColumn();
     fixture.detectChanges();
-    expect(el().querySelector('.we-sheet--freeze-col')).toBeTruthy();
+    expect(cell('A1').classList).toContain('we-sheet__cell--frozen-col');
     expect(cell('A1').classList).toContain('we-sheet__cell--first');
   });
 
