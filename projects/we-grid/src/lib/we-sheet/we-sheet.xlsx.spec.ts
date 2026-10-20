@@ -308,3 +308,14 @@ describe('hidden rows in Excel files', () => {
     expect(back.rows).toBeGreaterThanOrEqual(6);
   });
 });
+
+describe('hidden columns in Excel files', () => {
+  it('writes hidden columns and reads them back', async () => {
+    const blob = weSheetWorkbookXlsx([{ name: 'H', data: { version: 1, rows: 2, cols: 4, hiddenColumns: ['B'], widths: { C: 140 }, cells: { A1: { v: 1 }, D1: { v: 2 } } } }]);
+    const text = await new Response(blob).text();
+    expect(text).toContain('<cols><col min="2" max="2" width="9" hidden="1"/><col min="3" max="3" width="20" customWidth="1"/></cols>');
+    const [read] = await weGridReadXlsxCells(blob);
+    expect(read.hiddenColumns).toEqual([1]);
+    expect(weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats, read).data.hiddenColumns).toEqual(['B']);
+  });
+});

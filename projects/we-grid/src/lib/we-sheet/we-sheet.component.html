@@ -272,6 +272,7 @@
             <th
               role="columnheader"
               class="we-sheet__colhead"
+              [class.we-sheet__colhead--after-hidden]="isAfterHiddenColumn(c)"
               [class.we-sheet__colhead--frozen]="c < frozenCols"
               [style.left]="frozenLeft(c)"
               [class.we-sheet__head--on]="c >= selection.c1 && c <= selection.c2"
@@ -410,6 +411,10 @@
       <button type="button" role="menuitem" (click)="insertColumns('before')">{{ locale.sheetInsertColumnLeft }}</button>
       <button type="button" role="menuitem" (click)="insertColumns('after')">{{ locale.sheetInsertColumnRight }}</button>
       <button type="button" role="menuitem" (click)="deleteColumns()" [disabled]="selection.c2 - selection.c1 + 1 >= sheet.cols">{{ locale.sheetDeleteColumns }}</button>
+      <button type="button" role="menuitem" (click)="hideColumns()" [disabled]="!canHideColumns">{{ locale.sheetHideColumns }}</button>
+      @if (selectionHasHiddenColumns) {
+        <button type="button" role="menuitem" (click)="unhideColumns()">{{ locale.sheetUnhideColumns }}</button>
+      }
       <div class="we-sheet__menu-sep" role="separator"></div>
       <button type="button" role="menuitem" (click)="closeMenu(); clearContents()">{{ locale.sheetClearContents }}</button>
       <button type="button" role="menuitem" (click)="closeMenu(); clearFormatting()">{{ locale.sheetClearFormat }}</button>

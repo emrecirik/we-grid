@@ -64,6 +64,7 @@ import {
   weSheetRangeLabel,
   weSheetSanitize,
   weSheetSanitizeHidden,
+  weSheetSanitizeHiddenColumns,
   weSheetShiftFormula,
   weSheetSortRange,
   weSheetStats
@@ -163,9 +164,10 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** The rows drawn — all of them, but those the header-row filters hide */
   visibleRows: number[] = [];
   private hiddenRows = new Set<number>();
+  private hiddenCols = new Set<number>();
   /** The sheet's merges as ranges, worked out with the view */
   private mergeRanges: WeSheetRange[] = [];
-  private leftCache: { widths: unknown; cols: number; values: string[] } | null = null;
+  private leftCache: { widths: unknown; cols: number; values: string[]; hidden: unknown } | null = null;
   /** The open filter of a header cell: its column and the distinct texts below it */
   filterMenu: { col: number; x: number; y: number; values: { text: string; label: string; shown: boolean }[] } | null = null;
   colIndexes: number[] = [];
@@ -1175,14 +1177,28 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   /** `to`, or the nearest row the filters don't hide — in the direction of travel first, then back */
-  private toShown(to: Pos, step: number): Pos {
-    if (!this.hiddenRows.has(to.row)) return to;
-    for (const dir of [step || 1, -(step || 1)]) {
-      for (let row = to.row + dir; row >= 0 && row < this.sheet.rows; row += dir) {
-        if (!this.hiddenRows.has(row)) return { col: to.col, row };
+  private toShown(to: Pos, step: number, colStep = 0): Pos {
+    if (this.hiddenRows.has(to.row)) {
+      for (const dir of [step || 1, -(step || 1)]) {
+        const row = this.firstShown(to.row, dir, this.sheet.rows, this.hiddenRows);
+        if (row !== null) {
+          to = { col: to.col, row };
+          break;
+        }
+      }
+    }
+    if (this.hiddenCols.has(to.col)) {
+      for (const dir of [colStep || 1, -(colStep || 1)]) {
+        const col = this.firstShown(to.col, dir, this.sheet.cols, this.hiddenCols);
+        if (col !== null) return { col, row: to.row };
       }
     }
     return to;
+  }
+
+  private firstShown(from: number, dir: number, size: number, hidden: Set<number>): number | null {
+    for (let i = from + dir; i >= 0 && i < size; i += dir) if (!hidden.has(i)) return i;
+    return null;
   }
 
   toggleStriped(): void {
@@ -1243,14 +1259,14 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (col >= this.frozenCols) return null;
     const widths = this.sheet.widths;
     let cache = this.leftCache;
-    if (!cache || cache.widths !== widths || cache.cols !== this.frozenCols) {
+    if (!cache || cache.widths !== widths || cache.cols !== this.frozenCols || cache.hidden !== this.sheet.hiddenColumns) {
       const values: string[] = [];
       let px = 0;
       for (let c = 0; c < this.frozenCols; c++) {
         values.push(`calc(3rem + ${px}px)`);
-        px += this.width(c);
+        if (!this.hiddenCols.has(c)) px += this.width(c);
       }
-      cache = this.leftCache = { widths, cols: this.frozenCols, values };
+      cache = this.leftCache = { widths, cols: this.frozenCols, values, hidden: this.sheet.hiddenColumns };
     }
     return cache.values[col];
   }
@@ -1312,6 +1328,42 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const next: WeSheetData = { ...this.sheet, hidden: (this.sheet.hidden ?? []).filter((r) => r < s.r1 || r > s.r2) };
     if (!next.hidden!.length) delete next.hidden;
     this.commit(next);
+  }
+
+  /** Hides the selected columns — never every column of the sheet */
+  hideColumns(): void {
+    this.closeMenu();
+    if (this.readonly || !this.canHideColumns) return;
+    this.commitEdit();
+    const s = this.selection;
+    const letters = [...(this.sheet.hiddenColumns ?? [])];
+    for (let c = s.c1; c <= s.c2; c++) letters.push(weGridColumnLetter(c));
+    this.commit({ ...this.sheet, hiddenColumns: weSheetSanitizeHiddenColumns(letters, this.sheet.cols) });
+  }
+
+  /** Shows the hidden columns inside the selection */
+  unhideColumns(): void {
+    this.closeMenu();
+    if (this.readonly || !this.selectionHasHiddenColumns) return;
+    const s = this.selection;
+    const next: WeSheetData = { ...this.sheet, hiddenColumns: (this.sheet.hiddenColumns ?? []).filter((l) => weGridColumnIndex(l) < s.c1 || weGridColumnIndex(l) > s.c2) };
+    if (!next.hiddenColumns!.length) delete next.hiddenColumns;
+    this.commit(next);
+  }
+
+  get canHideColumns(): boolean {
+    const s = this.selection;
+    return this.colIndexes.some((c) => c < s.c1 || c > s.c2);
+  }
+
+  get selectionHasHiddenColumns(): boolean {
+    const s = this.selection;
+    return [...this.hiddenCols].some((c) => c >= s.c1 && c <= s.c2);
+  }
+
+  /** Whether the column before `c` is hidden — its letter shows the gap */
+  isAfterHiddenColumn(c: number): boolean {
+    return c > 0 && this.hiddenCols.has(c - 1);
   }
 
   /** Whether hiding the selected rows leaves at least one row in view */
@@ -1792,7 +1844,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       { sheet: (name) => this.otherSheet(name), parseNumbers: false }
     );
     this.columnLetters = Array.from({ length: data.cols }, (_, i) => weGridColumnLetter(i));
-    this.colIndexes = Array.from({ length: data.cols }, (_, i) => i);
+    this.hiddenCols = new Set((data.hiddenColumns ?? []).map((l) => weGridColumnIndex(l)));
+    this.colIndexes = Array.from({ length: data.cols }, (_, i) => i).filter((c) => !this.hiddenCols.has(c));
     this.rowNumbers = Array.from({ length: data.rows }, (_, i) => i);
     this.rebuildView();
     this.active = this.clamp(this.active);
@@ -1945,13 +1998,17 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   private applyMerges(): void {
     for (const m of this.mergeRanges) {
+      // With its first column hidden the merge's content is hidden too; its other columns show as plain cells, as in Excel
+      if (this.hiddenCols.has(m.c1)) continue;
       let shown = 0;
       for (let r = m.r1; r <= m.r2; r++) if (!this.hiddenRows.has(r)) shown++;
       for (let r = m.r1; r <= m.r2; r++) {
         for (let c = m.c1; c <= m.c2; c++) {
           const cell = this.view[r][c];
           if (r === m.r1 && c === m.c1) {
-            cell.colspan = m.c2 - m.c1 + 1;
+            let cols = 0;
+            for (let k = m.c1; k <= m.c2; k++) if (!this.hiddenCols.has(k)) cols++;
+            cell.colspan = Math.max(cols, 1);
             cell.rowspan = Math.max(shown, 1);
           } else cell.covered = true;
         }
@@ -2054,8 +2111,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     }
     this.hiddenRows = hidden;
     this.visibleRows = hidden.size ? this.rowNumbers.filter((r) => !hidden.has(r)) : this.rowNumbers;
-    // The active cell never stays on a row that just got hidden
-    if (hidden.has(this.active.row)) {
+    // The active cell never stays on a row or column that just got hidden
+    if (hidden.has(this.active.row) || this.hiddenCols.has(this.active.col)) {
       const p = this.toShown(this.active, 1);
       this.anchor = p;
       this.active = p;
@@ -2198,7 +2255,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private moveTo(p: Pos): void {
-    p = this.toShown(p, Math.sign(p.row - this.active.row));
+    p = this.toShown(p, Math.sign(p.row - this.active.row), Math.sign(p.col - this.active.col));
     // Moving within the merge the cursor is on goes past it, as in Excel
     const here = this.mergeAt(this.active);
     if (here && this.mergeAt(p) === here && (p.col !== this.active.col || p.row !== this.active.row)) {
@@ -2206,7 +2263,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
         col: p.col > this.active.col ? here.c2 + 1 : p.col < this.active.col ? here.c1 - 1 : p.col,
         row: p.row > this.active.row ? here.r2 + 1 : p.row < this.active.row ? here.r1 - 1 : p.row
       });
-      p = this.mergeAt(step) === here ? this.active : this.toShown(step, Math.sign(step.row - this.active.row));
+      p = this.mergeAt(step) === here ? this.active : this.toShown(step, Math.sign(step.row - this.active.row), Math.sign(step.col - this.active.col));
     }
     const m = this.mergeAt(p);
     if (m) p = { col: m.c1, row: m.r1 };
@@ -2217,7 +2274,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   private extendTo(p: Pos): void {
-    p = this.toShown(p, Math.sign(p.row - this.focusCorner().row));
+    p = this.toShown(p, Math.sign(p.row - this.focusCorner().row), Math.sign(p.col - this.focusCorner().col));
     this.selection = this.withMerges(weSheetNormalize(this.anchor, p));
     this.afterSelection(true, p);
   }

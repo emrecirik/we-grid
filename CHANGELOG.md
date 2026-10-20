@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.41.0 — 2026-10-20
+
+### Added
+
+- Hide and unhide columns in the sheet (right-click → Hide columns / Unhide columns,
+  `hideColumns()`, `unhideColumns()`, `WeSheetData.hiddenColumns`, `weSheetSanitizeHiddenColumns`).
+  Arrow keys step over them, merges and frozen columns close up around them, inserted and deleted
+  columns move them, and Excel files keep them both ways (`WeGridXlsxSheet.hiddenColumns`,
+  `WeGridXlsxCellSheet.hiddenColumns`). New locale keys `sheetHideColumns`, `sheetUnhideColumns`.
+
 ## 0.40.0 — 2026-10-20
 
 ### Added

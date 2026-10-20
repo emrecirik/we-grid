@@ -568,4 +568,32 @@ describe('WeSheetComponent', () => {
     sheet().insertRows('before');
     expect(sheet().getData().hidden).toEqual([3]);
   });
+
+  it('hides columns by hand, skips them with the arrow keys, and unhides them', () => {
+    sheet().setData({ version: 1, rows: 3, cols: 5, merges: ['A3:C3'], cells: { A1: { v: 1 }, B1: { v: 2 }, C1: { v: 3 }, D1: { v: 4 }, A3: { v: 'wide' } } });
+    fixture.detectChanges();
+    sheet().select('B1:C1');
+    sheet().hideColumns();
+    fixture.detectChanges();
+    expect(sheet().getData().hiddenColumns).toEqual(['B', 'C']);
+    expect(['A1', 'B1', 'C1', 'D1'].map((a) => !!cellEl(a))).toEqual([true, false, false, true]);
+    expect(cellEl('A3').getAttribute('colspan')).toBe('1');
+    expect(el().querySelectorAll('.we-sheet__colhead--after-hidden').length).toBe(1);
+    sheet().select('A1');
+    el().querySelector('.we-sheet__scroll')!.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }));
+    expect(sheet().selectionLabel).toBe('D1');
+    sheet().select('A1');
+    sheet().insertColumns('after');
+    expect(sheet().getData().hiddenColumns).toEqual(['C', 'D']);
+    sheet().select('A1:E1');
+    expect(sheet().selectionHasHiddenColumns).toBeTrue();
+    sheet().unhideColumns();
+    expect(sheet().getData().hiddenColumns).toBeUndefined();
+    // Hiding a merge's first column leaves its other columns drawn
+    sheet().select('A1');
+    sheet().hideColumns();
+    fixture.detectChanges();
+    expect(cellEl('A3')).toBeNull();
+    expect(!!cellEl('B3') && !!cellEl('C3')).toBeTrue();
+  });
 });

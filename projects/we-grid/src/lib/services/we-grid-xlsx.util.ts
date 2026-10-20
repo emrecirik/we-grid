@@ -475,6 +475,8 @@ export interface WeGridXlsxSheet {
   notes?: Record<string, string>;
   /** Hidden rows, numbered as in Excel (1-based) */
   hiddenRows?: number[];
+  /** Hidden columns, by index (0-based, like `widths`) */
+  hiddenColumns?: number[];
 }
 
 /** One conditional format rule for `weGridBuildXlsxWorkbook`, as Excel names it (a `cfRule`) */
@@ -596,8 +598,12 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
         cells.sort((a, b) => refToColumnIndex(a.ref) - refToColumnIndex(b.ref));
         return `<row r="${r}"${hiddenRows.has(r) ? ' hidden="1"' : ''}>${cells.map((c) => workbookCell(c, styleOf(c))).join('')}</row>`;
       });
-    const widths = Object.entries(sheet.widths ?? {})
-      .map(([c, w]) => `<col min="${Number(c) + 1}" max="${Number(c) + 1}" width="${Math.max(4, Math.round(w / 7))}" customWidth="1"/>`)
+    const hiddenCols = new Set((sheet.hiddenColumns ?? []).filter((c) => Number.isInteger(c) && c >= 0));
+    const widthOf = new Map<number, number>(Object.entries(sheet.widths ?? {}).map(([c, w]) => [Number(c), w]));
+    for (const c of hiddenCols) if (!widthOf.has(c)) widthOf.set(c, 0);
+    const widths = [...widthOf.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([c, w]) => `<col min="${c + 1}" max="${c + 1}" width="${w ? Math.max(4, Math.round(w / 7)) : 9}"${w ? ' customWidth="1"' : ''}${hiddenCols.has(c) ? ' hidden="1"' : ''}/>`)
       .join('');
     const xml =
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
@@ -1056,6 +1062,8 @@ export interface WeGridXlsxCellSheet {
   notes: Record<string, string>;
   /** Hidden rows, numbered as in Excel (1-based) */
   hiddenRows: number[];
+  /** Hidden columns, by index (0-based) */
+  hiddenColumns: number[];
 }
 
 /** A cell's look as an .xlsx file stores it, read by `weGridReadXlsxCells` */
@@ -1209,7 +1217,14 @@ export async function weGridReadXlsxCells(
         }
       }
     }
-    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, notes, hiddenRows, ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
+    const hiddenColumns: number[] = [];
+    for (const colEl of Array.from(doc.getElementsByTagNameNS('*', 'col'))) {
+      if (!/^(1|true)$/.test(colEl.getAttribute('hidden') ?? '')) continue;
+      const min = Number(colEl.getAttribute('min'));
+      const max = Math.min(Number(colEl.getAttribute('max')) || min, min + 1000);
+      for (let c = min; Number.isInteger(c) && c >= 1 && c <= max; c++) hiddenColumns.push(c - 1);
+    }
+    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, notes, hiddenRows, hiddenColumns, ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
   }
   return out;
 }

@@ -346,6 +346,8 @@ export function weSheetSanitize(input: unknown): WeSheetData | null {
   if (merges.length) data.merges = merges;
   const hidden = weSheetSanitizeHidden(o['hidden'], rows);
   if (hidden.length) data.hidden = hidden;
+  const hiddenColumns = weSheetSanitizeHiddenColumns(o['hiddenColumns'], cols);
+  if (hiddenColumns.length) data.hiddenColumns = hiddenColumns;
   const formats = weSheetSanitizeFormats(o['formats']);
   if (formats.length) data.formats = formats;
   return data;
@@ -506,6 +508,16 @@ export function weSheetSanitizeHidden(value: unknown, rows: number): number[] {
   return out.length >= rows ? [] : out;
 }
 
+/** Hidden columns as stored: letters inside the sheet, once each, in column order — never every column */
+export function weSheetSanitizeHiddenColumns(value: unknown, cols: number): string[] {
+  if (!Array.isArray(value)) return [];
+  const indexes = weSheetSanitizeHidden(
+    value.filter((l): l is string => typeof l === 'string' && /^[A-Z]{1,3}$/.test(l)).map((l) => weGridColumnIndex(l)),
+    cols
+  );
+  return indexes.map((c) => weGridColumnLetter(c));
+}
+
 /**
  * Inserts `count` empty rows or columns before `at` (a negative count deletes them): cells move,
  * every formula's references follow, column widths move with their columns.
@@ -545,6 +557,12 @@ export function weSheetInsert(data: WeSheetData, axis: 'row' | 'col', at: number
     const hidden = weSheetSanitizeHidden(data.hidden.map(shift).filter((r): r is number => r !== null), rows);
     if (hidden.length) out.hidden = hidden;
     else delete out.hidden;
+  }
+  if (data.hiddenColumns && axis === 'col') {
+    const moved = data.hiddenColumns.map((l) => shift(weGridColumnIndex(l))).filter((c): c is number => c !== null);
+    const hiddenColumns = weSheetSanitizeHiddenColumns(moved.map((c) => weGridColumnLetter(c)), cols);
+    if (hiddenColumns.length) out.hiddenColumns = hiddenColumns;
+    else delete out.hiddenColumns;
   }
   if (data.merges) {
     const merges = data.merges.map((m) => weSheetMoveReferences(m, axis, at, count)).filter((m) => !m.includes('#REF!'));
@@ -1066,7 +1084,8 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
         freeze: data.freeze ?? (data.freezeColumn ? { rows: 0, cols: 1 } : undefined),
         conditionalFormats: (data.formats ?? []).map(excelConditionalFormat).filter((f): f is WeGridXlsxConditionalFormat => f !== null),
         notes: Object.fromEntries(Object.entries(data.cells).filter(([, c]) => !!c.n).map(([ref, c]) => [ref, c.n as string])),
-        hiddenRows: data.hidden?.map((r) => r + 1)
+        hiddenRows: data.hidden?.map((r) => r + 1),
+        hiddenColumns: data.hiddenColumns?.map((l) => weGridColumnIndex(l))
       };
     })
   );
@@ -1091,6 +1110,7 @@ export function weSheetFromCells(
     conditionalFormats?: readonly WeGridXlsxConditionalFormat[];
     notes?: Readonly<Record<string, string>>;
     hiddenRows?: readonly number[];
+    hiddenColumns?: readonly number[];
   } = {}
 ): { data: WeSheetData; truncated: boolean } {
   const cells: Record<string, WeSheetCell> = {};
@@ -1179,6 +1199,9 @@ export function weSheetFromCells(
   if (hiddenRows.length) data.rows = Math.max(data.rows, Math.max(...hiddenRows) + 2);
   const hidden = weSheetSanitizeHidden(hiddenRows, data.rows);
   if (hidden.length) data.hidden = hidden;
+  // Hidden columns, by index; empty hidden columns past the data are left out
+  const hiddenColumns = weSheetSanitizeHiddenColumns((extras.hiddenColumns ?? []).filter((c) => Number.isInteger(c) && c >= 0 && c < data.cols).map((c) => weGridColumnLetter(c)), data.cols);
+  if (hiddenColumns.length) data.hiddenColumns = hiddenColumns;
   // Conditional formatting, one rule per column of each range (the sheet's rules cover one column)
   const rules: WeSheetFormatRule[] = [];
   for (const cf of extras.conditionalFormats ?? []) {
