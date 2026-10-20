@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.34.0 — 2026-10-20
+
+Conditional formatting in Excel files. A minor release.
+
+### Added
+
+- `<we-sheet>` Excel export writes its conditional formatting as Excel's own rules — highlight
+  rules (greater than, between, contains, begins with, blanks …), top/bottom, above/below
+  average, duplicates and unique values, two- and three-colour scales, data bars and icon sets —
+  so they keep working in Excel. `WeGridXlsxSheet.conditionalFormats`
+  (`WeGridXlsxConditionalFormat`). Formula rules have no Excel form and are left out.
+
 ## 0.33.1 — 2026-10-20
 
 Grid fixes. A patch release.

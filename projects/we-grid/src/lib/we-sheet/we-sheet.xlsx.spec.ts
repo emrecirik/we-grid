@@ -232,3 +232,27 @@ describe('dropdown lists, filter buttons and frozen panes in Excel files', () =>
     expect(back.freeze).toEqual({ rows: 1, cols: 1 });
   });
 });
+
+describe('conditional formatting in Excel files', () => {
+  it('writes highlight rules, top/bottom, colour scales, data bars and icon sets', async () => {
+    const data: WeSheetData = {
+      version: 1, rows: 6, cols: 2, cells: { A1: { v: 5 }, A2: { v: 50 }, B1: { v: 'apple' } },
+      formats: [
+        { id: 'a', field: 'A', range: 'A1:A5', type: 'condition', operator: 'gt', value: 10, style: { bold: true, fill: 'green' } },
+        { id: 'b', field: 'A', range: 'A1:A5', type: 'condition', operator: 'top', value: 3, style: { color: 'red' } },
+        { id: 'c', field: 'B', range: 'B1:B5', type: 'condition', operator: 'contains', value: 'pp', style: { italic: true } },
+        { id: 'd', field: 'A', range: 'A1:A5', type: 'colorScale', colors: ['red', 'yellow', 'green'] },
+        { id: 'e', field: 'A', range: 'A1:A5', type: 'dataBar', color: 'blue' },
+        { id: 'f', field: 'A', range: 'A1:A5', type: 'iconSet', icons: 'dots', reverse: true }
+      ]
+    };
+    const text = await new Response(weSheetWorkbookXlsx([{ name: 'C', data }])).text();
+    expect(text).toContain('<cfRule type="cellIs" dxfId="0" priority="1" operator="greaterThan"><formula>10</formula></cfRule>');
+    expect(text).toContain('<cfRule type="top10" dxfId="1" priority="2" rank="3"/>');
+    expect(text).toContain('operator="containsText" text="pp"><formula>NOT(ISERROR(SEARCH(&quot;pp&quot;,B1)))</formula>');
+    expect(text).toContain('<cfvo type="percentile" val="50"/>');
+    expect(text).toContain('<dataBar>');
+    expect(text).toContain('<iconSet iconSet="3TrafficLights1" reverse="1">');
+    expect(text).toContain('<dxfs count="3"><dxf><font><b/></font><fill><patternFill patternType="solid"><bgColor rgb="FFE1F6E6"/></patternFill></fill></dxf>');
+  });
+});

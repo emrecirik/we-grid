@@ -366,6 +366,35 @@ export interface WeGridXlsxSheet {
   autoFilter?: string;
   /** Rows and columns that stay in view */
   freeze?: { rows: number; cols: number };
+  /** Conditional formatting, in Excel's own terms */
+  conditionalFormats?: WeGridXlsxConditionalFormat[];
+}
+
+/** One conditional format rule for `weGridBuildXlsxWorkbook`, as Excel names it (a `cfRule`) */
+export interface WeGridXlsxConditionalFormat {
+  /** The cells, `'B2:B20'` */
+  ref: string;
+  type:
+    | 'cellIs' | 'top10' | 'aboveAverage' | 'duplicateValues' | 'uniqueValues' | 'containsText' | 'notContainsText'
+    | 'beginsWith' | 'endsWith' | 'containsBlanks' | 'notContainsBlanks' | 'colorScale' | 'dataBar' | 'iconSet';
+  /** `cellIs`: greaterThan, between, equal … */
+  operator?: string;
+  /** Excel formulas without `=` — the compared values, or the test of a text or blank rule */
+  formulas?: string[];
+  /** `containsText` / `beginsWith` / `endsWith`: the text */
+  text?: string;
+  /** `top10`: how many, and whether from the bottom */
+  rank?: number;
+  bottom?: boolean;
+  /** `aboveAverage`: below it instead */
+  below?: boolean;
+  /** What a matching cell looks like — colours in hex */
+  style?: { bold?: boolean; italic?: boolean; underline?: boolean; strike?: boolean; color?: string; fill?: string };
+  /** `colorScale`: two or three colours from low to high; `dataBar`: one */
+  colors?: string[];
+  /** `iconSet`: `3Arrows`, `3TrafficLights1` … */
+  iconSet?: string;
+  reverse?: boolean;
 }
 
 const BUILTIN_FORMATS: Record<string, number> = {
@@ -385,7 +414,6 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
   // Fonts and fills are numbered as they turn up; fills 0 and 1 are the two Excel requires
   const fonts = new Map<string, number>([['', 0]]);
   const fills = new Map<string, number>([['none', 0], ['gray125', 1]]);
-  const hex = (c: string | undefined) => (c && /^#?[0-9a-f]{6}$/i.test(c) ? `FF${c.replace('#', '').toUpperCase()}` : '');
   const styleOf = (cell: WeGridXlsxCell): number => {
     const fontKey = `${cell.bold ? 'b' : ''}${cell.italic ? 'i' : ''}${cell.strike ? 's' : ''}${cell.underline ? 'u' : ''}${hex(cell.color) ? `:${hex(cell.color)}` : ''}`;
     let font = fonts.get(fontKey);
@@ -422,6 +450,24 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
     return index;
   };
 
+  const hex = (c: string | undefined) => (c && /^#?[0-9a-f]{6}$/i.test(c) ? `FF${c.replace('#', '').toUpperCase()}` : '');
+  // Differential formats — what a conditional rule changes — shared by every sheet
+  const dxfs: string[] = [];
+  const dxfOf = (style: NonNullable<WeGridXlsxConditionalFormat['style']>): number => {
+    const color = hex(style.color);
+    const fill = hex(style.fill);
+    const xml =
+      `<dxf>` +
+      (style.bold || style.italic || style.strike || style.underline || color
+        ? `<font>${style.bold ? '<b/>' : ''}${style.italic ? '<i/>' : ''}${style.strike ? '<strike/>' : ''}${style.underline ? '<u/>' : ''}${color ? `<color rgb="${color}"/>` : ''}</font>`
+        : '') +
+      (fill ? `<fill><patternFill patternType="solid"><bgColor rgb="${fill}"/></patternFill></fill>` : '') +
+      `</dxf>`;
+    const at = dxfs.indexOf(xml);
+    if (at >= 0) return at;
+    dxfs.push(xml);
+    return dxfs.length - 1;
+  };
   const used = new Set<string>();
   const parts = sheets.map((sheet, i) => {
     const base = weGridXlsxSheetName(sheet.name || `Sheet${i + 1}`);
@@ -452,6 +498,7 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
       `<sheetData>${rows.join('')}</sheetData>` +
       (sheet.autoFilter ? `<autoFilter ref="${escapeXml(sheet.autoFilter)}"/>` : '') +
       (sheet.merges?.length ? `<mergeCells count="${sheet.merges.length}">${sheet.merges.map((m) => `<mergeCell ref="${escapeXml(m)}"/>`).join('')}</mergeCells>` : '') +
+      conditionalFormattingXml(sheet.conditionalFormats ?? [], dxfOf) +
       dataValidationsXml(sheet.lists ?? []) +
       `</worksheet>`;
     return { name, xml };
@@ -498,6 +545,7 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
       .join('') +
     `</cellXfs>` +
     `<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>` +
+    (dxfs.length ? `<dxfs count="${dxfs.length}">${dxfs.join('')}</dxfs>` : '') +
     `</styleSheet>`;
   return buildPackage(parts, styles);
 }
@@ -511,6 +559,61 @@ function sheetViewXml(freeze: WeGridXlsxSheet['freeze']): string {
     `<sheetViews><sheetView workbookViewId="0"><pane${freeze.cols ? ` xSplit="${freeze.cols}"` : ''}${freeze.rows ? ` ySplit="${freeze.rows}"` : ''}` +
     ` topLeftCell="${topLeft}" activePane="${pane}" state="frozen"/></sheetView></sheetViews>`
   );
+}
+
+/** Conditional formatting as Excel writes it: one block per range, rules in priority order */
+function conditionalFormattingXml(rules: readonly WeGridXlsxConditionalFormat[], dxfOf: (style: NonNullable<WeGridXlsxConditionalFormat['style']>) => number): string {
+  if (!rules.length) return '';
+  const rgb = (c: string) => `FF${c.replace('#', '').toUpperCase()}`;
+  const byRef = new Map<string, string[]>();
+  rules.forEach((r, i) => {
+    const priority = i + 1;
+    const dxf = r.style ? ` dxfId="${dxfOf(r.style)}"` : '';
+    const formulas = (r.formulas ?? []).map((f) => `<formula>${escapeXml(sanitiseXmlText(f))}</formula>`).join('');
+    let xml: string;
+    switch (r.type) {
+      case 'colorScale': {
+        const colors = (r.colors ?? []).slice(0, 3);
+        const stops = colors.length === 3 ? '<cfvo type="min"/><cfvo type="percentile" val="50"/><cfvo type="max"/>' : '<cfvo type="min"/><cfvo type="max"/>';
+        xml = `<cfRule type="colorScale" priority="${priority}"><colorScale>${stops}${colors.map((c) => `<color rgb="${rgb(c)}"/>`).join('')}</colorScale></cfRule>`;
+        break;
+      }
+      case 'dataBar':
+        xml = `<cfRule type="dataBar" priority="${priority}"><dataBar><cfvo type="min"/><cfvo type="max"/><color rgb="${rgb(r.colors?.[0] ?? '#638ec6')}"/></dataBar></cfRule>`;
+        break;
+      case 'iconSet':
+        xml =
+          `<cfRule type="iconSet" priority="${priority}"><iconSet iconSet="${escapeXml(r.iconSet ?? '3Arrows')}"${r.reverse ? ' reverse="1"' : ''}>` +
+          `<cfvo type="percent" val="0"/><cfvo type="percent" val="33"/><cfvo type="percent" val="67"/></iconSet></cfRule>`;
+        break;
+      case 'top10':
+        xml = `<cfRule type="top10"${dxf} priority="${priority}" rank="${r.rank ?? 10}"${r.bottom ? ' bottom="1"' : ''}/>`;
+        break;
+      case 'aboveAverage':
+        xml = `<cfRule type="aboveAverage"${dxf} priority="${priority}"${r.below ? ' aboveAverage="0"' : ''}/>`;
+        break;
+      case 'duplicateValues':
+      case 'uniqueValues':
+        xml = `<cfRule type="${r.type}"${dxf} priority="${priority}"/>`;
+        break;
+      case 'containsText':
+      case 'notContainsText':
+      case 'beginsWith':
+      case 'endsWith': {
+        const op = r.type === 'notContainsText' ? 'notContains' : r.type;
+        xml = `<cfRule type="${r.type}"${dxf} priority="${priority}" operator="${op}" text="${escapeXml(sanitiseXmlText(r.text ?? ''))}">${formulas}</cfRule>`;
+        break;
+      }
+      case 'containsBlanks':
+      case 'notContainsBlanks':
+        xml = `<cfRule type="${r.type}"${dxf} priority="${priority}">${formulas}</cfRule>`;
+        break;
+      default:
+        xml = `<cfRule type="cellIs"${dxf} priority="${priority}" operator="${escapeXml(r.operator ?? 'equal')}">${formulas}</cfRule>`;
+    }
+    byRef.set(r.ref, [...(byRef.get(r.ref) ?? []), xml]);
+  });
+  return [...byRef].map(([ref, xml]) => `<conditionalFormatting sqref="${escapeXml(ref)}">${xml.join('')}</conditionalFormatting>`).join('');
 }
 
 /** Dropdown lists as list validations — Excel takes up to 255 characters of choices, without commas */

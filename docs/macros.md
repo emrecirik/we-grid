@@ -75,7 +75,7 @@ English and case-insensitive. Text values go in double quotes (`""` for a quote 
 | `DATABAR [Column] BLUE` · `COLORSCALE [Column] RED YELLOW GREEN` | Data bars and two- or three-colour scales |
 | `ICONSET [Column] ARROWS` · `ICONSET [Column] DOTS REVERSE` | Icon sets (0.16.0) |
 | `CLEAR FORMATS` · `CLEAR FORMATS [Column]` | Removes format rules |
-| `SET [Column] = formula WHERE condition` | Writes a formula's result into a column, for the rows shown (and matching the optional `WHERE`). Goes through `(rowsPaste)` like a paste — or straight into the rows when nobody listens. Read-only and formula columns refuse |
+| `SET [Column] = formula WHERE condition` | Writes a formula's result into a column, for the rows shown (and matching the optional `WHERE`). Goes through `(rowsPaste)` like a paste — or straight into the rows when nobody listens. Read-only and formula columns refuse, and so does a grid without `editable` *(0.33.1)* |
 | `VIEW "Name"` | Applies a saved view |
 | `EXPORT XLSX` / `CSV` / `PDF` | Exports, as the toolbar would |
 | `RUN name` | Calls `macroCommands[name](grid)` and waits for it |

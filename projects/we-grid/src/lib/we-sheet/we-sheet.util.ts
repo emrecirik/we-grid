@@ -1,6 +1,6 @@
 import { WE_GRID_FORMAT_COLORS } from '../models/we-grid-format.model';
 import { WE_GRID_FORMULA_ALIASES, WeGridFormulaError, WeGridSheetEvaluator, weGridColumnIndex, weGridColumnLetter } from '../services/we-grid-formula.util';
-import { WeGridXlsxCell, WeGridXlsxCellFormat, weGridBuildXlsxWorkbook, weGridXlsxSheetName } from '../services/we-grid-xlsx.util';
+import { WeGridXlsxCell, WeGridXlsxCellFormat, WeGridXlsxConditionalFormat, weGridBuildXlsxWorkbook, weGridXlsxSheetName } from '../services/we-grid-xlsx.util';
 import { weGridFormatHex, weGridNearestFormatColor, weGridSanitizeCellStyle, weGridSanitizeFormatRules } from '../services/we-grid-format.util';
 import { WeSheetCell, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat } from './we-sheet.model';
 
@@ -808,6 +808,62 @@ function sheetFormatOf(code: string): { f: WeSheetNumberFormat; d?: number } | n
   return null;
 }
 
+/** A sheet's conditional format rule in Excel's terms, or null for one Excel has no form for (formula rules) */
+function excelConditionalFormat(rule: WeSheetFormatRule): WeGridXlsxConditionalFormat | null {
+  const ref = rule.range;
+  const first = ref.split(':')[0];
+  const literal = (v: unknown) => (typeof v === 'number' ? String(v) : `"${String(v ?? '').replace(/"/g, '""')}"`);
+  const style = rule.style
+    ? {
+        bold: rule.style.bold,
+        italic: rule.style.italic,
+        underline: rule.style.underline,
+        strike: rule.style.strike,
+        color: rule.style.color ? weGridFormatHex(rule.style.color, 'fg') : undefined,
+        fill: rule.style.fill ? weGridFormatHex(rule.style.fill, 'bg') : undefined
+      }
+    : undefined;
+  if (rule.type === 'colorScale') return { ref, type: 'colorScale', colors: (rule.colors ?? []).map((c) => weGridFormatHex(c, 'fg')) };
+  if (rule.type === 'dataBar') return { ref, type: 'dataBar', colors: [weGridFormatHex(rule.color ?? 'blue', 'fg')] };
+  if (rule.type === 'iconSet') return { ref, type: 'iconSet', iconSet: rule.icons === 'dots' ? '3TrafficLights1' : '3Arrows', reverse: rule.reverse };
+  const text = String(rule.value ?? '');
+  const cellIs: Partial<Record<string, string>> = {
+    gt: 'greaterThan', gte: 'greaterThanOrEqual', lt: 'lessThan', lte: 'lessThanOrEqual', eq: 'equal', neq: 'notEqual', between: 'between', notBetween: 'notBetween'
+  };
+  const op = rule.operator ?? 'eq';
+  if (cellIs[op]) {
+    const formulas = op === 'between' || op === 'notBetween' ? [literal(rule.value), literal(rule.value2)] : [literal(rule.value)];
+    return { ref, type: 'cellIs', operator: cellIs[op], formulas, style };
+  }
+  const q = literal(text);
+  switch (op) {
+    case 'contains':
+      return { ref, type: 'containsText', text, formulas: [`NOT(ISERROR(SEARCH(${q},${first})))`], style };
+    case 'notContains':
+      return { ref, type: 'notContainsText', text, formulas: [`ISERROR(SEARCH(${q},${first}))`], style };
+    case 'startsWith':
+      return { ref, type: 'beginsWith', text, formulas: [`LEFT(${first},LEN(${q}))=${q}`], style };
+    case 'endsWith':
+      return { ref, type: 'endsWith', text, formulas: [`RIGHT(${first},LEN(${q}))=${q}`], style };
+    case 'empty':
+      return { ref, type: 'containsBlanks', formulas: [`LEN(TRIM(${first}))=0`], style };
+    case 'notEmpty':
+      return { ref, type: 'notContainsBlanks', formulas: [`LEN(TRIM(${first}))>0`], style };
+    case 'top':
+    case 'bottom':
+      return { ref, type: 'top10', rank: Number(rule.value) || 10, bottom: op === 'bottom', style };
+    case 'aboveAverage':
+    case 'belowAverage':
+      return { ref, type: 'aboveAverage', below: op === 'belowAverage', style };
+    case 'duplicate':
+      return { ref, type: 'duplicateValues', style };
+    case 'unique':
+      return { ref, type: 'uniqueValues', style };
+    default:
+      return null;
+  }
+}
+
 /** The Excel number format code of a sheet cell's format */
 function excelNumberFormat(cell: WeSheetCell): string | undefined {
   const d = cell.d;
@@ -924,7 +980,8 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
         merges: data.merges,
         lists: [...byList.values()].map((l) => ({ ref: l.ref.join(' '), values: l.values })),
         autoFilter: data.autoFilter && data.headerRow && used.length ? `A1:${weSheetAddress(lastCol, lastRow)}` : undefined,
-        freeze: data.freeze ?? (data.freezeColumn ? { rows: 0, cols: 1 } : undefined)
+        freeze: data.freeze ?? (data.freezeColumn ? { rows: 0, cols: 1 } : undefined),
+        conditionalFormats: (data.formats ?? []).map(excelConditionalFormat).filter((f): f is WeGridXlsxConditionalFormat => f !== null)
       };
     })
   );
