@@ -1,8 +1,8 @@
 import { WE_GRID_FORMAT_COLORS, WeGridCellStyle, WeGridFormatColor } from '../models/we-grid-format.model';
 import { WE_GRID_FORMULA_ALIASES, WeGridFormulaError, WeGridSheetEvaluator, weGridColumnIndex, weGridColumnLetter } from '../services/we-grid-formula.util';
-import { WeGridXlsxCell, WeGridXlsxCellFormat, WeGridXlsxConditionalFormat, weGridBuildXlsxWorkbook, weGridXlsxSheetName } from '../services/we-grid-xlsx.util';
+import { WeGridXlsxCell, WeGridXlsxCellFormat, WeGridXlsxChart, WeGridXlsxConditionalFormat, weGridBuildXlsxWorkbook, weGridXlsxSheetName } from '../services/we-grid-xlsx.util';
 import { weGridFormatHex, weGridNearestFormatColor, weGridSanitizeCellStyle, weGridSanitizeFormatRules } from '../services/we-grid-format.util';
-import { WeSheetCell, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat } from './we-sheet.model';
+import { WeSheetCell, WeSheetChart, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat } from './we-sheet.model';
 
 /** Limits applied to anything loaded from a store — keep a hostile record from freezing the page */
 export const WE_SHEET_MAX_ROWS = 5000;
@@ -1101,6 +1101,23 @@ function excelConditionalFormat(rule: WeSheetFormatRule): WeGridXlsxConditionalF
   }
 }
 
+/** The sheet's chart in Excel's terms, read the way the sheet draws it: first column categories, first row the series names when it is text */
+function excelChart(data: WeSheetData, evaluator: WeGridSheetEvaluator): WeGridXlsxChart | undefined {
+  const [a, b] = (data.chart?.range ?? '').split(':').map((x) => weSheetParseAddress(x));
+  if (!data.chart || !a || !b) return undefined;
+  const r = weSheetNormalize(a, b);
+  const headerIsText = r.r2 > r.r1 && Array.from({ length: r.c2 - r.c1 }, (_, i) => evaluator.value(r.c1 + 1 + i, r.r1)).every((v) => typeof v !== 'number');
+  const firstRow = headerIsText ? r.r1 + 1 : r.r1;
+  const hasCategories = r.c2 > r.c1;
+  const firstCol = hasCategories ? r.c1 + 1 : r.c1;
+  if (firstRow > r.r2) return undefined;
+  const col = (c: number) => weSheetAddress(c, firstRow) + ':' + weSheetAddress(c, r.r2);
+  const series: WeGridXlsxChart['series'] = [];
+  for (let c = firstCol; c <= r.c2; c++) series.push({ ...(headerIsText ? { name: weSheetAddress(c, r.r1) } : {}), values: col(c) });
+  // Beside the data, as Excel puts a new chart
+  return { type: data.chart.type, ...(hasCategories ? { categories: col(r.c1) } : {}), series, at: { col: r.c2 + 2, row: r.r1 } };
+}
+
 /** The Excel number format code of a sheet cell's format */
 function excelNumberFormat(cell: WeSheetCell): string | undefined {
   const d = cell.d;
@@ -1240,6 +1257,7 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
         notes: Object.fromEntries(Object.entries(data.cells).filter(([, c]) => !!c.n).map(([ref, c]) => [ref, c.n as string])),
         hiddenRows: data.hidden?.map((r) => r + 1),
         names: data.names,
+        chart: excelChart(data, evaluator),
         heights: data.heights ? Object.fromEntries(Object.entries(data.heights).map(([k, h]) => [Number(k) - 1, h])) : undefined,
         tabColor: color ? weGridFormatHex(color, 'fg') : undefined,
         hiddenColumns: data.hiddenColumns?.map((l) => weGridColumnIndex(l))
@@ -1270,6 +1288,7 @@ export function weSheetFromCells(
     hiddenColumns?: readonly number[];
     heights?: Readonly<Record<number, number>>;
     names?: Readonly<Record<string, string>>;
+    chart?: { type: WeSheetChart['type']; range: string };
   } = {}
 ): { data: WeSheetData; truncated: boolean } {
   const cells: Record<string, WeSheetCell> = {};
@@ -1360,6 +1379,13 @@ export function weSheetFromCells(
   if (hidden.length) data.hidden = hidden;
   const names = weSheetSanitizeNames(extras.names);
   if (Object.keys(names).length) data.names = names;
+  // A chart over cells the sheet holds; the sheet grows to them
+  const [ca, cb] = (extras.chart?.range ?? '').split(':').map((x) => weSheetParseAddress(x));
+  if (extras.chart && ca && cb && CHART_TYPES.has(extras.chart.type) && cb.row < WE_SHEET_MAX_ROWS && cb.col < WE_SHEET_MAX_COLS) {
+    data.chart = { range: extras.chart.range, type: extras.chart.type };
+    data.rows = Math.max(data.rows, cb.row + 1);
+    data.cols = Math.max(data.cols, cb.col + 1);
+  }
   // Row heights the file set, by row index; rows past the sheet's edge are left out
   const heights: Record<string, number> = {};
   for (const [r, h] of Object.entries(extras.heights ?? {})) {

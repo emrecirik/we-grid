@@ -305,7 +305,7 @@ Several sheets behind tabs — inputs `workbookKey`, `data` (`WeWorkbookData`), 
 - `WeGridDefaultExporter` (default `WE_GRID_EXPORTER`), `WeGridDefaultImportParser`
   (default `WE_GRID_IMPORT_PARSER`)
 - `weGridToCsv(table, options?)`, `weGridParseCsv(text, options?)`, `weGridDownloadBlob(blob, fileName)`
-- `weGridBuildXlsx(table)`, `weGridReadXlsx(file)`; *(0.20.0)* `weGridBuildXlsxWorkbook(sheets)` (cell by cell, with formulas, number formats and several sheets — `WeGridXlsxSheet`, `WeGridXlsxCell`) and `weGridReadXlsxCells(file, shift?)` (every worksheet where its cells stand, formulas as `=…`, merges and *(0.31.0)* each cell's look — `WeGridXlsxCellSheet`, `WeGridXlsxCellFormat`)
+- `weGridBuildXlsx(table)`, `weGridReadXlsx(file)`; *(0.20.0)* `weGridBuildXlsxWorkbook(sheets)` (cell by cell, with formulas, number formats and several sheets — `WeGridXlsxSheet`, `WeGridXlsxCell`) and `weGridReadXlsxCells(file, shift?)` (every worksheet where its cells stand, formulas as `=…`, merges and *(0.31.0)* each cell's look — `WeGridXlsxCellSheet`, `WeGridXlsxCellFormat`). Both sides also carry *(0.37.0–0.49.0)* `notes` (comments), `hiddenRows` / `hiddenColumns`, `heights`, `tabColor`, `names` (defined names) and `chart` (`WeGridXlsxChart` when writing; its kind and range when reading)
 - `weGridBuildPrintDocument(table, options?)`, `weGridPrintTable(table, options?)`
 - `weGridMapImportedRows(sheet, columns)`, `weGridCoerceImportValue(raw, column)` — one cell's text
   in the column's type, shared by import and paste

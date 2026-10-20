@@ -2,6 +2,14 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.49.0 — 2026-10-20
+
+### Added
+
+- The sheet's chart goes into its Excel file as an Excel chart (column, bar, line, area, pie,
+  doughnut) beside its data, reading the same cells, and an opened .xlsx brings its first chart
+  over its own cells back (`WeGridXlsxChart`, `WeGridXlsxSheet.chart`, `WeGridXlsxCellSheet.chart`).
+
 ## 0.48.0 — 2026-10-20
 
 ### Added

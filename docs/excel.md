@@ -31,7 +31,7 @@ browser with no dependency beyond Angular CDK.
 | Notes / comments | Notes | Sheet: right-click → Note… |
 | Find and replace (Ctrl+F, Ctrl+H) | Same keys | Sheet · Grid: the search box finds across columns |
 | PivotTable | `<we-pivot>` | [pivot.md](pivot.md) |
-| Charts | `<we-chart>`, and charts from a sheet selection or a pivot | [charts.md](charts.md) |
+| Charts | `<we-chart>`, and charts from a sheet selection or a pivot; *(0.49.0)* a sheet's chart goes into its Excel file as a real chart, and comes back | [charts.md](charts.md) |
 | Subtotals, outline | Grouping with group summaries, several levels | Grid — [grouping.md](grouping.md) |
 | Macros (record, edit, buttons) | A safe step language — recorder, editor, toolbar buttons, your own TypeScript commands | Grid — [macros.md](macros.md) |
 | Custom views | Saved views, shareable as a link | Grid — [saved-views.md](saved-views.md) |
@@ -39,5 +39,5 @@ browser with no dependency beyond Angular CDK.
 | Open / save .xlsx | Import and export; the sheet keeps formulas, number formats and every sheet | Grid and Sheet — [export-import.md](export-import.md) |
 | Get Data (a database) | The we-report data protocol with .NET, Java, Node.js, Python, Go and PHP backends | [data-sources.md](data-sources.md) |
 
-Not there (yet): charts inside the exported .xlsx, array formulas that spill,
+Not there (yet): array formulas that spill,
 `TEXT` date codes, pivot charts in Excel files.

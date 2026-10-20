@@ -49,11 +49,14 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - **Your database in a few lines**: a client for the we-report data protocol with ready backends in **.NET, Spring Boot, Node.js, Python, Go and PHP** — server-side paging, filtering and checklist values, and layouts/views/sheets saved on the server ([docs](docs/data-sources.md))
 - **`<we-chart>`** column, bar, line, area, pie and donut charts in plain SVG — and charts straight from the pivot table and the spreadsheet ([docs](docs/charts.md))
 - **`<we-pivot>`** pivot tables: rows, columns and sum/count/average/min/max values from chips, with subtotals, totals and export ([docs](docs/pivot.md))
-- **`<we-sheet>`**, a spreadsheet in the same package: A1 formulas, a formula bar, copy and paste
-  with Excel, undo, styles, number formats, sorting, a fill handle, dropdown lists, notes,
-  conditional formatting, filter buttons, find and replace, a sum/average status bar and
-  multi-sheet **`<we-workbook>`** — opened from and saved to real `.xlsx` workbooks with their
-  formulas ([docs](docs/sheet.md))
+- **`<we-sheet>`**, a spreadsheet in the same package: A1 formulas and named ranges, a formula bar,
+  copy and paste with Excel, undo, styles, number formats (dates and times too), merge and centre,
+  borders, wrap, a format painter, sorting, a fill handle, dropdown lists, notes, conditional
+  formatting, filter buttons, freeze panes, hidden rows and columns, row heights, text to columns,
+  remove duplicates, find and replace, charts, a sum/average status bar and multi-sheet
+  **`<we-workbook>`** with coloured tabs — opened from and saved to real `.xlsx` workbooks that keep
+  all of it: formulas, names, formats, notes, filters, conditional formatting and charts
+  ([docs](docs/sheet.md))
 - **Multi-level grouping** with record counts and group summaries — automatic sums for numeric
   columns, per-column functions, in the group header or in a footer row under the columns
 - **Tree rows**: children in the same columns as their parent, indented and collapsible, with

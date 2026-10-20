@@ -66,9 +66,11 @@ default theme to your global styles:
 - Macros: scripted grid steps run from toolbar buttons, a recorder, and your own commands
 - `<we-chart>`: column, bar, line, area, pie and donut charts in SVG
 - `<we-pivot>`: pivot tables with subtotals, totals and export
-- `<we-sheet>` / `<we-workbook>`: a spreadsheet with A1 formulas, a formula bar, Excel copy/paste,
-  undo, number formats, sorting, a fill handle, dropdown lists, notes, conditional formatting,
-  filter buttons, and `.xlsx` import/export that keeps formulas and every sheet
+- `<we-sheet>` / `<we-workbook>`: a spreadsheet with A1 formulas and named ranges, a formula bar,
+  Excel copy/paste, undo, number formats, merge, borders, a format painter, sorting, a fill handle,
+  dropdown lists, notes, conditional formatting, filter buttons, freeze panes, hidden rows and
+  columns, text to columns, remove duplicates, charts and coloured sheet tabs — and `.xlsx`
+  import/export that keeps formulas, names, formats, notes and charts on every sheet
 - An optional Apple-style theme (`styles/we-grid-theme-apple.scss`)
 
 ![The Status column opened into a checklist of order statuses, two of them ticked](https://raw.githubusercontent.com/emrecirik/we-grid/main/docs/images/checklist-filter.png)

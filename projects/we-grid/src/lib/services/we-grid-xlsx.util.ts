@@ -340,9 +340,10 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
 }
 
 /** The .xlsx package around worksheet XML: content types, relationships, workbook and styles */
-function buildPackage(sheets: { name: string; xml: string; notes?: Record<string, string> }[], styles: string, definedNames = ''): Blob {
+function buildPackage(sheets: { name: string; xml: string; notes?: Record<string, string>; chart?: WeGridXlsxChart }[], styles: string, definedNames = ''): Blob {
   const encoder = new TextEncoder();
   const noted = sheets.map((s) => !!s.notes && Object.keys(s.notes).length > 0);
+  const charted = sheets.map((s) => !!s.chart && s.chart.series.length > 0);
   const contentTypes =
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
     `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">` +
@@ -350,6 +351,14 @@ function buildPackage(sheets: { name: string; xml: string; notes?: Record<string
     `<Default Extension="xml" ContentType="application/xml"/>` +
     (noted.some(Boolean) ? `<Default Extension="vml" ContentType="application/vnd.openxmlformats-officedocument.vmlDrawing"/>` : '') +
     sheets.map((_, i) => (noted[i] ? `<Override PartName="/xl/comments${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"/>` : '')).join('') +
+    sheets
+      .map((_, i) =>
+        charted[i]
+          ? `<Override PartName="/xl/drawings/drawing${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>` +
+            `<Override PartName="/xl/charts/chart${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`
+          : ''
+      )
+      .join('') +
     `<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>` +
     sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('') +
     `<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>` +
@@ -384,8 +393,92 @@ function buildPackage(sheets: { name: string; xml: string; notes?: Record<string
     { name: 'xl/_rels/workbook.xml.rels', data: encoder.encode(workbookRels) },
     { name: 'xl/styles.xml', data: encoder.encode(styles) },
     ...sheets.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: encoder.encode(s.xml) })),
-    ...sheets.flatMap((s, i) => (noted[i] ? notesParts(s.notes!, i + 1).map((p) => ({ name: p.name, data: encoder.encode(p.xml) })) : []))
+    ...sheets.flatMap((s, i) => sheetParts(s, i + 1, noted[i], charted[i]).map((p) => ({ name: p.name, data: encoder.encode(p.xml) })))
   ]);
+}
+
+/** A sheet's own parts beside its worksheet — notes, a chart — and the relationships to them (comments rId1, VML rId2, drawing rId3) */
+function sheetParts(sheet: { name: string; notes?: Record<string, string>; chart?: WeGridXlsxChart }, n: number, noted: boolean, charted: boolean): { name: string; xml: string }[] {
+  if (!noted && !charted) return [];
+  const rel = (id: number, type: string, target: string) => `<Relationship Id="rId${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/${type}" Target="${target}"/>`;
+  const rels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    (noted ? rel(1, 'comments', `../comments${n}.xml`) + rel(2, 'vmlDrawing', `../drawings/vmlDrawing${n}.vml`) : '') +
+    (charted ? rel(3, 'drawing', `../drawings/drawing${n}.xml`) : '') +
+    `</Relationships>`;
+  return [
+    ...(noted ? notesParts(sheet.notes!, n) : []),
+    ...(charted ? chartParts(sheet.chart!, sheet.name, n) : []),
+    { name: `xl/worksheets/_rels/sheet${n}.xml.rels`, xml: rels }
+  ];
+}
+
+/** A chart as DrawingML: the drawing that places it on the sheet and the chart itself, its data read from the sheet's cells */
+function chartParts(chart: WeGridXlsxChart, sheetName: string, n: number): { name: string; xml: string }[] {
+  const C = 'http://schemas.openxmlformats.org/drawingml/2006/chart';
+  const A = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+  const R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const abs = (ref: string) => ref.toUpperCase().split(':').map((p) => p.replace(/^\$?([A-Z]+)\$?(\d+)$/, '$$$1$$$2')).join(':');
+  const ref = (cells: string) => escapeXml(`'${sheetName.replace(/'/g, "''")}'!${abs(cells)}`);
+  const series = chart.series
+    .map(
+      (s, i) =>
+        `<c:ser><c:idx val="${i}"/><c:order val="${i}"/>` +
+        (s.name ? `<c:tx><c:strRef><c:f>${ref(s.name)}</c:f></c:strRef></c:tx>` : '') +
+        (chart.type === 'line' ? `<c:marker><c:symbol val="circle"/><c:size val="5"/></c:marker>` : '') +
+        (chart.categories ? `<c:cat><c:strRef><c:f>${ref(chart.categories)}</c:f></c:strRef></c:cat>` : '') +
+        `<c:val><c:numRef><c:f>${ref(s.values)}</c:f></c:numRef></c:val></c:ser>`
+    )
+    .join('');
+  const axIds = `<c:axId val="10"/><c:axId val="100"/>`;
+  const horizontal = chart.type === 'bar';
+  const axes =
+    `<c:catAx><c:axId val="10"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="${horizontal ? 'l' : 'b'}"/>` +
+    `<c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="100"/><c:crosses val="autoZero"/><c:lblOffset val="100"/></c:catAx>` +
+    `<c:valAx><c:axId val="100"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/><c:axPos val="${horizontal ? 'b' : 'l'}"/><c:majorGridlines/>` +
+    `<c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:crossAx val="10"/><c:crosses val="autoZero"/></c:valAx>`;
+  let plot: string;
+  switch (chart.type) {
+    case 'line':
+      plot = `<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>${series}<c:marker val="1"/>${axIds}</c:lineChart>${axes}`;
+      break;
+    case 'area':
+      plot = `<c:areaChart><c:grouping val="standard"/><c:varyColors val="0"/>${series}${axIds}</c:areaChart>${axes}`;
+      break;
+    case 'pie':
+      plot = `<c:pieChart><c:varyColors val="1"/>${series}<c:firstSliceAng val="0"/></c:pieChart>`;
+      break;
+    case 'donut':
+      plot = `<c:doughnutChart><c:varyColors val="1"/>${series}<c:firstSliceAng val="0"/><c:holeSize val="50"/></c:doughnutChart>`;
+      break;
+    default:
+      plot = `<c:barChart><c:barDir val="${horizontal ? 'bar' : 'col'}"/><c:grouping val="clustered"/><c:varyColors val="0"/>${series}<c:gapWidth val="150"/>${axIds}</c:barChart>${axes}`;
+  }
+  const chartXml =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<c:chartSpace xmlns:c="${C}" xmlns:a="${A}" xmlns:r="${R}"><c:roundedCorners val="0"/>` +
+    `<c:chart><c:autoTitleDeleted val="1"/><c:plotArea><c:layout/>${plot}</c:plotArea>` +
+    `<c:legend><c:legendPos val="b"/><c:overlay val="0"/></c:legend><c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart></c:chartSpace>`;
+  const at = chart.at ?? { col: 0, row: 0 };
+  // 15 × 7.5 cm, as Excel sizes a new chart
+  const drawing =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="${A}">` +
+    `<xdr:oneCellAnchor><xdr:from><xdr:col>${at.col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${at.row}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>` +
+    `<xdr:ext cx="5400000" cy="2700000"/><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="2" name="Chart 1"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>` +
+    `<xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="${C}"><c:chart xmlns:c="${C}" xmlns:r="${R}" r:id="rId1"/></a:graphicData></a:graphic>` +
+    `</xdr:graphicFrame><xdr:clientData/></xdr:oneCellAnchor></xdr:wsDr>`;
+  const drawingRels =
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart${n}.xml"/>` +
+    `</Relationships>`;
+  return [
+    { name: `xl/drawings/drawing${n}.xml`, xml: drawing },
+    { name: `xl/drawings/_rels/drawing${n}.xml.rels`, xml: drawingRels },
+    { name: `xl/charts/chart${n}.xml`, xml: chartXml }
+  ];
 }
 
 /** A sheet's notes as Excel's comments, with the VML drawing that puts the red corner and the box on screen */
@@ -414,17 +507,21 @@ function notesParts(notes: Record<string, string>, n: number): { name: string; x
     `<v:shapetype id="_x0000_t202" coordsize="21600,21600" o:spt="202" path="m,l,21600r21600,l21600,xe"><v:stroke joinstyle="miter"/><v:path gradientshapeok="t" o:connecttype="rect"/></v:shapetype>` +
     shapes +
     `</xml>`;
-  const rels =
-    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
-    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">` +
-    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="../comments${n}.xml"/>` +
-    `<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/vmlDrawing" Target="../drawings/vmlDrawing${n}.vml"/>` +
-    `</Relationships>`;
   return [
     { name: `xl/comments${n}.xml`, xml: comments },
-    { name: `xl/drawings/vmlDrawing${n}.vml`, xml: vml },
-    { name: `xl/worksheets/_rels/sheet${n}.xml.rels`, xml: rels }
+    { name: `xl/drawings/vmlDrawing${n}.vml`, xml: vml }
   ];
+}
+
+/** A chart for `weGridBuildXlsxWorkbook`: ranges on its own sheet, A1-style */
+export interface WeGridXlsxChart {
+  type: 'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut';
+  /** The category labels (`'A2:A9'`), when there are any */
+  categories?: string;
+  /** Each series: the cell with its name (`'B1'`), when there is one, and its values (`'B2:B9'`) */
+  series: { name?: string; values: string }[];
+  /** The cell the chart's top-left corner sits on, 0-based */
+  at?: { col: number; row: number };
 }
 
 // ─── Workbooks with formulas ───────────────────────────────────────────────────────────
@@ -484,6 +581,8 @@ export interface WeGridXlsxSheet {
   tabColor?: string;
   /** Named ranges on this sheet: name → `$B$2:$B$9` */
   names?: Record<string, string>;
+  /** A chart drawn from the sheet's cells */
+  chart?: WeGridXlsxChart;
 }
 
 /** One conditional format rule for `weGridBuildXlsxWorkbook`, as Excel names it (a `cfRule`) */
@@ -627,9 +726,10 @@ export function weGridBuildXlsxWorkbook(sheets: readonly WeGridXlsxSheet[]): Blo
       (sheet.merges?.length ? `<mergeCells count="${sheet.merges.length}">${sheet.merges.map((m) => `<mergeCell ref="${escapeXml(m)}"/>`).join('')}</mergeCells>` : '') +
       conditionalFormattingXml(sheet.conditionalFormats ?? [], dxfOf) +
       dataValidationsXml(sheet.lists ?? []) +
+      (sheet.chart?.series.length ? `<drawing r:id="rId3"/>` : '') +
       (sheet.notes && Object.keys(sheet.notes).length ? `<legacyDrawing r:id="rId2"/>` : '') +
       `</worksheet>`;
-    return { name, xml, notes: sheet.notes };
+    return { name, xml, notes: sheet.notes, chart: sheet.chart };
   });
 
   const styles =
@@ -868,6 +968,39 @@ function stringItemText(item: Element): string {
   return text;
 }
 
+/** A part a relationship points at, as a path in the package */
+function relTarget(from: string, target: string): string {
+  return target.startsWith('/') ? target.slice(1) : new URL(target, `http://x/${from.replace(/[^/]+$/, '')}`).pathname.slice(1);
+}
+
+/** The first chart a sheet's drawing holds, when it is drawn from that sheet's own cells */
+async function readChart(read: (path: string) => Promise<string | null>, sheetPath: string, sheetRels: string, sheetName: string): Promise<{ type: WeGridXlsxChart['type']; range: string } | undefined> {
+  const rels = (xml: string) => Array.from(new DOMParser().parseFromString(xml, 'application/xml').getElementsByTagNameNS('*', 'Relationship'));
+  const drawingTarget = rels(sheetRels).find((r) => /\/drawing$/.test(r.getAttribute('Type') ?? ''))?.getAttribute('Target');
+  if (!drawingTarget) return undefined;
+  const drawingPath = relTarget(sheetPath, drawingTarget);
+  const drawingRels = await read(drawingPath.replace(/([^/]+)$/, '_rels/$1.rels'));
+  const chartTarget = drawingRels ? rels(drawingRels).find((r) => /\/chart$/.test(r.getAttribute('Type') ?? ''))?.getAttribute('Target') : null;
+  const chartXml = chartTarget ? await read(relTarget(drawingPath, chartTarget)) : null;
+  if (!chartXml) return undefined;
+  const doc = new DOMParser().parseFromString(chartXml, 'application/xml');
+  const kinds: Record<string, WeGridXlsxChart['type']> = { barChart: 'column', bar3DChart: 'column', lineChart: 'line', line3DChart: 'line', areaChart: 'area', area3DChart: 'area', pieChart: 'pie', pie3DChart: 'pie', doughnutChart: 'donut' };
+  const plot = Array.from(doc.getElementsByTagNameNS('*', 'plotArea')[0]?.children ?? []).find((el) => kinds[el.localName]);
+  if (!plot) return undefined;
+  const barDir = Array.from(plot.children).find((el) => el.localName === 'barDir')?.getAttribute('val');
+  const type = barDir === 'bar' ? 'bar' : kinds[plot.localName];
+  // Every reference the series make, on this sheet — the range that holds them all
+  let c1 = Infinity, r1 = Infinity, c2 = -1, r2 = -1;
+  for (const f of Array.from(plot.getElementsByTagNameNS('*', 'f'))) {
+    const m = /^(?:'((?:[^']|'')+)'|([^'!]+))!\$?([A-Z]{1,3})\$?(\d+)(?::\$?([A-Z]{1,3})\$?(\d+))?$/.exec((f.textContent ?? '').trim());
+    if (!m || (m[1]?.replace(/''/g, "'") ?? m[2]).toLowerCase() !== sheetName.toLowerCase()) return undefined;
+    const [ca, ra, cb, rb] = [refToColumnIndex(m[3]), Number(m[4]) - 1, refToColumnIndex(m[5] ?? m[3]), Number(m[6] ?? m[4]) - 1];
+    c1 = Math.min(c1, ca, cb); r1 = Math.min(r1, ra, rb); c2 = Math.max(c2, ca, cb); r2 = Math.max(r2, ra, rb);
+  }
+  if (c2 < 0) return undefined;
+  return { type, range: `${columnLetter(c1)}${r1 + 1}:${columnLetter(c2)}${r2 + 1}` };
+}
+
 /** The format codes of Excel's built-in number formats a file refers to by id */
 const BUILTIN_FORMAT_CODES: Record<number, string> = {
   1: '0', 2: '0.00', 3: '#,##0', 4: '#,##0.00', 9: '0%', 10: '0.00%', 11: '0.00E+00', 14: 'mm-dd-yy', 15: 'd-mmm-yy',
@@ -1091,6 +1224,8 @@ export interface WeGridXlsxCellSheet {
   tabColor?: string;
   /** Named ranges that point into this sheet: name → `$B$2:$B$9` */
   names: Record<string, string>;
+  /** The sheet's first chart over its own cells: its kind and the range all its data lies in */
+  chart?: { type: WeGridXlsxChart['type']; range: string };
 }
 
 /** A cell's look as an .xlsx file stores it, read by `weGridReadXlsxCells` */
@@ -1244,6 +1379,7 @@ export async function weGridReadXlsxCells(
     // Notes live in a comments part the sheet's relationships point at
     const notes: Record<string, string> = {};
     const sheetRels = await read(sheet.path.replace(/([^/]+)$/, '_rels/$1.rels'));
+    const chart = sheetRels ? await readChart(read, sheet.path, sheetRels, sheet.name) : undefined;
     const commentsTarget = sheetRels
       ? Array.from(new DOMParser().parseFromString(sheetRels, 'application/xml').getElementsByTagNameNS('*', 'Relationship')).find((r) => /\/comments$/.test(r.getAttribute('Type') ?? ''))?.getAttribute('Target')
       : undefined;
@@ -1269,7 +1405,7 @@ export async function weGridReadXlsxCells(
     }
     const tabRgb = doc.getElementsByTagNameNS('*', 'tabColor')[0]?.getAttribute('rgb') ?? '';
     const tabColor = /^[0-9a-f]{8}$/i.test(tabRgb) ? `#${tabRgb.slice(2).toLowerCase()}` : undefined;
-    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, notes, hiddenRows, hiddenColumns, heights, names: namesBySheet.get(sheetIndex) ?? {}, ...(tabColor ? { tabColor } : {}), ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
+    out.push({ name: sheet.name, cells, merges, formats, lists, conditionalFormats, notes, hiddenRows, hiddenColumns, heights, names: namesBySheet.get(sheetIndex) ?? {}, ...(chart ? { chart } : {}), ...(tabColor ? { tabColor } : {}), ...(filterRef ? { autoFilter: filterRef } : {}), ...(freeze && (freeze.rows || freeze.cols) ? { freeze } : {}) });
   }
   return out;
 }

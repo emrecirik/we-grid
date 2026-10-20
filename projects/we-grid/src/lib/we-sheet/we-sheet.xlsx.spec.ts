@@ -359,3 +359,33 @@ describe('named ranges in Excel files', () => {
     expect(weSheetFromCells(read[0].cells, '.', 1, 1, read[0].merges, read[0].formats, read[0]).data.names).toEqual({ Sales: '$B$1:$B$2' });
   });
 });
+
+describe('charts in Excel files', () => {
+  it('writes the sheet\'s chart as an Excel chart beside its data, with notes alongside', async () => {
+    const blob = weSheetWorkbookXlsx([
+      {
+        name: 'Sales',
+        data: {
+          version: 1, rows: 4, cols: 4, chart: { range: 'A1:C3', type: 'line' },
+          cells: { A1: { v: 'City' }, B1: { v: 'Q1' }, C1: { v: 'Q2' }, A2: { v: 'Izmir' }, B2: { v: 3 }, C2: { v: 4 }, A3: { v: 'Bursa' }, B3: { v: 5 }, C3: { v: 1 }, D4: { n: 'see the chart' } }
+        }
+      }
+    ]);
+    const text = await new Response(blob).text();
+    expect(text).toContain('<drawing r:id="rId3"/><legacyDrawing r:id="rId2"/>');
+    expect(text).toContain('Target="../drawings/drawing1.xml"');
+    expect(text).toContain('<c:lineChart>');
+    expect(text).toContain("<c:tx><c:strRef><c:f>'Sales'!$C$1</c:f></c:strRef></c:tx>");
+    expect(text).toContain("<c:val><c:numRef><c:f>'Sales'!$C$2:$C$3</c:f></c:numRef></c:val>");
+    expect(text).toContain('<xdr:col>4</xdr:col>');
+    const [read] = await weGridReadXlsxCells(blob);
+    expect(read.chart).toEqual({ type: 'line', range: 'A1:C3' });
+    expect(read.notes).toEqual({ D4: 'see the chart' });
+    expect(weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats, read).data.chart).toEqual({ range: 'A1:C3', type: 'line' });
+  });
+
+  it('writes no chart parts for a sheet without one', async () => {
+    const text = await new Response(weSheetWorkbookXlsx([{ name: 'P', data: { version: 1, rows: 1, cols: 1, cells: { A1: { v: 1 } } } }])).text();
+    expect(text).not.toContain('drawing');
+  });
+});
