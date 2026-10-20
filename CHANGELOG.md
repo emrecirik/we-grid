@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.31.1 — 2026-10-20
+
+### Fixed
+
+- Opening an .xlsx: times, durations (`[h]:mm:ss`) and scientific notation (`0.00E+00`) stay
+  General instead of turning into dates or two-decimal numbers, so their values show as stored.
+
 ## 0.31.0 — 2026-10-20
 
 Excel files open with their look. A minor release.

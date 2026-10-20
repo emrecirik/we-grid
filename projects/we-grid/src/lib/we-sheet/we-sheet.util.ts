@@ -800,6 +800,8 @@ function sheetFormatOf(code: string): { f: WeSheetNumberFormat; d?: number } | n
   // Quoted text and [colour] sections say nothing about the kind of number
   const bare = code.split(';')[0].replace(/"[^"]*"|\[[^\]]*\]|\\./g, '');
   const decimals = /\.(0+)/.exec(bare)?.[1].length;
+  // shortcut: times, durations ([h]:mm) and scientific notation have no sheet format — they stay General, keeping the value; add formats if they are wanted
+  if (/[hs]|E[+-]/i.test(bare.replace(/[dmy]+/gi, '')) || /\[[hms]+\]/i.test(code)) return null;
   if (/[dmy]/i.test(bare) && !/[#0]/.test(bare.replace(/[dmyhs]+/gi, ''))) return { f: 'date' };
   if (bare.includes('%')) return { f: 'percent', d: decimals ?? 0 };
   if (/[#0]/.test(bare)) return decimals ? { f: 'number', d: decimals } : bare.includes(',') ? { f: 'integer' } : null;

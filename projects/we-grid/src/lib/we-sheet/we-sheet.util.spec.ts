@@ -291,3 +291,14 @@ describe('typed dates (0.30.1 fixes)', () => {
     expect(weSheetParseDate('1899-12-31')).toBeNull();
   });
 });
+
+describe('Excel number formats read back', () => {
+  it('leaves times, durations and scientific notation General', () => {
+    const look = (numFmt: string) => weSheetFromCells({ A1: '1.5' }, '.', 1, 1, [], { A1: { numFmt } }).data.cells['A1'];
+    expect(look('[h]:mm:ss')).toEqual({ v: 1.5 });
+    expect(look('m/d/yy h:mm')).toEqual({ v: 1.5 });
+    expect(look('0.00E+00')).toEqual({ v: 1.5 });
+    expect(look('[$-409]mmmm d, yyyy')).toEqual({ v: 1.5, f: 'date' });
+    expect(look('#,##0.00 "TL"')).toEqual({ v: 1.5, f: 'number', d: 2 });
+  });
+});
