@@ -171,4 +171,18 @@ describe('WeSheetComponent — structure, AutoSum, suggestions, import', () => {
     bar.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     expect(sheet.getValue('D1')).toBe(6);
   });
+
+  it('prints the shown rows as PDF through the browser', () => {
+    const frames: HTMLIFrameElement[] = [];
+    const append = document.body.appendChild.bind(document.body);
+    spyOn(document.body, 'appendChild').and.callFake(<T extends Node>(node: T): T => {
+      if (node instanceof HTMLIFrameElement) frames.push(node);
+      return append(node);
+    });
+    sheet.exportAs('pdf');
+    expect(frames.length).toBe(1);
+    const html = frames[0].contentDocument!.body.innerHTML;
+    expect(html).toContain('<td');
+    frames[0].remove();
+  });
 });

@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.30.0 — 2026-10-20
+
+PDF from the spreadsheet. A minor release.
+
+### Added
+
+- `<we-sheet>` **PDF** next to Excel and CSV: prints the used range through the browser's print
+  dialog (Save as PDF), leaving out the rows the filters hide, in the theme's print colours.
+  `exportAs('pdf')`. Reuses the `exportPdf` locale key.
+
 ## 0.29.1 — 2026-10-20
 
 Freeze panes fixes. A patch release.

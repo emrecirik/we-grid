@@ -50,7 +50,7 @@ export class BudgetComponent {}
 | Notes *(0.18.0)* | Right-click → **Note…** adds a note to the selected cells (`WeSheetCell.n`, up to 1000 characters): a triangle marks the corner and the note shows when the cell is pointed at. |
 | Dropdown lists *(0.17.0)* | Right-click → **Dropdown list…**, one choice per line, for the selected cells (`WeSheetCell.l`). The active cell shows an arrow (or Alt+↓) to pick a choice; typing anything else is refused with a notice, and a choice typed in another case is written as the list writes it. Paste is not checked, as in Excel. |
 | Decimal places *(0.14.0)* | `.0−` / `.00+` in the toolbar: Excel's Decrease / Increase Decimal for the selection (`WeSheetCell.d`). |
-| Export | Excel (`.xlsx`) and CSV. *(0.20.0)* The Excel file is the workbook itself: every sheet of a `<we-workbook>`, formulas in Excel's syntax (Turkish names and `;` become `SUM` and `,`) with their results, references between sheets, bold/italic, number formats and column widths. Colours, lists, notes, charts and conditional formats are not written. `weSheetWorkbookXlsx(sheets)`, `weSheetFormulaToExcel(formula)`. |
+| Export | Excel (`.xlsx`), CSV and *(0.30.0)* PDF — the browser's print dialog with the rows the filters show, in the theme's print colours. *(0.20.0)* The Excel file is the workbook itself: every sheet of a `<we-workbook>`, formulas in Excel's syntax (Turkish names and `;` become `SUM` and `,`) with their results, references between sheets, bold/italic, number formats and column widths. Colours, lists, notes, charts and conditional formats are not written. `weSheetWorkbookXlsx(sheets)`, `weSheetFormulaToExcel(formula)`. |
 
 All formula functions, their Turkish names and the error values are listed in
 [formulas.md](formulas.md). A1 references (`B3`, `$B$3`), ranges (`A1:C9`) and whole columns
@@ -80,7 +80,7 @@ Public methods: `getData()`, `setData(data)`, `getValue('B3')`, `setCell('C2', '
 `deleteRows()`, `deleteColumns()`, `autoSum()`, `toggleFreezeColumn()`, `openImport()`,
 `openFind(withReplace?)`, `findNext(step?)`, `replaceOne()`, `replaceAll()`, `changeDecimals(delta)`,
 `insertChart(type?)`, `setChartType(type)`, `removeChart()`,
-`exportAs('xlsx' \| 'csv')`, `buildExportTable()`, `fill(range)`, `fillSeries()` *(0.17.0)*,
+`exportAs('xlsx' \| 'csv' \| 'pdf')`, `buildExportTable()`, `fill(range)`, `fillSeries()` *(0.17.0)*,
 `saveList(text)`, `saveNote(text)`, `openFormatPanel()` *(0.18.0)*, `toggleAutoFilter()` *(0.19.0)*,
 `insertFunction(name)` *(0.24.0)*, `toggleMerge()` *(0.26.0)*,
 `setBorders('all' \| 'outside' \| 'bottom' \| 'none')` *(0.27.0)*, `toggleWrap()` *(0.28.0)*, `toggleFreezePanes()` *(0.29.0)*.

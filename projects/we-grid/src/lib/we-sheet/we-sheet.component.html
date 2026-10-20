@@ -147,6 +147,7 @@
         <span [innerHTML]="icon('download')" aria-hidden="true"></span> {{ locale.exportExcel }}
       </button>
       <button type="button" class="we-sheet__btn we-sheet__btn--text" (click)="exportAs('csv')" [attr.aria-label]="locale.exportButton + ': ' + locale.exportCsv" [title]="locale.exportButton + ': ' + locale.exportCsv">{{ locale.exportCsv }}</button>
+      <button type="button" class="we-sheet__btn we-sheet__btn--text" (click)="exportAs('pdf')" [attr.aria-label]="locale.exportButton + ': ' + locale.exportPdf" [title]="locale.exportButton + ': ' + locale.exportPdf">{{ locale.exportPdf }}</button>
     </div>
   </div>
 

@@ -37,6 +37,7 @@ import {
   weGridIsFormula
 } from '../services/we-grid-formula.util';
 import { weGridReadXlsxCells } from '../services/we-grid-xlsx.util';
+import { weGridPrintTable } from '../services/we-grid-pdf.util';
 import { WE_SHEET_STORE, WeSheetCell, WeSheetChart, WeSheetData, WeSheetFormatRule, WeSheetNumberFormat, WeSheetStore } from './we-sheet.model';
 import { WeChartComponent } from '../we-chart/we-chart.component';
 import { WeGridFormatPanelComponent } from '../we-grid-format-panel/we-grid-format-panel.component';
@@ -224,7 +225,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     @Inject(WE_GRID_ICONS) private readonly icons: WeGridIcons,
     @Inject(WE_SHEET_STORE) private readonly store: WeSheetStore,
     private readonly sanitizer: DomSanitizer,
-    private readonly cdr: ChangeDetectorRef
+    private readonly cdr: ChangeDetectorRef,
+    private readonly host: ElementRef<HTMLElement>
   ) {}
 
   ngOnInit(): void {
@@ -1643,10 +1645,21 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   // ─── Export ──────────────────────────────────────────────────────────
 
-  exportAs(format: 'xlsx' | 'csv'): void {
+  exportAs(format: 'xlsx' | 'csv' | 'pdf'): void {
     const table = this.buildExportTable();
     const name = this.exportFileName || 'sheet';
-    if (format === 'csv') {
+    if (format === 'pdf') {
+      // Printed as it is shown: the rows the filters hide stay out, the theme colours come along
+      const styles = getComputedStyle(this.host.nativeElement);
+      const cssVariables: Record<string, string> = {};
+      for (const v of ['--we-grid-print-color', '--we-grid-print-bg', '--we-grid-print-border-color', '--we-grid-print-header-bg', '--we-grid-print-muted-color', '--we-grid-accent-color']) {
+        const value = styles.getPropertyValue(v).trim();
+        if (value) cssVariables[v] = value;
+      }
+      const first = this.sheet.headerRow ? 1 : 0;
+      const rows = table.rows.filter((_, i) => !this.hiddenRows.has(i + first));
+      weGridPrintTable({ ...table, title: this.exportFileName || this.locale.sheetLabel, rows, cssVariables });
+    } else if (format === 'csv') {
       weGridDownloadBlob(new Blob([weGridToCsv(table)], { type: 'text/csv;charset=utf-8' }), `${name}.csv`);
     } else {
       // Cell by cell, with formulas — the whole workbook when the sheet is part of one
