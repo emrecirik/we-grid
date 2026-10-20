@@ -495,8 +495,326 @@ const FUNCTIONS: Record<string, FnDef> = {
       if (r < 1 || c < 1 || r > rows.length || c > rows[r - 1].length) return err('#REF!');
       return rows[r - 1][c - 1] ?? null;
     }
-  }
+  },
+
+  // ── 0.22.0: the rest of what spreadsheets use every day ──
+  SUMIFS: { fn: a => ifsAggregate(a[0], a.slice(1), 'sum') },
+  AVERAGEIFS: { fn: a => ifsAggregate(a[0], a.slice(1), 'avg') },
+  COUNTIFS: { fn: a => ifsAggregate(null, a, 'count') },
+  COUNTBLANK: { errors: true, fn: a => flatten(a[0]).filter(isBlank).length },
+  PRODUCT: { refs: true, fn: a => { const n = numbersOf(a); return isErr(n) ? n : numResult(n.reduce((p, x) => p * x, 1)); } },
+  SUMPRODUCT: {
+    fn: a => {
+      const lists = a.map(x => flatten(x));
+      if (!lists.length || lists.some(l => l.length !== lists[0].length)) return err('#VALUE!');
+      let sum = 0;
+      for (let i = 0; i < lists[0].length; i++) {
+        let p = 1;
+        for (const l of lists) {
+          if (isErr(l[i])) return l[i];
+          p *= typeof l[i] === 'number' ? (l[i] as number) : 0;
+        }
+        sum += p;
+      }
+      return clean(sum);
+    }
+  },
+  MEDIAN: {
+    refs: true,
+    fn: a => {
+      const n = numbersOf(a);
+      if (isErr(n)) return n;
+      if (!n.length) return err('#NUM!');
+      const s = [...n].sort((x, y) => x - y);
+      const m = s.length >> 1;
+      return clean(s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2);
+    }
+  },
+  LARGE: { fn: a => kth(a[0], a[1], true) },
+  SMALL: { fn: a => kth(a[0], a[1], false) },
+  RANK: { fn: a => rank(a[0], a[1], a[2]) },
+  'RANK.EQ': { fn: a => rank(a[0], a[1], a[2]) },
+  STDEV: { refs: true, fn: a => stdev(a) },
+  'STDEV.S': { refs: true, fn: a => stdev(a) },
+
+  CEILING: { fn: a => toMultiple(a[0], a[1], Math.ceil) },
+  FLOOR: { fn: a => toMultiple(a[0], a[1], Math.floor) },
+  SIGN: { fn: a => { const n = toNumber(a[0]); return isErr(n) ? n : Math.sign(n); } },
+  PI: { fn: () => Math.PI },
+  EXP: { fn: a => { const n = toNumber(a[0]); return isErr(n) ? n : numResult(Math.exp(n)); } },
+  LN: { fn: a => { const n = toNumber(a[0]); return isErr(n) ? n : n <= 0 ? err('#NUM!') : clean(Math.log(n)); } },
+  LOG10: { fn: a => { const n = toNumber(a[0]); return isErr(n) ? n : n <= 0 ? err('#NUM!') : clean(Math.log10(n)); } },
+  LOG: {
+    fn: a => {
+      const n = toNumber(a[0]);
+      const b = a[1] === undefined ? 10 : toNumber(a[1]);
+      if (isErr(n)) return n;
+      if (isErr(b)) return b;
+      return n <= 0 || b <= 0 || b === 1 ? err('#NUM!') : clean(Math.log(n) / Math.log(b));
+    }
+  },
+
+  FIND: { fn: a => findText(a, false) },
+  SEARCH: { fn: a => findText(a, true) },
+  SUBSTITUTE: {
+    fn: a => {
+      const [s, from, to] = [toText(a[0]), toText(a[1]), toText(a[2])];
+      if (isErr(s)) return s;
+      if (isErr(from)) return from;
+      if (isErr(to)) return to;
+      if (from === '') return s;
+      if (a[3] === undefined) return s.split(from).join(to);
+      const nth = toInt(a[3]);
+      if (isErr(nth)) return nth;
+      if (nth < 1) return err('#VALUE!');
+      let at = -1;
+      for (let i = 0; i < nth; i++) {
+        at = s.indexOf(from, at + 1);
+        if (at < 0) return s;
+      }
+      return s.slice(0, at) + to + s.slice(at + from.length);
+    }
+  },
+  REPLACE: {
+    fn: a => {
+      const [s, start, n, to] = [toText(a[0]), toInt(a[1]), toInt(a[2]), toText(a[3])];
+      if (isErr(s)) return s;
+      if (isErr(start)) return start;
+      if (isErr(n)) return n;
+      if (isErr(to)) return to;
+      return start < 1 || n < 0 ? err('#VALUE!') : s.slice(0, start - 1) + to + s.slice(start - 1 + n);
+    }
+  },
+  REPT: {
+    fn: a => {
+      const s = toText(a[0]);
+      const n = toInt(a[1]);
+      if (isErr(s)) return s;
+      if (isErr(n)) return n;
+      return n < 0 || s.length * n > 32767 ? err('#VALUE!') : s.repeat(n);
+    }
+  },
+  EXACT: { fn: a => { const [x, y] = [toText(a[0]), toText(a[1])]; return isErr(x) ? x : isErr(y) ? y : x === y; } },
+  VALUE: { fn: a => toNumber(a[0]) },
+  TEXTJOIN: {
+    fn: a => {
+      const delim = toText(a[0]);
+      const skip = toBool(a[1]);
+      if (isErr(delim)) return delim;
+      if (isErr(skip)) return skip;
+      const parts: string[] = [];
+      for (const x of flatten(a.slice(2))) {
+        const t = toText(x);
+        if (isErr(t)) return t;
+        if (!(skip && t === '')) parts.push(t);
+      }
+      return parts.join(delim);
+    }
+  },
+
+  // "" is text, not a blank cell, as in Excel
+  ISBLANK: { errors: true, fn: a => { const v = scalar(a[0]); return v === null || v === undefined; } },
+  ISNUMBER: { errors: true, fn: a => { const v = scalar(a[0]); return typeof v === 'number' || v instanceof Date; } },
+  ISTEXT: { errors: true, fn: a => typeof scalar(a[0]) === 'string' },
+  ISERROR: { errors: true, fn: a => isErr(scalar(a[0])) },
+  IFNA: {
+    lazy: true,
+    fn: (a: Thunk[]) => {
+      const v = a[0]?.();
+      return isErr(v) && v.code === '#N/A' ? (a[1] ? a[1]() : 0) : v;
+    }
+  },
+  NA: { fn: () => err('#N/A') },
+  XOR: { fn: a => { const r = logical(a, false); if (isErr(r)) return r; return flatten(a).filter(x => toBool(x) === true).length % 2 === 1; } },
+  CHOOSE: {
+    lazy: true,
+    fn: (a: Thunk[]) => {
+      const i = toInt(a[0]?.());
+      if (isErr(i)) return i;
+      return i < 1 || i >= a.length ? err('#VALUE!') : a[i]();
+    }
+  },
+  SWITCH: {
+    lazy: true,
+    fn: (a: Thunk[]) => {
+      if (a.length < 3) return err('#VALUE!');
+      const v = a[0]();
+      if (isErr(v)) return v;
+      for (let i = 1; i + 1 < a.length; i += 2) {
+        const c = a[i]();
+        if (isErr(c)) return c;
+        if (compare(v, c) === 0) return a[i + 1]();
+      }
+      return a.length % 2 === 0 ? a[a.length - 1]() : err('#N/A');
+    }
+  },
+
+  XLOOKUP: {
+    fn: a => {
+      const value = scalar(a[0]);
+      if (isErr(value)) return value;
+      const keys = flatten(a[1]);
+      const results = flatten(a[2]);
+      if (keys.length !== results.length) return err('#VALUE!');
+      const mode = a[4] === undefined ? 0 : toInt(a[4]);
+      if (isErr(mode)) return mode;
+      let i = keys.findIndex(k => compare(k, value) === 0);
+      // -1: the next smaller value, 1: the next larger one, when there is no exact match
+      if (i < 0 && (mode === -1 || mode === 1)) {
+        let best = -1;
+        keys.forEach((k, j) => {
+          const c = compare(k, value);
+          if (isBlank(k) || (mode === -1 ? c > 0 : c < 0)) return;
+          if (best < 0 || (mode === -1 ? compare(k, keys[best]) > 0 : compare(k, keys[best]) < 0)) best = j;
+        });
+        i = best;
+      }
+      if (i >= 0) return results[i] ?? null;
+      return a[3] === undefined ? err('#N/A') : a[3];
+    }
+  },
+  HLOOKUP: {
+    fn: a => {
+      const value = scalar(a[0]);
+      const rows = rowsOf(a[1]);
+      const row = toInt(a[2]);
+      const approx = a[3] === undefined ? true : toBool(a[3]);
+      if (isErr(value)) return value;
+      if (isErr(row)) return row;
+      if (isErr(approx)) return approx;
+      if (row < 1) return err('#VALUE!');
+      if (row > rows.length) return err('#REF!');
+      const first = rows[0];
+      const i = approx ? lookupApprox(first, value, false) : first.findIndex(x => compare(x, value) === 0);
+      return i < 0 ? err('#N/A') : rows[row - 1][i] ?? null;
+    }
+  },
+
+  WEEKDAY: {
+    fn: a => {
+      const d = toDate(a[0]);
+      const type = a[1] === undefined ? 1 : toInt(a[1]);
+      if (isErr(d)) return d;
+      if (isErr(type)) return type;
+      const day = d.getDay();
+      return type === 1 ? day + 1 : type === 2 ? ((day + 6) % 7) + 1 : type === 3 ? (day + 6) % 7 : err('#NUM!');
+    }
+  },
+  EDATE: { fn: a => addMonths(a[0], a[1], false) },
+  EOMONTH: { fn: a => addMonths(a[0], a[1], true) },
+  DAYS: {
+    fn: a => {
+      const [end, start] = [toDate(a[0]), toDate(a[1])];
+      if (isErr(end)) return end;
+      if (isErr(start)) return start;
+      return Math.round(toSerial(end)) - Math.round(toSerial(start));
+    }
+  },
+  HOUR: { fn: a => { const d = toDate(a[0]); return isErr(d) ? d : d.getHours(); } },
+  MINUTE: { fn: a => { const d = toDate(a[0]); return isErr(d) ? d : d.getMinutes(); } },
+  SECOND: { fn: a => { const d = toDate(a[0]); return isErr(d) ? d : d.getSeconds(); } }
 };
+
+/** SUMIFS / AVERAGEIFS / COUNTIFS: every (range, criteria) pair must match, cell by cell */
+function ifsAggregate(values: unknown, pairs: unknown[], kind: 'sum' | 'avg' | 'count'): unknown {
+  if (!pairs.length || pairs.length % 2) return err('#VALUE!');
+  const ranges: unknown[][] = [];
+  const tests: ((v: unknown) => boolean)[] = [];
+  for (let i = 0; i < pairs.length; i += 2) {
+    ranges.push(flatten(pairs[i]));
+    tests.push(criteria(pairs[i + 1]));
+  }
+  const vals = values === null ? null : flatten(values);
+  const size = ranges[0].length;
+  if (ranges.some(r => r.length !== size) || (vals && vals.length !== size)) return err('#VALUE!');
+  let sum = 0;
+  let count = 0;
+  for (let i = 0; i < size; i++) {
+    if (!tests.every((t, j) => t(ranges[j][i]))) continue;
+    if (!vals) {
+      count++;
+      continue;
+    }
+    const v = vals[i];
+    if (isErr(v)) return v;
+    if (typeof v === 'number') {
+      sum += v;
+      count++;
+    }
+  }
+  if (kind === 'count') return count;
+  if (kind === 'sum') return clean(sum);
+  return count ? clean(sum / count) : err('#DIV/0!');
+}
+
+function kth(range: unknown, k: unknown, largest: boolean): unknown {
+  const n = numbersOf([range]);
+  const i = toInt(k);
+  if (isErr(n)) return n;
+  if (isErr(i)) return i;
+  if (i < 1 || i > n.length) return err('#NUM!');
+  const s = [...n].sort((x, y) => (largest ? y - x : x - y));
+  return s[i - 1];
+}
+
+function rank(value: unknown, range: unknown, order: unknown): unknown {
+  const v = toNumber(value);
+  const n = numbersOf([range]);
+  const asc = order === undefined ? false : toBool(order);
+  if (isErr(v)) return v;
+  if (isErr(n)) return n;
+  if (isErr(asc)) return asc;
+  if (!n.some(x => clean(x) === clean(v))) return err('#N/A');
+  return 1 + n.filter(x => (asc ? x < v : x > v)).length;
+}
+
+function stdev(args: unknown[]): unknown {
+  const n = numbersOf(args);
+  if (isErr(n)) return n;
+  if (n.length < 2) return err('#DIV/0!');
+  const mean = n.reduce((s, x) => s + x, 0) / n.length;
+  return clean(Math.sqrt(n.reduce((s, x) => s + (x - mean) ** 2, 0) / (n.length - 1)));
+}
+
+function toMultiple(value: unknown, significance: unknown, round: (x: number) => number): unknown {
+  const n = toNumber(value);
+  const s = significance === undefined ? 1 : toNumber(significance);
+  if (isErr(n)) return n;
+  if (isErr(s)) return s;
+  if (s === 0) return 0;
+  if ((n > 0 && s < 0) || (n < 0 && s > 0)) return err('#NUM!');
+  return clean(round(n / s) * s);
+}
+
+function findText(a: unknown[], insensitive: boolean): unknown {
+  const [find, within] = [toText(a[0]), toText(a[1])];
+  const start = a[2] === undefined ? 1 : toInt(a[2]);
+  if (isErr(find)) return find;
+  if (isErr(within)) return within;
+  if (isErr(start)) return start;
+  if (start < 1 || start > within.length + 1) return err('#VALUE!');
+  let at: number;
+  if (insensitive) {
+    // SEARCH takes ? and * wildcards and ignores case
+    const re = new RegExp(find.replace(/[.+^${}()|[\]\\]/g, '\\$&').replace(/\*/g, '[\\s\\S]*').replace(/\?/g, '[\\s\\S]'), 'i');
+    const m = re.exec(within.slice(start - 1));
+    at = m ? m.index + start - 1 : -1;
+  } else {
+    at = within.indexOf(find, start - 1);
+  }
+  return at < 0 ? err('#VALUE!') : at + 1;
+}
+
+function addMonths(start: unknown, months: unknown, endOfMonth: boolean): unknown {
+  const d = toDate(start);
+  const m = toInt(months);
+  if (isErr(d)) return d;
+  if (isErr(m)) return m;
+  const y = d.getFullYear();
+  const mo = d.getMonth() + m;
+  const last = new Date(y, mo + 1, 0).getDate();
+  return endOfMonth ? new Date(y, mo + 1, 0) : new Date(y, mo, Math.min(d.getDate(), last));
+}
 
 function concat(args: unknown[]): unknown {
   let s = '';
@@ -530,7 +848,15 @@ const ALIASES: Record<string, string> = {
   KAREKÖK: 'SQRT', UZUNLUK: 'LEN', SOLDAN: 'LEFT', SAĞDAN: 'RIGHT', PARÇAAL: 'MID', BÜYÜKHARF: 'UPPER',
   KÜÇÜKHARF: 'LOWER', 'YAZIM.DÜZENİ': 'PROPER', KIRP: 'TRIM', BİRLEŞTİR: 'CONCATENATE', METNEÇEVİR: 'TEXT',
   BUGÜN: 'TODAY', ŞİMDİ: 'NOW', YIL: 'YEAR', AY: 'MONTH', GÜN: 'DAY', TARİH: 'DATE', VE: 'AND', YADA: 'OR',
-  DEĞİL: 'NOT', EĞERHATA: 'IFERROR', DÜŞEYARA: 'VLOOKUP', KAÇINCI: 'MATCH', İNDİS: 'INDEX', ÇOKEĞER: 'IFS'
+  DEĞİL: 'NOT', EĞERHATA: 'IFERROR', DÜŞEYARA: 'VLOOKUP', KAÇINCI: 'MATCH', İNDİS: 'INDEX', ÇOKEĞER: 'IFS',
+  ÇOKETOPLA: 'SUMIFS', ÇOKEĞERORTALAMA: 'AVERAGEIFS', ÇOKEĞERSAY: 'COUNTIFS', BOŞLUKSAY: 'COUNTBLANK', ÇARPIM: 'PRODUCT',
+  'TOPLA.ÇARPIM': 'SUMPRODUCT', ORTANCA: 'MEDIAN', BÜYÜK: 'LARGE', KÜÇÜK: 'SMALL', SIRA: 'RANK', 'SIRA.EŞİT': 'RANK.EQ', STDSAPMA: 'STDEV',
+  'STDSAPMA.S': 'STDEV.S', TAVANAYUVARLA: 'CEILING', TABANAYUVARLA: 'FLOOR', İŞARET: 'SIGN', Pİ: 'PI', ÜS: 'EXP',
+  BUL: 'FIND', MBUL: 'SEARCH', YERİNEKOY: 'SUBSTITUTE', DEĞİŞTİR: 'REPLACE', YİNELE: 'REPT', ÖZDEŞ: 'EXACT',
+  SAYIYAÇEVİR: 'VALUE', METİNBİRLEŞTİR: 'TEXTJOIN', EBOŞSA: 'ISBLANK', ESAYIYSA: 'ISNUMBER', EMETİNSE: 'ISTEXT',
+  EHATALIYSA: 'ISERROR', EĞERYOKSA: 'IFNA', YOKSAY: 'NA', ÖZELVEYA: 'XOR', ELEMAN: 'CHOOSE', İLKEŞLEŞEN: 'SWITCH',
+  ÇAPRAZARA: 'XLOOKUP', YATAYARA: 'HLOOKUP', HAFTANINGÜNÜ: 'WEEKDAY', SERİTARİH: 'EDATE', SERİAY: 'EOMONTH',
+  GÜNSAY: 'DAYS', SAAT: 'HOUR', DAKİKA: 'MINUTE', SANİYE: 'SECOND'
 };
 
 const NAME_LOOKUP = new Map<string, string>([
@@ -554,7 +880,19 @@ export const WE_GRID_FORMULA_SIGNATURES: Readonly<Record<string, string>> = {
   MOD: 'number, divisor', POWER: 'number, power', SQRT: 'number', LEN: 'text', LEFT: 'text, [count]', RIGHT: 'text, [count]',
   MID: 'text, start, count', UPPER: 'text', LOWER: 'text', PROPER: 'text', TRIM: 'text', CONCAT: 'text1, [text2], …',
   CONCATENATE: 'text1, [text2], …', TEXT: 'value, format', TODAY: '', NOW: '', YEAR: 'date', MONTH: 'date', DAY: 'date',
-  DATE: 'year, month, day', VLOOKUP: 'lookup, table, column, [approximate]', MATCH: 'lookup, range, [type]', INDEX: 'range, row, [column]'
+  DATE: 'year, month, day', VLOOKUP: 'lookup, table, column, [approximate]', MATCH: 'lookup, range, [type]', INDEX: 'range, row, [column]',
+  SUMIFS: 'sum_range, range1, criteria1, …', AVERAGEIFS: 'average_range, range1, criteria1, …', COUNTIFS: 'range1, criteria1, …',
+  COUNTBLANK: 'range', PRODUCT: 'number1, [number2], …', SUMPRODUCT: 'array1, [array2], …', MEDIAN: 'number1, [number2], …',
+  LARGE: 'range, k', SMALL: 'range, k', RANK: 'number, range, [ascending]', 'RANK.EQ': 'number, range, [ascending]',
+  STDEV: 'number1, [number2], …', 'STDEV.S': 'number1, [number2], …', CEILING: 'number, [significance]',
+  FLOOR: 'number, [significance]', SIGN: 'number', PI: '', EXP: 'number', LN: 'number', LOG: 'number, [base]', LOG10: 'number',
+  FIND: 'find, within, [start]', SEARCH: 'find, within, [start]', SUBSTITUTE: 'text, old, new, [instance]',
+  REPLACE: 'text, start, count, new', REPT: 'text, times', EXACT: 'text1, text2', VALUE: 'text',
+  TEXTJOIN: 'delimiter, ignore_empty, text1, …', ISBLANK: 'value', ISNUMBER: 'value', ISTEXT: 'value', ISERROR: 'value',
+  IFNA: 'value, value_if_na', NA: '', XOR: 'logical1, [logical2], …', CHOOSE: 'index, value1, [value2], …',
+  SWITCH: 'expression, value1, result1, …, [default]', XLOOKUP: 'lookup, lookup_range, return_range, [if_not_found], [match_mode]',
+  HLOOKUP: 'lookup, table, row, [approximate]', WEEKDAY: 'date, [type]', EDATE: 'date, months', EOMONTH: 'date, months',
+  DAYS: 'end_date, start_date', HOUR: 'time', MINUTE: 'time', SECOND: 'time'
 };
 
 // ---------------------------------------------------------------------------------------------

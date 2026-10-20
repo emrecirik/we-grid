@@ -1319,6 +1319,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const seen = new Set<string>();
     this.suggestions = FUNCTION_NAMES.filter((f) => norm(f.name).startsWith(prefix))
       .filter((f) => !seen.has(f.name) && seen.add(f.name))
+      // Shortest first — `=SU` offers SUM before SUBSTITUTE
+      .sort((a, b) => a.name.length - b.name.length || a.name.localeCompare(b.name))
       .slice(0, 7)
       .map((f) => ({ name: f.name, signature: `${f.canonical === f.name ? '' : `${f.canonical} · `}${f.name}(${WE_GRID_FORMULA_SIGNATURES[f.canonical] ?? ''})` }));
     this.suggestionIndex = 0;

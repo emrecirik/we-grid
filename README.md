@@ -42,7 +42,7 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - **Excel-style formatting** the user controls: bold and colours per column, conditional rules
   (greater than, between, top 10, above average, duplicates, formula), colour scales, data bars and
   zebra rows — saved with the layout and with views
-- **Formula columns**: `=[Price] * [Quantity]`, `IF`, `ROUND`, `VLOOKUP` and 40-odd Excel functions
+- **Formula columns**: `=[Price] * [Quantity]`, `IF`, `ROUND`, `VLOOKUP` and 90-odd Excel functions
   (English or Turkish names), in the column definition or added by the user from the column menu —
   no `eval`
 - **Macros**: scripts like `FILTER [Status] = "Open"` / `GROUP BY [City]` / `SET [Price] = [Price] * 1.1` run from toolbar buttons, a recorder that writes them for you, and your own TypeScript commands — no `eval` ([docs](docs/macros.md))
@@ -50,7 +50,10 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - **`<we-chart>`** column, bar, line, area, pie and donut charts in plain SVG — and charts straight from the pivot table and the spreadsheet ([docs](docs/charts.md))
 - **`<we-pivot>`** pivot tables: rows, columns and sum/count/average/min/max values from chips, with subtotals, totals and export ([docs](docs/pivot.md))
 - **`<we-sheet>`**, a spreadsheet in the same package: A1 formulas, a formula bar, copy and paste
-  with Excel, undo, styles, number formats, sorting, fill down, find and replace, a sum/average status bar and multi-sheet **`<we-workbook>`** ([docs](docs/sheet.md))
+  with Excel, undo, styles, number formats, sorting, a fill handle, dropdown lists, notes,
+  conditional formatting, filter buttons, find and replace, a sum/average status bar and
+  multi-sheet **`<we-workbook>`** — opened from and saved to real `.xlsx` workbooks with their
+  formulas ([docs](docs/sheet.md))
 - **Multi-level grouping** with record counts and group summaries — automatic sums for numeric
   columns, per-column functions, in the group header or in a footer row under the columns
 - **Tree rows**: children in the same columns as their parent, indented and collapsible, with

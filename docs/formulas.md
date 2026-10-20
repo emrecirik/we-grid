@@ -76,6 +76,15 @@ Text compares case-insensitively, as in Excel. A reference to an unknown column 
 | `TODAY` / `NOW` | `BUGÜN` / `ŞİMDİ` | Current date / date and time |
 | `YEAR` `MONTH` `DAY` `DATE` | `YIL` `AY` `GÜN` `TARİH` | Date parts / build a date |
 | `VLOOKUP` `MATCH` `INDEX` | `DÜŞEYARA` `KAÇINCI` `İNDİS` | Lookups over ranges (sheet mode) |
+| `SUMIFS` `COUNTIFS` `AVERAGEIFS` *(0.22.0)* | `ÇOKETOPLA` `ÇOKEĞERSAY` `ÇOKEĞERORTALAMA` | With several (range, criteria) pairs, all of which must match |
+| `COUNTBLANK` `PRODUCT` `SUMPRODUCT` | `BOŞLUKSAY` `ÇARPIM` `TOPLA.ÇARPIM` | Blank cells / a product / the sum of products of ranges |
+| `MEDIAN` `LARGE` `SMALL` `RANK` (`RANK.EQ`) `STDEV` (`STDEV.S`) | `ORTANCA` `BÜYÜK` `KÜÇÜK` `SIRA` (`SIRA.EŞİT`) `STDSAPMA` | Statistics |
+| `CEILING` `FLOOR` `SIGN` `PI` `EXP` `LN` `LOG` `LOG10` | `TAVANAYUVARLA` `TABANAYUVARLA` `İŞARET` `Pİ` `ÜS` | Maths |
+| `FIND` `SEARCH` `SUBSTITUTE` `REPLACE` `REPT` `EXACT` `VALUE` `TEXTJOIN` | `BUL` `MBUL` `YERİNEKOY` `DEĞİŞTİR` `YİNELE` `ÖZDEŞ` `SAYIYAÇEVİR` `METİNBİRLEŞTİR` | Text — `SEARCH` ignores case and takes `?` / `*` |
+| `ISBLANK` `ISNUMBER` `ISTEXT` `ISERROR` `IFNA` `NA` | `EBOŞSA` `ESAYIYSA` `EMETİNSE` `EHATALIYSA` `EĞERYOKSA` `YOKSAY` | What a value is; a fallback for `#N/A` |
+| `XOR` `CHOOSE` `SWITCH` | `ÖZELVEYA` `ELEMAN` `İLKEŞLEŞEN` | Logic and picking |
+| `XLOOKUP` `HLOOKUP` | `ÇAPRAZARA` `YATAYARA` | Lookups — `XLOOKUP(value, keys, results, [if_not_found], [match_mode])` with match modes 0, -1, 1 |
+| `WEEKDAY` `EDATE` `EOMONTH` `DAYS` `HOUR` `MINUTE` `SECOND` | `HAFTANINGÜNÜ` `SERİTARİH` `SERİAY` `GÜNSAY` `SAAT` `DAKİKA` `SANİYE` | Dates and times |
 
 `WE_GRID_FORMULA_FUNCTIONS` lists the canonical names. Dates are `Date` objects; `date ± number`
 adds days and the difference of two dates is a number of days.

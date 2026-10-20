@@ -302,3 +302,107 @@ describe('formula edge cases (0.16.0 fixes)', () => {
     expect([typed.value(0, 0), typed.value(1, 0)]).toEqual(['007', '007!']);
   });
 });
+
+describe('more Excel functions (0.22.0)', () => {
+  const s = () =>
+    sheet([
+      ['Region', 'Item', 'Qty', 'Price'],
+      ['North', 'Pen', 10, 2],
+      ['South', 'Pen', 5, 2],
+      ['North', 'Book', 2, 12],
+      ['North', 'Pen', '', 2]
+    ]);
+  const at = (src: string) => {
+    const rows: unknown[][] = [
+      ['Region', 'Item', 'Qty', 'Price'],
+      ['North', 'Pen', 10, 2],
+      ['South', 'Pen', 5, 2],
+      ['North', 'Book', 2, 12],
+      ['North', 'Pen', '', 2],
+      [src]
+    ];
+    return sheet(rows).value(0, 5);
+  };
+
+  it('aggregates with several criteria', () => {
+    expect(s()).toBeTruthy();
+    expect(at('=SUMIFS(C2:C5, A2:A5, "North", B2:B5, "Pen")')).toBe(10);
+    expect(at('=COUNTIFS(A2:A5; "North"; C2:C5; ">1")')).toBe(2);
+    expect(at('=AVERAGEIFS(D2:D5, B2:B5, "Pen")')).toBe(2);
+    expect(at('=ÇOKETOPLA(C2:C5; A2:A5; "South")')).toBe(5);
+    expect(at('=COUNTBLANK(C2:C5)')).toBe(1);
+    expect(at('=SUMPRODUCT(C2:C4, D2:D4)')).toBe(54);
+    expect(code(at('=SUMIFS(C2:C5, A2:A4, "North")'))).toBe('#VALUE!');
+  });
+
+  it('looks values up across and down', () => {
+    expect(at('=XLOOKUP("Book", B2:B5, C2:C5)')).toBe(2);
+    expect(at('=XLOOKUP("Ink", B2:B5, C2:C5, "none")')).toBe('none');
+    expect(code(at('=XLOOKUP("Ink", B2:B5, C2:C5)'))).toBe('#N/A');
+    expect(at('=XLOOKUP(7, C2:C4, B2:B4, "x", 1)')).toBe('Pen');
+    expect(at('=HLOOKUP("Qty", A1:D3, 3, FALSE)')).toBe(5);
+    expect(at('=CHOOSE(2, "a", "b", "c")')).toBe('b');
+    expect(at('=SWITCH(B3, "Pen", "writing", "Book", "reading", "other")')).toBe('writing');
+  });
+
+  it('works out statistics', () => {
+    expect(calc('=MEDIAN(3, 1, 4, 1, 5)')).toBe(3);
+    expect(calc('=MEDIAN(1, 2, 3, 4)')).toBe(2.5);
+    expect(at('=LARGE(C2:C4, 2)')).toBe(5);
+    expect(at('=SMALL(C2:C4, 1)')).toBe(2);
+    expect(at('=RANK(5, C2:C4)')).toBe(2);
+    expect(at('=RANK(5, C2:C4, 1)')).toBe(2);
+    expect(calc('=ROUND(STDEV(2, 4, 4, 4, 5, 5, 7, 9), 4)')).toBe(2.1381);
+    expect(calc('=PRODUCT(2, 3, 4)')).toBe(24);
+    expect(code(calc('=LARGE(1, 3)'))).toBe('#NUM!');
+  });
+
+  it('rounds to multiples and takes logs', () => {
+    expect(calc('=CEILING(4.2, 0.5)')).toBe(4.5);
+    expect(calc('=FLOOR(4.7)')).toBe(4);
+    expect(calc('=SIGN(-3)')).toBe(-1);
+    expect(calc('=LOG(1000)')).toBe(3);
+    expect(calc('=LOG(8, 2)')).toBe(3);
+    expect(calc('=ROUND(LN(EXP(2)), 10)')).toBe(2);
+    expect(calc('=ROUND(PI(), 4)')).toBe(3.1416);
+    expect(code(calc('=LN(0)'))).toBe('#NUM!');
+  });
+
+  it('finds, replaces and joins text', () => {
+    expect(calc('=FIND("b", "abcb")')).toBe(2);
+    expect(calc('=FIND("B", "abcb")')).toEqual(jasmine.any(WeGridFormulaError));
+    expect(calc('=SEARCH("B?", "abcb")')).toBe(2);
+    expect(calc('=SEARCH("*c", "abcb", 2)')).toBe(2);
+    expect(calc('=SUBSTITUTE("a-b-c", "-", "+")')).toBe('a+b+c');
+    expect(calc('=SUBSTITUTE("a-b-c", "-", "+", 2)')).toBe('a-b+c');
+    expect(calc('=REPLACE("abcdef", 2, 3, "X")')).toBe('aXef');
+    expect(calc('=REPT("ab", 3)')).toBe('ababab');
+    expect(calc('=EXACT("a", "A")')).toBeFalse();
+    expect(calc('=VALUE("12.5") + 1')).toBe(13.5);
+    expect(calc('=TEXTJOIN(", ", TRUE, "a", "", "b")')).toBe('a, b');
+    expect(calc('=METİNBİRLEŞTİR("-"; YANLIŞ; "a"; ""; "b")')).toBe('a--b');
+  });
+
+  it('tells what a value is and catches #N/A', () => {
+    expect(calc('=ISBLANK("")')).toBeFalse();
+    expect(calc('=ISTEXT("")')).toBeTrue();
+    expect(code(calc('=CEILING(-5, 2)'))).toBe('#NUM!');
+    expect(at('=SIRA(5; C2:C4)')).toBe(2);
+    expect(calc('=ISNUMBER(3)')).toBeTrue();
+    expect(calc('=ISTEXT(3)')).toBeFalse();
+    expect(calc('=ISERROR(1/0)')).toBeTrue();
+    expect(calc('=IFNA(NA(), "none")')).toBe('none');
+    expect(code(calc('=IFNA(1/0, "none")'))).toBe('#DIV/0!');
+    expect(calc('=XOR(TRUE, TRUE, TRUE)')).toBeTrue();
+  });
+
+  it('works with dates and times', () => {
+    expect(calc('=WEEKDAY(DATE(2026, 10, 19))')).toBe(2);
+    expect(calc('=WEEKDAY(DATE(2026, 10, 19), 2)')).toBe(1);
+    expect(calc('=DAY(EOMONTH(DATE(2024, 1, 15), 1))')).toBe(29);
+    expect(calc('=DAY(EDATE(DATE(2024, 1, 31), 1))')).toBe(29);
+    expect(calc('=DAYS(DATE(2026, 3, 1), DATE(2026, 2, 1))')).toBe(28);
+    expect(calc('=HOUR(NOW())')).toBe(14);
+    expect(calc('=MINUTE(NOW())')).toBe(30);
+  });
+});

@@ -61,13 +61,14 @@ default theme to your global styles:
 - Localizable UI text (`WE_GRID_LOCALE`) and swappable inline-SVG icons (`WE_GRID_ICONS`)
 - Theming through plain CSS custom properties (`--we-grid-*`), light and dark
 - Excel-style formatting the user controls — cell styles, conditional rules, colour scales, data
-  bars, zebra rows — and formula columns (`=[Price] * [Qty]`, 40-odd Excel functions, no `eval`)
+  bars, zebra rows — and formula columns (`=[Price] * [Qty]`, 90-odd Excel functions, no `eval`)
 - A client for the we-report data protocol (backends in .NET, Spring Boot, Node.js, Python, Go, PHP): server-side paging and layouts saved on the server
 - Macros: scripted grid steps run from toolbar buttons, a recorder, and your own commands
 - `<we-chart>`: column, bar, line, area, pie and donut charts in SVG
 - `<we-pivot>`: pivot tables with subtotals, totals and export
-- `<we-sheet>`: a spreadsheet with A1 formulas, a formula bar, Excel copy/paste, undo, number
-  formats, sorting and Excel/CSV export
+- `<we-sheet>` / `<we-workbook>`: a spreadsheet with A1 formulas, a formula bar, Excel copy/paste,
+  undo, number formats, sorting, a fill handle, dropdown lists, notes, conditional formatting,
+  filter buttons, and `.xlsx` import/export that keeps formulas and every sheet
 - An optional Apple-style theme (`styles/we-grid-theme-apple.scss`)
 
 ![The Status column opened into a checklist of order statuses, two of them ticked](https://raw.githubusercontent.com/emrecirik/we-grid/main/docs/images/checklist-filter.png)

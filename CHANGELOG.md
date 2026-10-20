@@ -2,6 +2,25 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.22.0 — 2026-10-20
+
+Fifty more Excel functions. A minor release.
+
+### Added
+
+- Formula engine (grid formula columns, format rules, macros and `<we-sheet>`): `SUMIFS`,
+  `COUNTIFS`, `AVERAGEIFS`, `COUNTBLANK`, `PRODUCT`, `SUMPRODUCT`, `MEDIAN`, `LARGE`, `SMALL`,
+  `RANK` / `RANK.EQ`, `STDEV` / `STDEV.S`, `CEILING`, `FLOOR`, `SIGN`, `PI`, `EXP`, `LN`, `LOG`,
+  `LOG10`, `FIND`, `SEARCH`, `SUBSTITUTE`, `REPLACE`, `REPT`, `EXACT`, `VALUE`, `TEXTJOIN`,
+  `ISBLANK`, `ISNUMBER`, `ISTEXT`, `ISERROR`, `IFNA`, `NA`, `XOR`, `CHOOSE`, `SWITCH`, `XLOOKUP`,
+  `HLOOKUP`, `WEEKDAY`, `EDATE`, `EOMONTH`, `DAYS`, `HOUR`, `MINUTE`, `SECOND` — each with its
+  Turkish Excel name and an argument hint.
+
+### Changed
+
+- `<we-sheet>` function suggestions list the shortest names first (`=SU` offers `SUM` first).
+- Studio and README describe the spreadsheet's newer features.
+
 ## 0.21.0 — 2026-10-20
 
 Multi-sheet Excel import and paste values. A minor release.
