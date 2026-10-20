@@ -84,4 +84,16 @@ describe('WeGridComponent — multi-column sort', () => {
     grid.applyView(view);
     expect(ids()).toEqual([4, 2, 3, 1]);
   });
+
+  it('sorts from the keyboard: Enter on a header, Shift+Enter adds a column', () => {
+    const th = (i: number): HTMLElement => fixture.nativeElement.querySelectorAll('th.we-grid__th')[i];
+    const key = (el: HTMLElement, shiftKey = false) => el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', shiftKey, bubbles: true, cancelable: true }));
+    const heads = Array.from(fixture.nativeElement.querySelectorAll('th')) as HTMLElement[];
+    const city = heads.find((h) => h.textContent?.includes('City'))!;
+    const qty = heads.find((h) => h.textContent?.includes('Qty'))!;
+    expect(th).toBeDefined();
+    key(city);
+    key(qty, true);
+    expect(ids()).toEqual([4, 2, 3, 1]);
+  });
 });

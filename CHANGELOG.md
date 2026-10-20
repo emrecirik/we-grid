@@ -2,6 +2,22 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.33.1 — 2026-10-20
+
+Grid fixes. A patch release.
+
+### Fixed
+
+- Macros: `SET` refuses on a grid that is not `editable`, as paste does, and reaches the child rows
+  of a tree.
+- *Reset layout* takes the user's formula columns off the screen at once.
+- The toolbar search works in tree mode, keeping the parents of the rows it finds; a search cleared
+  (× or Escape) while still being typed no longer comes back.
+- Formula columns are worked out again after `rowStateVersion` / `refreshRows()`.
+- Zebra rows alternate within each group.
+- Deleting a formula column also drops the grouping, sort and format rules on it.
+- Enter or Space on a focused header sorts it; Shift adds the column to a multi-column sort.
+
 ## 0.33.0 — 2026-10-20
 
 Dropdown lists, filter buttons and frozen panes in Excel files. A minor release.

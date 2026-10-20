@@ -1,6 +1,6 @@
 {
   "name": "we-grid-angular",
-  "version": "0.33.0",
+  "version": "0.33.1",
   "description": "A themeable, dependency-free Angular data grid — column resize/reorder/pin, filter row, Excel-style checklist header filter, grouping, subtotal row, master-detail, server-side pagination, inline row editing, Excel/CSV/PDF export plus Excel/CSV import, Excel-style conditional formatting, formula columns and a spreadsheet component.",
   "license": "MIT",
   "author": "Emre CIRIK",

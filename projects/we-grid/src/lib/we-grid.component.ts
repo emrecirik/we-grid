@@ -828,6 +828,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   clearSearch(): void {
+    this.searchInput = '';
     this.setSearch('');
   }
 
@@ -1070,7 +1071,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       .subscribe(() => this.emitFilterChange());
     this.loadLayout();
     if (this.savedViews) this.loadViews();
-    this.search$.pipe(debounceTime(Math.max(0, this.searchDebounceMs)), takeUntil(this.destroy$)).subscribe((text) => this.setSearch(text));
+    this.search$.pipe(debounceTime(Math.max(0, this.searchDebounceMs)), takeUntil(this.destroy$)).subscribe((text) => {
+      // A search cleared or replaced while this one waited is not brought back
+      if (text === this.searchInput) this.setSearch(text);
+    });
     if (typeof document !== 'undefined') {
       // Outside the zone: neither event needs change detection
       this.ngZone.runOutsideAngular(() => {
@@ -1146,7 +1150,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
     if (changes['rowStateVersion']) {
       this.warnRowStateVersionLiteral(changes['rowStateVersion']);
-      this.formatCache = null;
+      this.clearFormulaValues();
     }
     if (changes['detailSticky'] && !changes['detailSticky'].firstChange) this.syncViewportObserver();
     if (changes['groupBy'] && this.internalColumns.length > 0) this.setGrouping(this.groupBy ?? [], false);
@@ -1548,6 +1552,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const snapshot = this.buildLayoutSnapshot();
     this.userFormulaColumns = this.userFormulaColumns.filter((c) => c.field !== field);
     this.filterState.delete(field);
+    if (this.groupFields.includes(field)) this.setGrouping(this.groupFields.filter((f) => f !== field));
+    this.thenBy = this.thenBy.filter((t) => t.field !== field);
+    if (this.clientSort?.field === field) this.clientSort = null;
+    if (this.userFormatRules) this.userFormatRules = this.userFormatRules.filter((r) => r.field !== field);
     this.clearFormulaValues();
     this.internalColumns = mergeGridLayout(this.columnDefs, snapshot, this.layoutVersion, this.headerFilterMode).columns;
     this.recomputeRenderColumns();
@@ -1778,9 +1786,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private macroSet(name: string, formula: string, where: string | null): string | null {
     const target = this.columnByRef(name);
     if (!target) return this.locale.macroUnknownColumn(name);
-    if (!target.editable || target.formula) return this.locale.macroReadOnlyColumn(weGridDisplayHeader(target));
+    if (!this.editable || !target.editable || target.formula) return this.locale.macroReadOnlyColumn(weGridDisplayHeader(target));
     const updates: WeGridPastedRow<T>[] = [];
-    for (const row of this.displayData) {
+    for (const row of this.treeActive ? this.treeFilteredRows : this.displayData) {
+      if (this.treeActive && this.isMappedTreeCell(row, target)) continue;
       if (where) {
         const ok = this.evaluateRowFormula(where, row);
         if (!(ok === true || (typeof ok === 'number' && ok !== 0))) continue;
@@ -2104,7 +2113,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * for state the grid cannot see changing. Template views are updated in place, never rebuilt.
    */
   refreshRows(): void {
-    this.formatCache = null;
+    this.clearFormulaValues();
     this.cdr.markForCheck();
   }
 
@@ -2782,9 +2791,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         if (section.children) {
           walk(section.children, level + 1);
         } else {
-          for (const entry of section.rows) {
-            items.push({ kind: 'row', row: entry.row, index: entry.index, tree: null, trackKey: this.rowKey(entry.row) });
-          }
+          section.rows.forEach((entry, stripe) => {
+            items.push({ kind: 'row', row: entry.row, index: entry.index, stripe, tree: null, trackKey: this.rowKey(entry.row) });
+          });
         }
         if (footers) items.push({ kind: 'groupFooter', section, level, trackKey: this.groupTrackToken(`\u0001${path}`) });
       }
@@ -3041,15 +3050,18 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const model = this.ensureTreeModel();
     this.fillTreeInfo(model);
 
-    const filtering = this.hasActiveFilters && !this.isServerFilter;
-    const signature = filtering ? this.activeFilterSignature() : '';
+    const columnFilters = this.hasActiveFilters && !this.isServerFilter;
+    const searching = !!this.searchText && !this.isServerSearch;
+    const filtering = columnFilters || searching;
+    const signature = filtering ? `${columnFilters ? this.activeFilterSignature() : ''}\u0001${searching ? this.searchText : ''}` : '';
     if (signature !== this.treeFilterSignature) {
       this.treeFilterClosedKeys.clear();
       this.treeFilterSignature = signature;
     }
-    const matched = filtering
-      ? new Set(applyWeGridFilters(model.all.map((n) => n.row), this.filterState, this.internalColumns, this.locale, this.readCellValue))
-      : null;
+    let found = model.all.map((n) => n.row);
+    if (columnFilters) found = applyWeGridFilters(found, this.filterState, this.internalColumns, this.locale, this.readCellValue);
+    if (searching) found = this.searchRows(found, this.searchText);
+    const matched = filtering ? new Set(found) : null;
     const relevant = new Map<WeGridTreeModelNode<T>, boolean>();
     const isRelevant = (node: WeGridTreeModelNode<T>): boolean => {
       let result = relevant.get(node);
@@ -4252,6 +4264,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       this.openHeaderMenu(thEl, col);
       return;
     }
+    if ((event.key === 'Enter' || event.key === ' ') && event.target === thEl && col.sortable) {
+      event.preventDefault();
+      this.onHeaderLabelClick(col, { shiftKey: event.shiftKey } as MouseEvent);
+      return;
+    }
     // Alt+arrows move the focused header. Only on the header itself — Alt+arrow means back/forward
     // to the browser everywhere else, and a control inside the header owns its own keys.
     if (event.altKey && (event.key === 'ArrowLeft' || event.key === 'ArrowRight') && event.target === thEl) {
@@ -4649,6 +4666,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   private resetLayout(): void {
     this.layoutStore.reset(this.gridKey).pipe(takeUntil(this.destroy$)).subscribe();
+    this.userFormulaColumns = [];
     const merged = mergeGridLayout(this.columnDefs, null, this.layoutVersion, this.headerFilterMode);
     this.internalColumns = merged.columns;
     this.density = 'normal';

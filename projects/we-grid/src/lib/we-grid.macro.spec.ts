@@ -39,6 +39,7 @@ class MemoryStore implements WeGridLayoutStore {
     [grouping]="true"
     [formatting]="true"
     [allowMacros]="true"
+    [editable]="true"
     [macros]="macros"
     [macroCommands]="commands"
   />`

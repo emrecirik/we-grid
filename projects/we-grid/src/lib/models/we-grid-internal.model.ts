@@ -124,6 +124,8 @@ export type WeGridRenderItem<T> =
       row: T;
       /** Index handed to row events and templates — the position in `displayData`, or among the visible tree rows */
       index: number;
+      /** The position inside its group, for zebra rows — the index when not grouped */
+      stripe?: number;
       /** The row's place in the tree — null outside tree mode */
       tree: WeGridTreeInfo<T> | null;
       trackKey: unknown;
