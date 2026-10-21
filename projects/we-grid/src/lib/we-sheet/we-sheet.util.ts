@@ -973,6 +973,8 @@ function sheetFormatOf(code: string): { f: WeSheetNumberFormat; d?: number } | n
   if (/[hs]|E[+-]/i.test(bare.replace(/[dmy]+/gi, '')) || /\[[hms]+\]/i.test(code)) return null;
   if (/[dmy]/i.test(bare) && !/[#0]/.test(bare.replace(/[dmyhs]+/gi, ''))) return { f: 'date' };
   if (bare.includes('%')) return { f: 'percent', d: decimals ?? 0 };
+  // A currency symbol: Excel's [$€-407] / [$₺] tag, or a symbol written into the code ("₺", \$)
+  if (/[#0]/.test(bare) && (/\[\$[^\]-]/.test(code) || /[$€£¥₺₹₽]/.test(code.split(';')[0].replace(/\[[^\]]*\]/g, '')))) return { f: 'currency', d: decimals ?? 0 };
   if (/[#0]/.test(bare)) return decimals ? { f: 'number', d: decimals } : bare.includes(',') ? { f: 'integer' } : null;
   return null;
 }
@@ -1119,14 +1121,14 @@ function excelChart(data: WeSheetData, evaluator: WeGridSheetEvaluator): WeGridX
 }
 
 /** The Excel number format code of a sheet cell's format */
-function excelNumberFormat(cell: WeSheetCell): string | undefined {
+function excelNumberFormat(cell: WeSheetCell, currencySymbol: string): string | undefined {
   const d = cell.d;
   const places = (n: number) => (n > 0 ? `.${'0'.repeat(n)}` : '');
   switch (cell.f) {
     case 'number':
-    case 'currency':
-      // shortcut: currency is written as a number with its decimals, without the symbol — add the currency's Excel code if asked
       return `#,##0${places(d ?? 2)}`;
+    case 'currency':
+      return `[$${currencySymbol}] #,##0${places(d ?? 2)}`;
     case 'integer':
       return '#,##0';
     case 'percent':
@@ -1148,7 +1150,8 @@ function excelNumberFormat(cell: WeSheetCell): string | undefined {
  * italic text, number formats and column widths. Colours, lists, notes, charts and conditional
  * formats are not written.
  */
-export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeSheetData; color?: WeGridFormatColor }[]): Blob {
+export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeSheetData; color?: WeGridFormatColor }[], currency = 'USD'): Blob {
+  const currencySymbol = new Intl.NumberFormat('en', { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).formatToParts(0).find((p) => p.type === 'currency')?.value ?? currency;
   // The names the file can hold (31 characters, no []:*?/\, unique) — formulas follow them
   const used = new Set<string>();
   const renames = new Map<string, string>();
@@ -1209,7 +1212,7 @@ export function weSheetWorkbookXlsx(sheets: readonly { name: string; data: WeShe
           strike: cell.s?.strike,
           color: cell.s?.color ? weGridFormatHex(cell.s.color, 'fg') : undefined,
           fill: cell.s?.fill ? weGridFormatHex(cell.s.fill, 'bg') : undefined,
-          numFmt: excelNumberFormat(cell),
+          numFmt: excelNumberFormat(cell, currencySymbol),
           borders: cell.b || undefined,
           align: cell.a,
           wrap: cell.w
@@ -1425,4 +1428,57 @@ export function weSheetFromCells(
   const kept = weSheetSanitizeMerges([...merges], data.rows, data.cols);
   if (kept.length) data.merges = kept;
   return { data, truncated };
+}
+
+/** The style a cell carries without its value — what a refreshed or inserted cell keeps or copies */
+function weSheetLook(cell: WeSheetCell | undefined): WeSheetCell {
+  if (!cell) return {};
+  const { v: _v, ...look } = cell;
+  return look;
+}
+
+/**
+ * Writes an app's block of values over the block it wrote before (`range`), keeping what the user
+ * added around it: rows are inserted or deleted at the block's end so the new block fits — the cells
+ * under it and every reference to them move, as with Excel's Insert/Delete, and a total like
+ * `=SUM(F2:F17)` grows or shrinks with the block. Cells written keep their formats; inserted rows take
+ * the formats of the row above. Cells of the old block the values don't reach are emptied. `values`
+ * are stored as given — a string starting with `=` is a formula. Returns the new content, the new
+ * block's range and the rows inserted (`count` > 0) or deleted, or null for a range that isn't one.
+ */
+export function weSheetReplaceRange(
+  data: WeSheetData,
+  range: string,
+  values: readonly (readonly WeSheetCell['v'][])[]
+): { data: WeSheetData; range: string; change: { axis: 'row'; at: number; count: number } | null } | null {
+  const [a, b] = range.split(':').map((p) => weSheetParseAddress(p.trim().replace(/\$/g, '')));
+  if (!a) return null;
+  const block = weSheetNormalize(a, b ?? a);
+  // At least one row stays, so references to the block never turn into #REF!
+  const rowsNeeded = Math.max(1, Math.min(WE_SHEET_MAX_ROWS - block.r1, values.length));
+  const width = Math.max(block.c2 - block.c1 + 1, ...values.map((row) => row.length));
+  let next: WeSheetData = { ...data, rows: Math.max(data.rows, block.r2 + 1), cols: Math.min(WE_SHEET_MAX_COLS, Math.max(data.cols, block.c1 + width)) };
+  const oldRows = block.r2 - block.r1 + 1;
+  const count = rowsNeeded - oldRows;
+  // Inside the block when it has two rows or more, so ranges over it stretch; after a one-row block
+  const at = count > 0 ? Math.max(block.r1 + 1, block.r2) : block.r1 + rowsNeeded;
+  if (count) next = weSheetInsert(next, 'row', at, count);
+  const cells = { ...next.cells };
+  for (let r = 0; r < rowsNeeded; r++) {
+    const row = block.r1 + r;
+    const inserted = count > 0 && row >= at && row < at + count;
+    for (let c = 0; c < width && block.c1 + c < next.cols; c++) {
+      const key = weSheetAddress(block.c1 + c, row);
+      const look = inserted ? weSheetLook(cells[weSheetAddress(block.c1 + c, at - 1)]) : weSheetLook(cells[key]);
+      const v = values[r]?.[c];
+      const cell: WeSheetCell = v === undefined || v === null || v === '' ? look : { ...look, v };
+      if (Object.keys(cell).length) cells[key] = cell;
+      else delete cells[key];
+    }
+  }
+  return {
+    data: { ...next, cells },
+    range: weSheetRangeLabel({ c1: block.c1, r1: block.r1, c2: block.c1 + width - 1, r2: block.r1 + rowsNeeded - 1 }),
+    change: count ? { axis: 'row', at, count } : null
+  };
 }

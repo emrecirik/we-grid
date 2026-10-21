@@ -1,3 +1,4 @@
+import { weGridSafeIcon } from '../services/we-grid-icon.util';
 import { CommonModule } from '@angular/common';
 import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, EventEmitter, Inject, Input, Output } from '@angular/core';
@@ -56,7 +57,7 @@ export class WeGridEditFormComponent {
   }
 
   icon(key: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(this.icons[key] ?? '');
+    return weGridSafeIcon(this.sanitizer, this.icons, key);
   }
 
   label(col: WeGridInternalColumn<unknown>): string {

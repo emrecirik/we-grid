@@ -1,3 +1,4 @@
+import { weGridSafeIcon } from '../services/we-grid-icon.util';
 import { CommonModule } from '@angular/common';
 import { A11yModule } from '@angular/cdk/a11y';
 import { ChangeDetectionStrategy, Component, ElementRef, EventEmitter, Inject, Input, OnInit, Output, ViewChild } from '@angular/core';
@@ -81,7 +82,7 @@ export class WeGridFormulaDialogComponent implements OnInit {
   }
 
   icon(key: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(this.icons[key] ?? '');
+    return weGridSafeIcon(this.sanitizer, this.icons, key);
   }
 
   insertColumn(name: string): void {

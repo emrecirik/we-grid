@@ -69,8 +69,9 @@ All formula functions, their Turkish names and the error values are listed in
 
 | Input | Type | Default | |
 |---|---|---|---|
-| `sheetKey` | `string` | — | Saves the sheet (debounced) through `WE_SHEET_STORE` and restores it on load |
-| `data` | `WeSheetData \| null` | — | The content. Wins over a stored sheet. Binding `(dataChange)` back into it is safe |
+| `sheetKey` | `string` | — | Saves the sheet (debounced) through `WE_SHEET_STORE` and restores it on load. A change still waiting is written when the sheet is destroyed *(0.51.0)* |
+| `store` *(0.51.0)* | `WeSheetStore` | `WE_SHEET_STORE` | Where `sheetKey` saves — one screen can keep its sheet in its own record while the rest use the token's store |
+| `data` | `WeSheetData \| null` | — | The content. Given at start, the stored sheet is not loaded at all. Binding `(dataChange)` back into it is safe |
 | `rows` / `cols` | `number` | `50` / `12` | Size of a new, empty sheet (max 5000 × 200) |
 | `readonly` | `boolean` | `false` | No editing; selection, copy and export remain |
 | `exportFileName` | `string` | `'sheet'` | File name of exports, without extension |
@@ -82,6 +83,7 @@ All formula functions, their Turkish names and the error values are listed in
 |---|---|
 | `dataChange` | `WeSheetData` after every change |
 | `structureChange` | `{ axis, at, count }` after rows or columns are inserted (`count` > 0) or deleted *(0.16.0)* — `<we-workbook>` uses it to move the other sheets' references |
+| `storeError` *(0.51.0)* | `{ action: 'load' \| 'save', error }` when the store fails; the sheet also shows a notice |
 
 Public methods: `getData()`, `setData(data)`, `getValue('B3')`, `setCell('C2', '=A2*B2')`,
 `select('A1:C5')`, `selectionLabel`, `sort('asc' \| 'desc')`, `fillDown()`, `undo()`, `redo()`,
@@ -92,7 +94,8 @@ Public methods: `getData()`, `setData(data)`, `getValue('B3')`, `setCell('C2', '
 `exportAs('xlsx' \| 'csv' \| 'pdf')`, `buildExportTable()`, `fill(range)`, `fillSeries()` *(0.17.0)*,
 `saveList(text)`, `saveNote(text)`, `openFormatPanel()` *(0.18.0)*, `toggleAutoFilter()` *(0.19.0)*, `hideRows()`, `unhideRows()` *(0.39.0)*,
 `insertFunction(name)` *(0.24.0)*, `toggleMerge()` *(0.26.0)*,
-`setBorders('all' \| 'outside' \| 'bottom' \| 'none')` *(0.27.0)*, `toggleWrap()` *(0.28.0)*, `toggleFreezePanes()` *(0.29.0)*.
+`setBorders('all' \| 'outside' \| 'bottom' \| 'none')` *(0.27.0)*, `toggleWrap()` *(0.28.0)*, `toggleFreezePanes()` *(0.29.0)*,
+`replaceRange(range, values)` *(0.51.0)* — see [Refreshing the app's block](#refreshing-the-apps-block-0510).
 
 Content projected with the `weSheetToolbar` attribute is placed in the toolbar — your own buttons
 next to the built-in ones:
@@ -143,8 +146,8 @@ on, exported for servers and tests.
 
 `<we-workbook>` puts sheets behind tabs, as at the bottom of an Excel window — add one with **+**,
 rename with a double-click (or F2), duplicate, delete, and move them with the arrows (or
-Ctrl+← / Ctrl+→ on a tab). *(0.46.0)* The palette button colours the active tab (`sheets[i].color`, a format palette colour; Excel files keep it as the tab colour). The whole workbook is one JSON object saved under `workbookKey`
-through `WE_SHEET_STORE`:
+Ctrl+← / Ctrl+→ on a tab). *(0.46.0)* The palette button colours the active tab (`sheets[i].color`, a format palette colour; Excel files keep it as the tab colour). Deleting a sheet that holds anything asks first, in the tab bar — it cannot be undone; an empty sheet goes at once. A copy is named as in Excel: `Budget (2)`. The whole workbook is one JSON object saved under `workbookKey`
+through `WE_SHEET_STORE` — the store is called with the key `book:<workbookKey>`:
 
 ```html
 <we-workbook workbookKey="planning-2027" exportFileName="planning" />
@@ -158,8 +161,36 @@ interface WeWorkbookData {
 }
 ```
 
-Inputs: `workbookKey`, `data` (wins over a stored workbook), `readonly`, `height`, `rows`, `cols`
-(size of a new sheet), `exportFileName`; output `dataChange`.
+Inputs: `workbookKey`, `store` *(0.51.0)*, `data` (given at start, the stored workbook is not loaded
+at all — saving under `workbookKey` still goes on), `readonly`, `height`, `rows`, `cols` (size of a
+new sheet), `exportFileName`. Outputs: `dataChange` (every change, switching tabs included),
+`contentChange` *(0.51.0)* (changes worth saving — not switching tabs), `storeError` *(0.51.0)*
+(the store failed; the tab bar also shows a notice). A change still waiting out the debounce is
+written when the workbook is destroyed.
+
+*(0.51.0)* Opening an Excel file in a workbook always adds its sheets after the others — a file with
+one sheet becomes one new sheet named after the file; the open sheet is never overwritten. A CSV
+file still fills the open sheet, as one undoable step.
+
+### Refreshing the app's block *(0.51.0)*
+
+When the app writes part of a sheet (say, costs from the database) and the user adds columns,
+formulas, colours and sheets around it, `replaceRange` refreshes only the app's block:
+
+```ts
+// First time: write the block and keep the range it returns
+this.range = book.replaceRange('Depo Maliyet', 'A1:J16', rows) ?? this.range;
+// Later, with fresh rows (more or fewer than before)
+this.range = book.replaceRange('Depo Maliyet', this.range, freshRows) ?? this.range;
+```
+
+Rows are inserted or deleted at the end of the block so the new values fit; the cells under it and
+every reference to them — on this sheet and the others — move as with Excel's Insert/Delete, so a
+total like `=SUM(F2:F16)` grows or shrinks with the block. Cells written keep their formats; new rows
+take the formats of the row above; cells of the old block the values no longer reach are emptied.
+Cells outside the block, other sheets and names are untouched. A string starting with `=` is stored
+as a formula. On the open sheet it is one undoable step. `<we-sheet>` has the same method without
+the sheet name, and `weSheetReplaceRange(data, range, values)` does it on plain data.
 
 *(0.15.0)* Formulas read other sheets as in Excel: `=Sales!B2`, `=SUM(Sales!B2:B13)`, and quoted
 when the name has spaces or punctuation: `='Q1 sales'!A1`. Renaming a sheet rewrites the

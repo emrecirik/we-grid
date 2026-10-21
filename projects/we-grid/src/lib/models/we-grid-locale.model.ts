@@ -314,6 +314,9 @@ export interface WeGridLocale {
   sheetAutoSum: string;
   sheetImport: string;
   sheetImportFailed: string;
+  /** The store behind `sheetKey` / `workbookKey` failed — changes stay on screen but are not saved */
+  sheetSaveFailed: string;
+  sheetLoadFailed: string;
   /** The imported file was larger than a sheet holds */
   sheetImportTruncated: string;
   /** An insert would push content off a full sheet */
@@ -438,6 +441,8 @@ export interface WeGridLocale {
   /** Tab bar button: colour the active sheet's tab */
   workbookTabColor: string;
   workbookDelete: string;
+  /** Asked before a sheet with content is deleted — the delete cannot be undone */
+  workbookDeleteConfirm: string;
 
   // ─── Macros (the grid's `allowMacros` / `macros` inputs) ───
   macrosButton: string;
@@ -730,6 +735,8 @@ export const weGridLocaleEn: WeGridLocale = {
   sheetAutoSum: 'AutoSum',
   sheetImport: 'Open Excel or CSV',
   sheetImportFailed: 'The file could not be read',
+  sheetSaveFailed: 'Changes could not be saved',
+  sheetLoadFailed: 'The saved sheet could not be loaded',
   sheetImportTruncated: 'The file is larger than a sheet holds — only what fits was imported',
   sheetFull: 'The sheet is full — clear its last rows or columns first',
   sheetFillHandle: 'Drag to fill — double-click to fill down',
@@ -821,6 +828,7 @@ export const weGridLocaleEn: WeGridLocale = {
   workbookDuplicate: 'Duplicate sheet',
   workbookTabColor: 'Tab colour',
   workbookDelete: 'Delete sheet',
+  workbookDeleteConfirm: 'Delete this sheet? This cannot be undone.',
   macrosButton: 'Macros',
   macroRun: 'Run',
   macroEdit: 'Edit',
@@ -1127,6 +1135,8 @@ export const weGridLocaleTr: WeGridLocale = {
   sheetAutoSum: 'Otomatik Toplam',
   sheetImport: 'Excel ya da CSV aç',
   sheetImportFailed: 'Dosya okunamadı',
+  sheetSaveFailed: 'Değişiklikler kaydedilemedi',
+  sheetLoadFailed: 'Kayıtlı sayfa yüklenemedi',
   sheetImportTruncated: 'Dosya bir sayfaya sığmayacak kadar büyük — yalnızca sığan kısmı alındı',
   sheetFull: 'Sayfa dolu — önce son satırları veya sütunları boşaltın',
   sheetFillHandle: 'Doldurmak için sürükleyin — aşağı doldurmak için çift tıklayın',
@@ -1218,6 +1228,7 @@ export const weGridLocaleTr: WeGridLocale = {
   workbookDuplicate: 'Sayfayı çoğalt',
   workbookTabColor: 'Sekme rengi',
   workbookDelete: 'Sayfayı sil',
+  workbookDeleteConfirm: 'Bu sayfa silinsin mi? Geri alınamaz.',
   macrosButton: 'Makrolar',
   macroRun: 'Çalıştır',
   macroEdit: 'Düzenle',

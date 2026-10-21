@@ -1,3 +1,4 @@
+import { weGridSafeIcon } from '../services/we-grid-icon.util';
 import { CommonModule } from '@angular/common';
 import { ChangeDetectionStrategy, Component, EventEmitter, Inject, Input, OnChanges, Output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -70,7 +71,7 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges 
   }
 
   icon(key: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(this.icons[key] ?? '');
+    return weGridSafeIcon(this.sanitizer, this.icons, key);
   }
 
   header(field: string): string {

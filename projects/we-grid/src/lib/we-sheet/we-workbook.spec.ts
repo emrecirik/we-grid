@@ -1,9 +1,10 @@
 import { Component, ViewChild } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Observable, of } from 'rxjs';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { Observable, of, throwError } from 'rxjs';
 import { WE_SHEET_STORE, WeSheetData, WeSheetStore } from './we-sheet.model';
 import { WeSheetComponent } from './we-sheet.component';
 import { WeWorkbookComponent, weWorkbookSanitize } from './we-workbook.component';
+import { weSheetWorkbookXlsx } from './we-sheet.util';
 
 class MemoryStore implements WeSheetStore {
   saved = new Map<string, WeSheetData>();
@@ -46,13 +47,47 @@ describe('WeWorkbookComponent', () => {
     expect(tabs()).toEqual(['Sheet1', 'Sheet2']);
     expect(book().getData().active).toBe(1);
     book().startRename(1);
+    expect(document.activeElement).toBe(fixture.nativeElement.querySelector('.we-book__rename'));
     book().finishRename(1, 'Budget');
     book().duplicateSheet(1);
     fixture.detectChanges();
-    expect(tabs()).toEqual(['Sheet1', 'Budget', 'Budget2']);
+    expect(tabs()).toEqual(['Sheet1', 'Budget', 'Budget (2)']);
+    book().duplicateSheet(2);
+    fixture.detectChanges();
+    expect(tabs()).toEqual(['Sheet1', 'Budget', 'Budget (2)', 'Budget (3)']);
     book().deleteSheet(0);
     fixture.detectChanges();
-    expect(tabs()).toEqual(['Budget', 'Budget2']);
+    expect(tabs()).toEqual(['Budget', 'Budget (2)', 'Budget (3)']);
+  });
+
+  it('deletes an empty sheet at once and asks before deleting one with content', () => {
+    const el = fixture.nativeElement as HTMLElement;
+    const trash = () => el.querySelector<HTMLButtonElement>('button[aria-label="Delete sheet"]')!;
+    book().addSheet();
+    fixture.detectChanges();
+    trash().click();
+    fixture.detectChanges();
+    expect(tabs()).toEqual(['Sheet1']);
+
+    sheet().setCell('A1', 'keep');
+    book().addSheet();
+    book().activate(0);
+    fixture.detectChanges();
+    trash().click();
+    fixture.detectChanges();
+    expect(tabs()).toEqual(['Sheet1', 'Sheet2']);
+    // Focus lands on the safe answer straight away — no microtask that event coalescing would outrun
+    expect(document.activeElement).toBe(el.querySelector('.we-book__confirm-no'));
+    el.querySelector<HTMLButtonElement>('.we-book__confirm-no')!.click();
+    fixture.detectChanges();
+    expect(el.querySelector('.we-book__confirm')).toBeNull();
+    expect(tabs()).toEqual(['Sheet1', 'Sheet2']);
+
+    trash().click();
+    fixture.detectChanges();
+    el.querySelector<HTMLButtonElement>('.we-book__confirm-yes')!.click();
+    fixture.detectChanges();
+    expect(tabs()).toEqual(['Sheet2']);
   });
 
   it('moves other sheets’ references when rows are inserted into a sheet', () => {
@@ -149,4 +184,105 @@ describe('WeWorkbookComponent', () => {
     sheet().setCell('B1', '=SUM(Stock)');
     expect(sheet().getValue('B1')).toBe(10);
   });
+  it('hands out one SafeHtml per icon, so a click on an icon is not lost to a rewritten SVG', () => {
+    expect(book().icon('plus')).toBe(book().icon('plus'));
+    const svg = fixture.nativeElement.querySelector('.we-book__icon svg');
+    fixture.detectChanges();
+    expect(svg.isConnected).toBeTrue();
+  });
+
+  it('closes the tab-colour palette on a press outside it and on Esc', () => {
+    book().colorMenu = true;
+    fixture.detectChanges();
+    document.body.dispatchEvent(new MouseEvent('mousedown', { bubbles: true }));
+    expect(book().colorMenu).toBeFalse();
+    book().colorMenu = true;
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(book().colorMenu).toBeFalse();
+  });
+
+  it('adds a one-sheet Excel file as a new sheet named after the file, never overwriting the open one', async () => {
+    sheet().setCell('A1', 'mine');
+    const file = new File([weSheetWorkbookXlsx([{ name: 'Sheet1', data: { version: 1, rows: 2, cols: 2, cells: { A1: { v: 7 } } } }])], 'Prices.xlsx');
+    await sheet().onImportFile({ target: { files: [file], value: '' } } as unknown as Event);
+    fixture.detectChanges();
+    expect(tabs()).toEqual(['Sheet1', 'Prices']);
+    expect(book().getData().sheets[0].data.cells['A1'].v).toBe('mine');
+    expect(sheet().getValue('A1')).toBe(7);
+  });
+
+  it('writes a change still in the debounce when it is destroyed', () => {
+    sheet().setCell('A1', 'late');
+    expect(store.saved.has('book:spec-book')).toBeFalse();
+    fixture.destroy();
+    const saved = store.saved.get('book:spec-book') as unknown as { sheets: { data: WeSheetData }[] };
+    expect(saved.sheets[0].data.cells['A1'].v).toBe('late');
+  });
+
+  it('emits contentChange for content but not for switching tabs', () => {
+    const content: number[] = [];
+    book().contentChange.subscribe((b) => content.push(b.active));
+    book().addSheet();
+    fixture.detectChanges();
+    expect(content.length).toBe(1);
+    book().activate(0);
+    fixture.detectChanges();
+    book().activate(1);
+    fixture.detectChanges();
+    expect(content.length).toBe(1);
+    sheet().setCell('A1', 1);
+    expect(content.length).toBe(2);
+  });
+
+  it('refreshes an app block on any sheet, keeping what the user added and moving references', () => {
+    sheet().setCell('A1', 'Item');
+    book().replaceRange('Sheet1', 'A2:B3', [['a', 1], ['b', 2]]);
+    sheet().setCell('B4', '=SUM(B2:B3)');
+    sheet().setCell('C2', '=B2*2');
+    book().addSheet();
+    fixture.detectChanges();
+    sheet().setCell('A1', "=Sheet1!B4");
+    // Sheet1 is not open: refreshed through the workbook, Sheet2's reference follows the total down
+    expect(book().replaceRange('Sheet1', 'A2:B3', [['a', 10], ['b', 20], ['c', 30]])).toBe('A2:B4');
+    fixture.detectChanges();
+    const s1 = book().getData().sheets[0].data.cells;
+    expect(s1['B5'].v).toBe('=SUM(B2:B4)');
+    expect(s1['C2'].v).toBe('=B2*2');
+    expect(book().getData().sheets[1].data.cells['A1'].v).toBe('=Sheet1!B5');
+    expect(sheet().getValue('A1')).toBe(60);
+    // Open sheet: one undoable step
+    book().activate(0);
+    fixture.detectChanges();
+    expect(book().replaceRange('Sheet1', 'A2:B4', [['z', 5]])).toBe('A2:B2');
+    expect(sheet().getValue('B3')).toBe(5);
+    sheet().undo();
+    expect(sheet().getValue('B5')).toBe(60);
+    expect(book().replaceRange('Nope', 'A1', [[1]])).toBeNull();
+  });
+});
+
+describe('WeWorkbookComponent with its own store', () => {
+  @Component({
+    standalone: true,
+    imports: [WeWorkbookComponent],
+    template: `<we-workbook workbookKey="own" [store]="store" (storeError)="errors.push($event.action)" />`
+  })
+  class OwnStoreHost {
+    @ViewChild(WeWorkbookComponent) book!: WeWorkbookComponent;
+    store: WeSheetStore = { load: () => of(null), save: () => throwError(() => new Error('down')) };
+    errors: string[] = [];
+  }
+
+  it('uses the [store] input over the token and reports a failed save', fakeAsync(() => {
+    const tokenStore = new MemoryStore();
+    TestBed.configureTestingModule({ imports: [OwnStoreHost], providers: [{ provide: WE_SHEET_STORE, useValue: tokenStore }] });
+    const fixture = TestBed.createComponent(OwnStoreHost);
+    fixture.detectChanges();
+    fixture.componentInstance.book.addSheet();
+    tick(500);
+    fixture.detectChanges();
+    expect(tokenStore.saved.size).toBe(0);
+    expect(fixture.componentInstance.errors).toEqual(['save']);
+    expect(fixture.nativeElement.querySelector('.we-book__notice').textContent).toContain('could not be saved');
+  }));
 });

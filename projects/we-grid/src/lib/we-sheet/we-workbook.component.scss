@@ -129,3 +129,37 @@
   background: linear-gradient(135deg, transparent 45%, var(--we-grid-muted-color, #878a99) 45%, var(--we-grid-muted-color, #878a99) 55%, transparent 55%), var(--we-grid-bg, #fff);
 }
 
+
+// Asked before a sheet with content is deleted
+.we-book__confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--we-grid-font-color, #212529);
+
+  button {
+    padding: 0.2rem 0.6rem;
+    border: 1px solid var(--we-grid-border-color, #dee2e6);
+    border-radius: var(--we-grid-radius, 0.25rem);
+    background: var(--we-grid-bg, #fff);
+    color: var(--we-grid-font-color, #212529);
+    font: inherit;
+    cursor: pointer;
+
+    &:focus-visible {
+      outline: 2px solid var(--we-grid-accent-color, #405189);
+      outline-offset: 1px;
+    }
+  }
+
+  .we-book__confirm-yes {
+    border-color: var(--we-grid-danger-color, #f06548);
+    color: var(--we-grid-danger-color, #f06548);
+  }
+}
+
+// The store failed to save or load
+.we-book__notice {
+  padding: 0 0.4rem;
+  color: var(--we-grid-danger-color, #f06548);
+}

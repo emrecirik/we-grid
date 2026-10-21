@@ -6,6 +6,7 @@ import {
   weSheetIsName,
   weSheetAutoSum,
   weSheetInsert,
+  weSheetReplaceRange,
   weSheetMoveReferences,
   weSheetMoveSheetReferences,
   weSheetFill,
@@ -370,5 +371,54 @@ describe('named ranges', () => {
     expect(data.names).toEqual({ Sales: '$B$2:$B$9' });
     expect(weSheetInsert(data, 'row', 0, 1).names).toEqual({ Sales: '$B$3:$B$10' });
     expect(weSheetInsert(data, 'col', 1, -1).names).toBeUndefined();
+  });
+});
+
+describe('weSheetReplaceRange', () => {
+  const base: WeSheetData = {
+    version: 1,
+    rows: 10,
+    cols: 4,
+    cells: {
+      A1: { v: 'Item' },
+      A2: { v: 'a', s: { bold: true } },
+      B2: { v: 1, f: 'currency' },
+      A3: { v: 'b' },
+      B3: { v: 2, f: 'currency' },
+      B4: { v: '=SUM(B2:B3)' },
+      C2: { v: '=B2*2' },
+      D9: { v: 'user note' }
+    }
+  };
+
+  it('grows the block, stretching totals and copying formats into the new rows', () => {
+    const r = weSheetReplaceRange(base, 'A2:B3', [['x', 5], ['y', 6], ['z', 7]])!;
+    expect(r.range).toBe('A2:B4');
+    expect(r.change).toEqual({ axis: 'row', at: 2, count: 1 });
+    const c = r.data.cells;
+    expect(c['A2']).toEqual({ v: 'x', s: { bold: true } });
+    expect(c['B3']).toEqual({ v: 6, f: 'currency' });
+    expect(c['B4']).toEqual({ v: 7, f: 'currency' });
+    expect(c['B5'].v).toBe('=SUM(B2:B4)');
+    expect(c['C2'].v).toBe('=B2*2');
+    expect(c['D10'].v).toBe('user note');
+    expect(c['A1'].v).toBe('Item');
+  });
+
+  it('shrinks the block, keeping formats of the cells it writes and emptying what it no longer reaches', () => {
+    const r = weSheetReplaceRange(base, 'A2:B3', [['only']])!;
+    expect(r.range).toBe('A2:B2');
+    expect(r.change).toEqual({ axis: 'row', at: 2, count: -1 });
+    expect(r.data.cells['A2']).toEqual({ v: 'only', s: { bold: true } });
+    expect(r.data.cells['B2']).toEqual({ f: 'currency' });
+    expect(r.data.cells['B3'].v).toBe('=SUM(B2:B2)');
+  });
+
+  it('keeps one row for no values, writes in place when the size holds, and refuses a bad range', () => {
+    expect(weSheetReplaceRange(base, 'A2:B3', [])!.range).toBe('A2:B2');
+    const same = weSheetReplaceRange(base, 'A2:B3', [['p', 9], ['q', 8]])!;
+    expect(same.change).toBeNull();
+    expect(same.data.cells['B4'].v).toBe('=SUM(B2:B3)');
+    expect(weSheetReplaceRange(base, 'nope', [[1]])).toBeNull();
   });
 });

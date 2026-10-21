@@ -1,3 +1,4 @@
+import { weGridSafeIcon } from '../services/we-grid-icon.util';
 import { CommonModule } from '@angular/common';
 import {
   ChangeDetectionStrategy,
@@ -58,6 +59,7 @@ import {
   weSheetFill,
   weSheetCleanList,
   weSheetWorkbookXlsx,
+  weSheetReplaceRange,
   weSheetFromCells,
   weSheetBorderSides,
   weSheetParseInput,
@@ -126,8 +128,10 @@ export interface WeSheetSuggestion {
   changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
-  /** Saves and restores the sheet under this key through `WE_SHEET_STORE` */
+  /** Saves and restores the sheet under this key through `store` (or `WE_SHEET_STORE`) */
   @Input() sheetKey?: string;
+  /** Where `sheetKey` saves — wins over the `WE_SHEET_STORE` token, so one screen can keep its sheet in a record of its own */
+  @Input() store?: WeSheetStore;
   /** The sheet's content — takes precedence over a stored one */
   @Input() data?: WeSheetData | null;
   /** Size of a new, empty sheet */
@@ -155,6 +159,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   @Output() dataChange = new EventEmitter<WeSheetData>();
   /** Rows or columns were inserted (`count` > 0) or deleted — after the `dataChange` that carries them */
   @Output() structureChange = new EventEmitter<{ axis: 'row' | 'col'; at: number; count: number }>();
+  /** The store failed to load or save the sheet — the sheet also shows a notice */
+  @Output() storeError = new EventEmitter<{ action: 'load' | 'save'; error: unknown }>();
 
   @ViewChild('scroll', { static: true }) scrollRef!: ElementRef<HTMLElement>;
   /** Unique per sheet — the ids that tie the comboboxes to their lists */
@@ -233,25 +239,26 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   constructor(
     @Inject(WE_GRID_LOCALE) readonly locale: WeGridLocale,
     @Inject(WE_GRID_ICONS) private readonly icons: WeGridIcons,
-    @Inject(WE_SHEET_STORE) private readonly store: WeSheetStore,
+    @Inject(WE_SHEET_STORE) private readonly defaultStore: WeSheetStore,
     private readonly sanitizer: DomSanitizer,
     private readonly cdr: ChangeDetectorRef,
     private readonly host: ElementRef<HTMLElement>
   ) {}
 
   ngOnInit(): void {
-    this.save$.pipe(debounceTime(400), takeUntil(this.destroy$)).subscribe(() => {
-      if (this.sheetKey) this.store.save(this.sheetKey, this.sheet).pipe(takeUntil(this.destroy$)).subscribe();
-    });
+    this.save$.pipe(debounceTime(400), takeUntil(this.destroy$)).subscribe(() => this.flushSave());
     if (this.data) {
-      this.load(this.data);
+      this.load(this.data, false);
     } else if (this.sheetKey) {
       this.load(null);
-      this.store
+      (this.store ?? this.defaultStore)
         .load(this.sheetKey)
         .pipe(takeUntil(this.destroy$))
-        .subscribe((stored) => {
-          if (stored && !this.data) this.load(stored);
+        .subscribe({
+          next: (stored) => {
+            if (stored && !this.data) this.load(stored);
+          },
+          error: (error: unknown) => this.storeFailed('load', error)
         });
     } else {
       this.load(null);
@@ -259,12 +266,15 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    // Another sheet changed: what was read of the others is stale — also when new data comes along with it
+    const resolverChanged = (changes['resolveSheet'] && !changes['resolveSheet'].firstChange) || (changes['resolveName'] && !changes['resolveName'].firstChange);
+    if (resolverChanged) this.otherSheets.clear();
     // Our own (dataChange) bound back into [data] carries the same object — nothing to reload then
     if (changes['data'] && !changes['data'].firstChange && this.data && this.data !== this.sheet) {
-      this.load(this.data);
-    } else if ((changes['resolveSheet'] && !changes['resolveSheet'].firstChange) || (changes['resolveName'] && !changes['resolveName'].firstChange)) {
-      // Another sheet changed: recompute what refers to it
-      this.otherSheets.clear();
+      // The host already has what it passed in — no dataChange back
+      this.load(this.data, false);
+    } else if (resolverChanged) {
+      // Recompute what refers to the other sheets
       this.apply(this.sheet, false);
     }
   }
@@ -300,6 +310,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnDestroy(): void {
+    // A change still waiting out the debounce is written now, not dropped with the component
+    this.flushSave();
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -315,6 +327,21 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   setData(data: WeSheetData): void {
     const clean = weSheetSanitize(data);
     if (clean) this.commit(clean);
+  }
+
+  /**
+   * Refreshes a block the app wrote earlier (`range`) with new `values`, keeping what the user added
+   * around it — see `weSheetReplaceRange`. One undoable step; works on a read-only sheet too, as
+   * `setData` does. Returns the new block's range — pass it next time — or null for a bad range.
+   */
+  replaceRange(range: string, values: readonly (readonly WeSheetCell['v'][])[]): string | null {
+    this.commitEdit();
+    const result = weSheetReplaceRange(this.sheet, range, values);
+    const clean = result && weSheetSanitize(result.data);
+    if (!result || !clean) return null;
+    this.commit(clean);
+    if (result.change) this.structureChange.emit(result.change);
+    return result.range;
   }
 
   /** A cell's computed value by address — `'B3'` */
@@ -351,7 +378,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   // ─── Rendering ───────────────────────────────────────────────────────
 
   icon(key: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(this.icons[key] ?? '');
+    return weGridSafeIcon(this.sanitizer, this.icons, key);
   }
 
   fg(color: WeGridFormatColor): string {
@@ -871,7 +898,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     }
     const box = (event.currentTarget as HTMLElement).getBoundingClientRect();
     this.functionPicker = { query: '', index: 0, x: Math.min(box.left, window.innerWidth - 300), y: box.bottom + 4 };
-    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLInputElement>('.we-sheet__functions-search')?.focus());
+    this.cdr.detectChanges();
+    this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLInputElement>('.we-sheet__functions-search')?.focus();
   }
 
   /** The functions whose English or Turkish name holds the search, English names first */
@@ -937,7 +965,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const text = kind === 'list' ? (this.activeList ?? []).join('\n') : (this.sheet.cells[weSheetAddress(this.active.col, this.active.row)]?.n ?? '');
     this.listEditor = { kind, text, ...at };
     this.cdr.markForCheck();
-    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLTextAreaElement>('.we-sheet__list-editor textarea')?.focus());
+    this.cdr.detectChanges();
+    this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLTextAreaElement>('.we-sheet__list-editor textarea')?.focus();
   }
 
   /** Gives every selected cell the choices in `text`, one per line — none removes the list */
@@ -1113,7 +1142,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.find = { text: this.find?.text ?? '', replace: this.find?.replace ?? '', withReplace, matchCase: this.find?.matchCase ?? false, index: 0 };
     this.refreshMatches();
     this.cdr.markForCheck();
-    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLInputElement>('.we-sheet__find-input')?.focus());
+    this.cdr.detectChanges();
+    this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLInputElement>('.we-sheet__find-input')?.focus();
   }
 
   closeFind(): void {
@@ -1295,7 +1325,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       values: sorted.map((text) => ({ text, label: text === '' ? this.locale.emptyGroupValue : text, shown: !hidden.has(text) }))
     };
     this.cdr.markForCheck();
-    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLElement>('.we-sheet__filter input')?.focus());
+    this.cdr.detectChanges();
+    this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLElement>('.we-sheet__filter input')?.focus();
   }
 
   get filterAllShown(): boolean {
@@ -1605,7 +1636,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     // Kept inside the viewport — the menu is about 16rem by 22rem
     this.menu = { x: Math.min(x, window.innerWidth - 260), y: Math.min(y, window.innerHeight - 360) };
     this.cdr.markForCheck();
-    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLElement>('.we-sheet__menu button')?.focus());
+    this.cdr.detectChanges();
+    this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLElement>('.we-sheet__menu button')?.focus();
   }
 
   closeMenu(): void {
@@ -1657,7 +1689,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.importInputRef?.nativeElement.click();
   }
 
-  /** Reads an .xlsx or .csv file into the sheet from A1, as one undoable step */
+  /** Reads an .xlsx or .csv file into the sheet from A1, as one undoable step — in a workbook an .xlsx file arrives as new sheets */
   async onImportFile(event: Event): Promise<void> {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -1668,8 +1700,9 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       let all: string[][];
       if (isXlsx) {
         const sheets = await weGridReadXlsxCells(file, weSheetShiftFormula);
-        if (sheets.length > 1 && this.importSheets) {
-          this.importSheets(sheets);
+        // In a workbook a file always arrives as new sheets — the open sheet is never overwritten
+        if (sheets.length && this.importSheets) {
+          this.importSheets(sheets.length === 1 ? [{ ...sheets[0], name: file.name.replace(/\.xlsx$/i, '') }] : sheets);
           return;
         }
         // The first worksheet, cell by cell where it stands — formulas included
@@ -1898,7 +1931,9 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   /** Moves focus into a dialog that just opened */
   private focusDialog(selector: string): void {
-    queueMicrotask(() => this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLElement>(`.we-sheet__dialog ${selector}`)?.focus());
+    // Rendered now, as at every popup's focus: with event coalescing a microtask would run before the popup exists
+    this.cdr.detectChanges();
+    this.scrollRef.nativeElement.closest('.we-sheet')?.querySelector<HTMLElement>(`.we-sheet__dialog ${selector}`)?.focus();
   }
 
   /**
@@ -2079,7 +2114,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     } else {
       // Cell by cell, with formulas — the whole workbook when the sheet is part of one
       const sheets = this.xlsxSheets?.() ?? [{ name: this.exportFileName || 'Sheet1', data: this.sheet }];
-      weGridDownloadBlob(weSheetWorkbookXlsx(sheets), `${name}.xlsx`);
+      weGridDownloadBlob(weSheetWorkbookXlsx(sheets, this.currency), `${name}.xlsx`);
     }
   }
 
@@ -2131,11 +2166,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     return parts.findIndex((p) => p.type === 'month') < parts.findIndex((p) => p.type === 'day') ? 'mdy' : 'dmy';
   }
 
-  private load(input: WeSheetData | null): void {
+  private load(input: WeSheetData | null, emit = true): void {
     const data = (input && weSheetSanitize(input)) || weSheetEmpty(this.clampRows(this.rows), this.clampCols(this.cols));
     this.undoStack = [];
     this.redoStack = [];
-    this.apply(data);
+    this.apply(data, emit);
   }
 
   private clampRows(n: number): number {
@@ -2181,7 +2216,23 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   private emitChange(): void {
     this.dataChange.emit(this.sheet);
+    this.savePending = true;
     this.save$.next();
+  }
+
+  private savePending = false;
+
+  /** Writes the sheet if a change waits — not tied to destroy$, so a request in flight isn't cancelled */
+  private flushSave(): void {
+    if (!this.savePending || !this.sheetKey) return;
+    this.savePending = false;
+    (this.store ?? this.defaultStore).save(this.sheetKey, this.sheet).subscribe({ error: (error: unknown) => this.storeFailed('save', error) });
+  }
+
+  private storeFailed(action: 'load' | 'save', error: unknown): void {
+    this.notice = action === 'save' ? this.locale.sheetSaveFailed : this.locale.sheetLoadFailed;
+    this.cdr.markForCheck();
+    this.storeError.emit({ action, error });
   }
 
   /** First column: categories; first row: series names when it holds text; numbers in between */

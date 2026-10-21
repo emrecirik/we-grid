@@ -1,3 +1,4 @@
+import { weGridSafeIcon } from './services/we-grid-icon.util';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { CdkDragDrop, DragDropModule, moveItemInArray } from '@angular/cdk/drag-drop';
@@ -799,7 +800,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   ) {}
 
   icon(key: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(this.icons[key] ?? '');
+    return weGridSafeIcon(this.sanitizer, this.icons, key);
   }
 
   /** `emptyMessage` input if given, otherwise the current locale's default */

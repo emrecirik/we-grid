@@ -43,6 +43,9 @@
         </button>
       }
     }
+    @if (storeNotice) {
+      <span class="we-book__notice" role="alert">{{ storeNotice }}</span>
+    }
     @if (!readonly) {
       <button type="button" class="we-book__icon" (click)="addSheet()" [attr.aria-label]="locale.workbookAdd" [title]="locale.workbookAdd">
         <span [innerHTML]="icon('plus')" aria-hidden="true"></span>
@@ -73,9 +76,17 @@
       <button type="button" class="we-book__icon" (click)="duplicateSheet()" [attr.aria-label]="locale.workbookDuplicate" [title]="locale.workbookDuplicate">
         <span [innerHTML]="icon('stack')" aria-hidden="true"></span>
       </button>
-      <button type="button" class="we-book__icon" (click)="deleteSheet()" [disabled]="book.sheets.length <= 1" [attr.aria-label]="locale.workbookDelete" [title]="locale.workbookDelete">
-        <span [innerHTML]="icon('trash')" aria-hidden="true"></span>
-      </button>
+      @if (confirmingDelete) {
+        <span class="we-book__confirm" role="alertdialog" [attr.aria-label]="locale.workbookDeleteConfirm" (keydown.escape)="confirmingDelete = false">
+          <span>{{ locale.workbookDeleteConfirm }}</span>
+          <button type="button" class="we-book__confirm-yes" (click)="deleteSheet()">{{ locale.workbookDelete }}</button>
+          <button type="button" class="we-book__confirm-no" (click)="confirmingDelete = false">{{ locale.cancel }}</button>
+        </span>
+      } @else {
+        <button type="button" class="we-book__icon" (click)="requestDelete()" [disabled]="book.sheets.length <= 1" [attr.aria-label]="locale.workbookDelete" [title]="locale.workbookDelete">
+          <span [innerHTML]="icon('trash')" aria-hidden="true"></span>
+        </button>
+      }
     }
   </div>
 </div>

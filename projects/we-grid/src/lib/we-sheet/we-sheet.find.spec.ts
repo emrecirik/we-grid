@@ -64,6 +64,15 @@ describe('WeSheetComponent — find, replace and decimal places', () => {
 
   it('replaces one match or all of them, undoably', () => {
     sheet.openFind(true);
+    // Focused at once: a microtask would run before an event-coalescing app renders the box
+    expect((document.activeElement as HTMLElement).classList).toContain('we-sheet__find-input');
+    sheet.find = null;
+    sheet.openMenu(10, 10);
+    expect((document.activeElement as HTMLElement).closest('.we-sheet__menu')).not.toBeNull();
+    sheet.openTextToColumns();
+    expect((document.activeElement as HTMLElement).closest('.we-sheet__split')).not.toBeNull();
+    sheet.splitDialog = null;
+    sheet.openFind(true);
     sheet.onFindInput('apple');
     sheet.find!.replace = 'Plum';
     sheet.replaceOne();

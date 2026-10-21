@@ -2,6 +2,53 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.51.0 — 2026-10-21
+
+### Added
+
+- `replaceRange(sheetName, range, values)` on `<we-workbook>` (and `replaceRange(range, values)` on
+  `<we-sheet>`, `weSheetReplaceRange` on plain data): refreshes a block the app wrote earlier and
+  keeps what the user added around it. Rows are inserted or deleted at the block's end so the new
+  values fit, the cells under it and every reference to them move (a `=SUM(F2:F16)` total grows
+  with the block), written cells keep their formats and new rows take the formats of the row above.
+  One undoable step on the open sheet; returns the new range.
+- `store` input on `<we-sheet>` and `<we-workbook>`: a `WeSheetStore` for this component, winning
+  over the `WE_SHEET_STORE` token — one screen can keep its workbook in its own record.
+- `storeError` output on both (`{ action: 'load' | 'save', error }`); the sheet or the tab bar also
+  shows a notice. Locale keys `sheetSaveFailed`, `sheetLoadFailed`.
+- `contentChange` output on `<we-workbook>`: like `dataChange` but not for switching tabs — what a
+  host saves on.
+- Locale key `workbookDeleteConfirm`: deleting a sheet that holds anything asks first, in the tab
+  bar (the delete cannot be undone); an empty sheet is still deleted at once.
+
+### Fixed
+
+- Icon buttons (grid, sheet, workbook, pivot, menus, dialogs) missed clicks that landed on the
+  icon itself: every change detection — every mouse move over a sheet — rewrote the SVG, so the
+  element under `mousedown` was gone by `mouseup` and no `click` fired. This is why opening an
+  Excel file "sometimes worked". Each icon is now wrapped once and reused.
+- Sheet popups — find, function list, cell menu, filter, list/note editor, dialogs — and the
+  workbook's rename box take keyboard focus when they open. With
+  `provideZoneChangeDetection({ eventCoalescing: true })` (the Angular CLI default) focus stayed on
+  the button, so typing went nowhere and the rename box never closed.
+- The tab-colour palette closes on a press outside it and on Esc, wherever the focus is.
+- A change still waiting out the 400 ms save debounce is written when a sheet or workbook is
+  destroyed, and a save already sent is no longer cancelled with the component.
+- Formulas reading another sheet could show that sheet's old values after switching tabs.
+- Currency cells keep their format through an Excel file: written with the currency symbol
+  (`[$₺] #,##0.00`), and Excel currency formats read back as currency instead of number.
+- A duplicated sheet is named `Budget (2)`, as in Excel.
+
+### Changed
+
+A minor release: inputs, outputs and locale keys only gain members. Behaviour that changes:
+
+- In a workbook, opening an Excel file with **one** sheet adds it as a new sheet named after the
+  file, as a file with several sheets already did; it no longer overwrites the open sheet. A CSV
+  file still fills the open sheet (undoable).
+- `<we-sheet>` no longer emits `dataChange` when it loads what the host passed in `[data]` — the
+  host already has it. Loading from the store still emits.
+
 ## 0.50.0 — 2026-10-20
 
 ### Added

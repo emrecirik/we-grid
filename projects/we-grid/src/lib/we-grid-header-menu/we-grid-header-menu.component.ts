@@ -1,3 +1,4 @@
+import { weGridSafeIcon } from '../services/we-grid-icon.util';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -83,7 +84,7 @@ export class WeGridHeaderMenuComponent implements OnInit {
   }
 
   icon(key: string): SafeHtml {
-    return this.sanitizer.bypassSecurityTrustHtml(this.icons[key] ?? '');
+    return weGridSafeIcon(this.sanitizer, this.icons, key);
   }
 
   displayHeader(col: WeGridInternalColumn<unknown>): string {

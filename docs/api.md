@@ -164,8 +164,8 @@ Adding or removing a column needs no bump.
 
 ## `<we-sheet>` (`WeSheetComponent`) *(0.9.0)*
 
-A spreadsheet component — inputs `sheetKey`, `data`, `rows`, `cols`, `readonly`, `exportFileName`, `xlsxSheets`, `importSheets`,
-`height`; output `dataChange`; token `WE_SHEET_STORE` (`WeSheetStore`, default
+A spreadsheet component — inputs `sheetKey`, `store` (0.51.0), `data`, `rows`, `cols`, `readonly`, `exportFileName`, `xlsxSheets`, `importSheets`,
+`height`; outputs `dataChange`, `structureChange`, `storeError` (0.51.0); method `replaceRange(range, values)` (0.51.0); token `WE_SHEET_STORE` (`WeSheetStore`, default
 `LocalStorageSheetStore`); models `WeSheetData`, `WeSheetCell`, `WeSheetNumberFormat`. Full
 reference in [sheet.md](sheet.md).
 
@@ -183,8 +183,9 @@ Column, bar, line, area, pie and donut charts — inputs `type`, `data` (`WeChar
 
 ## `<we-workbook>` (`WeWorkbookComponent`) *(0.14.0)*
 
-Several sheets behind tabs — inputs `workbookKey`, `data` (`WeWorkbookData`), `readonly`, `height`,
-`rows`, `cols`, `exportFileName`; output `dataChange`. See [sheet.md](sheet.md#workbooks-several-sheets-0140).
+Several sheets behind tabs — inputs `workbookKey`, `store` (0.51.0), `data` (`WeWorkbookData`), `readonly`, `height`,
+`rows`, `cols`, `exportFileName`; outputs `dataChange`, `contentChange` and `storeError` (0.51.0); method
+`replaceRange(sheetName, range, values)` (0.51.0). See [sheet.md](sheet.md#workbooks-several-sheets-0140).
 
 ## Directives
 

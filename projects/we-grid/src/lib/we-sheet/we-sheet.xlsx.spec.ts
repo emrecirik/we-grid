@@ -328,6 +328,15 @@ describe('times in Excel files', () => {
     const [read] = await weGridReadXlsxCells(blob);
     expect(weSheetFromCells(read.cells, '.', 1, 1, read.merges, read.formats, read).data.cells['A1']).toEqual({ v: 0.5, f: 'time' });
   });
+
+  it('keeps a currency format through an Excel round trip, and reads Excel currency codes', async () => {
+    const blob = weSheetWorkbookXlsx([{ name: 'C', data: { version: 1, rows: 1, cols: 2, cells: { A1: { v: 1500, f: 'currency' }, B1: { v: 2.5, f: 'currency', d: 0 } } } }], 'TRY');
+    expect(await new Response(blob).text()).toContain('formatCode="[$₺] #,##0.00"');
+    const [read] = await weGridReadXlsxCells(blob, weSheetShiftFormula);
+    const cells = weSheetFromCells(read.cells, '.', 1, 2, read.merges, read.formats, read).data.cells;
+    expect(cells['A1']).toEqual({ v: 1500, f: 'currency', d: 2 });
+    expect(cells['B1']).toEqual({ v: 2.5, f: 'currency', d: 0 });
+  });
 });
 
 describe('row heights and tab colours in Excel files', () => {
