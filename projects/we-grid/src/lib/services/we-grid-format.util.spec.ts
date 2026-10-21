@@ -146,4 +146,15 @@ describe('palette colours as hex', () => {
     expect(weGridNearestFormatColor('#e0edff', 'bg')).toBe('blue');
     expect(weGridNearestFormatColor('nope', 'bg')).toBeNull();
   });
+
+  it('keeps the weight of saturated Excel fills and the hue of its pale ones', () => {
+    expect(weGridNearestFormatColor('FFFFFF00', 'bg')).toBe('yellow-strong');
+    expect(weGridNearestFormatColor('FF92D050', 'bg')).toBe('green-strong');
+    expect(weGridNearestFormatColor('FFFF0000', 'bg')).toBe('red-strong');
+    expect(weGridNearestFormatColor('FFC6EFCE', 'bg')).toBe('green');
+    expect(weGridNearestFormatColor('FF7030A0', 'bg')).toBe('purple-strong');
+    expect(weGridNearestFormatColor('FFD9D9D9', 'bg')).toBe('gray');
+    expect(weGridNearestFormatColor('FFFF0000', 'fg')).toBe('red');
+    expect(weGridFormatHex('yellow-strong', 'bg')).toBe('#ffeb3b');
+  });
 });

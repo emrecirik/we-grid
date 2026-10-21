@@ -27,7 +27,8 @@ class Cursor {
   /** The next keyword, upper-cased, without consuming it */
   peekWord(): string {
     this.skipSpace();
-    const m = /^[A-Za-z_]+/.exec(this.s.slice(this.i));
+    // Hyphenated words too: the palette has names such as YELLOW-STRONG
+    const m = /^[A-Za-z_]+(?:-[A-Za-z_]+)*/.exec(this.s.slice(this.i));
     return m ? m[0].toUpperCase() : '';
   }
 

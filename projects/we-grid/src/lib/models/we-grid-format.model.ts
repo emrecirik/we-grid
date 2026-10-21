@@ -3,10 +3,16 @@
  * `--we-grid-format-<name>-bg` (fill). Styles name a palette colour instead of carrying a CSS value,
  * so a saved or shared format follows the theme, dark mode included, and can never inject CSS.
  */
-export type WeGridFormatColor = 'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'blue' | 'purple' | 'pink' | 'gray';
+export type WeGridFormatColor =
+  | 'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'blue' | 'purple' | 'pink' | 'gray'
+  // Vivid fills and deeper text (0.53.0) — Excel's saturated colours keep their weight on import
+  | 'red-strong' | 'orange-strong' | 'yellow-strong' | 'green-strong' | 'teal-strong' | 'blue-strong' | 'purple-strong' | 'pink-strong' | 'gray-strong';
 
 /** Every palette colour, in the order the format panel offers them */
-export const WE_GRID_FORMAT_COLORS: readonly WeGridFormatColor[] = ['red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink', 'gray'];
+export const WE_GRID_FORMAT_COLORS: readonly WeGridFormatColor[] = [
+  'red', 'orange', 'yellow', 'green', 'teal', 'blue', 'purple', 'pink', 'gray',
+  'red-strong', 'orange-strong', 'yellow-strong', 'green-strong', 'teal-strong', 'blue-strong', 'purple-strong', 'pink-strong', 'gray-strong'
+];
 
 /** Text styling for a cell — a column's base style, or what a matching format rule applies */
 export interface WeGridCellStyle {

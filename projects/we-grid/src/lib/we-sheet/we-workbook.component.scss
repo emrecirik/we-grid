@@ -102,7 +102,9 @@
   bottom: calc(100% + 0.25rem);
   right: 0;
   z-index: 10;
-  display: flex;
+  // "None", then the nine soft colours with their strong tones beneath
+  display: grid;
+  grid-template-columns: repeat(10, 1.1rem);
   gap: 0.3rem;
   padding: 0.4rem;
   border: 1px solid var(--we-grid-border-color, #dee2e6);
@@ -126,6 +128,8 @@
 }
 
 .we-book__dot--none {
+  grid-row: span 2;
+  align-self: center;
   background: linear-gradient(135deg, transparent 45%, var(--we-grid-muted-color, #878a99) 45%, var(--we-grid-muted-color, #878a99) 55%, transparent 55%), var(--we-grid-bg, #fff);
 }
 

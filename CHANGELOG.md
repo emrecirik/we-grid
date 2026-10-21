@@ -2,6 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.53.0 — 2026-10-21
+
+### Added
+
+- Nine more palette colours, `red-strong` … `gray-strong`: a vivid fill and a deeper text colour
+  for every hue, in the format panel, the sheet toolbar, sheet tabs and macros (`YELLOW-STRONG`).
+  CSS custom properties `--we-grid-format-<colour>-strong-fg` / `-bg` in all three blocks of both
+  theme files; `formatColorNames` names them in every locale.
+
+### Changed
+
+- `WeGridFormatColor` gained the nine values. A hand-written `formatColorNames` (one not spread from
+  a shipped locale) needs the new keys, as with any new locale key.
+- Colours from Excel files are matched to the palette in CIELAB instead of RGB. Bright fills keep
+  their weight (`#FFFF00` → `yellow-strong`) and hues hold: grey `#D9D9D9` was read as green and
+  `#92D050` as yellow.
+
 ## 0.52.0 — 2026-10-21
 
 ### Added

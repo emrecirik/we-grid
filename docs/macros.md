@@ -86,7 +86,8 @@ English and case-insensitive. Text values go in double quotes (`""` for a quote 
 Numbers are written as the grid shows them: `FILTER [Margin] > 25` on a percent column means 25 %
 (and the recorder writes it that way) *(0.16.0)*.
 
-Palette colours: `RED ORANGE YELLOW GREEN TEAL BLUE PURPLE PINK GRAY`. Formulas use the formula
+Palette colours: `RED ORANGE YELLOW GREEN TEAL BLUE PURPLE PINK GRAY`, and each with `-STRONG`
+(`YELLOW-STRONG`, *0.53.0*). Formulas use the formula
 engine — every function in [formulas.md](formulas.md), English or Turkish names.
 
 Consecutive grid steps are applied together, so a macro that filters, groups and sorts makes the

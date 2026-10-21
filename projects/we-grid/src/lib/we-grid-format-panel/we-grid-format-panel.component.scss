@@ -92,6 +92,13 @@
   gap: 0.4rem;
 }
 
+// The nine soft colours over their strong tones
+.we-grid-format__swatches {
+  display: grid;
+  grid-template-columns: repeat(9, 1.5rem);
+  gap: 0.4rem;
+}
+
 .we-grid-format__swatch {
   width: 1.5rem;
   height: 1.5rem;

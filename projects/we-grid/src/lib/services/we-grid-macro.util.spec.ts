@@ -69,6 +69,19 @@ describe('we-grid macro scripts', () => {
     expect(again).toEqual(first);
   });
 
+  it('reads the hyphenated strong palette colours', () => {
+    const { lines, errors } = weGridParseMacro(
+      ['DATABAR [Total] BLUE-STRONG', 'COLORSCALE [Margin] RED-STRONG GREEN', 'HIGHLIGHT [Total] > 1000 YELLOW-STRONG BOLD'].join('\n')
+    );
+    expect(errors).toEqual([]);
+    const rules = lines.map((l) => (l.step as { rule: { color?: string; colors?: string[]; style?: { fill?: string } } }).rule);
+    expect(rules[0].color).toBe('blue-strong');
+    expect(rules[1].colors).toEqual(['red-strong', 'green']);
+    expect(rules[2].style?.fill).toBe('yellow-strong');
+    const again = weGridParseMacro(weGridMacroScript(lines.map((l) => l.step))).lines.map((l) => l.step);
+    expect(again).toEqual(lines.map((l) => l.step));
+  });
+
   it('turns the difference between two views into steps', () => {
     const before: WeGridSavedView = {
       name: 'a',

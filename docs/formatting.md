@@ -103,7 +103,10 @@ interface WeGridCellStyle {
 ```
 
 `WeGridFormatColor` is one of `'red' | 'orange' | 'yellow' | 'green' | 'teal' | 'blue' | 'purple' |
-'pink' | 'gray'` (`WE_GRID_FORMAT_COLORS`). The presets the panel offers are exported as
+'pink' | 'gray'` (`WE_GRID_FORMAT_COLORS`), and *(0.53.0)* the same nine with `-strong`
+(`'red-strong'` … `'gray-strong'`): a vivid fill and a deeper text colour. Colours read from an
+Excel file go to the nearest palette colour by eye (CIELAB), so a bright `#FFFF00` fill stays a
+bright yellow and a grey `#D9D9D9` stays grey. The presets the panel offers are exported as
 `WE_GRID_FORMAT_PRESETS` and `WE_GRID_FORMAT_SCALES`.
 
 ## A column's default style

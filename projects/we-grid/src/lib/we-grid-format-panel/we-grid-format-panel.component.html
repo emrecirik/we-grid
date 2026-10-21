@@ -47,19 +47,21 @@
               [title]="locale.formatNoColor"
               (click)="setColor($any(key), null)"
             ></button>
-            @for (color of colors; track color) {
-              <button
-                type="button"
-                role="radio"
-                class="we-grid-format__swatch"
-                [style.background]="key === 'color' ? fg(color) : bg(color)"
-                [style.border-color]="fg(color)"
-                [attr.aria-checked]="$any(style)[key] === color"
-                [attr.aria-label]="locale.formatColorNames[color]"
-                [title]="locale.formatColorNames[color]"
-                (click)="setColor($any(key), color)"
-              ></button>
-            }
+            <span class="we-grid-format__swatches">
+              @for (color of colors; track color) {
+                <button
+                  type="button"
+                  role="radio"
+                  class="we-grid-format__swatch"
+                  [style.background]="key === 'color' ? fg(color) : bg(color)"
+                  [style.border-color]="fg(color)"
+                  [attr.aria-checked]="$any(style)[key] === color"
+                  [attr.aria-label]="locale.formatColorNames[color]"
+                  [title]="locale.formatColorNames[color]"
+                  (click)="setColor($any(key), color)"
+                ></button>
+              }
+            </span>
           </div>
         }
       </section>
@@ -185,19 +187,21 @@
           } @else {
             <div class="we-grid-format__swatch-row" role="radiogroup" [attr.aria-label]="locale.formatBarColor">
               <span class="we-grid-format__label">{{ locale.formatBarColor }}</span>
-              @for (color of colors; track color) {
-                <button
-                  type="button"
-                  role="radio"
-                  class="we-grid-format__swatch"
-                  [style.background]="fg(color)"
-                  [style.border-color]="fg(color)"
-                  [attr.aria-checked]="newBarColor === color"
-                  [attr.aria-label]="locale.formatColorNames[color]"
-                  [title]="locale.formatColorNames[color]"
-                  (click)="newBarColor = color"
-                ></button>
-              }
+              <span class="we-grid-format__swatches">
+                @for (color of colors; track color) {
+                  <button
+                    type="button"
+                    role="radio"
+                    class="we-grid-format__swatch"
+                    [style.background]="fg(color)"
+                    [style.border-color]="fg(color)"
+                    [attr.aria-checked]="newBarColor === color"
+                    [attr.aria-label]="locale.formatColorNames[color]"
+                    [title]="locale.formatColorNames[color]"
+                    (click)="newBarColor = color"
+                  ></button>
+                }
+              </span>
             </div>
           }
 

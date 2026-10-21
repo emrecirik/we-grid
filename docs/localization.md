@@ -240,6 +240,10 @@ parser's own messages are English too.
 
 - `sheetNames`, `sheetNamesHint`, `sheetNameRemove`, `sheetNameInvalid`
 
+## Keys added in 0.53.0
+
+- `formatColorNames` gained the nine `-strong` colours (`'red-strong'` … `'gray-strong'`)
+
 ## Keys added in 0.52.0
 
 - `rowMenu` — accessible name of the row right-click menu (`rowContextMenu`)

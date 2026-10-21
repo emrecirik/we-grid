@@ -43,7 +43,7 @@ you can theme it two ways:
 | `--we-grid-th-menu-btn-idle-opacity` | With `headerMenuButton="hover"`: the header ⚙ button at rest (0.8.0, default `0`) |
 | `--we-grid-th-menu-btn-hover-opacity` | With `headerMenuButton="hover"`: the button while its header is hovered or focused (0.8.0, default `0.5`) |
 | `--we-grid-stripe-bg` | Zebra rows (`striped`) (0.9.0) |
-| `--we-grid-format-<colour>-fg` / `--we-grid-format-<colour>-bg` | The formatting palette — text colour / fill for `red`, `orange`, `yellow`, `green`, `teal`, `blue`, `purple`, `pink`, `gray`; also colour scales and data bars. See [formatting.md](formatting.md) (0.9.0) |
+| `--we-grid-format-<colour>-fg` / `--we-grid-format-<colour>-bg` | The formatting palette — text colour / fill for `red`, `orange`, `yellow`, `green`, `teal`, `blue`, `purple`, `pink`, `gray` and *(0.53.0)* each with `-strong` (`red-strong` …); also colour scales and data bars. See [formatting.md](formatting.md) (0.9.0) |
 
 ### Set by you, never by the library (0.7.0)
 

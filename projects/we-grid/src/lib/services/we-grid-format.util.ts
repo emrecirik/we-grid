@@ -23,7 +23,16 @@ const FALLBACK: Record<WeGridFormatColor, [string, string]> = {
   blue: ['#0a5cc2', '#e0edff'],
   purple: ['#7e3bb0', '#f1e6fb'],
   pink: ['#b5235f', '#fde4ee'],
-  gray: ['#545961', '#eceef1']
+  gray: ['#545961', '#eceef1'],
+  'red-strong': ['#8f1610', '#ff8a80'],
+  'orange-strong': ['#8a4500', '#ffc069'],
+  'yellow-strong': ['#6b5500', '#ffeb3b'],
+  'green-strong': ['#145c27', '#9fdc8a'],
+  'teal-strong': ['#06525f', '#7fd6e3'],
+  'blue-strong': ['#08428c', '#8cbcff'],
+  'purple-strong': ['#5a2585', '#cfa3f0'],
+  'pink-strong': ['#8a1747', '#f9a3c4'],
+  'gray-strong': ['#2f3237', '#a9adb4']
 };
 
 /**
@@ -34,23 +43,38 @@ export function weGridFormatHex(color: WeGridFormatColor, kind: 'fg' | 'bg'): st
   return FALLBACK[color][kind === 'fg' ? 0 : 1];
 }
 
-/** The palette colour nearest to a hex colour (`#c41e16`, `FFC41E16`) as text (`'fg'`) or fill (`'bg'`), or null when it is not a colour */
+/**
+ * The palette colour nearest to a hex colour (`#c41e16`, `FFC41E16`) as text (`'fg'`) or fill (`'bg'`), or null when it is not a colour.
+ * Measured in CIELAB, which follows the eye: in plain RGB a neutral grey lands on green and a saturated green on yellow.
+ */
 export function weGridNearestFormatColor(hex: string, kind: 'fg' | 'bg'): WeGridFormatColor | null {
-  const m = /^#?(?:[0-9a-f]{2})?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex.trim());
+  const m = /^#?(?:[0-9a-f]{2})?([0-9a-f]{6})$/i.exec(hex.trim());
   if (!m) return null;
-  const rgb = [m[1], m[2], m[3]].map((x) => parseInt(x, 16));
+  const lab = toLab(m[1]);
   let best: WeGridFormatColor | null = null;
   let distance = Infinity;
   for (const color of Object.keys(FALLBACK) as WeGridFormatColor[]) {
-    const p = FALLBACK[color][kind === 'fg' ? 0 : 1];
-    const c = [1, 3, 5].map((i) => parseInt(p.slice(i, i + 2), 16));
-    const d = c.reduce((sum, v, i) => sum + (v - rgb[i]) ** 2, 0);
+    const p = toLab(FALLBACK[color][kind === 'fg' ? 0 : 1].slice(1));
+    const d = (p[0] - lab[0]) ** 2 + (p[1] - lab[1]) ** 2 + (p[2] - lab[2]) ** 2;
     if (d < distance) {
       distance = d;
       best = color;
     }
   }
   return best;
+}
+
+/** `rrggbb` as CIELAB (D65) */
+function toLab(hex: string): [number, number, number] {
+  const [r, g, b] = [0, 2, 4].map((i) => {
+    const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+    return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  const f = (t: number) => (t > 0.008856 ? Math.cbrt(t) : 7.787 * t + 16 / 116);
+  const x = f((r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047);
+  const y = f(r * 0.2126 + g * 0.7152 + b * 0.0722);
+  const z = f((r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883);
+  return [116 * y - 16, 500 * (x - y), 200 * (y - z)];
 }
 
 /** A palette colour's text variable */
