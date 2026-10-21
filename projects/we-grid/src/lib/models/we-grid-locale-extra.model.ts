@@ -73,6 +73,7 @@ export const weGridLocaleDe: WeGridLocale = {
   refreshButton: 'Aktualisieren',
 
   actionsColumn: 'Aktionen',
+  rowMenu: 'Zeilenaktionen',
   addRow: 'Zeile hinzufügen',
   editRow: 'Bearbeiten',
   deleteRow: 'Löschen',
@@ -458,6 +459,7 @@ export const weGridLocaleFr: WeGridLocale = {
   refreshButton: 'Actualiser',
 
   actionsColumn: 'Actions',
+  rowMenu: 'Actions sur la ligne',
   addRow: 'Ajouter une ligne',
   editRow: 'Modifier',
   deleteRow: 'Supprimer',
@@ -846,6 +848,7 @@ export const weGridLocaleEs: WeGridLocale = {
   refreshButton: 'Actualizar',
 
   actionsColumn: 'Acciones',
+  rowMenu: 'Acciones de fila',
   addRow: 'Añadir fila',
   editRow: 'Editar',
   deleteRow: 'Eliminar',

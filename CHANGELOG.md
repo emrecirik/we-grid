@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.52.0 — 2026-10-21
+
+### Added
+
+- `rowContextMenu` input on `<we-grid>`: `(row, { field, selectedRows }) => WeGridMenuItem[] | null`
+  builds a right-click menu for data rows — icons (`WE_GRID_ICONS` keys), disabled,
+  danger and separator items, and nested items that open in place. A right click on an unselected
+  row selects it first; Shift+F10 / ContextMenu open it for the focused row; arrows, Enter and Esc
+  work inside. Attached to `body`, flips at the screen edge, styled like the column menu. Group,
+  summary and detail rows never call it. Without the input nothing changes: no `tabindex`, and the
+  browser's menu opens as before.
+- `rowMenuItemClick` output (`{ item, row }`), after the item's own `action`.
+- Models `WeGridMenuItem`, `WeGridRowMenuContext`, `WeGridRowMenuFn`, `WeGridRowMenuItemClickEvent`;
+  locale key `rowMenu`.
+
 ## 0.51.0 — 2026-10-21
 
 ### Added

@@ -240,6 +240,10 @@ parser's own messages are English too.
 
 - `sheetNames`, `sheetNamesHint`, `sheetNameRemove`, `sheetNameInvalid`
 
+## Keys added in 0.52.0
+
+- `rowMenu` — accessible name of the row right-click menu (`rowContextMenu`)
+
 ## Keys added in 0.50.0
 
 - Shared view banner: `sharedViewPrompt(name)`, `sharedViewFilters`, `sharedViewRenamed`,

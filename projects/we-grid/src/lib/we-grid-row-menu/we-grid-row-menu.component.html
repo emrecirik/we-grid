@@ -1,0 +1,35 @@
+<div class="we-grid-menu" role="menu" [attr.aria-label]="locale.rowMenu" (keydown)="onKeydown($event)" (contextmenu)="$event.preventDefault()">
+  <ng-container *ngTemplateOutlet="list; context: { $implicit: items, parent: null }"></ng-container>
+</div>
+
+<ng-template #list let-items let-parent="parent">
+  @for (item of items; track item.id) {
+    @if (item.separatorBefore) {
+      <div class="we-grid-menu__divider" role="separator"></div>
+    }
+    <button
+      #menuItem
+      type="button"
+      role="menuitem"
+      class="we-grid-menu__item"
+      [class.we-grid-menu__item--danger]="item.danger"
+      [disabled]="item.disabled"
+      [attr.data-item-id]="item.id"
+      [attr.data-parent-id]="parent"
+      [attr.aria-haspopup]="item.children?.length ? 'menu' : null"
+      [attr.aria-expanded]="item.children?.length ? isOpen(item) : null"
+      (click)="onItemClick(item)"
+    >
+      <span class="we-grid-menu__icon" aria-hidden="true" [innerHTML]="item.icon ? icon(item.icon) : ''"></span>
+      {{ item.label }}
+      @if (item.children?.length) {
+        <span class="we-grid-menu__arrow" aria-hidden="true" [innerHTML]="icon('chevronRight')"></span>
+      }
+    </button>
+    @if (item.children?.length && isOpen(item)) {
+      <div class="we-grid-menu__submenu-panel" role="group" [attr.aria-label]="item.label">
+        <ng-container *ngTemplateOutlet="list; context: { $implicit: item.children, parent: item.id }"></ng-container>
+      </div>
+    }
+  }
+</ng-template>

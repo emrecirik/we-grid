@@ -1,4 +1,4 @@
-import { ChangeDetectorRef, Component, ComponentRef, ViewChild } from '@angular/core';
+import { ApplicationRef, ChangeDetectorRef, Component, ComponentRef, ViewChild } from '@angular/core';
 import { Observable, Subject, of, throwError } from 'rxjs';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { CdkDragDrop } from '@angular/cdk/drag-drop';
@@ -2624,3 +2624,169 @@ describe('WeGridComponent — saved views', () => {
   });
 });
 
+
+describe('WeGridComponent rowContextMenu', () => {
+  let component: WeGridComponent<Row>;
+  let fixture: ComponentFixture<WeGridComponent<Row>>;
+  const rows: Row[] = [
+    { code: 'A1', name: 'Product A' },
+    { code: 'B2', name: 'Product B' },
+    { code: 'C3', name: 'Product C' }
+  ];
+
+  beforeEach(async () => {
+    localStorage.clear();
+    await TestBed.configureTestingModule({ imports: [WeGridComponent] }).compileComponents();
+    fixture = TestBed.createComponent(WeGridComponent<Row>);
+    document.body.appendChild(fixture.nativeElement);
+    component = fixture.componentInstance;
+    fixture.componentRef.setInput('gridKey', 'spec-row-menu-grid');
+    fixture.componentRef.setInput('columns', [
+      { field: 'code', header: 'Code' },
+      { field: 'name', header: 'Name' }
+    ]);
+    fixture.componentRef.setInput('data', rows);
+  });
+
+  afterEach(() => {
+    fixture.destroy();
+    fixture.nativeElement.remove();
+  });
+
+  function cell(rowIndex: number, colIndex: number): HTMLElement {
+    const tr = fixture.nativeElement.querySelectorAll('tbody tr.we-grid__row')[rowIndex] as HTMLElement;
+    return tr.querySelectorAll('td')[colIndex] as HTMLElement;
+  }
+
+  function rightClick(target: HTMLElement): MouseEvent {
+    const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 20, clientY: 20 });
+    target.dispatchEvent(event);
+    fixture.detectChanges();
+    return event;
+  }
+
+  function menuItems(): HTMLButtonElement[] {
+    return Array.from(document.querySelectorAll<HTMLButtonElement>('we-grid-row-menu .we-grid-menu__item'));
+  }
+
+  it('leaves the browser menu alone without rowContextMenu', () => {
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('tbody tr.we-grid__row').hasAttribute('tabindex')).toBeFalse();
+    const event = rightClick(cell(0, 0));
+    expect(event.defaultPrevented).toBeFalse();
+    expect(document.querySelector('we-grid-row-menu')).toBeNull();
+  });
+
+  it('leaves the browser menu alone when the callback returns nothing', () => {
+    fixture.componentRef.setInput('rowContextMenu', () => []);
+    fixture.detectChanges();
+    expect(rightClick(cell(0, 0)).defaultPrevented).toBeFalse();
+    expect(document.querySelector('we-grid-row-menu')).toBeNull();
+  });
+
+  it('selects an unselected row first and passes the row, column and selection', () => {
+    const calls: { row: Row; field: string | null; selected: Row[] }[] = [];
+    fixture.componentRef.setInput('selectable', 'multi');
+    fixture.componentRef.setInput('rowContextMenu', (row: Row, ctx: { field: string | null; selectedRows: Row[] }) => {
+      calls.push({ row, field: ctx.field, selected: ctx.selectedRows });
+      return [{ id: 'print', label: 'Print' }];
+    });
+    fixture.detectChanges();
+    component.toggleRowSelection(rows[0]);
+
+    const event = rightClick(cell(1, 2));
+    expect(event.defaultPrevented).toBeTrue();
+    expect(calls[0]).toEqual({ row: rows[1], field: 'name', selected: [rows[1]] });
+    expect(component.selectedRows).toEqual([rows[1]]);
+    expect(menuItems().map((b) => b.textContent?.trim())).toEqual(['Print']);
+  });
+
+  it('keeps a multi selection that already holds the row', () => {
+    let selected: Row[] = [];
+    fixture.componentRef.setInput('selectable', 'multi');
+    fixture.componentRef.setInput('rowContextMenu', (_row: Row, ctx: { selectedRows: Row[] }) => {
+      selected = ctx.selectedRows;
+      return [{ id: 'x', label: 'X' }];
+    });
+    fixture.detectChanges();
+    component.toggleRowSelection(rows[0]);
+    component.toggleRowSelection(rows[2]);
+
+    rightClick(cell(2, 1));
+    expect(selected).toEqual([rows[0], rows[2]]);
+  });
+
+  it('runs the action, emits rowMenuItemClick and closes on a leaf click', () => {
+    const action = jasmine.createSpy('action');
+    const clicks: string[] = [];
+    component.rowMenuItemClick.subscribe((e) => clicks.push(`${e.item.id}:${e.row.code}`));
+    fixture.componentRef.setInput('rowContextMenu', () => [
+      { id: 'view', label: 'View', action },
+      { id: 'delete', label: 'Delete', danger: true, separatorBefore: true },
+      { id: 'off', label: 'Off', disabled: true }
+    ]);
+    fixture.detectChanges();
+
+    rightClick(cell(0, 0));
+    expect(document.querySelectorAll('we-grid-row-menu .we-grid-menu__divider').length).toBe(1);
+    expect(menuItems()[1].classList).toContain('we-grid-menu__item--danger');
+    expect(menuItems()[2].disabled).toBeTrue();
+
+    menuItems()[0].click();
+    expect(action).toHaveBeenCalledTimes(1);
+    expect(clicks).toEqual(['view:A1']);
+    expect(document.querySelector('we-grid-row-menu')).toBeNull();
+  });
+
+  it('opens children in place and emits the child', () => {
+    const clicks: string[] = [];
+    component.rowMenuItemClick.subscribe((e) => clicks.push(e.item.id));
+    fixture.componentRef.setInput('rowContextMenu', () => [
+      { id: 'print', label: 'Print', children: [{ id: 'invoice', label: 'Invoice' }] }
+    ]);
+    fixture.detectChanges();
+
+    rightClick(cell(0, 0));
+    const parent = menuItems()[0];
+    parent.focus();
+    parent.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(parent.getAttribute('aria-expanded')).toBe('true');
+    const child = menuItems()[1];
+    expect(document.activeElement).toBe(child);
+
+    child.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
+    expect(menuItems().length).toBe(1);
+    expect(document.activeElement).toBe(parent);
+
+    parent.click();
+    TestBed.inject(ApplicationRef).tick();
+    menuItems()[1].click();
+    expect(clicks).toEqual(['invoice']);
+  });
+
+  it('opens from Shift+F10 on the focused row with no column', () => {
+    let field: string | null | undefined;
+    fixture.componentRef.setInput('rowContextMenu', (_row: Row, ctx: { field: string | null }) => {
+      field = ctx.field;
+      return [{ id: 'x', label: 'X' }];
+    });
+    fixture.detectChanges();
+    const tr = fixture.nativeElement.querySelector('tbody tr.we-grid__row') as HTMLElement;
+    expect(tr.getAttribute('tabindex')).toBe('-1');
+    const event = new KeyboardEvent('keydown', { key: 'F10', shiftKey: true, bubbles: true, cancelable: true });
+    tr.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBeTrue();
+    expect(field).toBeNull();
+    expect(document.querySelector('we-grid-row-menu')).not.toBeNull();
+  });
+
+  it('falls back to the grouping column menu when the callback returns null', () => {
+    fixture.componentRef.setInput('grouping', true);
+    fixture.componentRef.setInput('rowContextMenu', () => null);
+    fixture.detectChanges();
+    rightClick(cell(0, 0));
+    expect(document.querySelector('we-grid-row-menu')).toBeNull();
+    expect(document.querySelector('we-grid-header-menu')).not.toBeNull();
+  });
+});

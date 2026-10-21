@@ -13,6 +13,7 @@ import {
   WeGridFilterChangeEvent,
   WeGridImportFormat,
   WeGridImportResult,
+  WeGridMenuItem,
   WeGridPageChange,
   WeGridRowDeleteEvent,
   WeGridRowDetailDirective,
@@ -472,6 +473,17 @@ export class AppComponent {
 
   onOrderRowClick(row: OrderNode): void {
     this.treeLog = [...this.treeLog.slice(-4), `rowClick ${row.key}`];
+  }
+
+  orderRowMenu = (row: OrderNode): WeGridMenuItem[] => [
+    { id: 'view', label: 'View', icon: 'eye' },
+    { id: 'edit', label: 'Edit', icon: 'pencil' },
+    { id: 'print', label: 'Print', icon: 'fileDoc', children: [{ id: 'print-invoice', label: 'Invoice' }, { id: 'print-waybill', label: 'Waybill' }] },
+    { id: 'delete', label: 'Delete', icon: 'trash', danger: true, separatorBefore: true, disabled: row.key.startsWith('L-') }
+  ];
+
+  onOrderRowMenu(item: WeGridMenuItem, row: OrderNode): void {
+    this.treeLog = [...this.treeLog.slice(-4), `menu ${item.id} ${row.key}`];
   }
 
   // ─── 12. Multi-level grouping with group summaries ────────────────

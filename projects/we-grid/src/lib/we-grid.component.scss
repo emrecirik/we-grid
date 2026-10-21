@@ -898,6 +898,16 @@
   &:hover td {
     background: var(--we-grid-row-hover-bg, rgba(0, 0, 0, 0.035));
   }
+
+  // Focusable only with rowContextMenu (Shift+F10 needs a focused row); a mouse click shows no ring
+  &[tabindex]:focus {
+    outline: none;
+  }
+
+  &[tabindex]:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: -2px;
+  }
 }
 
 // Zebra rows (`striped`). The tint is layered over the row's opaque base so pinned cells stay opaque.

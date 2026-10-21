@@ -745,7 +745,10 @@
                 [attr.aria-setsize]="item.tree ? item.tree.siblingCount : null"
                 [attr.aria-expanded]="item.tree?.hasChildren ? item.tree?.expanded : null"
                 (click)="onRowClick(item.row, item.index, $event)"
+                [attr.tabindex]="rowContextMenu ? -1 : null"
                 (dblclick)="onRowDblClick(item.row, item.index, $event)"
+                (contextmenu)="onRowContextMenu($event, item.row)"
+                (keydown)="onRowKeydown($event, item.row)"
               >
                 @if (showExpandCol) {
                   <td class="we-grid__expand-col" (click)="$event.stopPropagation()">

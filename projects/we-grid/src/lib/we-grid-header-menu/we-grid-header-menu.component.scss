@@ -122,3 +122,8 @@
 .we-grid-menu__icon--flip {
   transform: scaleX(-1);
 }
+
+// Row menu (`rowContextMenu`) — it shares this stylesheet
+.we-grid-menu__item--danger {
+  color: var(--we-grid-danger-color, #f06548);
+}

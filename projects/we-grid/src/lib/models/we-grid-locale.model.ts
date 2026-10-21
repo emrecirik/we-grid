@@ -66,6 +66,8 @@ export interface WeGridLocale {
 
   // ─── Row editing (shown when editable / allowAdd / allowDelete are on) ──────────────
   actionsColumn: string;
+  /** Accessible name of the row right-click menu (`rowContextMenu`) */
+  rowMenu: string;
   addRow: string;
   editRow: string;
   deleteRow: string;
@@ -515,6 +517,7 @@ export const weGridLocaleEn: WeGridLocale = {
   refreshButton: 'Refresh',
 
   actionsColumn: 'Actions',
+  rowMenu: 'Row actions',
   addRow: 'Add row',
   editRow: 'Edit',
   deleteRow: 'Delete',
@@ -911,6 +914,7 @@ export const weGridLocaleTr: WeGridLocale = {
   refreshButton: 'Yenile',
 
   actionsColumn: 'İşlemler',
+  rowMenu: 'Satır işlemleri',
   addRow: 'Satır Ekle',
   editRow: 'Düzenle',
   deleteRow: 'Sil',

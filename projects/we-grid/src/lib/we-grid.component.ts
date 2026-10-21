@@ -148,6 +148,8 @@ import { weGridIsInteractiveTarget } from './services/we-grid-interactive.util';
 import { weGridDecodeView, weGridEncodeView, weGridSanitizeView, weGridViewParamName } from './services/we-grid-view.util';
 import { WeGridSavedView, WeGridViewShareEvent } from './models/we-grid-view.model';
 import { WeGridHeaderMenuComponent } from './we-grid-header-menu/we-grid-header-menu.component';
+import { WeGridRowMenuComponent } from './we-grid-row-menu/we-grid-row-menu.component';
+import { WeGridMenuItem, WeGridRowMenuFn, WeGridRowMenuItemClickEvent } from './models/we-grid-row-menu.model';
 import { WeGridCellEditorComponent } from './we-grid-cell-editor/we-grid-cell-editor.component';
 import { WeGridEditFormChange, WeGridEditFormComponent } from './we-grid-edit-form/we-grid-edit-form.component';
 import { WeGridFilterPopoverAction, WeGridFilterPopoverComponent } from './we-grid-filter-popover/we-grid-filter-popover.component';
@@ -392,6 +394,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Input() ignoreInteractiveTargets = false;
 
   /**
+   * Builds the right-click menu of a data row. A right click on a row that is not selected selects
+   * it first; the ContextMenu key and Shift+F10 open the menu for the row that holds focus. `null` or
+   * an empty array leaves the browser's own menu (and, with `grouping`, the column menu of the cell).
+   * Group, summary and detail rows never call it.
+   */
+  @Input() rowContextMenu?: WeGridRowMenuFn<T>;
+
+  /**
    * Bump this when state the rows are drawn from changes outside `data` — a Map of unsaved
    * decisions, say. Any change (`!==`) makes the grid re-evaluate `rowClass` and the cell templates
    * without rebuilding them, so an input inside a template keeps its focus. Use a counter or a
@@ -540,6 +550,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Output() sortChange = new EventEmitter<WeGridSortChange>();
   @Output() rowClick = new EventEmitter<WeGridRowClickEvent<T>>();
   @Output() rowDblClick = new EventEmitter<WeGridRowClickEvent<T>>();
+  /** A leaf item of the `rowContextMenu` menu was chosen — after its own `action`, if any */
+  @Output() rowMenuItemClick = new EventEmitter<WeGridRowMenuItemClickEvent<T>>();
   @Output() selectionChange = new EventEmitter<T[]>();
   @Output() layoutChange = new EventEmitter<WeGridLayout>();
   /**
@@ -4503,7 +4515,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   /**
-   * Right-click on a cell — only takes effect while `grouping=true`. While false it returns
+   * Right-click on a cell — opens the `rowContextMenu` menu, else only takes effect while `grouping=true`. While false it returns
    * early and NEVER calls `preventDefault`, so the browser's default context menu keeps working
    * exactly as it did on existing screens (the handler is bound but stays inert).
    */
@@ -4515,6 +4527,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       return;
     }
     if (this.isFromInteractiveTarget(event)) return;
+    if (this.openRowMenu({ x: event.clientX, y: event.clientY }, row, col.field)) {
+      event.preventDefault();
+      return;
+    }
     if (!this.grouping) return;
     event.preventDefault();
     const raw = getNestedValue(row, col.field);
@@ -4532,50 +4548,53 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.openHeaderMenu({ x: event.clientX, y: event.clientY }, col, { value });
   }
 
-  private openHeaderMenu(origin: WeGridMenuOrigin, column: WeGridInternalColumn<T> | null, cellCtx?: { value: unknown }): void {
-    // One grid menu on the page at a time — opening this one from code closes another grid's
-    weGridOpenMenuCloser?.();
-    this.closeHeaderMenu();
-    this.closeFilterPopover();
-    if (column) this.warnIfNumericCustomColumn(column);
+  /** Right click on a row outside the data cells (selection and expand columns) */
+  onRowContextMenu(event: MouseEvent, row: T): void {
+    if (event.defaultPrevented || this.isFromInteractiveTarget(event)) return;
+    if (this.openRowMenu({ x: event.clientX, y: event.clientY }, row, null)) event.preventDefault();
+  }
 
-    const positionStrategy = this.overlay
-      .position()
-      .flexibleConnectedTo(origin)
-      .withPositions([
-        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 4 },
-        { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -4 },
-        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 4 },
-        { originX: 'end', originY: 'top', overlayX: 'end', overlayY: 'bottom', offsetY: -4 }
-      ])
-      .withPush(true)
-      .withViewportMargin(8);
+  /** ContextMenu / Shift+F10 on the row or on a control inside it */
+  onRowKeydown(event: KeyboardEvent, row: T): void {
+    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+    const target = event.target instanceof HTMLElement ? event.target : null;
+    if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+    if (target && this.openRowMenu(target, row, null)) event.preventDefault();
+  }
 
-    this.overlayRef = this.overlay.create({
-      positionStrategy,
-      scrollStrategy: this.overlay.scrollStrategies.reposition(),
-      hasBackdrop: true,
-      backdropClass: 'we-grid-menu-backdrop',
-      panelClass: 'we-grid-menu-panel'
+  /** Opens the `rowContextMenu` menu; false when there is nothing to show (the browser keeps its menu) */
+  private openRowMenu(origin: WeGridMenuOrigin, row: T, field: string | null): boolean {
+    if (!this.rowContextMenu) return false;
+    if (this.selectable !== 'none' && !this.isSelected(row)) {
+      this.selectedKeys.clear();
+      this.selectedKeys.add(this.rowKey(row));
+      this.emitSelectionChange();
+    }
+    const selectedRows = this.selectable === 'none' ? [row] : this.selectedRows;
+    const items = this.rowContextMenu(row, { field, selectedRows });
+    if (!items?.length) return false;
+
+    const returnFocusEl = origin instanceof HTMLElement ? origin : null;
+    this.createMenuOverlay(origin, returnFocusEl);
+    const componentRef = this.overlayRef!.attach(new ComponentPortal(WeGridRowMenuComponent));
+    componentRef.setInput('items', items);
+    componentRef.instance.itemClick.pipe(takeUntil(this.destroy$)).subscribe((item: WeGridMenuItem) => {
+      this.closeHeaderMenu(returnFocusEl);
+      item.action?.();
+      this.rowMenuItemClick.emit({ item, row });
     });
+    componentRef.changeDetectorRef.detectChanges();
+    componentRef.instance.focusFirstItem();
+    return true;
+  }
 
+  private openHeaderMenu(origin: WeGridMenuOrigin, column: WeGridInternalColumn<T> | null, cellCtx?: { value: unknown }): void {
+    if (column) this.warnIfNumericCustomColumn(column);
     const returnFocusEl = origin instanceof HTMLElement ? origin : (this.gearButtonRef?.nativeElement ?? null);
-    weGridOpenMenuCloser = () => this.closeHeaderMenu();
-
-    this.overlayRef
-      .backdropClick()
-      .pipe(take(1), takeUntil(this.destroy$))
-      .subscribe(() => this.closeHeaderMenu(returnFocusEl));
-
-    this.overlayRef
-      .keydownEvents()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe((e) => {
-        if (e.key === 'Escape') this.closeHeaderMenu(returnFocusEl);
-      });
+    this.createMenuOverlay(origin, returnFocusEl);
 
     const portal = new ComponentPortal(WeGridHeaderMenuComponent);
-    const componentRef = this.overlayRef.attach(portal);
+    const componentRef = this.overlayRef!.attach(portal);
     componentRef.setInput('column', column);
     componentRef.setInput('allColumns', this.internalColumns);
     componentRef.setInput('density', this.density);
@@ -4608,6 +4627,47 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     // here guarantees ViewChildren is populated before we try to focus it.
     componentRef.changeDetectorRef.detectChanges();
     componentRef.instance.focusFirstItem();
+  }
+
+  /** One grid menu on the page at a time: closes any other, then opens an empty menu overlay at `origin` */
+  private createMenuOverlay(origin: WeGridMenuOrigin, returnFocusEl: HTMLElement | null): void {
+    weGridOpenMenuCloser?.();
+    this.closeHeaderMenu();
+    this.closeFilterPopover();
+
+    const positionStrategy = this.overlay
+      .position()
+      .flexibleConnectedTo(origin)
+      .withPositions([
+        { originX: 'start', originY: 'bottom', overlayX: 'start', overlayY: 'top', offsetY: 4 },
+        { originX: 'start', originY: 'top', overlayX: 'start', overlayY: 'bottom', offsetY: -4 },
+        { originX: 'end', originY: 'bottom', overlayX: 'end', overlayY: 'top', offsetY: 4 },
+        { originX: 'end', originY: 'top', overlayX: 'end', overlayY: 'bottom', offsetY: -4 }
+      ])
+      .withPush(true)
+      .withViewportMargin(8);
+
+    this.overlayRef = this.overlay.create({
+      positionStrategy,
+      scrollStrategy: this.overlay.scrollStrategies.reposition(),
+      hasBackdrop: true,
+      backdropClass: 'we-grid-menu-backdrop',
+      panelClass: 'we-grid-menu-panel'
+    });
+
+    weGridOpenMenuCloser = () => this.closeHeaderMenu();
+
+    this.overlayRef
+      .backdropClick()
+      .pipe(take(1), takeUntil(this.destroy$))
+      .subscribe(() => this.closeHeaderMenu(returnFocusEl));
+
+    this.overlayRef
+      .keydownEvents()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((e) => {
+        if (e.key === 'Escape') this.closeHeaderMenu(returnFocusEl);
+      });
   }
 
   // type: 'custom' hides the fact that the data could actually be numeric — to nudge the

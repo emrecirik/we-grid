@@ -247,7 +247,8 @@
       (<code>stopRowEvents</code>, <code>ignoreInteractiveTargets</code>); decisions live outside the grid and repaint
       through <code>rowStateVersion</code>. "Notes" opens a detail that stays in view while you scroll sideways
       (<code>detailTrigger="none"</code>, <code>detailSticky</code>). The first and last columns are <code>fixed</code>;
-      the grid scrolls inside 420px with its header stuck. Alt+←/→ on a header moves it.
+      the grid scrolls inside 420px with its header stuck. Alt+←/→ on a header moves it. Right click (or Shift+F10) on a row
+      opens its <code>rowContextMenu</code>.
     </p>
     <p>
       <button type="button" (click)="treeGrid.treeAllExpanded ? treeGrid.collapseAllTree() : treeGrid.expandAllTree()">
@@ -274,7 +275,9 @@
       [rowClass]="orderRowClass"
       [maxHeight]="420"
       footer="count"
+      [rowContextMenu]="orderRowMenu"
       (rowClick)="onOrderRowClick($event.row)"
+      (rowMenuItemClick)="onOrderRowMenu($event.item, $event.row)"
     >
       <ng-template weGridCell="decision" [weGridCellRowsOf]="orderTree" let-row let-tree="tree">
         @if (tree?.level === 0) {

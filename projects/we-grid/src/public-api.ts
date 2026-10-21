@@ -35,6 +35,7 @@ export * from './lib/models/we-grid-layout.model';
 export * from './lib/models/we-grid-locale.model';
 export * from './lib/models/we-grid-locale-extra.model';
 export * from './lib/models/we-grid-menu-action.model';
+export * from './lib/models/we-grid-row-menu.model';
 export * from './lib/models/we-grid-row-detail.model';
 export * from './lib/models/we-grid-view.model';
 export * from './lib/models/we-grid-tree.model';

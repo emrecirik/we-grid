@@ -45,6 +45,7 @@
 | `allowPaste` | `boolean` | `true` | On an `editable` grid, Ctrl+V pastes a spreadsheet range from the clicked cell — see [row-editing.md](row-editing.md#pasting-from-a-spreadsheet). |
 | `savedViews` | `boolean` | `false` | Adds a Views toolbar button: named, shareable snapshots of columns, filters, sort and grouping — see [saved-views.md](saved-views.md). |
 | `ignoreInteractiveTargets` *(0.7.0)* | `boolean` | `false` | Clicks, double clicks and right clicks that start on a control inside a row stay with it — see [cell-templates.md](cell-templates.md). |
+| `rowContextMenu` *(0.52.0)* | `(row, { field, selectedRows }) => WeGridMenuItem[] \| null` | — | The right-click menu of a data row — see [Row context menu](#row-context-menu). Left out (or returning `null` / `[]`), the browser's own menu opens as before. |
 | `rowStateVersion` *(0.7.0)* | `unknown` | — | Any change (`!==`) re-evaluates `rowClass` and the cell templates without rebuilding them. Use a counter. |
 | `maxHeight` / `minHeight` *(0.7.0)* | `number \| string` | — | Bounds of the scroll area (px or CSS length). With `maxHeight` the grid scrolls inside itself: header and filter row stick to the top, the summary row to the bottom. |
 | `footer` *(0.7.0)* | `'full' \| 'count' \| 'none'` | `'full'` | `'count'` keeps the record count without the pager, `'none'` drops the footer. A `serverSide` grid without a pager warns in dev mode. |
@@ -73,6 +74,7 @@
 | `pageChange` | `WeGridPageChange` | `{ page, pageSize }` |
 | `sortChange` | `WeGridSortChange` | `{ field, direction }`, and *(0.23.0)* `thenBy` — the columns sorted after `field` when the user Shift+clicks more headers (client-side sorting only) |
 | `rowClick` / `rowDblClick` | `WeGridRowClickEvent<T>` | `{ row, rowIndex }` |
+| `rowMenuItemClick` *(0.52.0)* | `WeGridRowMenuItemClickEvent<T>` | `{ item, row }` — a leaf item of the `rowContextMenu` menu was chosen, after its own `action`. One `switch (item.id)` can replace the per-item `action`s. |
 | `selectionChange` | `T[]` | Currently selected rows. |
 | `layoutChange` | `WeGridLayout` | Fires whenever the user's layout is persisted, and on "Reset layout" (with the default layout). |
 | `filterChange` | `WeGridFilterChangeEvent` | Debounced (`filterDebounceMs`), only the active filters. The payload **is** the `WeGridColumnFilterState[]` it has always been, plus `filters` and `resetPage` — see [server-side.md](server-side.md). "Reset layout" emits it at once when it cleared an active filter. |
@@ -144,6 +146,7 @@
 |---|---|---|
 | Column header | Alt+← / Alt+→ | Moves the column one place within its pin group (left-pinned, unpinned, right-pinned); Alt+Shift moves it to the group's first / last place. A `lockOrder` column doesn't move and nothing passes it. Announced politely; saved like a drag. Only on the header itself — elsewhere Alt+arrows stay the browser's. Mirrored in a right-to-left page. |
 | Column header | Shift+F10 / ContextMenu | Opens the column menu. |
+| Data row *(0.52.0, with `rowContextMenu`)* | Shift+F10 / ContextMenu | Opens the row menu for the row holding focus (a click focuses the row). In the menu: ↑ / ↓ / Home / End, Enter, → opens a sub-list, ← closes it, Esc closes the menu. |
 | Resize handle (`role="separator"`, focusable) | ← / → | ∓8 / ±8 px; with Shift ±32 px. |
 | | Home | The column's `minWidth`. |
 | | Enter (or a double click) | Fits the column to its content. |
@@ -151,6 +154,38 @@
 | Header hint icon (ⓘ) | focus / Esc | Shows / hides the hint. |
 
 The column menu also has **Move left / Move right** (not on `lockOrder` columns).
+
+### Row context menu
+
+*(0.52.0)* `rowContextMenu` turns a right click on a data row into a menu built by the screen:
+
+```ts
+rowMenu = (row: Order, ctx: WeGridRowMenuContext<Order>): WeGridMenuItem[] => [
+  { id: 'view', label: 'View', icon: 'eye' },
+  { id: 'print', label: 'Print…', icon: 'printer', children: designs.map((d) => ({ id: `print:${d.id}`, label: d.name })) },
+  { id: 'delete', label: 'Delete', icon: 'trash', danger: true, separatorBefore: true, disabled: ctx.selectedRows.length > 1 }
+];
+```
+
+```html
+<we-grid [rowContextMenu]="rowMenu" (rowMenuItemClick)="onRowMenu($event.item, $event.row)" …>
+```
+
+- `WeGridMenuItem`: `id`, `label`, `icon?` (a `WE_GRID_ICONS` key; the host's own icons go into
+  that token, e.g. `{ ...weGridDefaultIcons, printer: '<i class="ri-printer-line"></i>' }`), `disabled?`, `danger?`, `separatorBefore?`, `children?`, `action?`. An item with
+  `children` opens them in place, like the column menu's sub-lists, and runs nothing itself.
+- Right-clicking a row that is not selected selects it first (with `selectable`), as Explorer and
+  Excel do. `ctx.selectedRows` is the selection — or `[row]` when `selectable` is `'none'`.
+  `ctx.field` is the right-clicked column, `null` from the keyboard or the selection column.
+- Items are built synchronously each time the menu opens; there is no async sub-menu.
+- The menu is attached to `body` (the CDK overlay), so `overflow` does not clip it, and it opens
+  the other way at the edge of the screen. One grid menu is open at a time.
+- Group headers, group footers, summary and detail rows never call it. A cell with
+  `stopRowEvents: ['contextmenu']`, and under `ignoreInteractiveTargets` a control in the row,
+  keep the browser's menu. When the callback returns `null` on a `grouping` grid, the column menu
+  of the cell opens as before.
+- With `rowContextMenu` set, data rows get `tabindex="-1"` so Shift+F10 / ContextMenu work after a
+  click; without it the markup is unchanged.
 
 ### Saved layouts and layoutVersion
 
@@ -271,6 +306,7 @@ Several sheets behind tabs — inputs `workbookKey`, `store` (0.51.0), `data` (`
 - `WeGridInternalColumn<T>` — merged runtime column state
 - `WeGridColumnLayout`, `WeGridLayout`, `WeGridLayoutStore`, `WE_GRID_LAYOUT_STORE`
 - `WeGridMenuAction` — discriminated union of every header-menu action
+- `WeGridMenuItem`, `WeGridRowMenuContext<T>`, `WeGridRowMenuFn<T>`, `WeGridRowMenuItemClickEvent<T>` *(0.52.0)* — see [Row context menu](#row-context-menu)
 - `WeGridPageChange`, `WeGridSortChange`, `WeGridSelectionMode`, `WeGridRowClickEvent<T>`, `WeGridRowClassFn<T>`
 - `WeGridColumnFilterState`, `WeGridFilterOperator` (including `'in'`), `WeGridChecklistOption`,
   `WeGridFilterChangeEvent`, `weGridFilterValueKey(value)`, `WE_GRID_BLANK_FILTER_KEY` and friends
