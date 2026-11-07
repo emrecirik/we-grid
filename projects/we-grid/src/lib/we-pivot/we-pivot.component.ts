@@ -44,6 +44,8 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges 
 
   /** Shows the pivot as a chart above the table — null for none; the user switches it */
   @Input() chart: WeChartType | null = null;
+  /** Pass-through to the chart's `showValues` */
+  @Input() chartShowValues = false;
 
   @Output() configChange = new EventEmitter<WePivotConfig>();
   @Output() chartChange = new EventEmitter<WeChartType | null>();

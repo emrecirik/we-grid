@@ -13,7 +13,7 @@ import { WeChartComponent, WeChartData } from 'we-grid-angular';
 @Component({
   standalone: true,
   imports: [WeChartComponent],
-  template: `<we-chart type="column" [data]="sales" title="Sales by month" />`
+  template: `<we-chart type="column" [data]="sales" title="Sales by month" showValues />`
 })
 export class SalesChartComponent {
   sales: WeChartData = {
@@ -35,20 +35,30 @@ export class SalesChartComponent {
 | `height` | `number` | `300` | Pixels; the width follows the container |
 | `valueFormatter` | `(n: number) => string` | locale number | Text of values in the tooltip and the table |
 | `showTable` | `boolean` | `false` | Start in the table view |
+| `showValues` | `boolean` | `false` | *(0.54.0)* Draw each data point's value on the chart, using `valueFormatter` |
 
 Series colours are the theme's `--we-grid-chart-1` … `--we-grid-chart-8`, always in that order: a
 series keeps its colour when others are filtered out. The default eight were checked for
 colour-vision deficiencies on both the light and the dark surface. More than eight series are
 added up into **Other** (pies do the same with categories) rather than inventing a ninth colour.
 
+With `showValues`, column labels sit above the bar (inside it, in contrasting text, if there's no
+room above); bar labels sit just past the bar end (inside near the end if no room); line/area
+labels sit above each point, skipping one that would overlap the previous label; stacked segments
+get their own label only when they're at least 14px tall/wide; pie and donut slices get a label
+when the slice is at least ~12° wide. The table view stays the accessible representation — the
+labels are `aria-hidden`.
+
 `weChartFromRows(rows, categoryOf, series)` turns rows into `WeChartData`;
-`weChartTicks`, `weChartFold`, `weChartArc`, `weChartBarPath` and `weChartColor` are the pure
-helpers the component uses.
+`weChartTicks`, `weChartFold`, `weChartArc`, `weChartBarPath`, `weChartColor`,
+`weChartStackedLabelFits`, `weChartPieLabelFits`, `weChartColumnLabelFits`, `weChartBarLabelFits`,
+`weChartLabelCollides` and `weChartLabelColor` are the pure helpers the component uses.
 
 ## In the pivot table and the spreadsheet
 
-- `<we-pivot>` has chart buttons next to its fields (and a `chart` input / `chartChange` output):
-  the pivot rows become categories and the value columns series.
+- `<we-pivot>` has chart buttons next to its fields (and a `chart` input / `chartChange` output,
+  plus a `chartShowValues` pass-through to the chart's `showValues`): the pivot rows become
+  categories and the value columns series.
 - `<we-sheet>`'s chart button charts the selection — or, with one cell selected, the whole used
   range. The first column gives the categories, the first row the series names when it holds text.
   The chart is saved with the sheet (`WeSheetData.chart`), updates as the cells change, and its

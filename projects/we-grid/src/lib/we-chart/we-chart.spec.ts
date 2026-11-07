@@ -1,7 +1,21 @@
 import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { WeChartComponent } from './we-chart.component';
-import { WeChartData, WeChartType, weChartArc, weChartBarPath, weChartColor, weChartFold, weChartTicks } from './we-chart.util';
+import {
+  WeChartData,
+  WeChartType,
+  weChartArc,
+  weChartBarLabelFits,
+  weChartBarPath,
+  weChartColor,
+  weChartColumnLabelFits,
+  weChartFold,
+  weChartLabelCollides,
+  weChartLabelColor,
+  weChartPieLabelFits,
+  weChartStackedLabelFits,
+  weChartTicks
+} from './we-chart.util';
 
 describe('we-chart utils', () => {
   it('picks round ticks that include zero', () => {
@@ -33,16 +47,39 @@ describe('we-chart utils', () => {
     expect(weChartBarPath('column', 10, 20, 100, 40)).toBe('M10,100 L10,44 Q10,40 14,40 L26,40 Q30,40 30,44 L30,100 Z');
     expect(weChartBarPath('bar', 10, 20, 0, 60)).toBe('M0,10 L56,10 Q60,10 60,14 L60,26 Q60,30 56,30 L0,30 Z');
   });
+
+  it('skips value labels on thresholds too small to hold them', () => {
+    expect(weChartStackedLabelFits(14)).toBe(true);
+    expect(weChartStackedLabelFits(13.9)).toBe(false);
+    expect(weChartPieLabelFits((12 * Math.PI) / 180)).toBe(true);
+    expect(weChartPieLabelFits((11 * Math.PI) / 180)).toBe(false);
+    expect(weChartColumnLabelFits(20, 10)).toBe(false); // 10px room, needs 14
+    expect(weChartColumnLabelFits(30, 10)).toBe(true); // 20px room
+    expect(weChartBarLabelFits(80, 100, 20)).toBe(false); // 20px room, needs 26 (20 + 6 gap)
+    expect(weChartBarLabelFits(80, 100, 10)).toBe(true); // needs 16
+  });
+
+  it('skips a line/area label that would overlap the previous one', () => {
+    expect(weChartLabelCollides(null, 50)).toBe(false);
+    expect(weChartLabelCollides(50, 70)).toBe(true);
+    expect(weChartLabelCollides(50, 80)).toBe(false);
+  });
+
+  it('picks white label text over the (dark-ish) palette fallbacks', () => {
+    expect(weChartLabelColor(0)).toBe('#fff');
+    expect(weChartLabelColor(3)).toBe('#fff');
+  });
 });
 
 @Component({
   standalone: true,
   imports: [WeChartComponent],
-  template: `<we-chart [type]="type" [data]="data" title="Sales" [stacked]="stacked" />`
+  template: `<we-chart [type]="type" [data]="data" title="Sales" [stacked]="stacked" [showValues]="showValues" />`
 })
 class HostComponent {
   type: WeChartType = 'column';
   stacked = false;
+  showValues = false;
   data: WeChartData = {
     categories: ['Jan', 'Feb', 'Mar'],
     series: [
@@ -96,5 +133,15 @@ describe('WeChartComponent', () => {
     fixture.detectChanges();
     expect(el().querySelectorAll('.we-chart__mark--slice').length).toBe(2);
     expect(Array.from(el().querySelectorAll('.we-chart__legend li')).map((l) => l.textContent?.trim())).toEqual(['Jan', 'Feb', 'Mar']);
+  });
+
+  it('draws value labels only when showValues is on', () => {
+    expect(el().querySelectorAll('.we-chart__value-label').length).toBe(0);
+    fixture.componentInstance.showValues = true;
+    fixture.detectChanges();
+    const labels = Array.from(el().querySelectorAll('.we-chart__value-label'));
+    expect(labels.length).toBe(5);
+    expect(labels.every((l) => l.getAttribute('aria-hidden') === 'true')).toBe(true);
+    expect(labels.map((l) => l.textContent)).toContain('20');
   });
 });

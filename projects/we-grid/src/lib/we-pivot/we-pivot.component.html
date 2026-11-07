@@ -65,7 +65,7 @@
   </div>
 
   @if (chart) {
-    <we-chart [type]="chart" [data]="chartData" [title]="locale.pivotLabel" [height]="320" />
+    <we-chart [type]="chart" [data]="chartData" [title]="locale.pivotLabel" [height]="320" [showValues]="chartShowValues" />
   }
 
   @if (result.truncated) {

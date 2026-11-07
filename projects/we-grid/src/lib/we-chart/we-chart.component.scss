@@ -101,6 +101,14 @@
   stroke-width: 2;
 }
 
+.we-chart__value-label {
+  fill: var(--we-grid-font-color, #212529);
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}
+
 .we-chart__crosshair {
   stroke: var(--we-grid-muted-color, #878a99);
   stroke-width: 1;

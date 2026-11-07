@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.54.0 — 2026-11-07
+
+### Added
+
+- `<we-chart>` gained `showValues`: draws each data point's value on the chart with
+  `valueFormatter`. Column labels sit above the bar (inside it, in contrasting text, when there's
+  no room above); bar labels sit just past the bar end (inside near the end when there's no room);
+  stacked segments get their own label only when at least 14px tall/wide; line/area labels sit
+  above each point and skip one that would overlap the previous label; pie/donut slices get a
+  label when the slice is at least ~12° wide. Labels are `aria-hidden` — the table view stays the
+  accessible representation. `<we-pivot>` passes this through as `chartShowValues`.
+
 ## 0.53.0 — 2026-10-21
 
 ### Added

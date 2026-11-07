@@ -98,6 +98,52 @@ export function weChartBarPath(orientation: 'column' | 'bar', across: number, th
   return `M${base},${a0} L${tip - dir * r},${a0} Q${tip},${a0} ${tip},${a0 + r} L${tip},${a1 - r} Q${tip},${a1} ${tip - dir * r},${a1} L${base},${a1} Z`;
 }
 
+/** `rrggbb` relative luminance (WCAG formula), used only to pick readable label text */
+function relativeLuminance(hex: string): number {
+  const n = parseInt(hex.slice(1), 16);
+  const chan = (v: number) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * chan((n >> 16) & 255) + 0.7152 * chan((n >> 8) & 255) + 0.0722 * chan(n & 255);
+}
+
+/** Readable label text colour (dark or white) over series colour `index`'s fallback hue */
+export function weChartLabelColor(index: number): string {
+  const slot = Math.min(index, WE_CHART_MAX_SERIES - 1);
+  return relativeLuminance(FALLBACK[slot]) > 0.45 ? '#1a1a1a' : '#fff';
+}
+
+/** Whether a stacked column/bar segment is tall/wide enough (px) to hold its value label inside */
+export function weChartStackedLabelFits(segmentLength: number, min = 14): boolean {
+  return segmentLength >= min;
+}
+
+/** Whether a pie/donut slice is wide enough to show its value label — default threshold ~12° */
+export function weChartPieLabelFits(sweepRadians: number, minDegrees = 12): boolean {
+  return sweepRadians >= (minDegrees * Math.PI) / 180;
+}
+
+/** Whether a column's value label fits above the bar (needs `margin` px between the tip and the plot top) */
+export function weChartColumnLabelFits(tip: number, plotTop: number, margin = 14): boolean {
+  return tip - plotTop >= margin;
+}
+
+/** Whether a bar's value label fits to the right of its end, given the estimated label width */
+export function weChartBarLabelFits(tip: number, plotRight: number, textWidth: number, gap = 6): boolean {
+  return plotRight - tip >= textWidth + gap;
+}
+
+/** Rough label width in px for the "fits outside" checks — same character-width estimate used for axis labels */
+export function weChartLabelWidth(text: string): number {
+  return text.length * 6.5;
+}
+
+/** True when a line/area point label at `x` would overlap the previously placed one — skip it */
+export function weChartLabelCollides(prevX: number | null, x: number, minGap = 24): boolean {
+  return prevX !== null && Math.abs(x - prevX) < minGap;
+}
+
 /** Turns rows into chart data: one category per row, one series per value field */
 export function weChartFromRows<T>(
   rows: readonly T[],

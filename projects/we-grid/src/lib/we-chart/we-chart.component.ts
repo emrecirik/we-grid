@@ -17,9 +17,16 @@ import {
   WeChartData,
   WeChartType,
   weChartArc,
+  weChartBarLabelFits,
   weChartBarPath,
   weChartColor,
+  weChartColumnLabelFits,
   weChartFold,
+  weChartLabelCollides,
+  weChartLabelColor,
+  weChartLabelWidth,
+  weChartPieLabelFits,
+  weChartStackedLabelFits,
   weChartTicks
 } from './we-chart.util';
 
@@ -29,6 +36,15 @@ interface Mark {
   color: string;
   series: number;
   category: number;
+}
+
+interface ValueLabel {
+  x: number;
+  y: number;
+  text: string;
+  anchor: 'start' | 'middle' | 'end';
+  /** Set only when the label sits inside a coloured mark and needs contrasting text */
+  color?: string;
 }
 
 interface Hit {
@@ -65,12 +81,15 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() valueFormatter?: (value: number) => string;
   /** Start in the table view */
   @Input() showTable = false;
+  /** Draw each data point's value on the chart, using `valueFormatter` */
+  @Input() showValues = false;
 
   width = 600;
   shown: WeChartData = { categories: [], series: [] };
   marks: Mark[] = [];
   lines: { d: string; area: string | null; color: string; series: number }[] = [];
   dots: { x: number; y: number; color: string }[] = [];
+  labels: ValueLabel[] = [];
   hits: Hit[] = [];
   ticks: { value: number; pos: number; label: string }[] = [];
   xLabels: { pos: number; text: string; anchor: 'middle' | 'end' }[] = [];
@@ -155,6 +174,7 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     this.marks = [];
     this.lines = [];
     this.dots = [];
+    this.labels = [];
     this.hits = [];
     this.ticks = [];
     this.xLabels = [];
@@ -178,6 +198,16 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
       this.marks.push({ d: weChartArc(cx, cy, r, inner, angle, angle + sweep), color: weChartColor(i), series: 0, category: i });
       const mid = angle + sweep / 2;
       this.hits.push({ x: cx + Math.sin(mid) * r * 0.7 - 1, y: cy - Math.cos(mid) * r * 0.7, w: 2, h: 2, category: i, series: 0 });
+      if (this.showValues && weChartPieLabelFits(sweep)) {
+        const labelR = inner > 0 ? (r + inner) / 2 : r * 0.65;
+        this.labels.push({
+          x: cx + Math.sin(mid) * labelR,
+          y: cy - Math.cos(mid) * labelR + 4,
+          text: this.format(v),
+          anchor: 'middle',
+          color: weChartLabelColor(i)
+        });
+      }
       angle += sweep;
     });
   }
@@ -212,10 +242,12 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     const labelChars = Math.max(...tickLabels.map((l) => l.length));
     const catChars = Math.min(18, Math.max(...categories.map((c) => c.length)));
 
+    // Reserve room above the plot for value labels that sit above bars/dots — bar labels sit beside the bar, not above
+    const topPad = this.showValues && !this.horizontal ? 14 : 0;
     if (this.horizontal) {
       this.plot = { left: Math.min(this.width * 0.35, 8 + catChars * 6.5), top: 8, right: this.width - 16, bottom: this.height - 24 };
     } else {
-      this.plot = { left: 10 + labelChars * 7, top: 12, right: this.width - 12, bottom: this.height - 28 };
+      this.plot = { left: 10 + labelChars * 7, top: 12 + topPad, right: this.width - 12, bottom: this.height - 28 };
     }
     const p = this.plot;
     const valueLen = this.horizontal ? p.right - p.left : p.bottom - p.top;
@@ -263,6 +295,7 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
           const tip = toPos(to);
           const last = !this.stacked || i === series.length - 1 || series.slice(i + 1).every((x) => !x.values[c]);
           this.marks.push({ d: weChartBarPath(this.horizontal ? 'bar' : 'column', across, thickness, base, tip, last ? 4 : 0), color: weChartColor(i), series: i, category: c });
+          if (this.showValues) this.labels.push(...this.barLabel(v, across, thickness, base, tip, i, p));
         });
         this.hits.push(
           this.horizontal
@@ -279,6 +312,7 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     series.forEach((s, i) => {
       let d = '';
       let pen = false;
+      let prevLabelX: number | null = null;
       const top: [number, number][] = [];
       const bottom: [number, number][] = [];
       for (let c = 0; c < n; c++) {
@@ -296,11 +330,36 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
         pen = true;
         top.push([x, y]);
         bottom.unshift([x, Math.round(toPos(from) * 10) / 10]);
-        if (n <= 40) this.dots.push({ x, y, color: weChartColor(i) });
+        if (n <= 40) {
+          this.dots.push({ x, y, color: weChartColor(i) });
+          if (this.showValues && !weChartLabelCollides(prevLabelX, x)) {
+            this.labels.push({ x, y: y - 10, text: this.format(v), anchor: 'middle' });
+            prevLabelX = x;
+          }
+        }
       }
       const area = this.type === 'area' && top.length > 1 ? `M${[...top, ...bottom].map(([x, y]) => `${x},${y}`).join(' L')} Z` : null;
       this.lines.push({ d: d.trim(), area, color: weChartColor(i), series: i });
     });
     for (let c = 0; c < n; c++) this.hits.push({ x: bandStart(c), y: p.top, w: bandLen, h: p.bottom - p.top, category: c, series: null });
+  }
+
+  /** Value label for one column/bar segment — outside the bar when there's room, else inside with contrasting text */
+  private barLabel(v: number, across: number, thickness: number, base: number, tip: number, i: number, p: { left: number; top: number; right: number; bottom: number }): ValueLabel[] {
+    const mid = across + thickness / 2;
+    const text = this.format(v);
+    if (this.stacked) {
+      if (!weChartStackedLabelFits(Math.abs(tip - base))) return [];
+      const along = (base + tip) / 2;
+      return [this.horizontal ? { x: along, y: mid + 4, text, anchor: 'middle', color: weChartLabelColor(i) } : { x: mid, y: along + 4, text, anchor: 'middle', color: weChartLabelColor(i) }];
+    }
+    const dir = tip < base ? -1 : 1;
+    // shortcut: a negative value's label always sits inside near the tip — only the common positive case checks for outside room
+    if (this.horizontal) {
+      if (dir > 0 && weChartBarLabelFits(tip, p.right, weChartLabelWidth(text))) return [{ x: tip + 6, y: mid + 4, text, anchor: 'start' }];
+      return [{ x: tip - dir * 6, y: mid + 4, text, anchor: dir > 0 ? 'end' : 'start', color: weChartLabelColor(i) }];
+    }
+    if (dir < 0 && weChartColumnLabelFits(tip, p.top)) return [{ x: mid, y: tip - 6, text, anchor: 'middle' }];
+    return [{ x: mid, y: tip - dir * 10, text, anchor: 'middle', color: weChartLabelColor(i) }];
   }
 }

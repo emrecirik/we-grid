@@ -78,6 +78,9 @@
         @for (d of dots; track $index) {
           <circle class="we-chart__dot" [attr.cx]="d.x" [attr.cy]="d.y" r="4" [style.fill]="d.color" />
         }
+        @for (lbl of labels; track $index) {
+          <text class="we-chart__value-label" aria-hidden="true" [attr.x]="lbl.x" [attr.y]="lbl.y" [attr.text-anchor]="lbl.anchor" [style.fill]="lbl.color">{{ lbl.text }}</text>
+        }
         @if (hover && !isPie && !horizontal && (type === 'line' || type === 'area')) {
           <line class="we-chart__crosshair" [attr.x1]="hover.x" [attr.x2]="hover.x" [attr.y1]="plot.top" [attr.y2]="plot.bottom" />
         }
