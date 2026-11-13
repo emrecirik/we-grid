@@ -1,3 +1,5 @@
+import { FlexibleConnectedPositionStrategy, Overlay, OverlayRef } from '@angular/cdk/overlay';
+import { TemplatePortal } from '@angular/cdk/portal';
 import { CommonModule } from '@angular/common';
 import {
   AfterViewInit,
@@ -5,13 +7,17 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  EmbeddedViewRef,
   EventEmitter,
   Inject,
   Input,
   NgZone,
   OnChanges,
   OnDestroy,
-  Output
+  Output,
+  TemplateRef,
+  ViewChild,
+  ViewContainerRef
 } from '@angular/core';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 import {
@@ -27,6 +33,7 @@ import {
   weChartFold,
   weChartLabelCollides,
   weChartLabelColor,
+  weChartLabelFitsInside,
   weChartLabelWidth,
   weChartPieLabelFits,
   weChartRoundRect,
@@ -104,6 +111,8 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   /** A mark (bar, point, slice, ring, row, funnel step) or a category band was clicked, or Enter pressed on it */
   @Output() pointClick = new EventEmitter<WeChartPointClickEvent>();
 
+  @ViewChild('tipTpl', { static: true }) private tipTpl?: TemplateRef<unknown>;
+
   width = 600;
   shown: WeChartData = { categories: [], series: [] };
   marks: Mark[] = [];
@@ -123,12 +132,24 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   h = 300;
 
   private observer?: ResizeObserver;
+  /** The tooltip lives in the CDK overlay container on `body`, so no `overflow` or `transform` ancestor clips or offsets it */
+  private tipRef?: OverlayRef;
+  private tipPosition?: FlexibleConnectedPositionStrategy;
+  private tipView?: EmbeddedViewRef<unknown>;
+  // The tooltip sits at fixed viewport coordinates — any scroll or resize hides it rather than leave it behind
+  private readonly onViewportChange = () =>
+    this.zone.run(() => {
+      this.hideTip();
+      this.cdr.markForCheck();
+    });
 
   constructor(
     @Inject(WE_GRID_LOCALE) readonly locale: WeGridLocale,
     private readonly host: ElementRef<HTMLElement>,
     private readonly zone: NgZone,
-    private readonly cdr: ChangeDetectorRef
+    private readonly cdr: ChangeDetectorRef,
+    private readonly overlay: Overlay,
+    private readonly viewContainerRef: ViewContainerRef
   ) {}
 
   get isPie(): boolean {
@@ -181,6 +202,8 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.observer?.disconnect();
+    this.hideTip();
+    this.tipRef?.dispose();
   }
 
   format(value: number | null | undefined): string {
@@ -199,6 +222,51 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
 
   onHit(hit: Hit): void {
     this.hover = { x: hit.x + hit.w / 2, y: hit.y, category: hit.category, series: hit.series };
+    this.showTip();
+  }
+
+  hideTip(): void {
+    this.hover = null;
+    if (!this.tipRef?.hasAttached()) return;
+    this.tipRef.detach();
+    this.tipView = undefined;
+    window.removeEventListener('scroll', this.onViewportChange, true);
+    window.removeEventListener('resize', this.onViewportChange);
+  }
+
+  /** Above the hovered point, below it when there is no room, kept 8px inside the viewport */
+  private showTip(): void {
+    const matrix = this.host.nativeElement.querySelector('svg')?.getScreenCTM();
+    if (!this.hover || !matrix || !this.tipTpl) return;
+    // SVG units to viewport pixels — through the viewBox scaling and any ancestor transform
+    const { x, y } = new DOMPoint(this.hover.x, this.hover.y).matrixTransform(matrix);
+    const origin = { x, y };
+    if (!this.tipRef || !this.tipPosition) {
+      this.tipPosition = this.overlay
+        .position()
+        .flexibleConnectedTo(origin)
+        .withPositions([
+          { originX: 'center', originY: 'top', overlayX: 'center', overlayY: 'bottom', offsetY: -8 },
+          { originX: 'center', originY: 'bottom', overlayX: 'center', overlayY: 'top', offsetY: 8 }
+        ])
+        .withFlexibleDimensions(false)
+        .withPush(true)
+        .withViewportMargin(8);
+      this.tipRef = this.overlay.create({ positionStrategy: this.tipPosition });
+      // The pane must not take the pointer, or it would end the hover it shows
+      this.tipRef.overlayElement.style.pointerEvents = 'none';
+    } else {
+      this.tipPosition.setOrigin(origin);
+    }
+    if (!this.tipRef.hasAttached()) {
+      this.tipView = this.tipRef.attach(new TemplatePortal(this.tipTpl, this.viewContainerRef));
+      this.zone.runOutsideAngular(() => {
+        window.addEventListener('scroll', this.onViewportChange, true);
+        window.addEventListener('resize', this.onViewportChange);
+      });
+    }
+    this.tipView?.detectChanges();
+    this.tipRef.updatePosition();
   }
 
   /** Hover from a mark or dot drawn over the category bands */
@@ -248,7 +316,7 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     this.hits = [];
     this.ticks = [];
     this.xLabels = [];
-    this.hover = null;
+    this.hideTip();
     if (!this.shown.categories.length || !this.shown.series.length) return;
     if (this.isPie) this.layoutPie();
     else if (this.type === 'gauge') this.layoutGauge();
@@ -453,16 +521,22 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
       max = Math.max(max, pos);
       min = Math.min(min, neg);
     }
+    const catChars = Math.min(18, Math.max(...categories.map((c) => c.length)));
+    // Reserve room above the plot for value labels that sit above bars/dots — bar labels sit beside the bar, not above
+    const topPad = this.showValues && !this.horizontal ? 14 : 0;
+    // Headroom on the value axis, so the label of the largest value fits outside its bar or above its point
+    if (this.showValues && max > 0 && !(this.stacked && this.horizontal)) {
+      const valueLen = this.horizontal ? this.width - 16 - Math.min(this.width * 0.35, 8 + catChars * 6.5) : this.h - 40 - topPad;
+      const widest = Math.max(...series.flatMap((s) => s.values.map((v) => (v && v > 0 ? weChartLabelWidth(this.format(v)) : 0))));
+      const reserve = this.horizontal ? Math.min(valueLen / 2, widest + 6) : 14;
+      if (valueLen > reserve) max += ((max - min) * reserve) / (valueLen - reserve);
+    }
     const tickValues = weChartTicks(min, max);
     const lo = tickValues[0];
     const hi = tickValues[tickValues.length - 1];
     const compact = new Intl.NumberFormat(this.locale.intlLocale, { notation: 'compact', maximumFractionDigits: 1 });
     const tickLabels = tickValues.map((t) => compact.format(t));
     const labelChars = Math.max(...tickLabels.map((l) => l.length));
-    const catChars = Math.min(18, Math.max(...categories.map((c) => c.length)));
-
-    // Reserve room above the plot for value labels that sit above bars/dots — bar labels sit beside the bar, not above
-    const topPad = this.showValues && !this.horizontal ? 14 : 0;
     if (this.horizontal) {
       this.plot = { left: Math.min(this.width * 0.35, 8 + catChars * 6.5), top: 8, right: this.width - 16, bottom: this.h - 24 };
     } else {
@@ -567,18 +641,31 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   private barLabel(v: number, across: number, thickness: number, base: number, tip: number, i: number, p: { left: number; top: number; right: number; bottom: number }): ValueLabel[] {
     const mid = across + thickness / 2;
     const text = this.format(v);
+    const length = Math.abs(tip - base);
     if (this.stacked) {
-      if (!weChartStackedLabelFits(Math.abs(tip - base))) return [];
+      if (!weChartStackedLabelFits(length)) return [];
       const along = (base + tip) / 2;
-      return [this.horizontal ? { x: along, y: mid + 4, text, anchor: 'middle', color: weChartLabelColor(i) } : { x: mid, y: along + 4, text, anchor: 'middle', color: weChartLabelColor(i) }];
+      const inside = this.insideText(v, this.horizontal ? length : thickness);
+      if (inside === null) return [];
+      return [this.horizontal ? { x: along, y: mid + 4, text: inside, anchor: 'middle', color: weChartLabelColor(i) } : { x: mid, y: along + 4, text: inside, anchor: 'middle', color: weChartLabelColor(i) }];
     }
     const dir = tip < base ? -1 : 1;
     // shortcut: a negative value's label always sits inside near the tip — only the common positive case checks for outside room
     if (this.horizontal) {
       if (dir > 0 && weChartBarLabelFits(tip, p.right, weChartLabelWidth(text))) return [{ x: tip + 6, y: mid + 4, text, anchor: 'start' }];
-      return [{ x: tip - dir * 6, y: mid + 4, text, anchor: dir > 0 ? 'end' : 'start', color: weChartLabelColor(i) }];
+      const inside = this.insideText(v, length - 6);
+      return inside === null ? [] : [{ x: tip - dir * 6, y: mid + 4, text: inside, anchor: dir > 0 ? 'end' : 'start', color: weChartLabelColor(i) }];
     }
     if (dir < 0 && weChartColumnLabelFits(tip, p.top)) return [{ x: mid, y: tip - 6, text, anchor: 'middle' }];
-    return [{ x: mid, y: tip - dir * 10, text, anchor: 'middle', color: weChartLabelColor(i) }];
+    const inside = this.insideText(v, thickness);
+    return inside === null ? [] : [{ x: mid, y: tip - dir * 10, text: inside, anchor: 'middle', color: weChartLabelColor(i) }];
+  }
+
+  /** The label inside a mark `room` px across — the full text, else the compact one (19.9M), else none: never clipped text */
+  private insideText(v: number, room: number): string | null {
+    const full = this.format(v);
+    if (weChartLabelFitsInside(full, room)) return full;
+    const short = new Intl.NumberFormat(this.locale.intlLocale, { notation: 'compact', maximumFractionDigits: 1 }).format(v);
+    return weChartLabelFitsInside(short, room) ? short : null;
   }
 }

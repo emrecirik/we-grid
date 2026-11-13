@@ -166,6 +166,11 @@ export function weChartLabelWidth(text: string): number {
   return text.length * 6.5;
 }
 
+/** Whether a label fits inside a mark `room` px across, with 2px to spare on each side */
+export function weChartLabelFitsInside(text: string, room: number): boolean {
+  return weChartLabelWidth(text) + 4 <= room;
+}
+
 /** True when a line/area point label at `x` would overlap the previously placed one — skip it */
 export function weChartLabelCollides(prevX: number | null, x: number, minGap = 24): boolean {
   return prevX !== null && Math.abs(x - prevX) < minGap;

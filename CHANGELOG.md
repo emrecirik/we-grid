@@ -2,6 +2,24 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.55.1 — 2026-11-13
+
+### Fixed
+
+- `<we-chart>` tooltips were cut off: drawn inside the clipped plot and always above the point,
+  they lost their top near the highest bar or point and never showed on a sparkline or a small KPI
+  chart. The tooltip now opens in the CDK overlay on `body` (no `overflow` or `transform` ancestor —
+  a dashboard tile, say — clips or offsets it), above the point, below it when there is no room,
+  and kept 8px inside the viewport. It also shows when a clickable mark or point gets keyboard
+  focus, hides on blur, and hides on any scroll or resize. Like the grid's menus it needs the CDK
+  overlay stylesheet, and takes theme variables from `:root`/`[data-theme]` rather than from the
+  chart's own ancestors.
+- `showValues` labels no longer get cut off on the largest bar or point. The value axis leaves
+  headroom for them (above the top on column, line and area; the widest label's width past the
+  right on bar), so the top label stays outside its bar. A label that still has to go inside a bar
+  — a negative value, a stacked segment, a cramped plot — is shortened to the compact form
+  (19.9M), or left out when even that is wider than the bar; clipped text is never drawn.
+
 ## 0.55.0 — 2026-11-13
 
 ### Added

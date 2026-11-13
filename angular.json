@@ -34,6 +34,9 @@
             "polyfills": [
               "zone.js",
               "zone.js/testing"
+            ],
+            "styles": [
+              "node_modules/@angular/cdk/overlay-prebuilt.css"
             ]
           }
         }

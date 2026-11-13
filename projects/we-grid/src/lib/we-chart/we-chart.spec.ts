@@ -13,6 +13,8 @@ import {
   weChartFold,
   weChartLabelCollides,
   weChartLabelColor,
+  weChartLabelFitsInside,
+  weChartLabelWidth,
   weChartPieLabelFits,
   weChartRoundRect,
   weChartStackedLabelFits,
@@ -68,6 +70,11 @@ describe('we-chart utils', () => {
     expect(weChartLabelCollides(50, 80)).toBe(false);
   });
 
+  it('fits a label inside a mark only with 2px to spare on each side', () => {
+    expect(weChartLabelFitsInside('19.9M', 24)).toBe(false); // 32.5 + 4 px
+    expect(weChartLabelFitsInside('19.9M', 37)).toBe(true);
+  });
+
   it('picks white label text over the (dark-ish) palette fallbacks', () => {
     expect(weChartLabelColor(0)).toBe('#fff');
     expect(weChartLabelColor(3)).toBe('#fff');
@@ -110,7 +117,8 @@ describe('WeChartComponent', () => {
   it('shows every value of a category on hover', () => {
     el().querySelectorAll('.we-chart__hit')[1].dispatchEvent(new MouseEvent('mouseenter'));
     fixture.detectChanges();
-    const tip = el().querySelector('.we-chart__tip')!;
+    const tip = document.querySelector('.we-chart__tip')!;
+    expect(el().contains(tip)).toBe(false); // in the overlay on body, out of reach of any overflow or transform
     expect(tip.textContent).toContain('Feb');
     expect(tip.textContent).toContain('20');
     expect(tip.textContent).toContain('15');
@@ -273,6 +281,24 @@ describe('WeChartComponent — pointClick and the KPI chart types', () => {
     expect(host.clicks).toEqual([{ category: 'Offer', series: 'n', value: 40, index: 2 }]);
   });
 
+  it('leaves headroom so the largest value labels sit outside the bar, never clipped inside', () => {
+    const big: WeChartData = { categories: ['Jan', 'Feb'], series: [{ name: 'Sales', values: [19864350, 5000000] }] };
+    const outside = () => Array.from(el().querySelectorAll<SVGTextElement>('.we-chart__value-label')).every((t) => !t.style.fill);
+    set({ type: 'column', showValues: true, data: big });
+    expect(texts()).toEqual(['19,864,350', '5,000,000']);
+    expect(outside()).toBe(true);
+    set({ type: 'bar' });
+    expect(texts()).toEqual(['19,864,350', '5,000,000']);
+    expect(outside()).toBe(true);
+    const ends = Array.from(el().querySelectorAll<SVGTextElement>('.we-chart__value-label')).map((t) => Number(t.getAttribute('x')) + weChartLabelWidth(t.textContent ?? ''));
+    expect(Math.max(...ends)).toBeLessThanOrEqual(el().querySelector('svg')!.viewBox.baseVal.width - 16);
+  });
+
+  it('shortens or drops a label that has to go inside a bar too narrow for it', () => {
+    set({ type: 'column', showValues: true, data: { categories: ['Jan'], series: [{ name: 'Loss', values: [-19864350] }] } });
+    expect(texts()).toEqual([]); // "-19,864,350" and "-19.9M" are both wider than the 24px bar
+  });
+
   it('draws a sparkline 40px high, without axes, legend or header', () => {
     set({ type: 'sparkline' });
     expect(el().querySelector('svg')!.getAttribute('height')).toBe('40');
@@ -294,5 +320,85 @@ describe('WeChartComponent without a pointClick listener', () => {
     const mark = fixture.nativeElement.querySelector('.we-chart__mark') as SVGPathElement;
     expect(mark.getAttribute('tabindex')).toBeNull();
     expect(fixture.nativeElement.querySelector('.we-chart--clickable')).toBeNull();
+  });
+});
+
+@Component({
+  standalone: true,
+  imports: [WeChartComponent],
+  template: `<div class="frame" style="position: fixed; overflow: hidden" [style.top.px]="top" [style.left.px]="left" [style.width.px]="width" [style.transform]="transform">
+    <we-chart [type]="type" [data]="data" [height]="height" (pointClick)="0" />
+  </div>`
+})
+class TipHostComponent {
+  type: WeChartType = 'column';
+  // Sized to fit Karma's small viewport; 640px keeps the SVG at its own width, so no letterboxing
+  height = 150;
+  top = 150;
+  left = 20;
+  width = 640;
+  transform = 'none';
+  data: WeChartData = {
+    categories: ['Jan', 'Feb', 'A rather long category name'],
+    series: [
+      { name: 'North', values: [10, 20, 30] },
+      { name: 'South', values: [5, 15, 25] }
+    ]
+  };
+}
+
+describe('WeChartComponent tooltip placement', () => {
+  let fixture: ComponentFixture<TipHostComponent>;
+  const tip = (): DOMRect | undefined => document.querySelector('.we-chart__tip')?.getBoundingClientRect();
+  const hover = (patch: Partial<TipHostComponent>, index: number): DOMRect => {
+    fixture = TestBed.createComponent(TipHostComponent);
+    Object.assign(fixture.componentInstance, patch);
+    fixture.detectChanges();
+    const hit = fixture.nativeElement.querySelectorAll('.we-chart__hit')[index] as SVGRectElement;
+    hit.dispatchEvent(new MouseEvent('mouseenter'));
+    fixture.detectChanges();
+    return hit.getBoundingClientRect();
+  };
+
+  it('sits 8px above the hovered point when there is room', () => {
+    const point = hover({}, 1);
+    expect(tip()!.bottom).toBeCloseTo(point.top - 8, 0);
+  });
+
+  it('flips below the point when there is no room above', () => {
+    const point = hover({ top: 0 }, 1);
+    expect(tip()!.top).toBeCloseTo(point.top + 8, 0);
+  });
+
+  it('stays 8px inside the right edge of the viewport', () => {
+    hover({ left: window.innerWidth - 300, width: 300 }, 2);
+    expect(tip()!.right).toBeLessThanOrEqual(window.innerWidth - 8 + 0.5);
+  });
+
+  it('shows in full on a 40px sparkline inside a transformed, clipping ancestor', () => {
+    const point = hover({ type: 'sparkline', height: 300, top: 0, width: 300, transform: 'translate(10px, 20px)' }, 1);
+    const box = tip()!;
+    expect(box.height).toBeGreaterThan(40);
+    expect(box.top).toBeCloseTo(point.top + 8, 0);
+    expect(box.top).toBeGreaterThanOrEqual(8);
+    expect(box.bottom).toBeLessThanOrEqual(window.innerHeight);
+  });
+
+  it('follows keyboard focus, hides on blur and scroll, and leaves no DOM behind', () => {
+    hover({}, 0);
+    const mark = fixture.nativeElement.querySelectorAll('.we-chart__mark')[3] as SVGPathElement;
+    mark.dispatchEvent(new FocusEvent('focus'));
+    fixture.detectChanges();
+    const title = document.querySelector('.we-chart__tip-title')!.textContent!;
+    expect(mark.getAttribute('aria-label')!.startsWith(`${title} · `)).toBe(true);
+    mark.dispatchEvent(new FocusEvent('blur'));
+    expect(tip()).toBeUndefined();
+    mark.dispatchEvent(new FocusEvent('focus'));
+    expect(tip()).toBeDefined();
+    document.dispatchEvent(new Event('scroll'));
+    expect(tip()).toBeUndefined();
+    mark.dispatchEvent(new FocusEvent('focus'));
+    fixture.destroy();
+    expect(document.querySelector('.we-chart__tip')).toBeNull();
   });
 });

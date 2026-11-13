@@ -120,9 +120,8 @@
   fill: transparent;
 }
 
+// Rendered in the CDK overlay on `body` — it inherits nothing from the chart, so it sets its own font size
 .we-chart__tip {
-  position: absolute;
-  z-index: 2;
   min-width: 9rem;
   max-width: 16rem;
   padding: 0.45rem 0.6rem;
@@ -131,7 +130,7 @@
   background: var(--we-grid-menu-bg, #fff);
   color: var(--we-grid-menu-color, #212529);
   box-shadow: var(--we-grid-menu-shadow, 0 0.5rem 1rem rgba(0, 0, 0, 0.15));
-  transform: translate(-50%, calc(-100% - 8px));
+  font-size: var(--we-grid-font-size, 0.8125rem);
   pointer-events: none;
   white-space: nowrap;
 }

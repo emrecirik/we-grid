@@ -36,7 +36,7 @@
       </table>
     </div>
   } @else {
-    <div class="we-chart__plot" (mouseleave)="hover = null">
+    <div class="we-chart__plot" (mouseleave)="hideTip()">
       <svg [attr.viewBox]="'0 0 ' + width + ' ' + h" [attr.width]="width" [attr.height]="h" role="img" [attr.aria-label]="title || locale.chartLabel">
         @if (axes) {
           @for (t of ticks; track t.value) {
@@ -81,6 +81,8 @@
             [attr.role]="clickable ? 'button' : null"
             [attr.aria-label]="clickable ? pointLabel(m.category, m.series) : null"
             (mouseenter)="hoverCategory(m.category)"
+            (focus)="hoverCategory(m.category)"
+            (blur)="hideTip()"
             (click)="onPoint(m.category, m.series)"
             (keydown.enter)="onPoint(m.category, m.series, $event)"
           />
@@ -102,6 +104,8 @@
             [attr.role]="clickable ? 'button' : null"
             [attr.aria-label]="clickable ? pointLabel(d.category, d.series) : null"
             (mouseenter)="hoverCategory(d.category)"
+            (focus)="hoverCategory(d.category)"
+            (blur)="hideTip()"
             (click)="onPoint(d.category, d.series)"
             (keydown.enter)="onPoint(d.category, d.series, $event)"
           />
@@ -114,27 +118,6 @@
         }
 
       </svg>
-
-      @if (hover) {
-        <div class="we-chart__tip" role="tooltip" [style.left.px]="hover.x" [style.top.px]="hover.y">
-          <div class="we-chart__tip-title">{{ shown.categories[hover.category] }}</div>
-          @if (categorical) {
-            <div class="we-chart__tip-row">
-              <span class="we-chart__key" [style.background]="color(hover.category)"></span>
-              <span>{{ format(shown.series[0].values[hover.category]) }}</span>
-              <span class="we-chart__muted">{{ share(shown.series[0].values[hover.category]) }}</span>
-            </div>
-          } @else {
-            @for (s of shown.series; track $index; let i = $index) {
-              <div class="we-chart__tip-row">
-                <span class="we-chart__key" [style.background]="color(i)"></span>
-                <span class="we-chart__muted">{{ s.name }}</span>
-                <span class="we-chart__tip-value">{{ format(s.values[hover.category]) }}</span>
-              </div>
-            }
-          }
-        </div>
-      }
     </div>
 
     @if (legend.length) {
@@ -146,3 +129,27 @@
     }
   }
 </figure>
+
+<!-- Attached to the CDK overlay while hovering — see showTip() -->
+<ng-template #tipTpl>
+  @if (hover) {
+    <div class="we-chart__tip" role="tooltip">
+      <div class="we-chart__tip-title">{{ shown.categories[hover.category] }}</div>
+      @if (categorical) {
+        <div class="we-chart__tip-row">
+          <span class="we-chart__key" [style.background]="color(hover.category)"></span>
+          <span>{{ format(shown.series[0].values[hover.category]) }}</span>
+          <span class="we-chart__muted">{{ share(shown.series[0].values[hover.category]) }}</span>
+        </div>
+      } @else {
+        @for (s of shown.series; track $index; let i = $index) {
+          <div class="we-chart__tip-row">
+            <span class="we-chart__key" [style.background]="color(i)"></span>
+            <span class="we-chart__muted">{{ s.name }}</span>
+            <span class="we-chart__tip-value">{{ format(s.values[hover.category]) }}</span>
+          </div>
+        }
+      }
+    </div>
+  }
+</ng-template>
