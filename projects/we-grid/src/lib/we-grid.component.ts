@@ -3551,8 +3551,24 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     });
   }
 
-  /** Flattens the current column/row state into the renderer-agnostic shape every exporter consumes */
-  private buildExportTable(rows: T[], withStyles = false): WeGridExportTable {
+  /**
+   * Writes a file from the given rows with the grid's current look — column order, headers, hidden
+   * and non-exportable columns, formatters, formula columns and (xlsx) format rules. Meant for a
+   * server-side grid whose consumer fetched the full result itself after (exportRequest). Never
+   * emits (exportRequest) and ignores exportMode; the summary row is worked out over `rows`.
+   */
+  async exportRows(rows: readonly T[], format: WeGridExportFormat, options?: { fileName?: string }): Promise<void> {
+    const list = [...rows];
+    const table = this.buildExportTable(list, format === 'xlsx', list);
+    if (options?.fileName) table.fileName = options.fileName;
+    await this.exporter.export(table, format);
+  }
+
+  /**
+   * Flattens the current column/row state into the renderer-agnostic shape every exporter consumes.
+   * `summaryRows` sums those rows instead of the on-screen summary (which covers the loaded page).
+   */
+  private buildExportTable(rows: T[], withStyles = false, summaryRows?: T[]): WeGridExportTable {
     const columns = this.exportColumns;
     const title = this.exportFileName || this.gridKey;
     // The look of each cell — column styles and format rules — for exporters that can carry it
@@ -3589,7 +3605,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         const look = looks.get(row);
         return look ? { values, text, styles: columns.map((col) => look[col.field] ?? null) } : { values, text };
       }),
-      summary: this.hasSummaryRow ? columns.map((col) => this.summaryCellText(col)) : null,
+      summary: !this.hasSummaryRow
+        ? null
+        : summaryRows
+          ? columns.map((col) => buildWeGridSummaryText(summaryRows, col, 'client', undefined, this.locale, this.readCellValue))
+          : columns.map((col) => this.summaryCellText(col)),
       cssVariables: this.readExportThemeVariables(),
       ...(withStyles ? { formatRules: this.activeFormatRules.filter((r) => r.type !== 'condition' && columns.some((c) => c.field === r.field)) } : {})
     };

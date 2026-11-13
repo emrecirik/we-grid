@@ -106,6 +106,34 @@ onExport(e: WeGridExportRequest<Order>): void {
 `exportMode: 'client'` forces local generation even on a server-side grid; `'server'` always
 delegates, whether or not the output has a subscriber.
 
+### Exporting the full result with the grid's look *(0.55.2)*
+
+If the backend can page through the result but should not render the file, fetch every page and
+hand the rows back to `exportRows`. The file then matches the screen — the user's column order,
+renamed headers and hidden columns, `formatter`/`displayValue` text, formula columns, Excel format
+rules — and the summary row adds up the rows you pass, not the loaded page. `exportRows` never
+emits `(exportRequest)`, so calling it from the handler cannot loop.
+
+```ts
+@ViewChild(WeGridComponent) grid!: WeGridComponent<Order>;
+
+async onExport(e: WeGridExportRequest<Order>): Promise<void> {
+  if (e.scope === 'selected') return this.grid.exportRows(e.rows, e.format);
+  this.exporting = true; // your own "Exporting…" indicator
+  try {
+    const all: Order[] = [];
+    for (let page = 1; ; page++) {
+      const res = await firstValueFrom(this.api.orders({ ...this.query, page, pageSize: 1000 }));
+      all.push(...res.items);
+      if (all.length >= res.total || res.items.length === 0) break;
+    }
+    await this.grid.exportRows(all, e.format, { fileName: 'orders' });
+  } finally {
+    this.exporting = false;
+  }
+}
+```
+
 ## Replacing the generators
 
 Both halves are injection tokens, exactly like `WE_GRID_LAYOUT_STORE`:

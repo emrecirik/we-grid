@@ -112,6 +112,10 @@
   yours to manage. `openColumnsMenuFromToolbar()` is kept and calls it.
 - `toggleFilterRow(open?)` *(0.8.0)* — opens / closes the filter row while `filterRow=true`
 - `exportAs(format)`, `exportScope`, `exportColumns`, `isServerExport`
+- `exportRows(rows, format, { fileName? })` *(0.55.2)* — writes a file from the rows you pass with the
+  grid's current columns, headers, formatters, formula columns and (xlsx) format rules, through
+  `WE_GRID_EXPORTER`; the summary row is worked out over those rows. Never emits `exportRequest`,
+  ignores `exportMode`. Returns the exporter's promise.
 - `openImportPicker()`, `importAccept`
 - `edit: WeGridEditState<T> | null`, `startEdit(row, index, event?)`, `startCreate()`, `commitEdit()`,
   `cancelEdit()`, `requestDelete(row, index, event?)`, `isEditingRow(row)`, `isCreating`, `hasRowActions`

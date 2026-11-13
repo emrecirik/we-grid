@@ -2,6 +2,18 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.55.2 — 2026-11-13
+
+### Added
+
+- `WeGridComponent.exportRows(rows, format, { fileName? })`: writes a file from rows the consumer
+  supplies — typically the full result of a server-side grid fetched page by page after
+  `(exportRequest)` — with the grid's current columns (order, renamed headers, hidden and
+  `exportable: false` columns), `formatter`/`displayValue` text, formula columns and, for xlsx, the
+  format-rule styles, through `WE_GRID_EXPORTER`. The summary row is worked out over the given
+  rows (backend `summaryValues` are not used). It never emits `(exportRequest)` and ignores
+  `exportMode`. See "Exporting the full result" in `docs/export-import.md`.
+
 ## 0.55.1 — 2026-11-13
 
 ### Fixed

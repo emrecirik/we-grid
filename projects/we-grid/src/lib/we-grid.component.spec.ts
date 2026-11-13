@@ -14,7 +14,7 @@ import {
   WeGridFilterChangeEvent
 } from './models/we-grid-filter.model';
 import { WeGridRowDeleteEvent, WeGridRowEditEvent, WeGridRowsPasteEvent } from './models/we-grid-edit.model';
-import { WeGridImportResult } from './models/we-grid-export.model';
+import { WeGridExportFormat, WeGridExporter, WeGridExportTable, WeGridImportResult } from './models/we-grid-export.model';
 import { WE_GRID_LAYOUT_STORE, WeGridLayout } from './models/we-grid-layout.model';
 import { WE_GRID_LOCALE, WeGridLocale, weGridLocaleTr } from './models/we-grid-locale.model';
 import { WeGridMenuAction } from './models/we-grid-menu-action.model';
@@ -1020,6 +1020,42 @@ describe('WeGridComponent — export, import and row editing', () => {
 
     component.exportRequest.subscribe(() => {});
     expect(component.isServerExport).toBeTrue();
+  });
+
+  it('exportRows writes the given rows with the on-screen columns, styles and summary, and emits no exportRequest', async () => {
+    fixture.componentRef.setInput('serverSide', true);
+    fixture.componentRef.setInput('columns', [...columns, { field: 'fx:dbl', header: 'Double', formula: '=[qty] * 2', type: 'number' }]);
+    fixture.componentRef.setInput('formatRules', [{ id: 'r1', field: 'qty', type: 'condition', operator: 'gt', value: 4, style: { bold: true } }]);
+    fixture.detectChanges();
+    const menu = component as unknown as { handleMenuAction: (action: WeGridMenuAction) => void };
+    menu.handleMenuAction({ type: 'move-column', field: 'qty', direction: 'left' });
+    menu.handleMenuAction({ type: 'rename', field: 'name', header: 'Title' });
+    menu.handleMenuAction({ type: 'hide-column', field: 'code' });
+    menu.handleMenuAction({ type: 'summary', field: 'qty', summary: 'sum' });
+
+    const tables: { table: WeGridExportTable; format: WeGridExportFormat }[] = [];
+    spyOn((component as unknown as { exporter: WeGridExporter }).exporter, 'export').and.callFake((table, format) => {
+      tables.push({ table, format });
+    });
+    let requests = 0;
+    component.exportRequest.subscribe(() => requests++);
+
+    // A third row that is not on the loaded page — the consumer fetched it itself
+    await component.exportRows([...rows, { code: 'C3', name: 'Product C', qty: 10 }], 'xlsx', { fileName: 'all-orders' });
+
+    expect(requests).toBe(0);
+    expect(tables.length).toBe(1);
+    const { table, format } = tables[0];
+    expect(format).toBe('xlsx');
+    expect(table.fileName).toBe('all-orders');
+    expect(table.columns.map((c) => c.header)).toEqual(['Qty', 'Title', 'Double']);
+    expect(table.rows.map((r) => r.values)).toEqual([
+      [2, 'Product A', 4],
+      [5, 'Product B', 10],
+      [10, 'Product C', 20]
+    ]);
+    expect(table.rows.map((r) => r.styles?.[0]?.bold ?? false)).toEqual([false, true, true]);
+    expect(table.summary?.[0]).toContain('17');
   });
 
   it('adds the action column only when editing or deleting is enabled', () => {
