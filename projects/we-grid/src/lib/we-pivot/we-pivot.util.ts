@@ -26,6 +26,19 @@ export interface WePivotResult {
   groupBy: string[];
   /** More column combinations existed than `maxColumns`; the rest were left out */
   truncated: boolean;
+  /** Per result row (`pivot:id`): the raw value of every row field, keyed by field — blanks are null */
+  rowValues?: Record<string, unknown>[];
+  /** Per value/total column (`c:…`, `t:…`): the raw column field values and the value field it aggregates */
+  cellSources?: Record<string, { columnValues: Record<string, unknown>; valueField: string }>;
+}
+
+/** `<we-pivot>`'s `cellClick` — raw values keyed by the original field names */
+export interface WePivotCellClickEvent {
+  rowValues: Record<string, unknown>;
+  columnValues: Record<string, unknown>;
+  /** The value field the clicked cell aggregates — `''` for a row header cell */
+  valueField: string;
+  value: unknown;
 }
 
 /** Labels the pivot needs — taken from the grid locale by the component */
@@ -118,6 +131,19 @@ export function wePivot(
   const compare = (a: string, b: string) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b, intlLocale, { numeric: true }));
 
   // Every row combination and column combination, with an accumulator per cell
+  // First raw value seen per field and key — labels go through the field's formatter, clicks hand it back
+  const raws = new Map<string, unknown>();
+  const rawOf = (field: string, key: string): unknown => (key === '' ? null : raws.get(`${field}${KEY_SEP}${key}`));
+  const remember = (fields: string[], keys: string[], item: Record<string, unknown>) =>
+    fields.forEach((f, i) => {
+      const k = `${f}${KEY_SEP}${keys[i]}`;
+      if (!raws.has(k)) raws.set(k, read(item, f));
+    });
+  const label = (field: string, key: string): string => {
+    if (key === '') return labels.empty;
+    const fmt = def(field)?.formatter;
+    return fmt ? fmt(rawOf(field, key), null) : key;
+  };
   const rowKeys = new Map<string, string[]>();
   const colKeys = new Map<string, string[]>();
   const cells = new Map<string, Acc[]>();
@@ -127,8 +153,14 @@ export function wePivot(
     const ck = config.columns.map((f) => keyOf(read(item, f)));
     const rKey = rk.join(KEY_SEP);
     const cKey = ck.join(KEY_SEP);
-    if (!rowKeys.has(rKey)) rowKeys.set(rKey, rk);
-    if (!colKeys.has(cKey)) colKeys.set(cKey, ck);
+    if (!rowKeys.has(rKey)) {
+      rowKeys.set(rKey, rk);
+      remember(config.rows, rk, item);
+    }
+    if (!colKeys.has(cKey)) {
+      colKeys.set(cKey, ck);
+      remember(config.columns, ck, item);
+    }
     const cellKey = `${rKey}${KEY_SEP}${KEY_SEP}${cKey}`;
     let accs = cells.get(cellKey);
     if (!accs) cells.set(cellKey, (accs = values.map(newAcc)));
@@ -163,15 +195,20 @@ export function wePivot(
     field: `r:${f}`,
     header: header(f),
     type: 'text',
-    pinned: 'left'
+    pinned: 'left',
+    // Cells hold the group key (so sorting and grouping stay on it); only the text goes through the formatter
+    ...(def(f)?.formatter ? { formatter: (v: unknown) => (v === labels.empty ? labels.empty : label(f, String(v ?? ''))) } : {})
   }));
+  const cellSources: Record<string, { columnValues: Record<string, unknown>; valueField: string }> = {};
   const hasColumnFields = config.columns.length > 0;
   for (const [cKey, parts] of shownCols) {
     values.forEach((v, i) => {
-      const label = parts.map((p) => p || labels.empty).join(' / ');
+      const colLabel = parts.map((p, j) => label(config.columns[j], p)).join(' / ');
+      const field = `c:${cKey}${KEY_SEP}${i}`;
+      cellSources[field] = { columnValues: Object.fromEntries(config.columns.map((f, j) => [f, rawOf(f, parts[j])])), valueField: v.field };
       columns.push({
-        field: `c:${cKey}${KEY_SEP}${i}`,
-        header: hasColumnFields ? (values.length > 1 ? `${label} · ${valueLabel(v)}` : label) : valueLabel(v),
+        field,
+        header: hasColumnFields ? (values.length > 1 ? `${colLabel} · ${valueLabel(v)}` : colLabel) : valueLabel(v),
         type: valueType(v),
         format: def(v.field)?.format,
         minorUnits: v.aggregate !== 'count' ? def(v.field)?.minorUnits : undefined,
@@ -183,6 +220,7 @@ export function wePivot(
   }
   if (hasColumnFields) {
     values.forEach((v, i) => {
+      cellSources[`t:${i}`] = { columnValues: {}, valueField: v.field };
       columns.push({
         field: `t:${i}`,
         header: values.length > 1 ? `${labels.total} · ${valueLabel(v)}` : labels.total,
@@ -218,5 +256,6 @@ export function wePivot(
     return row;
   });
 
-  return { columns, rows, groupBy: config.rows.slice(0, -1).map((f) => `r:${f}`), truncated };
+  const rowValues = sortedRows.map(([, parts]) => Object.fromEntries(config.rows.map((f, i) => [f, rawOf(f, parts[i])])));
+  return { columns, rows, groupBy: config.rows.slice(0, -1).map((f) => `r:${f}`), truncated, rowValues, cellSources };
 }

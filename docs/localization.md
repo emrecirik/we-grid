@@ -216,7 +216,7 @@ parser's own messages are English too.
 ## Keys added in 0.12.0
 
 - `<we-chart>`: `chartLabel`, `chartShowTable`, `chartShowChart`, `chartNoData`, `chartOther`,
-  `chartLegend`, `chartTypeLabels`, `chartStacked`, `chartInsert`, `chartRemove`
+  `chartLegend`, `chartTarget` (0.55.0, `(value) => string`), `chartTypeLabels`, `chartStacked`, `chartInsert`, `chartRemove`
 
 ## Keys added in 0.13.0
 

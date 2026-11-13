@@ -23,6 +23,14 @@ export interface WeGridRowClickEvent<T> {
   rowIndex: number;
 }
 
+/** A click on a data cell — `value` is the cell's raw value (formula columns: the computed result) */
+export interface WeGridCellClickEvent<T> {
+  row: T;
+  rowIndex: number;
+  field: string;
+  value: unknown;
+}
+
 /**
  * Row-level style function — applied to `<tr>` as `[ngClass]`, kept separate from the grid's own
  * `we-grid__row` / `we-grid__row--selected` classes (a distinct binding). The visual result (color,

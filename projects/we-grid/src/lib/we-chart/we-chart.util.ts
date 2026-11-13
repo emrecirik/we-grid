@@ -1,5 +1,17 @@
 /** The chart forms `<we-chart>` draws */
-export type WeChartType = 'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut';
+export type WeChartType = 'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'gauge' | 'radialBar' | 'progress' | 'funnel' | 'sparkline';
+
+/**
+ * `<we-chart>`'s `pointClick`. `series` is null when a whole category was clicked (the empty part
+ * of a column/bar band, a line/area band) on a chart with more than one series — `value` is then
+ * the category's sum. A gauge reports its one value with the series name as the category.
+ */
+export interface WeChartPointClickEvent {
+  category: string;
+  series: string | null;
+  value: number;
+  index: number;
+}
 
 /** One series — `values[i]` belongs to `categories[i]`; null leaves a gap */
 export interface WeChartSeries {
@@ -96,6 +108,21 @@ export function weChartBarPath(orientation: 'column' | 'bar', across: number, th
     return `M${a0},${base} L${a0},${tip - dir * r} Q${a0},${tip} ${a0 + r},${tip} L${a1 - r},${tip} Q${a1},${tip} ${a1},${tip - dir * r} L${a1},${base} Z`;
   }
   return `M${base},${a0} L${tip - dir * r},${a0} Q${tip},${a0} ${tip},${a0 + r} L${tip},${a1 - r} Q${tip},${a1} ${tip - dir * r},${a1} L${base},${a1} Z`;
+}
+
+/** A rectangle with all four corners rounded by `radius` (clamped to fit), as a path */
+export function weChartRoundRect(x: number, y: number, w: number, h: number, radius = 4): string {
+  const r = Math.max(0, Math.min(radius, w / 2, h / 2));
+  const x1 = x + w;
+  const y1 = y + h;
+  return `M${x + r},${y} L${x1 - r},${y} Q${x1},${y} ${x1},${y + r} L${x1},${y1 - r} Q${x1},${y1} ${x1 - r},${y1} L${x + r},${y1} Q${x},${y1} ${x},${y1 - r} L${x},${y + r} Q${x},${y} ${x + r},${y} Z`;
+}
+
+/** Status colour of a value-to-target ratio: on target (≥ 100%) success, ≥ 70% warning, below that danger */
+export function weChartStatusColor(ratio: number): string {
+  if (ratio >= 1) return 'var(--we-grid-success-color, #0ab39c)';
+  if (ratio >= 0.7) return 'var(--we-grid-warning-color, #f7b84b)';
+  return 'var(--we-grid-danger-color, #f06548)';
 }
 
 /** `rrggbb` relative luminance (WCAG formula), used only to pick readable label text */

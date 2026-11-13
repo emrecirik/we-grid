@@ -74,6 +74,7 @@
 | `pageChange` | `WeGridPageChange` | `{ page, pageSize }` |
 | `sortChange` | `WeGridSortChange` | `{ field, direction }`, and *(0.23.0)* `thenBy` — the columns sorted after `field` when the user Shift+clicks more headers (client-side sorting only) |
 | `rowClick` / `rowDblClick` | `WeGridRowClickEvent<T>` | `{ row, rowIndex }` |
+| `cellClick` *(0.55.0)* | `WeGridCellClickEvent<T>` | `{ row, rowIndex, field, value }` — a data cell was clicked (raw value; formula columns: the result). Fires before `rowClick`, which still fires; skipped for clicks on controls inside the row like `rowClick`. |
 | `rowMenuItemClick` *(0.52.0)* | `WeGridRowMenuItemClickEvent<T>` | `{ item, row }` — a leaf item of the `rowContextMenu` menu was chosen, after its own `action`. One `switch (item.id)` can replace the per-item `action`s. |
 | `selectionChange` | `T[]` | Currently selected rows. |
 | `layoutChange` | `WeGridLayout` | Fires whenever the user's layout is persisted, and on "Reset layout" (with the default layout). |
@@ -208,13 +209,25 @@ reference in [sheet.md](sheet.md).
 
 A pivot table — inputs `data`, `fields`, `config` (`WePivotConfig`, two-way), `gridKey`,
 `exportFormats`, `maxHeight`, `maxColumns`, `chart` (`WeChartType | null`, 0.12.0); outputs `configChange`,
-`chartChange` (0.12.0); `wePivot()` for the table
+`chartChange` (0.12.0), `cellClick` (`WePivotCellClickEvent`, 0.55.0 — `{ rowValues, columnValues, valueField, value }`
+with the raw members behind the cell; a row header cell reports its own field and the outer ones, `valueField` `''`).
+A field's `formatter` labels the pivot's row and column members (0.55.0). `wePivot()` for the table
 without the component. Full reference in [pivot.md](pivot.md).
 
 ## `<we-chart>` (`WeChartComponent`) *(0.12.0)*
 
 Column, bar, line, area, pie and donut charts — inputs `type`, `data` (`WeChartData`), `stacked`,
 `title`, `height`, `valueFormatter`, `showTable`. Full reference in [charts.md](charts.md).
+
+*(0.55.0)* More types: `gauge` (half ring of the first series' total; `max`, `target` — green ≥ 100%
+of target, amber ≥ 70%, red below), `radialBar` (one 270° ring per category over `max` or the largest
+value), `progress` (a row per category; a second series is the target: fill = value / target and a
+"Target: X" caption), `funnel` (categories largest first) and `sparkline` (line + area, no axes,
+legend or header, 40px high unless `height` is set). `centerLabel` shows a donut's total in the
+middle. Output `pointClick` (`WeChartPointClickEvent`: `{ category, series, value, index }`) — a
+bar, point, slice, ring, row or step; on a column/bar/line/area band outside the marks `series` is
+`null` (with more than one series) and `value` the category sum. While it is bound the marks are
+focusable buttons and Enter fires it.
 
 ## `<we-workbook>` (`WeWorkbookComponent`) *(0.14.0)*
 

@@ -129,6 +129,20 @@ describe('WeGridComponent', () => {
     expect(hostEl.classList.contains('we-grid--clickable')).toBeTrue();
   });
 
+  it('emits cellClick with the row, index, field and raw value — rowClick still fires', () => {
+    fixture.detectChanges();
+    const cells: { code: string; rowIndex: number; field: string; value: unknown }[] = [];
+    const rows: Row[] = [];
+    component.cellClick.subscribe((e) => cells.push({ code: e.row.code, rowIndex: e.rowIndex, field: e.field, value: e.value }));
+    component.rowClick.subscribe((e) => rows.push(e.row));
+
+    const td = fixture.nativeElement.querySelectorAll('.we-grid__row')[1].querySelectorAll('td')[1] as HTMLElement;
+    td.click();
+
+    expect(cells).toEqual([{ code: 'B1', rowIndex: 1, field: 'name', value: 'Product B' }]);
+    expect(rows.map((r) => r.code)).toEqual(['B1']);
+  });
+
   it('a click on a column with stopRowClick=true should not bubble into rowClick', () => {
     fixture.componentRef.setInput('columns', [
       { field: 'code', header: 'Code' },

@@ -92,6 +92,7 @@ import { WeGridGroupSection } from './models/we-grid-group.model';
 import {
   WeGridPageChange,
   WeGridRowClassFn,
+  WeGridCellClickEvent,
   WeGridRowClickEvent,
   WeGridSelectionMode,
   WeGridSortChange
@@ -550,6 +551,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Output() sortChange = new EventEmitter<WeGridSortChange>();
   @Output() rowClick = new EventEmitter<WeGridRowClickEvent<T>>();
   @Output() rowDblClick = new EventEmitter<WeGridRowClickEvent<T>>();
+  /** A click on a data cell, before the row's `rowClick` — same interactive-target rule as `rowClick` */
+  @Output() cellClick = new EventEmitter<WeGridCellClickEvent<T>>();
   /** A leaf item of the `rowContextMenu` menu was chosen — after its own `action`, if any */
   @Output() rowMenuItemClick = new EventEmitter<WeGridRowMenuItemClickEvent<T>>();
   @Output() selectionChange = new EventEmitter<T[]>();
@@ -4145,7 +4148,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return this.activeCell !== null && this.activeCell.field === col.field && this.activeCell.key === this.rowKey(row);
   }
 
-  onCellClick(event: MouseEvent, row: T, col: WeGridInternalColumn<T>): void {
+  onCellClick(event: MouseEvent, row: T, col: WeGridInternalColumn<T>, rowIndex = -1): void {
+    if (this.cellClick.observed && !this.isFromInteractiveTarget(event)) this.cellClick.emit({ row, rowIndex, field: col.field, value: this.cellValue(row, col) });
     if (col.stopRowEvents.includes('click')) event.stopPropagation();
     if (this.pasteEnabled && !this.isCellEditing(row, col)) this.activeCell = { key: this.rowKey(row), field: col.field };
   }

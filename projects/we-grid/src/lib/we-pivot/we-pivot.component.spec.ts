@@ -5,7 +5,7 @@ import { WeGridColumnDef } from '../models/we-grid-column.model';
 import { WE_GRID_LAYOUT_STORE, WeGridLayout, WeGridLayoutStore } from '../models/we-grid-layout.model';
 import { WeGridComponent } from '../we-grid.component';
 import { WePivotComponent } from './we-pivot.component';
-import { WePivotConfig } from './we-pivot.util';
+import { WePivotCellClickEvent, WePivotConfig } from './we-pivot.util';
 
 class NullStore implements WeGridLayoutStore {
   load(): Observable<WeGridLayout | null> {
@@ -28,7 +28,7 @@ interface Sale {
 @Component({
   standalone: true,
   imports: [WePivotComponent],
-  template: `<we-pivot [data]="data" [fields]="fields" [config]="config" (configChange)="changes.push($event)" />`
+  template: `<we-pivot [data]="data" [fields]="fields" [config]="config" (configChange)="changes.push($event)" (cellClick)="clicks.push($event)" />`
 })
 class HostComponent {
   fields: WeGridColumnDef<Sale>[] = [
@@ -43,6 +43,7 @@ class HostComponent {
   ];
   config: WePivotConfig = { rows: ['city'], columns: [], values: [{ field: 'total', aggregate: 'sum' }] };
   changes: WePivotConfig[] = [];
+  clicks: WePivotCellClickEvent[] = [];
   @ViewChild(WePivotComponent) pivot!: WePivotComponent<Sale>;
 }
 
@@ -116,5 +117,17 @@ describe('WePivotComponent', () => {
     host.pivot.swap();
     fixture.detectChanges();
     expect(host.changes.at(-1)).toEqual(jasmine.objectContaining({ rows: [], columns: ['city', 'year'] }));
+  });
+
+  it('reports value and row header clicks with the raw members behind them', () => {
+    host.config = { rows: ['city'], columns: ['year'], values: [{ field: 'total', aggregate: 'sum' }] };
+    fixture.detectChanges();
+    const izmir = el().querySelectorAll('.we-grid__row')[1].querySelectorAll('td');
+    (izmir[2] as HTMLElement).click();
+    (izmir[0] as HTMLElement).click();
+    expect(host.clicks).toEqual([
+      { rowValues: { city: 'Izmir' }, columnValues: { year: 2026 }, valueField: 'total', value: 5 },
+      { rowValues: { city: 'Izmir' }, columnValues: {}, valueField: '', value: 'Izmir' }
+    ]);
   });
 });

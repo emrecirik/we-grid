@@ -5,16 +5,19 @@ import {
   ChangeDetectorRef,
   Component,
   ElementRef,
+  EventEmitter,
   Inject,
   Input,
   NgZone,
   OnChanges,
-  OnDestroy
+  OnDestroy,
+  Output
 } from '@angular/core';
 import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 import {
   WE_CHART_MAX_SERIES,
   WeChartData,
+  WeChartPointClickEvent,
   WeChartType,
   weChartArc,
   weChartBarLabelFits,
@@ -26,7 +29,9 @@ import {
   weChartLabelColor,
   weChartLabelWidth,
   weChartPieLabelFits,
+  weChartRoundRect,
   weChartStackedLabelFits,
+  weChartStatusColor,
   weChartTicks
 } from './we-chart.util';
 
@@ -45,6 +50,8 @@ interface ValueLabel {
   anchor: 'start' | 'middle' | 'end';
   /** Set only when the label sits inside a coloured mark and needs contrasting text */
   color?: string;
+  /** Extra class — the big centre value of a gauge or donut, its caption, progress row texts */
+  cls?: string;
 }
 
 interface Hit {
@@ -56,8 +63,12 @@ interface Hit {
   series: number | null;
 }
 
+const PIE_LIKE: readonly WeChartType[] = ['pie', 'donut', 'radialBar', 'funnel'];
+const SPARKLINE_HEIGHT = 40;
+
 /**
- * `<we-chart>` — column, bar, line, area, pie and donut charts in plain SVG, themed by the grid's
+ * `<we-chart>` — column, bar, line, area, pie, donut, gauge, radial bar, progress, funnel and
+ * sparkline charts in plain SVG, themed by the grid's
  * CSS variables (`--we-grid-chart-1` … `-8`). Hovering shows the values, the legend names every
  * series, and a table view carries the same numbers for screen readers and print.
  */
@@ -83,12 +94,23 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() showTable = false;
   /** Draw each data point's value on the chart, using `valueFormatter` */
   @Input() showValues = false;
+  /** Gauge, radial bar and progress (without a target series): the value of a full arc/bar — the data's own maximum otherwise */
+  @Input() max?: number;
+  /** Gauge: the target, marked on the arc; the arc turns green at ≥ 100%, amber at ≥ 70%, red below */
+  @Input() target?: number;
+  /** Donut: show the total in the middle, with this caption under it (`''` for the total alone) */
+  @Input() centerLabel?: string;
+
+  /** A mark (bar, point, slice, ring, row, funnel step) or a category band was clicked, or Enter pressed on it */
+  @Output() pointClick = new EventEmitter<WeChartPointClickEvent>();
 
   width = 600;
   shown: WeChartData = { categories: [], series: [] };
   marks: Mark[] = [];
   lines: { d: string; area: string | null; color: string; series: number }[] = [];
-  dots: { x: number; y: number; color: string }[] = [];
+  dots: { x: number; y: number; color: string; series: number; category: number }[] = [];
+  /** Background rails of gauge, radial bar and progress — and target markers */
+  tracks: { d: string; target?: boolean }[] = [];
   labels: ValueLabel[] = [];
   hits: Hit[] = [];
   ticks: { value: number; pos: number; label: string }[] = [];
@@ -97,6 +119,8 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   baseline = 0;
   hover: { x: number; y: number; category: number; series: number | null } | null = null;
   total = 0;
+  /** The drawn height — `height`, or 40px for a sparkline left at the default height */
+  h = 300;
 
   private observer?: ResizeObserver;
 
@@ -111,13 +135,28 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     return this.type === 'pie' || this.type === 'donut';
   }
 
+  /** One series over categories, coloured by category: pie, donut, radial bar, funnel */
+  get categorical(): boolean {
+    return PIE_LIKE.includes(this.type);
+  }
+
+  /** Charts with value and category axes */
+  get axes(): boolean {
+    return this.type === 'column' || this.type === 'bar' || this.type === 'line' || this.type === 'area';
+  }
+
+  get clickable(): boolean {
+    return this.pointClick.observed;
+  }
+
   get horizontal(): boolean {
     return this.type === 'bar';
   }
 
   /** Legend entries — series, or for a pie the categories */
   get legend(): { label: string; color: string }[] {
-    if (this.isPie) return this.shown.categories.map((label, i) => ({ label, color: weChartColor(i) }));
+    if (this.categorical) return this.shown.categories.map((label, i) => ({ label, color: weChartColor(i) }));
+    if (this.type === 'gauge' || this.type === 'progress' || this.type === 'sparkline') return [];
     return this.shown.series.length > 1 ? this.shown.series.map((s, i) => ({ label: s.name, color: weChartColor(i) })) : [];
   }
 
@@ -162,15 +201,46 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     this.hover = { x: hit.x + hit.w / 2, y: hit.y, category: hit.category, series: hit.series };
   }
 
+  /** Hover from a mark or dot drawn over the category bands */
+  hoverCategory(category: number): void {
+    const hit = this.hits.find((h) => h.category === category);
+    if (hit) this.onHit(hit);
+  }
+
+  /** The click payload of category `category` — of one series, or of the whole category when `series` is null */
+  point(category: number, series: number | null): WeChartPointClickEvent {
+    const list = this.shown.series;
+    if (this.type === 'gauge') return { category: list[0].name, series: list[0].name, value: this.total, index: 0 };
+    // Progress always reports the value series — the second one is the target
+    const s = series ?? (list.length === 1 || this.type === 'progress' ? 0 : null);
+    const value = s !== null ? list[s].values[category] ?? 0 : list.reduce((a, x) => a + (x.values[category] ?? 0), 0);
+    return { category: this.shown.categories[category], series: s !== null ? list[s].name : null, value, index: category };
+  }
+
+  pointLabel(category: number, series: number | null): string {
+    const p = this.point(category, series);
+    return `${p.category}${p.series && this.shown.series.length > 1 ? ` · ${p.series}` : ''}: ${this.format(p.value)}`;
+  }
+
+  onPoint(category: number, series: number | null, event?: Event): void {
+    if (!this.clickable) return;
+    event?.preventDefault();
+    this.pointClick.emit(this.point(category, series));
+  }
+
   toggleTable(): void {
     this.showTable = !this.showTable;
   }
 
   private layout(): void {
     const otherLabel = this.locale.chartOther;
-    this.shown = this.isPie
-      ? weChartFold({ categories: this.data.categories, series: this.data.series.slice(0, 1) }, WE_CHART_MAX_SERIES, otherLabel, true)
-      : weChartFold(this.data, WE_CHART_MAX_SERIES, otherLabel);
+    const byCategory = (count: number) => weChartFold({ categories: this.data.categories, series: this.data.series.slice(0, count) }, WE_CHART_MAX_SERIES, otherLabel, true);
+    this.h = this.type === 'sparkline' && this.height === 300 ? SPARKLINE_HEIGHT : this.height;
+    if (this.categorical) this.shown = byCategory(1);
+    else if (this.type === 'progress') this.shown = byCategory(2);
+    else if (this.type === 'gauge') this.shown = { categories: this.data.categories, series: this.data.series.slice(0, 1) };
+    else this.shown = weChartFold(this.data, WE_CHART_MAX_SERIES, otherLabel);
+    this.tracks = [];
     this.marks = [];
     this.lines = [];
     this.dots = [];
@@ -181,15 +251,159 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     this.hover = null;
     if (!this.shown.categories.length || !this.shown.series.length) return;
     if (this.isPie) this.layoutPie();
+    else if (this.type === 'gauge') this.layoutGauge();
+    else if (this.type === 'radialBar') this.layoutRadialBar();
+    else if (this.type === 'progress') this.layoutProgress();
+    else if (this.type === 'funnel') this.layoutFunnel();
+    else if (this.type === 'sparkline') this.layoutSparkline();
     else this.layoutCartesian();
+  }
+
+  /** A half ring from 9 to 3 o'clock — the first series' total over `max`, coloured by its share of `target` */
+  private layoutGauge(): void {
+    const value = this.shown.series[0].values.reduce<number>((a, v) => a + (v ?? 0), 0);
+    this.total = value;
+    const target = this.target;
+    const ticks = weChartTicks(0, Math.max(value, target ?? 0));
+    const max = this.max && this.max > 0 ? this.max : ticks[ticks.length - 1];
+    const r = Math.max(24, Math.min(this.width / 2 - 12, this.h - 40));
+    const inner = r * 0.72;
+    const cx = this.width / 2;
+    const cy = 8 + r;
+    const start = -Math.PI / 2;
+    const share = (v: number) => Math.min(1, Math.max(0, v / max));
+    this.tracks.push({ d: weChartArc(cx, cy, r, inner, start, Math.PI / 2) });
+    if (share(value) > 0) {
+      this.marks.push({ d: weChartArc(cx, cy, r, inner, start, start + share(value) * Math.PI), color: weChartStatusColor(value / (target || max)), series: 0, category: 0 });
+    }
+    if (target !== undefined) {
+      const a = start + share(target) * Math.PI;
+      const at = (rad: number) => `${Math.round((cx + rad * Math.sin(a)) * 100) / 100},${Math.round((cy - rad * Math.cos(a)) * 100) / 100}`;
+      this.tracks.push({ d: `M${at(inner - 4)} L${at(r + 4)}`, target: true });
+    }
+    this.labels.push({ x: cx, y: cy - 6, text: this.format(value), anchor: 'middle', cls: 'we-chart__center-value' });
+    this.labels.push({ x: cx - (r + inner) / 2, y: cy + 16, text: this.format(0), anchor: 'middle', cls: 'we-chart__muted-label' });
+    this.labels.push({ x: cx + (r + inner) / 2, y: cy + 16, text: this.format(max), anchor: 'middle', cls: 'we-chart__muted-label' });
+    if (target !== undefined) this.labels.push({ x: cx, y: cy + 16, text: this.locale.chartTarget(this.format(target)), anchor: 'middle', cls: 'we-chart__muted-label' });
+  }
+
+  /** Concentric 270° rings, one per category, outermost first — the free top-left quadrant holds the value labels */
+  private layoutRadialBar(): void {
+    const values = this.shown.series[0].values.map((v) => (v && v > 0 ? v : 0));
+    this.total = values.reduce((a, b) => a + b, 0);
+    const max = this.max && this.max > 0 ? this.max : Math.max(...values) || 1;
+    const outerR = Math.max(30, Math.min(this.width, this.h) / 2 - 8);
+    const cx = this.width / 2;
+    const cy = this.h / 2;
+    const ring = (outerR - outerR * 0.3) / values.length;
+    const thickness = ring * 0.75;
+    const sweepMax = Math.PI * 1.5;
+    values.forEach((v, i) => {
+      const r = outerR - i * ring;
+      const inner = r - thickness;
+      this.tracks.push({ d: weChartArc(cx, cy, r, inner, 0, sweepMax) });
+      const sweep = Math.min(1, v / max) * sweepMax;
+      if (sweep > 0) this.marks.push({ d: weChartArc(cx, cy, r, inner, 0, sweep), color: weChartColor(i), series: 0, category: i });
+      this.hits.push({ x: cx - 1, y: cy - r, w: 2, h: 2, category: i, series: 0 });
+      if (this.showValues && thickness >= 11) this.labels.push({ x: cx - 6, y: cy - (r + inner) / 2 + 4, text: this.format(this.shown.series[0].values[i]), anchor: 'end' });
+    });
+  }
+
+  /** One row per category: name, value and share of the target (second series) or of `max`, over a rail */
+  private layoutProgress(): void {
+    const [valueSeries, targetSeries] = this.shown.series;
+    const n = this.shown.categories.length;
+    const fallbackMax = this.max && this.max > 0 ? this.max : Math.max(...valueSeries.values.map((v) => v ?? 0)) || 1;
+    const rowH = Math.min(targetSeries ? 50 : 36, this.h / n);
+    // The "Target: X" line needs its own row height; when squeezed it moves next to the value
+    const targetLine = !!targetSeries && rowH >= 46;
+    const pct = new Intl.NumberFormat(this.locale.intlLocale, { style: 'percent', maximumFractionDigits: 0 });
+    const w = this.width;
+    this.shown.categories.forEach((name, c) => {
+      const v = valueSeries.values[c] ?? 0;
+      const t = targetSeries?.values[c] ?? 0;
+      const hasTarget = t > 0;
+      const ratio = v / (hasTarget ? t : fallbackMax);
+      const y0 = c * rowH;
+      const barY = y0 + 20;
+      this.tracks.push({ d: weChartRoundRect(0, barY, w, 8) });
+      const fill = Math.min(1, Math.max(0, ratio)) * w;
+      if (fill > 0) this.marks.push({ d: weChartRoundRect(0, barY, fill, 8), color: hasTarget ? weChartStatusColor(ratio) : weChartColor(0), series: 0, category: c });
+      this.hits.push({ x: 0, y: y0, w, h: rowH, category: c, series: null });
+      const tail = hasTarget && !targetLine ? ` · ${this.locale.chartTarget(this.format(t))}` : '';
+      this.labels.push({ x: 0, y: y0 + 13, text: name, anchor: 'start', cls: 'we-chart__row-label' });
+      this.labels.push({ x: w, y: y0 + 13, text: `${this.format(v)}${hasTarget ? ` · ${pct.format(ratio)}` : ''}${tail}`, anchor: 'end' });
+      if (hasTarget && targetLine) this.labels.push({ x: 0, y: barY + 21, text: this.locale.chartTarget(this.format(t)), anchor: 'start', cls: 'we-chart__muted-label' });
+    });
+  }
+
+  /** Centred steps, widest (largest value) first */
+  private layoutFunnel(): void {
+    const values = this.shown.series[0].values.map((v) => (v && v > 0 ? v : 0));
+    this.total = values.reduce((a, b) => a + b, 0);
+    const max = Math.max(...values) || 1;
+    const order = values.map((_, i) => i).sort((a, b) => values[b] - values[a]);
+    const rowH = this.h / order.length;
+    const barH = Math.max(4, rowH - 4);
+    order.forEach((c, k) => {
+      const w = Math.max(2, (values[c] / max) * this.width);
+      const x = (this.width - w) / 2;
+      const y = k * rowH + 2;
+      this.marks.push({ d: weChartRoundRect(x, y, w, barH, 3), color: weChartColor(c), series: 0, category: c });
+      this.hits.push({ x: this.width / 2 - 1, y, w: 2, h: 2, category: c, series: 0 });
+      if (barH >= 14) {
+        const text = this.showValues ? `${this.shown.categories[c]} · ${this.format(values[c])}` : this.shown.categories[c];
+        const inside = weChartLabelWidth(text) + 8 <= w;
+        this.labels.push({ x: this.width / 2, y: y + barH / 2 + 4, text, anchor: 'middle', color: inside ? weChartLabelColor(c) : undefined });
+      }
+    });
+  }
+
+  /** A line (the first series with a faint area) over the data's own range — no axes, no labels */
+  private layoutSparkline(): void {
+    const { categories, series } = this.shown;
+    const n = categories.length;
+    const all = series.flatMap((s) => s.values).filter((v): v is number => v !== null && Number.isFinite(v));
+    if (!all.length) return;
+    let lo = Math.min(...all);
+    let hi = Math.max(...all);
+    if (lo === hi) {
+      lo -= 1;
+      hi += 1;
+    }
+    this.plot = { left: 2, top: 3, right: this.width - 2, bottom: this.h - 3 };
+    const p = this.plot;
+    const step = n > 1 ? (p.right - p.left) / (n - 1) : 0;
+    const xAt = (c: number) => Math.round((n > 1 ? p.left + c * step : this.width / 2) * 10) / 10;
+    const yAt = (v: number) => Math.round((p.bottom - ((v - lo) / (hi - lo)) * (p.bottom - p.top)) * 10) / 10;
+    series.forEach((s, i) => {
+      const pts: [number, number][] = [];
+      let d = '';
+      let pen = false;
+      s.values.forEach((v, c) => {
+        if (v === null || v === undefined) {
+          pen = false;
+          return;
+        }
+        const x = xAt(c);
+        const y = yAt(v);
+        d += `${pen ? 'L' : 'M'}${x},${y} `;
+        pen = true;
+        pts.push([x, y]);
+      });
+      const area = i === 0 && pts.length > 1 ? `M${pts[0][0]},${p.bottom} L${pts.map(([x, y]) => `${x},${y}`).join(' L')} L${pts[pts.length - 1][0]},${p.bottom} Z` : null;
+      this.lines.push({ d: d.trim(), area, color: weChartColor(i), series: i });
+    });
+    const band = n > 1 ? step : this.width;
+    for (let c = 0; c < n; c++) this.hits.push({ x: xAt(c) - band / 2, y: 0, w: band, h: this.h, category: c, series: null });
   }
 
   private layoutPie(): void {
     const values = this.shown.series[0].values.map((v) => (v && v > 0 ? v : 0));
     this.total = values.reduce((a, b) => a + b, 0);
-    const r = Math.max(20, Math.min(this.height, this.width) / 2 - 12);
+    const r = Math.max(20, Math.min(this.h, this.width) / 2 - 12);
     const cx = this.width / 2;
-    const cy = this.height / 2;
+    const cy = this.h / 2;
     const inner = this.type === 'donut' ? r * 0.6 : 0;
     let angle = 0;
     values.forEach((v, i) => {
@@ -210,6 +424,11 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
       }
       angle += sweep;
     });
+    if (this.type === 'donut' && this.centerLabel !== undefined) {
+      const caption = this.centerLabel !== '';
+      this.labels.push({ x: cx, y: cy + (caption ? 2 : 8), text: this.format(this.total), anchor: 'middle', cls: 'we-chart__center-value' });
+      if (caption) this.labels.push({ x: cx, y: cy + 20, text: this.centerLabel!, anchor: 'middle', cls: 'we-chart__muted-label' });
+    }
   }
 
   private layoutCartesian(): void {
@@ -245,9 +464,9 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     // Reserve room above the plot for value labels that sit above bars/dots — bar labels sit beside the bar, not above
     const topPad = this.showValues && !this.horizontal ? 14 : 0;
     if (this.horizontal) {
-      this.plot = { left: Math.min(this.width * 0.35, 8 + catChars * 6.5), top: 8, right: this.width - 16, bottom: this.height - 24 };
+      this.plot = { left: Math.min(this.width * 0.35, 8 + catChars * 6.5), top: 8, right: this.width - 16, bottom: this.h - 24 };
     } else {
-      this.plot = { left: 10 + labelChars * 7, top: 12 + topPad, right: this.width - 12, bottom: this.height - 28 };
+      this.plot = { left: 10 + labelChars * 7, top: 12 + topPad, right: this.width - 12, bottom: this.h - 28 };
     }
     const p = this.plot;
     const valueLen = this.horizontal ? p.right - p.left : p.bottom - p.top;
@@ -331,7 +550,7 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
         top.push([x, y]);
         bottom.unshift([x, Math.round(toPos(from) * 10) / 10]);
         if (n <= 40) {
-          this.dots.push({ x, y, color: weChartColor(i) });
+          this.dots.push({ x, y, color: weChartColor(i), series: i, category: c });
           if (this.showValues && !weChartLabelCollides(prevLabelX, x)) {
             this.labels.push({ x, y: y - 10, text: this.format(v), anchor: 'middle' });
             prevLabelX = x;

@@ -2,6 +2,41 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.55.0 — 2026-11-13
+
+### Added
+
+- `<we-chart>` `pointClick` output (`WeChartPointClickEvent`: `{ category, series, value, index }`)
+  for a bar, line/area point, pie/donut slice and every new type's element. A click on a
+  column/bar/line/area band outside the marks reports the category, with `series: null` and the
+  category sum when there is more than one series. While it is bound the marks get a pointer
+  cursor, are focusable `role="button"` elements with an accessible label, and Enter fires it;
+  unbound, the markup is unchanged.
+- New `WeChartType` values: `gauge` (half ring of the first series' total over the new `max` input,
+  with the new `target` input marked and the arc green at ≥ 100% of target, amber at ≥ 70%, red
+  below), `radialBar` (one 270° ring per category, over `max` or the largest value), `progress` (a
+  row per category with a rail; a second series is the target — fill = value / target, the share in
+  percent and a "Target: X" caption — otherwise the fill is over `max`), `funnel` (centred steps,
+  largest first) and `sparkline` (line plus faint area over the data's own range — no axes, legend
+  or header, no frame, 40px high unless `height` is set).
+- `centerLabel` input: a donut shows its total (through `valueFormatter`) in the middle, with this
+  caption under it.
+- `<we-grid>` `cellClick` output (`WeGridCellClickEvent<T>`: `{ row, rowIndex, field, value }`),
+  before `rowClick`, which keeps firing as before.
+- `<we-pivot>` `cellClick` output (`WePivotCellClickEvent`: `{ rowValues, columnValues, valueField,
+  value }`) with the raw row and column members behind a value cell; a row header cell reports its
+  own field and the outer ones, `valueField: ''`. `WePivotResult` gained the optional
+  `rowValues` and `cellSources` it is built from.
+- CSS custom property `--we-grid-success-color` in all three blocks of both theme files; locale key
+  `chartTarget` (`(value) => string`) in every shipped locale. A hand-written full locale needs the
+  key, as with any new locale key.
+
+### Changed
+
+- `<we-pivot>` labels row and column members through the field's `formatter` (the grid cells,
+  checklist and group headers already did); sorting, grouping and the click payload stay on the raw
+  value. The pivot's chart categories use the same labels.
+
 ## 0.54.0 — 2026-11-07
 
 ### Added

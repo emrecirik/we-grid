@@ -214,3 +214,57 @@
     font-weight: 600;
   }
 }
+
+// Lines and fills sit over the category bands; the bands take the pointer
+.we-chart__line,
+.we-chart__area,
+.we-chart__track,
+.we-chart__target {
+  pointer-events: none;
+}
+
+.we-chart__track {
+  fill: var(--we-grid-border-color, #dee2e6);
+}
+
+.we-chart__target {
+  stroke: var(--we-grid-font-color, #212529);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+.we-chart__center-value {
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.we-chart__muted-label {
+  fill: var(--we-grid-muted-color, #878a99);
+  font-weight: 400;
+}
+
+.we-chart__row-label {
+  font-weight: 400;
+}
+
+.we-chart--clickable {
+  .we-chart__mark,
+  .we-chart__dot,
+  .we-chart__hit {
+    cursor: pointer;
+  }
+
+  .we-chart__mark:focus-visible,
+  .we-chart__dot:focus-visible {
+    outline: none;
+    stroke: var(--we-grid-accent-color, #405189);
+    stroke-width: 2;
+  }
+}
+
+// A sparkline sits inside someone else's card — no frame of its own
+.we-chart--sparkline {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}

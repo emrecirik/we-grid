@@ -28,7 +28,8 @@ you can theme it two ways:
 | `--we-grid-skeleton-base` / `--we-grid-skeleton-shine` | Loading skeleton gradient colors |
 | `--we-grid-menu-bg` / `--we-grid-menu-color` | Header/filter context menu background & text |
 | `--we-grid-menu-shadow` | Context menu drop shadow |
-| `--we-grid-warning-color` | "Only this page is searched/sorted" hint |
+| `--we-grid-warning-color` | "Only this page is searched/sorted" hint; amber gauge/progress status of `<we-chart>` |
+| `--we-grid-success-color` *(0.55.0)* | Green (on target) gauge/progress status of `<we-chart>`; red is `--we-grid-danger-color` |
 | `--we-grid-chips-bg` | Active-filter chip strip background |
 | `--we-grid-detail-bg` | Master-detail row background |
 | `--we-grid-summary-bg` | Summary (subtotal) row background |

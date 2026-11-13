@@ -407,6 +407,8 @@ export interface WeGridLocale {
   chartNoData: string;
   chartOther: string;
   chartLegend: string;
+  /** Gauge/progress target caption — `value` is already formatted */
+  chartTarget: (value: string) => string;
   chartTypeLabels: Record<'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut', string>;
   chartStacked: string;
   chartInsert: string;
@@ -802,6 +804,7 @@ export const weGridLocaleEn: WeGridLocale = {
   chartNoData: 'Nothing to chart yet',
   chartOther: 'Other',
   chartLegend: 'Legend',
+  chartTarget: (value) => `Target: ${value}`,
   chartTypeLabels: { column: 'Column', bar: 'Bar', line: 'Line', area: 'Area', pie: 'Pie', donut: 'Donut' },
   chartStacked: 'Stacked',
   chartInsert: 'Chart',
@@ -1203,6 +1206,7 @@ export const weGridLocaleTr: WeGridLocale = {
   chartNoData: 'Henüz gösterilecek veri yok',
   chartOther: 'Diğer',
   chartLegend: 'Açıklama',
+  chartTarget: (value) => `Hedef: ${value}`,
   chartTypeLabels: { column: 'Sütun', bar: 'Çubuk', line: 'Çizgi', area: 'Alan', pie: 'Pasta', donut: 'Halka' },
   chartStacked: 'Yığılmış',
   chartInsert: 'Grafik',

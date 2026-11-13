@@ -2,7 +2,7 @@
   class="we-grid"
   [class.we-grid--compact]="density === 'compact'"
   [class.we-grid--comfortable]="density === 'comfortable'"
-  [class.we-grid--clickable]="rowClick.observed"
+  [class.we-grid--clickable]="rowClick.observed || cellClick.observed"
   [class.we-grid--th-menu-hover]="headerMenuButton === 'hover'"
   [class.we-grid--striped]="stripedActive"
 >
@@ -792,7 +792,7 @@
                     [class.we-grid__td--overflow]="col.allowOverflow"
                     [ngStyle]="cellCss(item.row, col)"
                     [style.padding-inline-start]="isTreeCell(item, col) ? treeIndent(item.tree) : null"
-                    (click)="onCellClick($event, item.row, col)"
+                    (click)="onCellClick($event, item.row, col, item.index)"
                     (dblclick)="onCellDblClick($event, col)"
                     (contextmenu)="onCellContextMenu($event, col, item.row)"
                   >

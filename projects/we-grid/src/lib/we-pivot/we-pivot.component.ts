@@ -1,6 +1,6 @@
 import { weGridSafeIcon } from '../services/we-grid-icon.util';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, Inject, Input, OnChanges, Output } from '@angular/core';
+import { ChangeDetectionStrategy, Component, EventEmitter, Inject, Input, OnChanges, OnInit, Output, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { WeGridColumnDef, weGridValueKind } from '../models/we-grid-column.model';
@@ -10,7 +10,8 @@ import { WE_GRID_LOCALE, WeGridLocale } from '../models/we-grid-locale.model';
 import { WeGridComponent } from '../we-grid.component';
 import { WeGridFormulaError, weGridTryCompileFormula } from '../services/we-grid-formula.util';
 import { getNestedValue } from '../services/we-grid-value.util';
-import { WePivotAggregate, WePivotConfig, WePivotResult, wePivot } from './we-pivot.util';
+import { WeGridCellClickEvent } from '../models/we-grid-events.model';
+import { WePivotAggregate, WePivotCellClickEvent, WePivotConfig, WePivotResult, wePivot } from './we-pivot.util';
 import { WeChartComponent } from '../we-chart/we-chart.component';
 import { WeChartData, WeChartType } from '../we-chart/we-chart.util';
 
@@ -29,7 +30,7 @@ type Zone = 'rows' | 'columns' | 'values';
   styleUrls: ['./we-pivot.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class WePivotComponent<T = Record<string, unknown>> implements OnChanges {
+export class WePivotComponent<T = Record<string, unknown>> implements OnChanges, OnInit {
   /** The rows to summarise — all of them, not a page */
   @Input() data: readonly T[] = [];
   /** The fields that can be used — headers, types and formats come from here (formula columns too) */
@@ -49,8 +50,16 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges 
 
   @Output() configChange = new EventEmitter<WePivotConfig>();
   @Output() chartChange = new EventEmitter<WeChartType | null>();
+  /**
+   * A click on a result cell, with the raw dimension values behind it. A value cell carries its row
+   * and column members; a row header cell only its own row field and the outer ones (`valueField`
+   * `''`, `value` the member). Group/subtotal rows don't emit.
+   */
+  @Output() cellClick = new EventEmitter<WePivotCellClickEvent>();
 
-  readonly chartTypes: WeChartType[] = ['column', 'bar', 'line', 'area', 'pie', 'donut'];
+  @ViewChild(WeGridComponent, { static: true }) private grid?: WeGridComponent<Record<string, unknown>>;
+
+  readonly chartTypes: (keyof WeGridLocale['chartTypeLabels'])[] = ['column', 'bar', 'line', 'area', 'pie', 'donut'];
   chartData: WeChartData = { categories: [], series: [] };
 
   result: WePivotResult = { columns: [], rows: [], groupBy: [], truncated: false };
@@ -64,6 +73,11 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges 
 
   ngOnChanges(): void {
     this.rebuild();
+  }
+
+  ngOnInit(): void {
+    // Listen only when the consumer does — a bound listener would give every pivot a pointer cursor
+    if (this.cellClick.observed) this.grid?.cellClick.subscribe((e) => this.onGridCellClick(e));
   }
 
   /** The result grid's key — a new configuration is a new table with its own layout */
@@ -125,6 +139,20 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges 
     this.chartChange.emit(type);
   }
 
+  onGridCellClick(e: WeGridCellClickEvent<Record<string, unknown>>): void {
+    const rowValues = this.result.rowValues?.[e.row['pivot:id'] as number];
+    if (!rowValues) return;
+    if (e.field.startsWith('r:')) {
+      const field = e.field.slice(2);
+      const upTo = this.config.rows.indexOf(field);
+      const own = Object.fromEntries(this.config.rows.slice(0, upTo + 1).map((f) => [f, rowValues[f]]));
+      this.cellClick.emit({ rowValues: own, columnValues: {}, valueField: '', value: rowValues[field] });
+      return;
+    }
+    const source = this.result.cellSources?.[e.field];
+    if (source) this.cellClick.emit({ rowValues, columnValues: source.columnValues, valueField: source.valueField, value: e.value });
+  }
+
   swap(): void {
     this.update({ ...this.config, rows: this.config.columns, columns: this.config.rows });
   }
@@ -152,6 +180,11 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges 
     return value instanceof WeGridFormulaError ? null : value;
   };
 
+  private rowLabel(row: Record<string, unknown>, field: string): string {
+    const fmt = this.result.columns.find((c) => c.field === field)?.formatter;
+    return fmt ? fmt(row[field], row) : String(row[field] ?? '');
+  }
+
   private rebuild(): void {
     this.result = wePivot(
       this.data as readonly Record<string, unknown>[],
@@ -170,7 +203,7 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges 
     const valueColumns = this.result.columns.filter((c) => c.field.startsWith('c:'));
     const labelFields = this.result.columns.filter((c) => c.field.startsWith('r:')).map((c) => c.field);
     this.chartData = {
-      categories: this.result.rows.map((r) => labelFields.map((f) => String(r[f] ?? '')).join(' · ') || this.locale.pivotTotal),
+      categories: this.result.rows.map((r) => labelFields.map((f) => this.rowLabel(r, f)).join(' · ') || this.locale.pivotTotal),
       series: valueColumns.map((c) => ({ name: c.header, values: this.result.rows.map((r) => (typeof r[c.field] === 'number' ? (r[c.field] as number) : null)) }))
     };
   }

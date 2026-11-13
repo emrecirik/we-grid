@@ -69,4 +69,15 @@ describe('wePivot dates', () => {
       ['(Empty)', 4]
     ]);
   });
+  it('labels row and column members through the field formatter and keeps their raw values', () => {
+    const named: WeGridColumnDef<unknown>[] = fields.map((f) => (f.field === 'year' ? { ...f, formatter: (v: unknown) => `FY${v}` } : f.field === 'city' ? { ...f, formatter: (v: unknown) => `City ${v}` } : f));
+    const p = wePivot(data, { rows: ['city'], columns: ['year'], values: [{ field: 'amount', aggregate: 'sum' }] }, named, labels);
+    expect(p.columns.map((c) => c.header)).toEqual(['City', 'FY2025', 'FY2026', 'Total']);
+    // The cell keeps the key — sorting and grouping stay on it — and only its text is formatted
+    expect(p.rows.map((r) => r['r:city'])).toEqual(['Ankara', 'Izmir', '(Empty)']);
+    expect(p.rows.map((r) => p.columns[0].formatter!(r['r:city'], r))).toEqual(['City Ankara', 'City Izmir', '(Empty)']);
+    expect(p.rowValues).toEqual([{ city: 'Ankara' }, { city: 'Izmir' }, { city: null }]);
+    expect(p.cellSources![p.columns[1].field]).toEqual({ columnValues: { year: 2025 }, valueField: 'amount' });
+    expect(p.cellSources!['t:0']).toEqual({ columnValues: {}, valueField: 'amount' });
+  });
 });
