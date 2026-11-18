@@ -124,6 +124,7 @@ import {
 } from './models/we-grid-edit.model';
 import { mergeGridLayout, toColumnLayout } from './services/we-grid-layout-merge';
 import { weGridCompareSortValues, weGridSortedIndices } from './services/we-grid-sort.util';
+import { WeGridDataPage, WeGridDataRequest, WeGridDataSource } from './models/we-grid-data-source.model';
 import { WE_GRID_DEFAULT_ROW_PX, WE_GRID_MAX_SCROLL_PX, weGridPosForScrollTop, weGridVirtualWindow } from './services/we-grid-virtual.util';
 import {
   applyWeGridFilters,
@@ -217,6 +218,9 @@ const WE_GRID_AUTO_FIT_MAX_WIDTH = 400;
 
 /** Closes whichever grid's menu is open, so opening one from code never leaves two on screen */
 let weGridOpenMenuCloser: (() => void) | null = null;
+
+/** Rows a `dataSource` grid asks for at a time */
+const WE_GRID_DATA_BLOCK = 256;
 
 @Component({
   selector: 'we-grid',
@@ -432,6 +436,15 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** Row height in px used by `virtualScroll`; measured from the rendered rows when left out */
   @Input() rowHeight?: number;
+
+  /**
+   * Where the rows come from instead of `data`: the grid asks for the window in view only, so the
+   * result can be far larger than the browser could hold as row objects — `WeGridColumnStore` keeps
+   * tens of millions in memory, a remote source any number. Sorting, filters and the search box are
+   * handed to the source; virtual scrolling is on. Grouping, trees and `scrollToRow` don't apply,
+   * the summary row shows `summaryValues`, and "Export all" loads the whole result from the source.
+   */
+  @Input() dataSource?: WeGridDataSource<T> | null;
 
   /**
    * `'full'`: record count and pager (the default). `'count'`: the record count only. `'none'`: no
@@ -1206,13 +1219,23 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       this.clearFormulaValues();
     }
     if (changes['detailSticky'] && !changes['detailSticky'].firstChange) this.syncViewportObserver();
+    if (changes['dataSource'] && !changes['dataSource'].firstChange) {
+      if (!changes['dataSource'].previousValue !== !this.dataSource) {
+        this.unbindVirtualScroll();
+        this.bindVirtualScroll();
+      }
+      // The old source's count means nothing for the new one
+      this.dsTotal = 0;
+      // A `data` change in the same pass has already reloaded through refreshDisplayData
+      if (!changes['data']) this.refreshDisplayData();
+    }
     if (changes['virtualScroll'] && !changes['virtualScroll'].firstChange) {
       this.unbindVirtualScroll();
       this.bindVirtualScroll();
     }
     if ((changes['virtualScroll'] || changes['rowHeight']) && !changes['data']) {
       this.updateVirtualWindow();
-      if (this.virtualScroll) this.scheduleVirtualMeasure();
+      if (this.virtualActive) this.scheduleVirtualMeasure();
     }
     if (changes['groupBy'] && this.internalColumns.length > 0) this.setGrouping(this.groupBy ?? [], false);
     if ((changes['groupSummaryPosition'] && !changes['groupSummaryPosition'].firstChange) || changes['groupAutoSummary']) this.rebuildRenderItems();
@@ -1232,7 +1255,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   ngAfterViewInit(): void {
     this.syncViewportObserver();
     this.bindVirtualScroll();
-    if (this.virtualScroll) this.scheduleVirtualMeasure();
+    if (this.virtualActive) this.scheduleVirtualMeasure();
   }
 
   ngAfterContentInit(): void {
@@ -1431,7 +1454,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   // ─── Bounded height (maxHeight / minHeight) ────────────────────────
   get scrollMaxHeight(): string | null {
-    return this.cssLength(this.maxHeight) ?? (this.virtualScroll ? '600px' : null);
+    return this.cssLength(this.maxHeight) ?? (this.virtualActive ? '600px' : null);
   }
 
   get scrollMinHeight(): string | null {
@@ -1504,7 +1527,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   cellCss(row: T, col: WeGridInternalColumn<T>): WeGridCellCss | null {
     const rules = this.activeFormatRules;
     const cache = this.formatCache;
-    if (!cache || cache.items !== this.renderItems || cache.rules !== rules || cache.columns !== this.renderColumns) {
+    // A data source grid only ever has the window — colour scales and data bars span what is in view
+    const items = this.dataSource ? this.visibleItems : this.renderItems;
+    if (!cache || cache.items !== items || cache.rules !== rules || cache.columns !== this.renderColumns) {
       const styles = new Map<string, WeGridCellStyle>();
       for (const c of this.renderColumns) if (c.style) styles.set(c.field, c.style);
       // Nothing to resolve — skips a pass over every row of a large grid on each change
@@ -1512,14 +1537,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         rules.length === 0 && styles.size === 0
           ? new Map()
           : weGridResolveFormats(
-              this.renderItems.flatMap((item) => (item.kind === 'row' ? [item.row] : [])),
+              items.flatMap((item) => (item.kind === 'row' ? [item.row] : [])),
               rules,
               this.renderColumns.map((c) => c.field),
               this.readCellValue,
               styles,
               this.evaluateRowFormula
             );
-      this.formatCache = { items: this.renderItems, rules, columns: this.renderColumns, map };
+      this.formatCache = { items, rules, columns: this.renderColumns, map };
     }
     return this.formatCache!.map.get(row)?.[col.field] ?? null;
   }
@@ -2132,6 +2157,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private refreshDisplayData(): void {
     // Rows may have been edited in place (paste, inline edit) — computed values are worked out again
     this.clearFormulaValues();
+    if (this.dataSource) {
+      this.reloadDataSource();
+      return;
+    }
     if (this.treeActive) {
       this.refreshTree();
       this.autoFitPendingColumns();
@@ -2247,7 +2276,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   // ─── Subtotal (summary row) ────────────────────────────────────────────
   /** Builds a column's summary cell text — null when 'none' (nothing at all is printed in the cell) */
   summaryCellText(col: WeGridInternalColumn<T>): string | null {
-    const scope = this.serverSide ? 'server' : 'client';
+    const scope = this.serverSide || this.dataSource ? 'server' : 'client';
     if (!this.treeActive) return buildWeGridSummaryText(this.displayData, col, scope, this.summaryValues?.[col.field], this.locale, this.readCellValue);
     return buildWeGridSummaryText(this.treeSummaryRows, col, scope, this.summaryValues?.[col.field], this.locale, this.readCellValue);
   }
@@ -2429,6 +2458,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    */
   private checklistSource(col: WeGridInternalColumn<T>): 'loaded' | 'provider' {
     if (col.headerFilterSource === 'loaded') return 'loaded';
+    // A data source holds the whole result, so its own list is the right one
+    if (this.dataSource) return this.checklistProvider ? 'provider' : 'loaded';
     if (!this.checklistValuesProvider) {
       if (this.isServerFilter) {
         this.warnChecklistSourceOnce(
@@ -2589,8 +2620,13 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * outdated request as soon as a newer term arrives — a slow answer for "ist" can never overwrite
    * the list for "istanbul" — and the stream ends with the popover.
    */
+  /** `checklistValuesProvider`, else the data source's own */
+  private get checklistProvider(): WeGridChecklistValuesProvider | undefined {
+    return this.checklistValuesProvider ?? this.dataSource?.checklistValues;
+  }
+
   private startChecklistRequests(col: WeGridInternalColumn<T>, origin: HTMLElement): void {
-    const provider = this.checklistValuesProvider;
+    const provider = this.checklistProvider;
     if (!provider) return;
     const requests$ = new Subject<{ search: string | null; debounce: boolean }>();
     this.checklistRequest$ = requests$;
@@ -2880,11 +2916,15 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private rebuildRenderItems(): void {
     this.layoutRenderItems();
     this.updateVirtualWindow();
-    if (this.virtualScroll) this.scheduleVirtualMeasure();
+    if (this.virtualActive) this.scheduleVirtualMeasure();
   }
 
   /** Lays out what the body renders — see `renderItems` */
   private layoutRenderItems(): void {
+    if (this.dataSource) {
+      this.renderItems = [];
+      return;
+    }
     if (this.treeActive) {
       this.renderItems = this.treeNodes.map((node, index) => ({
         kind: 'row',
@@ -2929,17 +2969,31 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return this.scrollAreaRef?.nativeElement.clientHeight || 600;
   }
 
+  /** `virtualScroll`, or a `dataSource` — which is only ever shown through the window */
+  get virtualActive(): boolean {
+    return this.virtualScroll || !!this.dataSource;
+  }
+
+  /** Items the scrollbar spans — the source's total for a `dataSource` grid */
+  private get virtualCount(): number {
+    return this.dataSource ? this.dsTotal : this.renderItems.length;
+  }
+
   /** Picks the slice of `renderItems` for the current scroll position */
   private updateVirtualWindow(): void {
-    if (!this.virtualScroll) {
+    if (!this.virtualActive) {
       this.visibleItems = this.renderItems;
       this.virtualStart = this.virtualPadTop = this.virtualPadBottom = 0;
       return;
     }
-    const win = weGridVirtualWindow(this.renderItems.length, this.virtualRowPx, this.virtualPos, this.virtualViewportPx);
+    const win = weGridVirtualWindow(this.virtualCount, this.virtualRowPx, this.virtualPos, this.virtualViewportPx);
     this.virtualPos = win.pos;
     this.virtualScrollTop = win.scrollTop;
-    if (win.start !== this.virtualStart || win.end !== this.virtualStart + this.visibleItems.length || this.visibleItems[0] !== this.renderItems[win.start]) {
+    if (this.dataSource) {
+      this.visibleItems = this.dataSourceItems(win.start, win.end);
+      this.displayData = this.visibleItems.flatMap((item) => (item.kind === 'row' ? [item.row] : []));
+      this.requestBlocks(win.start, win.end);
+    } else if (win.start !== this.virtualStart || win.end !== this.virtualStart + this.visibleItems.length || this.visibleItems[0] !== this.renderItems[win.start]) {
       this.visibleItems = this.renderItems.slice(win.start, win.end);
     }
     this.virtualStart = win.start;
@@ -2957,7 +3011,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     afterNextRender(
       () => {
         this.virtualMeasurePending = false;
-        if (!this.virtualScroll) return;
+        if (!this.virtualActive) return;
         this.measureVirtualItems();
         this.updateVirtualWindow();
         this.cdr.detectChanges();
@@ -2983,8 +3037,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   private readonly onVirtualScroll = (): void => {
     const area = this.scrollAreaRef?.nativeElement;
-    if (!this.virtualScroll || !area || Math.abs(area.scrollTop - this.virtualScrollTop) < 1) return;
-    this.virtualPos = weGridPosForScrollTop(this.renderItems.length, this.virtualRowPx, area.scrollTop, this.virtualViewportPx);
+    if (!this.virtualActive || !area || Math.abs(area.scrollTop - this.virtualScrollTop) < 1) return;
+    this.virtualPos = weGridPosForScrollTop(this.virtualCount, this.virtualRowPx, area.scrollTop, this.virtualViewportPx);
     this.renderVirtualWindow();
   };
 
@@ -2995,7 +3049,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private readonly onVirtualWheel = (event: WheelEvent): void => {
     const area = this.scrollAreaRef?.nativeElement;
     const rowPx = this.virtualRowPx;
-    if (!this.virtualScroll || !area || this.renderItems.length * rowPx <= WE_GRID_MAX_SCROLL_PX) return;
+    if (!this.virtualActive || !area || this.virtualCount * rowPx <= WE_GRID_MAX_SCROLL_PX) return;
     if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
     event.preventDefault();
     const unit = event.deltaMode === 1 ? rowPx : event.deltaMode === 2 ? this.virtualViewportPx : 1;
@@ -3019,7 +3073,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** Scrolls a virtual grid so that the item is in the DOM, near the middle of the viewport */
   private revealVirtualItem(key: unknown): void {
     const index = this.renderItems.findIndex((item) => item.kind === 'row' && this.rowKey(item.row) === key);
-    if (!this.virtualScroll || index === -1) return;
+    if (!this.virtualActive || index === -1) return;
     this.virtualPos = index * this.virtualRowPx - this.virtualViewportPx / 2;
     this.renderVirtualWindow();
     this.syncVirtualScrollTop();
@@ -3029,14 +3083,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   private bindVirtualScroll(): void {
     const area = this.scrollAreaRef?.nativeElement;
-    if (!area || !this.virtualScroll) return;
+    if (!area || !this.virtualActive) return;
     this.ngZone.runOutsideAngular(() => {
       area.addEventListener('scroll', this.onVirtualScroll, { passive: true });
       area.addEventListener('wheel', this.onVirtualWheel, { passive: false });
       if (typeof ResizeObserver !== 'undefined') {
         let height = area.clientHeight;
         this.virtualResizeObserver = new ResizeObserver(() => {
-          if (!this.virtualScroll || area.clientHeight === height) return;
+          if (!this.virtualActive || area.clientHeight === height) return;
           height = area.clientHeight;
           this.renderVirtualWindow();
         });
@@ -3053,9 +3107,117 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.virtualResizeObserver = null;
   }
 
+  // ─── Data source ───────────────────────────────────────────────────
+  /** Rows the source reported for the current query */
+  private dsTotal = 0;
+  /** Loaded blocks of WE_GRID_DATA_BLOCK rows, by block number */
+  private readonly dsBlocks = new Map<number, T[]>();
+  private readonly dsPending = new Set<number>();
+  /** Bumped on every new query — an answer for an older one is dropped */
+  private dsGeneration = 0;
+  /** True until the first answer for the current query is in */
+  dsLoading = false;
+
+  /** Nothing to show — no rows loaded, or a data source reporting none */
+  get bodyEmpty(): boolean {
+    return this.dataSource ? this.dsTotal === 0 : this.displayData.length === 0;
+  }
+
+  /** The record count the footer and aria-rowcount show */
+  get rowTotal(): number {
+    return this.dataSource ? this.dsTotal : this.totalCount || this.displayData.length;
+  }
+
+  /** A `dataSource` grid has no pages — its footer shows the count only */
+  get footerMode(): 'full' | 'count' | 'none' {
+    return this.dataSource && this.footer === 'full' ? 'count' : this.footer;
+  }
+
+  /**
+   * Asks the source again — after the consumer changed rows in it (`WeGridColumnStore.set`). The
+   * scroll position stays; a new sort, filter or search starts from the top instead.
+   */
+  refreshDataSource(): void {
+    if (this.dataSource) this.reloadDataSource(true);
+  }
+
+  private reloadDataSource(keepPosition = false): void {
+    this.dsGeneration++;
+    this.dsBlocks.clear();
+    this.dsPending.clear();
+    this.dsLoading = true;
+    this.groupedSections = null;
+    this.renderItems = [];
+    if (!keepPosition) {
+      this.virtualPos = 0;
+      const area = this.scrollAreaRef?.nativeElement;
+      if (area) area.scrollTop = 0;
+    }
+    this.fetchBlock(Math.floor(this.virtualPos / this.virtualRowPx / WE_GRID_DATA_BLOCK));
+    this.updateVirtualWindow();
+    this.cdr.markForCheck();
+  }
+
+  /** What the source is asked for — the grid's sort, filters and search, and how its columns read */
+  private dataSourceQuery(): Omit<WeGridDataRequest, 'offset' | 'limit'> {
+    const sort = this.clientSort ? [this.clientSort, ...this.thenBy] : [];
+    return {
+      sort: sort.filter((k): k is { field: string; direction: 'asc' | 'desc' } => !!k.direction),
+      filters: Array.from(this.filterState.values()).filter((f) => isWeGridFilterActive(f)),
+      search: this.searchText || undefined,
+      columns: this.renderColumns.map((col) => ({ field: col.field, type: col.type, format: (value: unknown) => this.formatColumnValue(col, value) })),
+      locale: this.locale.intlLocale
+    };
+  }
+
+  private dataSourceItems(start: number, end: number): WeGridRenderItem<T>[] {
+    const items: WeGridRenderItem<T>[] = [];
+    for (let i = start; i < end; i++) {
+      const row = this.dsBlocks.get(Math.floor(i / WE_GRID_DATA_BLOCK))?.[i % WE_GRID_DATA_BLOCK];
+      items.push(row === undefined ? { kind: 'pending', index: i, trackKey: `\u0002${i}` } : { kind: 'row', row, index: i, tree: null, trackKey: this.rowKey(row) });
+    }
+    return items;
+  }
+
+  /** Loads the blocks the window needs and lets go of the ones far from it */
+  private requestBlocks(start: number, end: number): void {
+    if (end <= start) return;
+    const first = Math.floor(start / WE_GRID_DATA_BLOCK);
+    const last = Math.floor((end - 1) / WE_GRID_DATA_BLOCK);
+    for (const block of this.dsBlocks.keys()) if (block < first - 8 || block > last + 8) this.dsBlocks.delete(block);
+    for (let block = first; block <= last; block++) this.fetchBlock(block);
+  }
+
+  private fetchBlock(block: number): void {
+    const source = this.dataSource;
+    if (!source || this.dsBlocks.has(block) || this.dsPending.has(block)) return;
+    const generation = this.dsGeneration;
+    this.dsPending.add(block);
+    const apply = (page: WeGridDataPage<T>): void => {
+      if (generation !== this.dsGeneration) return;
+      this.dsPending.delete(block);
+      this.dsBlocks.set(block, page.rows);
+      this.dsTotal = page.total;
+      this.dsLoading = false;
+      this.updateVirtualWindow();
+      this.cdr.detectChanges();
+      this.scheduleVirtualMeasure();
+    };
+    // Answered a microtask later even when the source is synchronous, so a load never runs inside the window update that asked for it
+    Promise.resolve()
+      .then(() => source.load({ ...this.dataSourceQuery(), offset: block * WE_GRID_DATA_BLOCK, limit: WE_GRID_DATA_BLOCK }))
+      .then(apply, (error: unknown) => {
+        if (generation !== this.dsGeneration) return;
+        this.dsPending.delete(block);
+        this.dsLoading = false;
+        this.showNotice(this.describeError(error, this.locale.loadFailed), true);
+        this.cdr.detectChanges();
+      });
+  }
+
   /** aria-rowindex of a virtual row — header rows count, the rows scrolled out of the DOM too */
   virtualRowIndex(i: number): number | null {
-    return this.virtualScroll ? this.virtualStart + i + (this.filterRow ? 3 : 2) : null;
+    return this.virtualActive ? this.virtualStart + i + (this.filterRow ? 3 : 2) : null;
   }
 
   private groupTrackToken(key: string): object {
@@ -3724,7 +3886,18 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   exportAs(format: WeGridExportFormat): void {
     this.recording?.extra.push({ op: 'export', format });
     const scope = this.exportScope;
-    const rows = scope === 'selected' ? this.selectedRows : this.treeActive ? this.treeFilteredRows : this.displayData;
+    const source = this.dataSource;
+    if (source && scope !== 'selected') {
+      // The grid holds only the window — the whole result comes from the source
+      void Promise.resolve(source.load({ ...this.dataSourceQuery(), offset: 0, limit: this.dsTotal }))
+        .then((page) => this.exportRowsAs(format, scope, page.rows))
+        .catch((error: unknown) => this.showNotice(this.describeError(error, this.locale.saveFailed), true));
+      return;
+    }
+    this.exportRowsAs(format, scope, scope === 'selected' ? this.selectedRows : this.treeActive ? this.treeFilteredRows : this.displayData);
+  }
+
+  private exportRowsAs(format: WeGridExportFormat, scope: WeGridExportScope, rows: T[]): void {
     // Only an Excel file carries the cells' look — CSV and PDF are spared working it out
     const table = this.buildExportTable(rows, format === 'xlsx');
     this.exportRequest.emit({ format, scope, rows, table });

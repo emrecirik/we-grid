@@ -346,7 +346,7 @@
       class="we-grid__table"
       [attr.role]="treeActive ? 'treegrid' : 'grid'"
       [style.width.px]="tableWidthPx"
-      [attr.aria-rowcount]="totalCount || displayData.length"
+      [attr.aria-rowcount]="rowTotal"
       [attr.aria-colcount]="renderColumns.length"
     >
       <thead>
@@ -633,7 +633,7 @@
             }
           </tr>
         }
-        @if (loading && displayData.length === 0) {
+        @if ((loading || dsLoading) && bodyEmpty) {
           <!-- The skeleton is only shown on the very first load (when we have no rows at all) — a
                search/page change while rows already exist doesn't replace/flicker them with skeletons. -->
           @for (i of skeletonRows; track i) {
@@ -652,7 +652,7 @@
               }
             </tr>
           }
-        } @else if (displayData.length === 0 && !showDraftRow) {
+        } @else if (bodyEmpty && !showDraftRow) {
           <tr>
             <td class="we-grid__empty" [attr.colspan]="totalColSpan">
               @if (emptyDirective) {
@@ -677,7 +677,22 @@
             <tr class="we-grid__virtual-pad" aria-hidden="true"><td [attr.colspan]="totalColSpan" [style.height.px]="virtualPadTop"></td></tr>
           }
           @for (item of visibleItems; track item.trackKey; let i = $index) {
-            @if (item.kind === 'group') {
+            @if (item.kind === 'pending') {
+              <tr class="we-grid__skeleton-row" [attr.aria-rowindex]="virtualRowIndex(i)" aria-busy="true">
+                @if (showExpandCol) {
+                  <td class="we-grid__expand-col"></td>
+                }
+                @if (selectable !== 'none') {
+                  <td class="we-grid__select-col"></td>
+                }
+                @for (col of renderColumns; track col.field) {
+                  <td [style.width.px]="col.width"><div class="we-grid__skeleton-bar"></div></td>
+                }
+                @if (hasRowActions) {
+                  <td class="we-grid__action-col"></td>
+                }
+              </tr>
+            } @else if (item.kind === 'group') {
               <tr class="we-grid__group-row" [class.we-grid__group-row--nested]="item.level > 0">
                 <td [attr.colspan]="totalColSpan" [style.padding-inline-start]="groupIndent(item.level)">
                   <button
@@ -959,14 +974,14 @@
     </table>
   </div>
 
-  @if (footer !== 'none') {
+  @if (footerMode !== 'none') {
   <div class="we-grid__footer">
-    @if (footer === 'count') {
-      <div class="we-grid__footer-info">{{ totalCount || displayData.length }} {{ locale.recordsLabel }}</div>
+    @if (footerMode === 'count') {
+      <div class="we-grid__footer-info">{{ rowTotal }} {{ locale.recordsLabel }}</div>
     } @else {
-      <div class="we-grid__footer-info">{{ totalCount || displayData.length }} {{ locale.recordsLabel }} — {{ locale.pageOf(page, totalPagesComputed) }}</div>
+      <div class="we-grid__footer-info">{{ rowTotal }} {{ locale.recordsLabel }} — {{ locale.pageOf(page, totalPagesComputed) }}</div>
     }
-    @if (footer === 'full') {
+    @if (footerMode === 'full') {
     <nav class="we-grid__pager" [attr.aria-label]="locale.paginationAriaLabel">
       <button
         type="button"

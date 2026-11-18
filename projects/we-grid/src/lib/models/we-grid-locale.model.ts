@@ -78,6 +78,8 @@ export interface WeGridLocale {
   requiredField: string;
   /** Fallback message when a commit is rejected without one of its own */
   saveFailed: string;
+  /** A `dataSource` could not deliver rows */
+  loadFailed: string;
 
   // ─── Header context menu (we-grid-header-menu) ──────────────────────────────────────
   hideColumn: string;
@@ -529,6 +531,7 @@ export const weGridLocaleEn: WeGridLocale = {
   confirmDeleteRow: 'Delete this row?',
   requiredField: 'This field is required',
   saveFailed: 'The change could not be saved',
+  loadFailed: 'The rows could not be loaded',
 
   hideColumn: 'Hide column',
   columns: 'Columns',
@@ -927,6 +930,7 @@ export const weGridLocaleTr: WeGridLocale = {
   confirmDeleteRow: 'Bu satır silinsin mi?',
   requiredField: 'Bu alan zorunlu',
   saveFailed: 'Değişiklik kaydedilemedi',
+  loadFailed: 'Satırlar yüklenemedi',
 
   hideColumn: 'Kolonu Gizle',
   columns: 'Kolonlar',

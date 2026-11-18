@@ -7,6 +7,10 @@
   </div>
 
   <div class="connect">
+    <div class="segmented segmented--small" role="group" [attr.aria-label]="text.perfMode">
+      <button type="button" [attr.aria-pressed]="mode === 'engine'" [disabled]="busy" (click)="setMode('engine')">{{ text.perfModeEngine }}</button>
+      <button type="button" [attr.aria-pressed]="mode === 'rows'" [disabled]="busy" (click)="setMode('rows')">{{ text.perfModeRows }}</button>
+    </div>
     <label class="connect__field connect__field--small">
       <span>{{ text.perfRows }}</span>
       <select name="size" [(ngModel)]="size" [disabled]="busy">
@@ -15,14 +19,20 @@
         }
       </select>
     </label>
-    <label class="perf-check">
-      <input type="checkbox" name="virtual" [(ngModel)]="virtual" [disabled]="busy" />
-      <span>virtualScroll</span>
-    </label>
-    <button type="button" class="primary-btn" (click)="run()" [disabled]="busy || tooBigForPlain">{{ text.perfRun }}</button>
-    <button type="button" class="link-btn" (click)="sort()" [disabled]="busy || data.length === 0">{{ text.perfSort }}</button>
-    <button type="button" class="link-btn" (click)="scrollTest()" [disabled]="busy || data.length === 0">{{ text.perfScroll }}</button>
+    @if (mode === 'rows') {
+      <label class="perf-check">
+        <input type="checkbox" name="virtual" [(ngModel)]="virtual" [disabled]="busy" />
+        <span>virtualScroll</span>
+      </label>
+    }
+    <button type="button" class="primary-btn" (click)="run()" [disabled]="busy || tooBigForPlain">{{ busy ? text.perfBusy : text.perfRun }}</button>
+    <button type="button" class="link-btn" (click)="sort()" [disabled]="busy || !hasData">{{ text.perfSort }}</button>
+    <button type="button" class="link-btn" (click)="filter()" [disabled]="busy || !hasData">{{ text.perfFilter }}</button>
+    <button type="button" class="link-btn" (click)="search()" [disabled]="busy || !hasData">{{ text.perfSearch }}</button>
+    <button type="button" class="link-btn" (click)="scrollTest()" [disabled]="busy || !hasData">{{ text.perfScroll }}</button>
   </div>
+
+  <p class="muted">{{ mode === 'engine' ? text.perfEngineNote : text.perfRowsNote }}</p>
 
   @if (tooBigForPlain) {
     <p class="callout" role="status">{{ text.perfPlainCap }}</p>
@@ -34,12 +44,15 @@
         <thead>
           <tr>
             <th>{{ text.perfRows }}</th>
-            <th>virtualScroll</th>
+            <th>{{ text.perfMode }}</th>
             <th>{{ text.perfGenerate }}</th>
             <th>{{ text.perfRender }}</th>
             <th>{{ text.perfDomRows }}</th>
+            <th>{{ text.perfData }}</th>
             <th>{{ text.perfHeap }}</th>
             <th>{{ text.perfSortMs }}</th>
+            <th>{{ text.perfFilterMs }}</th>
+            <th>{{ text.perfSearchMs }}</th>
             <th>{{ text.perfFps }}</th>
           </tr>
         </thead>
@@ -47,12 +60,15 @@
           @for (r of results; track $index) {
             <tr>
               <td>{{ format(r.rows) }}</td>
-              <td>{{ r.virtual ? '✓' : '—' }}</td>
+              <td>{{ r.mode === 'engine' ? text.perfModeEngine : text.perfModeRows + (r.virtual ? ' · virtual' : '') }}</td>
               <td>{{ format(r.generateMs) }} ms</td>
               <td>{{ format(r.renderMs) }} ms</td>
               <td>{{ format(r.domRows) }}</td>
+              <td>{{ r.dataMb === null ? '—' : format(r.dataMb) + ' MB' }}</td>
               <td>{{ r.heapMb === null ? '—' : format(r.heapMb) + ' MB' }}</td>
               <td>{{ r.sortMs === null ? '—' : format(r.sortMs) + ' ms' }}</td>
+              <td>{{ r.filterMs === null ? '—' : format(r.filterMs) + ' ms' }}</td>
+              <td>{{ r.searchMs === null ? '—' : format(r.searchMs) + ' ms' }}</td>
               <td>{{ format(r.fps) }}</td>
             </tr>
           }
@@ -66,10 +82,12 @@
       gridKey="studio-perf"
       [columns]="columns"
       [data]="data"
+      [dataSource]="store"
       trackByField="id"
       [virtualScroll]="virtual"
       [maxHeight]="520"
       [autoFitColumns]="false"
+      [search]="true"
       footer="count"
     />
   </div>

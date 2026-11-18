@@ -134,5 +134,7 @@ export type WeGridRenderItem<T> =
     }
   | { kind: 'group'; section: WeGridGroupSection<T>; level: number; trackKey: unknown }
   /** The group footer row of `groupSummaryPosition` 'footer' / 'both' — closes an expanded group */
-  | { kind: 'groupFooter'; section: WeGridGroupSection<T>; level: number; trackKey: unknown };
+  | { kind: 'groupFooter'; section: WeGridGroupSection<T>; level: number; trackKey: unknown }
+  /** A row of a `dataSource` grid that is still on its way — drawn as a placeholder */
+  | { kind: 'pending'; index: number; trackKey: unknown };
 

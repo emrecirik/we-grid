@@ -236,6 +236,10 @@ parser's own messages are English too.
 - `sheetOptions`, `formatTypeIconSet`, `formatIconSetLabels`, `formatIconSetReverse`, `sheetImportTruncated`,
   `sheetFull`
 
+## Keys added in 0.56.0
+
+- `loadFailed` — the notice when a `dataSource` can't deliver rows
+
 ## Keys added in 0.48.0
 
 - `sheetNames`, `sheetNamesHint`, `sheetNameRemove`, `sheetNameInvalid`

@@ -83,6 +83,7 @@ export const weGridLocaleDe: WeGridLocale = {
   confirmDeleteRow: 'Diese Zeile löschen?',
   requiredField: 'Dieses Feld ist erforderlich',
   saveFailed: 'Die Änderung konnte nicht gespeichert werden',
+  loadFailed: 'Die Zeilen konnten nicht geladen werden',
 
   hideColumn: 'Spalte ausblenden',
   columns: 'Spalten',
@@ -470,6 +471,7 @@ export const weGridLocaleFr: WeGridLocale = {
   confirmDeleteRow: 'Supprimer cette ligne ?',
   requiredField: 'Ce champ est obligatoire',
   saveFailed: 'La modification n’a pas pu être enregistrée',
+  loadFailed: 'Les lignes n’ont pas pu être chargées',
 
   hideColumn: 'Masquer la colonne',
   columns: 'Colonnes',
@@ -860,6 +862,7 @@ export const weGridLocaleEs: WeGridLocale = {
   confirmDeleteRow: '¿Eliminar esta fila?',
   requiredField: 'Este campo es obligatorio',
   saveFailed: 'No se pudo guardar el cambio',
+  loadFailed: 'No se pudieron cargar las filas',
 
   hideColumn: 'Ocultar columna',
   columns: 'Columnas',

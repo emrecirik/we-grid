@@ -26,6 +26,7 @@ export * from './lib/models/we-grid-empty.model';
 export * from './lib/models/we-grid-events.model';
 export * from './lib/models/we-grid-export.model';
 export * from './lib/models/we-grid-filter.model';
+export * from './lib/models/we-grid-data-source.model';
 export * from './lib/models/we-grid-format.model';
 export * from './lib/models/we-grid-macro.model';
 export * from './lib/models/we-grid-group.model';
@@ -76,3 +77,6 @@ export * from './lib/we-pivot/we-pivot.util';
 // <we-chart> — column, bar, line, area, pie and donut charts in SVG
 export * from './lib/we-chart/we-chart.component';
 export * from './lib/we-chart/we-chart.util';
+
+// WeGridColumnStore — the in-browser columnar engine behind a [dataSource] grid
+export * from './lib/engine/we-grid-column-store';

@@ -1,6 +1,6 @@
 import { ChangeDetectorRef, Component, ElementRef, Input, ViewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { WeGridColumnDef, WeGridComponent } from 'we-grid-angular';
+import { WeGridColumnDef, WeGridColumnStore, WeGridComponent } from 'we-grid-angular';
 import { StudioText } from './studio-text';
 
 interface PerfRow {
@@ -14,52 +14,98 @@ interface PerfRow {
   date: string;
 }
 
+type Mode = 'rows' | 'engine';
+
 interface PerfResult {
   rows: number;
+  mode: Mode;
   virtual: boolean;
   generateMs: number;
   renderMs: number;
   domRows: number;
+  dataMb: number | null;
   heapMb: number | null;
   sortMs: number | null;
+  filterMs: number | null;
+  searchMs: number | null;
   fps: number | null;
 }
 
 const CITIES = ['İstanbul', 'Ankara', 'İzmir', 'Bursa', 'Antalya', 'Konya', 'Adana', 'Trabzon', 'Eskişehir', 'Kayseri'];
 const CATEGORIES = ['Electronics', 'Books', 'Garden', 'Toys', 'Food', 'Clothing', 'Sports', 'Beauty'];
-const NAMES = ['Ada', 'Deniz', 'Ekin', 'Kaan', 'Lale', 'Mert', 'Nehir', 'Ozan', 'Pelin', 'Rüzgar', 'Selin', 'Toprak', 'Umut', 'Yağmur'];
+const FIRST_NAMES = ['Ada', 'Deniz', 'Ekin', 'Kaan', 'Lale', 'Mert', 'Nehir', 'Ozan', 'Pelin', 'Rüzgar', 'Selin', 'Toprak', 'Umut', 'Yağmur'];
+const CUSTOMERS = FIRST_NAMES.flatMap((name) => Array.from({ length: 26 }, (_, c) => `${name} ${String.fromCharCode(65 + c)}.`));
+const DAYS = Array.from({ length: 730 }, (_, d) => new Date(Date.UTC(2024, 0, 1) + d * 86_400_000).toISOString().slice(0, 10));
 
-/** Fictional rows from a seeded PRNG, so every run measures the same data */
-function generateRows(count: number): PerfRow[] {
+/** Seeded PRNG, so every run measures the same fictional data */
+function prng(): () => number {
   let seed = 42;
-  const next = (): number => {
+  return () => {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
+}
+
+function generateRows(count: number): PerfRow[] {
+  const next = prng();
   const rows: PerfRow[] = new Array(count);
-  const start = Date.UTC(2024, 0, 1);
   for (let i = 0; i < count; i++) {
     const qty = 1 + Math.floor(next() * 50);
-    const price = Math.round(next() * 100_000) / 100;
+    const cents = Math.floor(next() * 100_000);
     rows[i] = {
       id: i + 1,
-      customer: `${NAMES[Math.floor(next() * NAMES.length)]} ${String.fromCharCode(65 + Math.floor(next() * 26))}.`,
+      customer: CUSTOMERS[Math.floor(next() * CUSTOMERS.length)],
       city: CITIES[Math.floor(next() * CITIES.length)],
       category: CATEGORIES[Math.floor(next() * CATEGORIES.length)],
       qty,
-      price,
-      total: Math.round(qty * price * 100) / 100,
-      date: new Date(start + Math.floor(next() * 730) * 86_400_000).toISOString().slice(0, 10)
+      price: cents / 100,
+      total: (qty * cents) / 100,
+      date: DAYS[Math.floor(next() * DAYS.length)]
     };
   }
   return rows;
 }
 
+/** The same data straight into columns — never a row object, so tens of millions fit */
+function generateStore(count: number): WeGridColumnStore<PerfRow> {
+  const next = prng();
+  const id = new Int32Array(count);
+  const customer = new Uint16Array(count);
+  const city = new Uint8Array(count);
+  const category = new Uint8Array(count);
+  const qty = new Uint8Array(count);
+  const price = new Int32Array(count);
+  const total = new Int32Array(count);
+  const date = new Uint16Array(count);
+  for (let i = 0; i < count; i++) {
+    const q = 1 + Math.floor(next() * 50);
+    const cents = Math.floor(next() * 100_000);
+    id[i] = i + 1;
+    customer[i] = Math.floor(next() * CUSTOMERS.length);
+    city[i] = Math.floor(next() * CITIES.length);
+    category[i] = Math.floor(next() * CATEGORIES.length);
+    qty[i] = q;
+    price[i] = cents;
+    total[i] = q * cents;
+    date[i] = Math.floor(next() * DAYS.length);
+  }
+  return WeGridColumnStore.fromColumns<PerfRow>({
+    id,
+    customer: { dictionary: CUSTOMERS, codes: customer },
+    city: { dictionary: CITIES, codes: city },
+    category: { dictionary: CATEGORIES, codes: category },
+    qty,
+    price: { fixed: price, scale: 100 },
+    total: { fixed: total, scale: 100 },
+    date: { dictionary: DAYS, codes: date }
+  });
+}
+
 const nextFrame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(() => setTimeout(() => resolve(performance.now()))));
 
 /**
- * Measures the grid in the visitor's own browser: how long a data set takes to appear, sort and
- * scroll, and how much memory it holds — with and without virtual scrolling.
+ * Measures the grid in the visitor's own browser: how long a data set takes to appear, sort, filter,
+ * search and scroll, and how much memory it holds — as row objects or in the column engine.
  */
 @Component({
   selector: 'studio-perf-tab',
@@ -71,18 +117,24 @@ const nextFrame = (): Promise<number> => new Promise((resolve) => requestAnimati
 export class PerfTabComponent {
   @Input({ required: true }) text!: StudioText;
   @ViewChild('gridHost', { read: ElementRef }) gridHost?: ElementRef<HTMLElement>;
+  @ViewChild(WeGridComponent) grid?: WeGridComponent<PerfRow>;
 
-  readonly sizes = [10_000, 100_000, 1_000_000, 2_000_000];
-  size = 1_000_000;
+  readonly sizesByMode: Record<Mode, number[]> = {
+    rows: [10_000, 100_000, 1_000_000, 2_000_000],
+    engine: [1_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000]
+  };
+  mode: Mode = 'engine';
+  size = 10_000_000;
   virtual = true;
   data: PerfRow[] = [];
+  store: WeGridColumnStore<PerfRow> | null = null;
   busy = false;
   results: PerfResult[] = [];
   readonly columns: WeGridColumnDef<PerfRow>[] = [
-    { field: 'id', header: '#', type: 'integer', width: 110 },
+    { field: 'id', header: '#', type: 'integer', width: 120 },
     { field: 'customer', header: 'Customer', width: 150 },
-    { field: 'city', header: 'City', width: 130 },
-    { field: 'category', header: 'Category', width: 140 },
+    { field: 'city', header: 'City', width: 130, headerFilterMode: 'checklist' },
+    { field: 'category', header: 'Category', width: 140, headerFilterMode: 'checklist' },
     { field: 'qty', header: 'Qty', type: 'integer', width: 90 },
     { field: 'price', header: 'Price', type: 'currency', width: 120 },
     { field: 'total', header: 'Total', type: 'currency', width: 130 },
@@ -91,59 +143,90 @@ export class PerfTabComponent {
 
   constructor(private readonly cdr: ChangeDetectorRef) {}
 
+  get sizes(): number[] {
+    return this.sizesByMode[this.mode];
+  }
+
+  setMode(mode: Mode): void {
+    this.mode = mode;
+    if (!this.sizes.includes(this.size)) this.size = mode === 'engine' ? 10_000_000 : 1_000_000;
+  }
+
   /** Rendering every row of a big set without virtual scrolling freezes the tab — the point of the demo, but capped */
   get tooBigForPlain(): boolean {
-    return !this.virtual && this.size > 10_000;
+    return this.mode === 'rows' && !this.virtual && this.size > 10_000;
   }
 
   async run(): Promise<void> {
     if (this.busy || this.tooBigForPlain) return;
     this.busy = true;
     this.data = [];
+    this.store = null;
     this.cdr.detectChanges();
     await nextFrame();
 
     const t0 = performance.now();
-    const rows = generateRows(this.size);
+    const rows = this.mode === 'rows' ? generateRows(this.size) : null;
+    const store = this.mode === 'engine' ? generateStore(this.size) : null;
     const generateMs = performance.now() - t0;
 
     const t1 = performance.now();
-    this.data = rows;
+    if (rows) this.data = rows;
+    this.store = store;
     this.cdr.detectChanges();
     const renderMs = (await nextFrame()) - t1;
 
     const result: PerfResult = {
       rows: this.size,
-      virtual: this.virtual,
+      mode: this.mode,
+      virtual: this.mode === 'engine' || this.virtual,
       generateMs,
       renderMs,
       domRows: this.gridHost?.nativeElement.querySelectorAll('tbody > tr').length ?? 0,
+      dataMb: store ? store.describe().reduce((sum, c) => sum + c.bytes, 0) / 1_048_576 : null,
       heapMb: this.heapMb(),
       sortMs: null,
+      filterMs: null,
+      searchMs: null,
       fps: null
     };
-    this.results = [result, ...this.results].slice(0, 8);
+    this.results = [result, ...this.results].slice(0, 10);
     this.busy = false;
     this.cdr.detectChanges();
   }
 
   /** Clicks the Total header like a user would, and times until the sorted rows are painted */
-  async sort(): Promise<void> {
-    const label = Array.from(this.gridHost?.nativeElement.querySelectorAll<HTMLElement>('.we-grid__th-label') ?? []).find((el) => el.textContent?.trim() === 'Total');
-    if (this.busy || !label || this.data.length === 0) return;
-    this.busy = true;
-    const t0 = performance.now();
-    label.click();
-    const ms = (await nextFrame()) - t0;
-    if (this.results[0]) this.results[0] = { ...this.results[0], sortMs: ms };
-    this.busy = false;
-    this.cdr.detectChanges();
+  sort(): Promise<void> {
+    return this.measure('sortMs', () => {
+      const label = Array.from(this.gridHost?.nativeElement.querySelectorAll<HTMLElement>('.we-grid__th-label') ?? []).find((el) => el.textContent?.trim() === 'Total');
+      label?.click();
+    });
+  }
+
+  /** City = Ankara through the checklist filter, or back to all cities */
+  filter(): Promise<void> {
+    return this.measure('filterMs', () => {
+      const grid = this.grid;
+      const city = grid?.internalColumns.find((c) => c.field === 'city');
+      if (!grid || !city) return;
+      if (grid.hasActiveFilters) grid.clearAllFilters();
+      else grid.setChecklistFilter(city, ['Ankara']);
+    });
+  }
+
+  /** Two words that must both appear — a customer name and a city */
+  search(): Promise<void> {
+    return this.measure('searchMs', () => {
+      const grid = this.grid;
+      if (!grid) return;
+      grid.setSearch(grid.searchText ? '' : 'selin izmir');
+    });
   }
 
   /** Scrolls top to bottom for two seconds and counts the frames the browser managed to paint */
   async scrollTest(): Promise<void> {
     const area = this.gridHost?.nativeElement.querySelector<HTMLElement>('.we-grid__scroll');
-    if (this.busy || !area || this.data.length === 0) return;
+    if (this.busy || !area || !this.hasData) return;
     this.busy = true;
     area.scrollTop = 0;
     const duration = 2000;
@@ -159,13 +242,33 @@ export class PerfTabComponent {
       };
       requestAnimationFrame(step);
     });
-    if (this.results[0]) this.results[0] = { ...this.results[0], fps };
+    this.patchResult({ fps });
     this.busy = false;
     this.cdr.detectChanges();
   }
 
+  get hasData(): boolean {
+    return this.data.length > 0 || !!this.store;
+  }
+
   format(value: number | null, digits = 0): string {
     return value === null ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: digits });
+  }
+
+  private async measure(key: 'sortMs' | 'filterMs' | 'searchMs', action: () => void): Promise<void> {
+    if (this.busy || !this.hasData) return;
+    this.busy = true;
+    const t0 = performance.now();
+    action();
+    this.cdr.detectChanges();
+    const ms = (await nextFrame()) - t0;
+    this.patchResult({ [key]: ms });
+    this.busy = false;
+    this.cdr.detectChanges();
+  }
+
+  private patchResult(patch: Partial<PerfResult>): void {
+    if (this.results[0]) this.results[0] = { ...this.results[0], ...patch };
   }
 
   /** Chromium only — other browsers don't expose the heap size */

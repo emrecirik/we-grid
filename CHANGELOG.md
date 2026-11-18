@@ -12,8 +12,20 @@ All notable changes to this project are documented in this file.
   `aria-rowindex` while it is on. `scrollToRow` scrolls a row that is not in the DOM into view.
   Past 10,000,000 px of content the scrollbar is scaled (browsers cap element height) and the
   mouse wheel moves by pixels, not by scrollbar fractions.
-- we-grid Studio has a Performance tab that generates up to two million rows in the visitor's
-  browser and times rendering, sorting and scrolling.
+- `WeGridColumnStore`, a columnar in-browser engine, and the `dataSource` input that shows it (or
+  any `WeGridDataSource` — `load({ offset, limit, sort, filters, search })` → `{ rows, total }`)
+  one window at a time. Each column takes the smallest encoding its values allow — a running id
+  none, a dictionary column one or two bytes, money as offset integers — so 50 million rows of
+  eight columns take about 715 MB where row objects would not fit at all. Filters are decided once
+  per distinct value, search formats each dictionary value once, and sorting is a radix sort over
+  the codes: on a million rows search went from 12.7 s (row objects) to 95 ms. The engine follows
+  the grid's filter, search and sort rules, and lists checklist values from the whole store.
+  `fromRows`, `fromColumns` (plain or typed arrays, `{ dictionary, codes }`, `{ fixed, scale }`),
+  `set`, `aggregate`, `distinct`, `describe`. Grid: `refreshDataSource()`, locale key `loadFailed`
+  (en, tr, de, fr, es), render item kind `pending` (a row on its way, drawn as a placeholder).
+- we-grid Studio has a Performance tab: up to two million row objects or fifty million rows in the
+  column engine, generated in the visitor's browser, with render, sort, filter, search, scroll and
+  memory timed.
 
 ### Changed
 
