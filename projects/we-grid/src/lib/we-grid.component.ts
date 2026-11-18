@@ -898,11 +898,38 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** Rows whose shown text in any visible column contains every word of `text`, case-insensitively */
   private searchRows(rows: T[], text: string): T[] {
-    const words = text.toLocaleLowerCase(this.locale.intlLocale).split(/\s+/).filter(Boolean);
+    const intl = this.locale.intlLocale;
+    const words = text.toLocaleLowerCase(intl).split(/\s+/).filter(Boolean);
     const columns = this.renderColumns;
+    // Only a formatter reads the row, so other columns format each distinct value once — a million rows
+    // formatted every cell on every keystroke
+    const caches = columns.map((c) => (c.formatter ? null : new Map<unknown, string>()));
+    const cellText = (row: T, i: number): string => {
+      const cache = caches[i];
+      if (!cache) return this.formatCell(row, columns[i]).toLocaleLowerCase(intl);
+      const value = this.cellValue(row, columns[i]);
+      if (value !== null && typeof value === 'object') return this.formatCell(row, columns[i]).toLocaleLowerCase(intl);
+      let lowered = cache.get(value);
+      if (lowered === undefined) {
+        lowered = this.formatCell(row, columns[i]).toLocaleLowerCase(intl);
+        cache.set(value, lowered);
+      }
+      return lowered;
+    };
+    // shortcut: a number or date column (no formatter) is skipped for a word with a character none of
+    // its first 256 cells shows — formatting every price for "selin" was most of the time; sample every
+    // distinct value instead if a format's characters ever vary beyond that
+    const charsets = columns.map((c, i) => {
+      const kind = weGridValueKind(c.type);
+      if (c.formatter || (kind !== 'number' && kind !== 'date')) return null;
+      const chars = new Set('0123456789');
+      for (let r = 0; r < Math.min(256, rows.length); r++) for (const ch of cellText(rows[r], i)) chars.add(ch);
+      return chars;
+    });
+    const searchable = words.map((w) => columns.map((_, i) => !charsets[i] || Array.from(w).every((ch) => charsets[i]!.has(ch))));
     return rows.filter((row) => {
-      const hay = columns.map((c) => this.formatCell(row, c)).join('\u0001').toLocaleLowerCase(this.locale.intlLocale);
-      return words.every((w) => hay.includes(w));
+      const texts = new Array<string | undefined>(columns.length);
+      return words.every((w, k) => columns.some((_, i) => searchable[k][i] && (texts[i] ??= cellText(row, i)).includes(w)));
     });
   }
 

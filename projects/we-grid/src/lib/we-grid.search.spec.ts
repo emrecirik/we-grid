@@ -71,6 +71,26 @@ describe('WeGridComponent — search and decimal places', () => {
     expect(ids()).toEqual([1, 2, 3]);
   }));
 
+  it('formats a value once per search, but a formatter that reads the row per row', () => {
+    const host = fixture.componentInstance;
+    host.columns = [
+      { field: 'name', header: 'Name' },
+      { field: 'city', header: 'City' },
+      { field: 'price', header: 'Price', type: 'number', formatter: (value, row) => `${row?.city === 'İzmir' ? 'export' : 'local'} ${value}` }
+    ];
+    host.data = [...host.data, { id: 4, name: 'Bike light', city: 'İzmir', price: 39 }];
+    fixture.detectChanges();
+    const grid = host.grid;
+    grid.setSearch('bike light');
+    expect(ids()).toEqual([3, 4]);
+    grid.setSearch('export 39');
+    expect(ids()).toEqual([4]);
+    grid.setSearch('local 39');
+    expect(ids()).toEqual([3]);
+    grid.setSearch('ankara');
+    expect(ids()).toEqual([2, 3]);
+  });
+
   it('sets decimal places from the Format panel and saves them with the layout', fakeAsync(() => {
     const grid = fixture.componentInstance.grid;
     (grid as unknown as { handleMenuAction(a: unknown): void }).handleMenuAction({ type: 'format', field: 'price' });
