@@ -1,4 +1,5 @@
-import { ChangeDetectorRef, Component, ElementRef, Input, ViewChild } from '@angular/core';
+import { ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, ViewChild } from '@angular/core';
+import type { GridApi } from 'ag-grid-community';
 import { FormsModule } from '@angular/forms';
 import { WeGridColumnDef, WeGridColumnStore, WeGridComponent } from 'we-grid-angular';
 import { StudioText } from './studio-text';
@@ -14,7 +15,7 @@ interface PerfRow {
   date: string;
 }
 
-type Mode = 'rows' | 'engine';
+type Mode = 'rows' | 'engine' | 'aggrid';
 
 interface PerfResult {
   rows: number;
@@ -114,14 +115,19 @@ const nextFrame = (): Promise<number> => new Promise((resolve) => requestAnimati
   templateUrl: './perf-tab.component.html',
   styleUrl: './app.component.scss'
 })
-export class PerfTabComponent {
+export class PerfTabComponent implements OnDestroy {
   @Input({ required: true }) text!: StudioText;
   @ViewChild('gridHost', { read: ElementRef }) gridHost?: ElementRef<HTMLElement>;
+  @ViewChild('agHost', { read: ElementRef }) agHost?: ElementRef<HTMLElement>;
+  /** AG Grid Community, loaded only when its mode is picked — the comparison, not part of we-grid */
+  private agApi: GridApi<PerfRow> | null = null;
+  private agSearch = '';
   @ViewChild(WeGridComponent) grid?: WeGridComponent<PerfRow>;
 
   readonly sizesByMode: Record<Mode, number[]> = {
     rows: [10_000, 100_000, 1_000_000, 2_000_000],
-    engine: [1_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000]
+    engine: [1_000_000, 5_000_000, 10_000_000, 20_000_000, 50_000_000],
+    aggrid: [10_000, 100_000, 1_000_000, 2_000_000]
   };
   mode: Mode = 'engine';
   size = 10_000_000;
@@ -152,6 +158,36 @@ export class PerfTabComponent {
     if (!this.sizes.includes(this.size)) this.size = mode === 'engine' ? 10_000_000 : 1_000_000;
   }
 
+  ngOnDestroy(): void {
+    this.agApi?.destroy();
+  }
+
+  private async ensureAgGrid(): Promise<typeof import('ag-grid-community')> {
+    const ag = await import('ag-grid-community');
+    ag.ModuleRegistry.registerModules([ag.AllCommunityModule]);
+    return ag;
+  }
+
+  /** AG Grid with the same columns and display formats — its defaults otherwise */
+  private createAgGrid(ag: typeof import('ag-grid-community'), rows: PerfRow[]): void {
+    this.agApi?.destroy();
+    const currency = new Intl.NumberFormat(undefined, { style: 'currency', currency: 'TRY' });
+    const money = (p: { value: unknown }): string => (typeof p.value === 'number' ? currency.format(p.value) : '');
+    this.agApi = ag.createGrid<PerfRow>(this.agHost!.nativeElement, {
+      rowData: rows,
+      columnDefs: [
+        { field: 'id', headerName: '#', width: 120 },
+        { field: 'customer', headerName: 'Customer', width: 150 },
+        { field: 'city', headerName: 'City', width: 130, filter: 'agTextColumnFilter' },
+        { field: 'category', headerName: 'Category', width: 140 },
+        { field: 'qty', headerName: 'Qty', width: 90 },
+        { field: 'price', headerName: 'Price', width: 120, valueFormatter: money },
+        { field: 'total', headerName: 'Total', width: 130, valueFormatter: money },
+        { field: 'date', headerName: 'Date', width: 120 }
+      ]
+    });
+  }
+
   /** Rendering every row of a big set without virtual scrolling freezes the tab — the point of the demo, but capped */
   get tooBigForPlain(): boolean {
     return this.mode === 'rows' && !this.virtual && this.size > 10_000;
@@ -165,16 +201,25 @@ export class PerfTabComponent {
     this.cdr.detectChanges();
     await nextFrame();
 
+    this.agApi?.destroy();
+    this.agApi = null;
+    const ag = this.mode === 'aggrid' ? await this.ensureAgGrid() : null;
+
     const t0 = performance.now();
-    const rows = this.mode === 'rows' ? generateRows(this.size) : null;
+    const rows = this.mode !== 'engine' ? generateRows(this.size) : null;
     const store = this.mode === 'engine' ? generateStore(this.size) : null;
     const generateMs = performance.now() - t0;
 
     const t1 = performance.now();
-    if (rows) this.data = rows;
+    if (ag && rows) this.createAgGrid(ag, rows);
+    else if (rows) this.data = rows;
     this.store = store;
     this.cdr.detectChanges();
-    const renderMs = (await nextFrame()) - t1;
+    let renderMs = (await nextFrame()) - t1;
+    // AG Grid draws its rows a few frames later — the clock runs until they are in the page
+    for (let frame = 0; ag && frame < 600 && !this.agHost?.nativeElement.querySelector('.ag-row'); frame++) {
+      renderMs = (await nextFrame()) - t1;
+    }
 
     const result: PerfResult = {
       rows: this.size,
@@ -182,7 +227,9 @@ export class PerfTabComponent {
       virtual: this.mode === 'engine' || this.virtual,
       generateMs,
       renderMs,
-      domRows: this.gridHost?.nativeElement.querySelectorAll('tbody > tr').length ?? 0,
+      domRows: ag
+        ? (this.agHost?.nativeElement.querySelectorAll('.ag-row').length ?? 0)
+        : (this.gridHost?.nativeElement.querySelectorAll('tbody > tr').length ?? 0),
       dataMb: store ? store.describe().reduce((sum, c) => sum + c.bytes, 0) / 1_048_576 : null,
       heapMb: this.heapMb(),
       sortMs: null,
@@ -198,6 +245,11 @@ export class PerfTabComponent {
   /** Clicks the Total header like a user would, and times until the sorted rows are painted */
   sort(): Promise<void> {
     return this.measure('sortMs', () => {
+      if (this.agApi) {
+        const sort = this.agApi.getColumnState().find((c) => c.colId === 'total')?.sort;
+        this.agApi.applyColumnState({ state: [{ colId: 'total', sort: sort === 'asc' ? 'desc' : 'asc' }], defaultState: { sort: null } });
+        return;
+      }
       const label = Array.from(this.gridHost?.nativeElement.querySelectorAll<HTMLElement>('.we-grid__th-label') ?? []).find((el) => el.textContent?.trim() === 'Total');
       label?.click();
     });
@@ -206,6 +258,11 @@ export class PerfTabComponent {
   /** City = Ankara through the checklist filter, or back to all cities */
   filter(): Promise<void> {
     return this.measure('filterMs', () => {
+      if (this.agApi) {
+        const on = !!this.agApi.getFilterModel()['city'];
+        this.agApi.setFilterModel(on ? null : { city: { filterType: 'text', type: 'equals', filter: 'Ankara' } });
+        return;
+      }
       const grid = this.grid;
       const city = grid?.internalColumns.find((c) => c.field === 'city');
       if (!grid || !city) return;
@@ -217,6 +274,12 @@ export class PerfTabComponent {
   /** Two words that must both appear — a customer name and a city */
   search(): Promise<void> {
     return this.measure('searchMs', () => {
+      if (this.agApi) {
+        // AG Grid's quick filter: every word must match some column, like the grid's search box
+        this.agSearch = this.agSearch ? '' : 'selin izmir';
+        this.agApi.setGridOption('quickFilterText', this.agSearch);
+        return;
+      }
       const grid = this.grid;
       if (!grid) return;
       grid.setSearch(grid.searchText ? '' : 'selin izmir');
@@ -225,7 +288,9 @@ export class PerfTabComponent {
 
   /** Scrolls top to bottom for two seconds and counts the frames the browser managed to paint */
   async scrollTest(): Promise<void> {
-    const area = this.gridHost?.nativeElement.querySelector<HTMLElement>('.we-grid__scroll');
+    const area = this.agApi
+      ? this.agHost?.nativeElement.querySelector<HTMLElement>('.ag-grid-viewport')
+      : this.gridHost?.nativeElement.querySelector<HTMLElement>('.we-grid__scroll');
     if (this.busy || !area || !this.hasData) return;
     this.busy = true;
     area.scrollTop = 0;
@@ -248,7 +313,12 @@ export class PerfTabComponent {
   }
 
   get hasData(): boolean {
-    return this.data.length > 0 || !!this.store;
+    return this.data.length > 0 || !!this.store || !!this.agApi;
+  }
+
+  /** What the footer of either grid says — the visible row count after filters and search */
+  get agCount(): number {
+    return this.agApi?.getDisplayedRowCount() ?? 0;
   }
 
   format(value: number | null, digits = 0): string {

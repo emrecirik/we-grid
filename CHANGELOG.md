@@ -25,7 +25,7 @@ All notable changes to this project are documented in this file.
   (en, tr, de, fr, es), render item kind `pending` (a row on its way, drawn as a placeholder).
 - we-grid Studio has a Performance tab: up to two million row objects or fifty million rows in the
   column engine, generated in the visitor's browser, with render, sort, filter, search, scroll and
-  memory timed.
+  memory timed — and AG Grid Community on the same rows for comparison, loaded only on demand.
 
 ### Changed
 
@@ -35,6 +35,10 @@ All notable changes to this project are documented in this file.
   unchanged; NaN and invalid dates now sort with the empty values.
 - Without format rules or column styles the grid no longer walks every row on each change to
   resolve cell formatting.
+- The search box formats each distinct value of a column once instead of every cell (a column with
+  a `formatter` still per row), and skips a number or date column for a word with a character its
+  cells never show: a two-word search over a million rows went from 12.7 s to 0.24 s. Results are
+  unchanged.
 
 ### Fixed
 

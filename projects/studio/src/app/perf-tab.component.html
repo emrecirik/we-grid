@@ -10,6 +10,7 @@
     <div class="segmented segmented--small" role="group" [attr.aria-label]="text.perfMode">
       <button type="button" [attr.aria-pressed]="mode === 'engine'" [disabled]="busy" (click)="setMode('engine')">{{ text.perfModeEngine }}</button>
       <button type="button" [attr.aria-pressed]="mode === 'rows'" [disabled]="busy" (click)="setMode('rows')">{{ text.perfModeRows }}</button>
+      <button type="button" [attr.aria-pressed]="mode === 'aggrid'" [disabled]="busy" (click)="setMode('aggrid')">AG Grid Community</button>
     </div>
     <label class="connect__field connect__field--small">
       <span>{{ text.perfRows }}</span>
@@ -32,7 +33,7 @@
     <button type="button" class="link-btn" (click)="scrollTest()" [disabled]="busy || !hasData">{{ text.perfScroll }}</button>
   </div>
 
-  <p class="muted">{{ mode === 'engine' ? text.perfEngineNote : text.perfRowsNote }}</p>
+  <p class="muted">{{ mode === 'engine' ? text.perfEngineNote : mode === 'aggrid' ? text.perfAgNote : text.perfRowsNote }}</p>
 
   @if (tooBigForPlain) {
     <p class="callout" role="status">{{ text.perfPlainCap }}</p>
@@ -60,7 +61,7 @@
           @for (r of results; track $index) {
             <tr>
               <td>{{ format(r.rows) }}</td>
-              <td>{{ r.mode === 'engine' ? text.perfModeEngine : text.perfModeRows + (r.virtual ? ' · virtual' : '') }}</td>
+              <td>{{ r.mode === 'engine' ? text.perfModeEngine : r.mode === 'aggrid' ? 'AG Grid Community' : text.perfModeRows + (r.virtual ? ' · virtual' : '') }}</td>
               <td>{{ format(r.generateMs) }} ms</td>
               <td>{{ format(r.renderMs) }} ms</td>
               <td>{{ format(r.domRows) }}</td>
@@ -77,7 +78,12 @@
     </div>
   }
 
-  <div #gridHost>
+  <div #agHost class="perf-ag" [hidden]="mode !== 'aggrid'"></div>
+  @if (mode === 'aggrid' && hasData) {
+    <p class="muted">{{ format(agCount) }} {{ text.perfRows }}</p>
+  }
+
+  <div #gridHost [hidden]="mode === 'aggrid'">
     <we-grid
       gridKey="studio-perf"
       [columns]="columns"

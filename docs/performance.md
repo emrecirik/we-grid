@@ -24,13 +24,44 @@ every run on your own device.
 | First render | 58 ms | 651 ms | 44 ms | 29 ms | 1,281 ms |
 | Sort by a currency column | 338 ms | 817 ms | **21 ms** | 268 ms | 1,195 ms |
 | Filter City = Ankara | 132 ms | 291 ms | **35 ms** | 124 ms | 948 ms |
-| Search two words, every column | 12,661 ms | 29,128 ms | **95 ms** | 265 ms | 1,036 ms |
+| Search two words, every column | 242 ms | 507 ms | **95 ms** | 265 ms | 1,036 ms |
 | Scroll FPS (top to bottom in 2 s) | 68 | 62 | 57 | 61 | 64 |
 | Rows in the DOM | 21 | 21 | 21 | 21 | 21 |
 
 Both ways give the same result: on the same million rows the filter keeps 100,402 and the search
 7,240 rows in each. Rows as objects are measured with `virtualScroll` on; without it, 10,000 rows
 already took 9 s to render.
+
+## Compared with AG Grid Community
+
+The Performance tab also runs **AG Grid Community 36.3** (MIT) on the same rows, columns and display
+formats, with its own defaults otherwise — client-side row model, text column filter, quick filter
+for the search. It is loaded only when that mode is picked; we-grid doesn't depend on it. Same
+session, same machine as above; a first render counts until the rows are actually in the page,
+which AG Grid reaches a few frames after `createGrid`.
+
+| One million rows | AG Grid Community | we-grid, rows as objects | we-grid, column engine | Engine vs AG Grid |
+|---|---:|---:|---:|---:|
+| First render | 1,118 ms | 70 ms | 41 ms | 27× |
+| Sort by Total | 4,949 ms | 347 ms | 62 ms | 80× |
+| Filter City = Ankara | 1,893 ms | 154 ms | 46 ms | 41× |
+| Search "selin izmir" | 1,367 ms — finds **0** rows | 242 ms — 7,240 rows | 76 ms — 7,240 rows | 18× |
+| Memory | 358 MB JS heap (fresh page) | 151 MB JS heap (fresh page) | 14 MB of data | ≈ 25× |
+| Scroll FPS | 42 | 57 | 51 | — |
+
+At two million rows AG Grid took 2.6 s to render, 12.1 s to sort, 4.6 s to filter and 3.0 s to
+search; at five million, 32 s to sort with 1.6 GB of heap. The column engine goes on to fifty
+million (table above).
+
+Two things the numbers don't show:
+
+- **Turkish İ.** AG Grid's quick filter upper-cases text without a locale (`toUpperCase()`), so
+  "izmir" never matches "İzmir" and "istanbul" never matches "İstanbul". we-grid lowercases with the
+  grid locale's rules (`tr-TR` under `weGridLocaleTr`). Under an English locale we-grid has the same
+  blind spot.
+- **Scrolling** is bounded by the display's refresh rate; both grids stay in the same range.
+
+Numbers vary by device — run the tab on yours.
 
 ## The column engine
 
