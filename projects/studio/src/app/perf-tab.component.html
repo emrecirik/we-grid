@@ -1,0 +1,78 @@
+<section class="panel" role="tabpanel" [attr.aria-label]="text.tabPerf">
+  <div class="panel__head">
+    <div>
+      <h1>{{ text.perfTitle }}</h1>
+      <p class="muted">{{ text.perfIntro }}</p>
+    </div>
+  </div>
+
+  <div class="connect">
+    <label class="connect__field connect__field--small">
+      <span>{{ text.perfRows }}</span>
+      <select name="size" [(ngModel)]="size" [disabled]="busy">
+        @for (s of sizes; track s) {
+          <option [ngValue]="s">{{ format(s) }}</option>
+        }
+      </select>
+    </label>
+    <label class="perf-check">
+      <input type="checkbox" name="virtual" [(ngModel)]="virtual" [disabled]="busy" />
+      <span>virtualScroll</span>
+    </label>
+    <button type="button" class="primary-btn" (click)="run()" [disabled]="busy || tooBigForPlain">{{ text.perfRun }}</button>
+    <button type="button" class="link-btn" (click)="sort()" [disabled]="busy || data.length === 0">{{ text.perfSort }}</button>
+    <button type="button" class="link-btn" (click)="scrollTest()" [disabled]="busy || data.length === 0">{{ text.perfScroll }}</button>
+  </div>
+
+  @if (tooBigForPlain) {
+    <p class="callout" role="status">{{ text.perfPlainCap }}</p>
+  }
+
+  @if (results.length > 0) {
+    <div class="perf-table-wrap">
+      <table class="perf-table">
+        <thead>
+          <tr>
+            <th>{{ text.perfRows }}</th>
+            <th>virtualScroll</th>
+            <th>{{ text.perfGenerate }}</th>
+            <th>{{ text.perfRender }}</th>
+            <th>{{ text.perfDomRows }}</th>
+            <th>{{ text.perfHeap }}</th>
+            <th>{{ text.perfSortMs }}</th>
+            <th>{{ text.perfFps }}</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (r of results; track $index) {
+            <tr>
+              <td>{{ format(r.rows) }}</td>
+              <td>{{ r.virtual ? '✓' : '—' }}</td>
+              <td>{{ format(r.generateMs) }} ms</td>
+              <td>{{ format(r.renderMs) }} ms</td>
+              <td>{{ format(r.domRows) }}</td>
+              <td>{{ r.heapMb === null ? '—' : format(r.heapMb) + ' MB' }}</td>
+              <td>{{ r.sortMs === null ? '—' : format(r.sortMs) + ' ms' }}</td>
+              <td>{{ format(r.fps) }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+
+  <div #gridHost>
+    <we-grid
+      gridKey="studio-perf"
+      [columns]="columns"
+      [data]="data"
+      trackByField="id"
+      [virtualScroll]="virtual"
+      [maxHeight]="520"
+      [autoFitColumns]="false"
+      footer="count"
+    />
+  </div>
+
+  <p class="muted">{{ text.perfNote }}</p>
+</section>

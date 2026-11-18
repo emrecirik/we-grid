@@ -123,6 +123,8 @@ import {
   weGridSameEditValue
 } from './models/we-grid-edit.model';
 import { mergeGridLayout, toColumnLayout } from './services/we-grid-layout-merge';
+import { weGridCompareSortValues, weGridSortedIndices } from './services/we-grid-sort.util';
+import { WE_GRID_DEFAULT_ROW_PX, WE_GRID_MAX_SCROLL_PX, weGridPosForScrollTop, weGridVirtualWindow } from './services/we-grid-virtual.util';
 import {
   applyWeGridFilters,
   weGridFilterChipLabel,
@@ -421,6 +423,17 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Input() minHeight?: number | string;
 
   /**
+   * Renders only the rows in view (plus a few on each side), so a grid of hundreds of thousands of
+   * rows scrolls like one of fifty. Needs a bounded height — `maxHeight`, or 600px when that is
+   * left out. Rows of very different heights (wrapped text, open details) make the scrollbar
+   * approximate; the rows themselves stay correct.
+   */
+  @Input() virtualScroll = false;
+
+  /** Row height in px used by `virtualScroll`; measured from the rendered rows when left out */
+  @Input() rowHeight?: number;
+
+  /**
    * `'full'`: record count and pager (the default). `'count'`: the record count only. `'none'`: no
    * footer. Display only — on a `serverSide` grid hiding the pager leaves no way to change pages.
    */
@@ -697,6 +710,17 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** What the body renders, in order — rows and group headers; see WeGridRenderItem */
   renderItems: WeGridRenderItem<T>[] = [];
+  /** The slice of `renderItems` in the DOM — all of it unless `virtualScroll` is on */
+  visibleItems: WeGridRenderItem<T>[] = [];
+  /** Index of `visibleItems[0]` in `renderItems` */
+  virtualStart = 0;
+  /** Heights of the spacer rows standing in for the items above and below `visibleItems` */
+  virtualPadTop = 0;
+  virtualPadBottom = 0;
+  /** Measured average px per item; 0 until the first rows are in the DOM */
+  private virtualItemPx = 0;
+  /** Scroll position in unscaled px — differs from scrollTop once the list outgrows WE_GRID_MAX_SCROLL_PX */
+  private virtualPos = 0;
   /** One stable track token per group key, so a group header keeps its DOM across refreshes */
   private readonly groupTrackTokens = new Map<string, object>();
 
@@ -1182,6 +1206,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       this.clearFormulaValues();
     }
     if (changes['detailSticky'] && !changes['detailSticky'].firstChange) this.syncViewportObserver();
+    if (changes['virtualScroll'] && !changes['virtualScroll'].firstChange) {
+      this.unbindVirtualScroll();
+      this.bindVirtualScroll();
+    }
+    if ((changes['virtualScroll'] || changes['rowHeight']) && !changes['data']) {
+      this.updateVirtualWindow();
+      if (this.virtualScroll) this.scheduleVirtualMeasure();
+    }
     if (changes['groupBy'] && this.internalColumns.length > 0) this.setGrouping(this.groupBy ?? [], false);
     if ((changes['groupSummaryPosition'] && !changes['groupSummaryPosition'].firstChange) || changes['groupAutoSummary']) this.rebuildRenderItems();
     if ((changes['canExpandRow'] || changes['rowStateVersion']) && !changes['data']) this.closeDetailsThatCannotExpand();
@@ -1199,6 +1231,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   ngAfterViewInit(): void {
     this.syncViewportObserver();
+    this.bindVirtualScroll();
+    if (this.virtualScroll) this.scheduleVirtualMeasure();
   }
 
   ngAfterContentInit(): void {
@@ -1219,6 +1253,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.closeFilterPopover();
     this.hideHeaderHint();
     if (this.liveTimer) clearTimeout(this.liveTimer);
+    this.unbindVirtualScroll();
     this.viewportObserver?.disconnect();
     this.viewportObserver = null;
     this.destroy$.next();
@@ -1396,7 +1431,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   // ─── Bounded height (maxHeight / minHeight) ────────────────────────
   get scrollMaxHeight(): string | null {
-    return this.cssLength(this.maxHeight);
+    return this.cssLength(this.maxHeight) ?? (this.virtualScroll ? '600px' : null);
   }
 
   get scrollMinHeight(): string | null {
@@ -1470,10 +1505,20 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const rules = this.activeFormatRules;
     const cache = this.formatCache;
     if (!cache || cache.items !== this.renderItems || cache.rules !== rules || cache.columns !== this.renderColumns) {
-      const rows = this.renderItems.flatMap((item) => (item.kind === 'row' ? [item.row] : []));
       const styles = new Map<string, WeGridCellStyle>();
       for (const c of this.renderColumns) if (c.style) styles.set(c.field, c.style);
-      const map = weGridResolveFormats(rows, rules, this.renderColumns.map((c) => c.field), this.readCellValue, styles, this.evaluateRowFormula);
+      // Nothing to resolve — skips a pass over every row of a large grid on each change
+      const map =
+        rules.length === 0 && styles.size === 0
+          ? new Map()
+          : weGridResolveFormats(
+              this.renderItems.flatMap((item) => (item.kind === 'row' ? [item.row] : [])),
+              rules,
+              this.renderColumns.map((c) => c.field),
+              this.readCellValue,
+              styles,
+              this.evaluateRowFormula
+            );
       this.formatCache = { items: this.renderItems, rules, columns: this.renderColumns, map };
     }
     return this.formatCache!.map.get(row)?.[col.field] ?? null;
@@ -2077,14 +2122,6 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   /** Compares two values the way the client sort does: blanks first ascending, last descending */
-  private compareSortValues(va: unknown, vb: unknown, direction: WeGridSortDirection): number {
-    if (va == null && vb == null) return 0;
-    if (va == null) return direction === 'asc' ? -1 : 1;
-    if (vb == null) return direction === 'asc' ? 1 : -1;
-    if ((va as never) < (vb as never)) return direction === 'asc' ? -1 : 1;
-    if ((va as never) > (vb as never)) return direction === 'asc' ? 1 : -1;
-    return 0;
-  }
 
   ariaSort(col: WeGridInternalColumn<T>): 'ascending' | 'descending' | 'none' {
     const sort = this.currentSort;
@@ -2122,15 +2159,16 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       return;
     }
     const keys = [this.clientSort, ...this.thenBy];
-    const copy = [...source];
-    copy.sort((a, b) => {
-      for (const { field, direction } of keys) {
-        const c = this.compareSortValues(this.readCellValue(a, field), this.readCellValue(b, field), direction);
-        if (c) return c;
-      }
-      return 0;
+    // Each value is read once, not once per comparison — n log n reads made a million rows take seconds
+    const readers = keys.map(({ field }) => {
+      const col = this.internalColumns.find((c) => c.field === field);
+      return col ? (row: T) => this.cellValue(row, col) : (row: T) => getNestedValue(row, field);
     });
-    this.displayData = copy;
+    const order = weGridSortedIndices(
+      readers.map((read) => source.map((row) => read(row))),
+      keys.map((k) => k.direction)
+    );
+    this.displayData = Array.from(order, (i) => source[i]);
     this.applyGrouping();
     this.autoFitPendingColumns();
     this.closeDetailsThatCannotExpand();
@@ -2839,8 +2877,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.cdr.markForCheck();
   }
 
-  /** Lays out what the body renders — see `renderItems` */
   private rebuildRenderItems(): void {
+    this.layoutRenderItems();
+    this.updateVirtualWindow();
+    if (this.virtualScroll) this.scheduleVirtualMeasure();
+  }
+
+  /** Lays out what the body renders — see `renderItems` */
+  private layoutRenderItems(): void {
     if (this.treeActive) {
       this.renderItems = this.treeNodes.map((node, index) => ({
         kind: 'row',
@@ -2874,6 +2918,144 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     };
     walk(this.groupedSections, 0);
     this.renderItems = items;
+  }
+
+  // ─── Virtual scrolling ─────────────────────────────────────────────
+  private get virtualRowPx(): number {
+    return this.rowHeight || this.virtualItemPx || WE_GRID_DEFAULT_ROW_PX;
+  }
+
+  private get virtualViewportPx(): number {
+    return this.scrollAreaRef?.nativeElement.clientHeight || 600;
+  }
+
+  /** Picks the slice of `renderItems` for the current scroll position */
+  private updateVirtualWindow(): void {
+    if (!this.virtualScroll) {
+      this.visibleItems = this.renderItems;
+      this.virtualStart = this.virtualPadTop = this.virtualPadBottom = 0;
+      return;
+    }
+    const win = weGridVirtualWindow(this.renderItems.length, this.virtualRowPx, this.virtualPos, this.virtualViewportPx);
+    this.virtualPos = win.pos;
+    this.virtualScrollTop = win.scrollTop;
+    if (win.start !== this.virtualStart || win.end !== this.virtualStart + this.visibleItems.length || this.visibleItems[0] !== this.renderItems[win.start]) {
+      this.visibleItems = this.renderItems.slice(win.start, win.end);
+    }
+    this.virtualStart = win.start;
+    this.virtualPadTop = win.padTop;
+    this.virtualPadBottom = win.padBottom;
+  }
+
+  private virtualScrollTop = 0;
+  private virtualMeasurePending = false;
+
+  /** Measures the rows once they are in the DOM and puts the scrollbar where the window expects it */
+  private scheduleVirtualMeasure(): void {
+    if (this.virtualMeasurePending) return;
+    this.virtualMeasurePending = true;
+    afterNextRender(
+      () => {
+        this.virtualMeasurePending = false;
+        if (!this.virtualScroll) return;
+        this.measureVirtualItems();
+        this.updateVirtualWindow();
+        this.cdr.detectChanges();
+        this.syncVirtualScrollTop();
+      },
+      { injector: this.injector }
+    );
+  }
+
+  private syncVirtualScrollTop(): void {
+    const area = this.scrollAreaRef?.nativeElement;
+    if (area && Math.abs(area.scrollTop - this.virtualScrollTop) > 1) area.scrollTop = this.virtualScrollTop;
+  }
+
+  /** Average height of the rendered items — detail rows count towards their row */
+  private measureVirtualItems(): void {
+    const body = this.scrollAreaRef?.nativeElement.querySelector<HTMLElement>('.we-grid__table > tbody');
+    if (this.rowHeight || !body || this.visibleItems.length === 0) return;
+    let px = this.showDraftRow ? -((body.firstElementChild as HTMLElement | null)?.offsetHeight ?? 0) : 0;
+    body.querySelectorAll<HTMLElement>(':scope > tr:not(.we-grid__virtual-pad)').forEach((tr) => (px += tr.offsetHeight));
+    if (px > 0) this.virtualItemPx = px / this.visibleItems.length;
+  }
+
+  private readonly onVirtualScroll = (): void => {
+    const area = this.scrollAreaRef?.nativeElement;
+    if (!this.virtualScroll || !area || Math.abs(area.scrollTop - this.virtualScrollTop) < 1) return;
+    this.virtualPos = weGridPosForScrollTop(this.renderItems.length, this.virtualRowPx, area.scrollTop, this.virtualViewportPx);
+    this.renderVirtualWindow();
+  };
+
+  /**
+   * Past WE_GRID_MAX_SCROLL_PX one scrollbar pixel spans many rows, so a wheel notch would jump
+   * thousands of them. The wheel moves the unscaled position instead.
+   */
+  private readonly onVirtualWheel = (event: WheelEvent): void => {
+    const area = this.scrollAreaRef?.nativeElement;
+    const rowPx = this.virtualRowPx;
+    if (!this.virtualScroll || !area || this.renderItems.length * rowPx <= WE_GRID_MAX_SCROLL_PX) return;
+    if (event.ctrlKey || Math.abs(event.deltaX) > Math.abs(event.deltaY)) return;
+    event.preventDefault();
+    const unit = event.deltaMode === 1 ? rowPx : event.deltaMode === 2 ? this.virtualViewportPx : 1;
+    this.virtualPos += event.deltaY * unit;
+    this.renderVirtualWindow();
+    area.scrollTop = this.virtualScrollTop;
+  };
+
+  private renderVirtualWindow(): void {
+    this.updateVirtualWindow();
+    this.cdr.detectChanges();
+    const before = this.virtualItemPx;
+    this.measureVirtualItems();
+    // Rows taller or shorter than estimated: lay out again once, with the measured height
+    if (Math.abs(before - this.virtualItemPx) > 0.5) {
+      this.updateVirtualWindow();
+      this.cdr.detectChanges();
+    }
+  }
+
+  /** Scrolls a virtual grid so that the item is in the DOM, near the middle of the viewport */
+  private revealVirtualItem(key: unknown): void {
+    const index = this.renderItems.findIndex((item) => item.kind === 'row' && this.rowKey(item.row) === key);
+    if (!this.virtualScroll || index === -1) return;
+    this.virtualPos = index * this.virtualRowPx - this.virtualViewportPx / 2;
+    this.renderVirtualWindow();
+    this.syncVirtualScrollTop();
+  }
+
+  private virtualResizeObserver: ResizeObserver | null = null;
+
+  private bindVirtualScroll(): void {
+    const area = this.scrollAreaRef?.nativeElement;
+    if (!area || !this.virtualScroll) return;
+    this.ngZone.runOutsideAngular(() => {
+      area.addEventListener('scroll', this.onVirtualScroll, { passive: true });
+      area.addEventListener('wheel', this.onVirtualWheel, { passive: false });
+      if (typeof ResizeObserver !== 'undefined') {
+        let height = area.clientHeight;
+        this.virtualResizeObserver = new ResizeObserver(() => {
+          if (!this.virtualScroll || area.clientHeight === height) return;
+          height = area.clientHeight;
+          this.renderVirtualWindow();
+        });
+        this.virtualResizeObserver.observe(area);
+      }
+    });
+  }
+
+  private unbindVirtualScroll(): void {
+    const area = this.scrollAreaRef?.nativeElement;
+    area?.removeEventListener('scroll', this.onVirtualScroll);
+    area?.removeEventListener('wheel', this.onVirtualWheel);
+    this.virtualResizeObserver?.disconnect();
+    this.virtualResizeObserver = null;
+  }
+
+  /** aria-rowindex of a virtual row — header rows count, the rows scrolled out of the DOM too */
+  virtualRowIndex(i: number): number | null {
+    return this.virtualScroll ? this.virtualStart + i + (this.filterRow ? 3 : 2) : null;
   }
 
   private groupTrackToken(key: string): object {
@@ -3042,6 +3224,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const rowItems = this.renderItems.filter((item) => item.kind === 'row');
     const position = rowItems.findIndex((item) => item.kind === 'row' && this.rowKey(item.row) === key);
     if (position === -1) return false;
+    this.revealVirtualItem(key);
     this.cdr.markForCheck();
     afterNextRender(() => this.scrollRowIntoView(key, opts), { injector: this.injector });
     return true;
@@ -3049,7 +3232,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   private scrollRowIntoView(key: unknown, opts: WeGridScrollToRowOptions): void {
     const host = this.elementRef.nativeElement as HTMLElement;
-    const position = this.renderItems
+    const position = this.visibleItems
       .filter((item) => item.kind === 'row')
       .findIndex((item) => item.kind === 'row' && this.rowKey(item.row) === key);
     // The draft row of "Add row" is the first .we-grid__row while it is open
@@ -3190,7 +3373,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     });
     return (a, b) => {
       for (const { read, direction } of keys) {
-        const c = this.compareSortValues(read(a.row), read(b.row), direction);
+        const c = weGridCompareSortValues(read(a.row), read(b.row), direction);
         if (c) return c;
       }
       return 0;

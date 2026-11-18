@@ -588,6 +588,13 @@
   opacity: 0.6;
 }
 
+// ─── Virtual scrolling (opt-in, virtualScroll=true) ───────────────────
+// Spacers stand in for the rows scrolled out of the DOM; they carry height only
+.we-grid__virtual-pad td {
+  padding: 0;
+  border: 0;
+}
+
 // ─── Grouping (opt-in, grouping=true) ─────────────────────────────────
 .we-grid__group-row td {
   padding: 0.4rem 0.6rem;

@@ -279,3 +279,35 @@ a {
   display: grid;
   gap: 0.35rem;
 }
+
+.perf-check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: center;
+  font-size: 0.9rem;
+}
+
+.perf-table-wrap {
+  overflow-x: auto;
+}
+
+.perf-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+
+  th,
+  td {
+    padding: 0.4rem 0.75rem;
+    border-bottom: 1px solid var(--studio-separator);
+    text-align: end;
+    white-space: nowrap;
+  }
+
+  th {
+    color: var(--studio-muted);
+    font-weight: 600;
+  }
+}

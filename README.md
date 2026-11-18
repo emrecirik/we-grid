@@ -57,6 +57,9 @@ Material, no icon font. Standalone components and directives on top of Angular C
   **`<we-workbook>`** with coloured tabs — opened from and saved to real `.xlsx` workbooks that keep
   all of it: formulas, names, formats, notes, filters, conditional formatting and charts
   ([docs](docs/sheet.md))
+- **Virtual scrolling** (`virtualScroll`): a million rows render in ~60 ms with about twenty in the
+  DOM, and sort by any column in ~0.6 s with a radix sort — [measured](docs/performance.md), and
+  [repeatable in your browser](https://emrecirik.github.io/we-grid/studio/#perf)
 - **Multi-level grouping** with record counts and group summaries — automatic sums for numeric
   columns, per-column functions, in the group header or in a footer row under the columns
 - **Tree rows**: children in the same columns as their parent, indented and collapsible, with
@@ -260,6 +263,7 @@ npm run start:ecommerce           # then any sample app
 - [Coming from Excel](docs/excel.md) — every Excel habit and where it is here
 - [Column types and formatters](docs/column-types.md) — `integer`, `percent`, kuruş/cents `currency`, `time`, links, `formatter`
 - [API reference](docs/api.md)
+- [Performance](docs/performance.md) — virtual scrolling, measured numbers, limits
 - [Server-side pagination/sorting/filtering](docs/server-side.md) — **filtering the whole table, not just the loaded page**
 - [Export and import (CSV / Excel / PDF)](docs/export-import.md)
 - [Inline row editing](docs/row-editing.md) — also the record form and spreadsheet paste

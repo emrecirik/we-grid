@@ -673,7 +673,10 @@
           <!-- One flattened list drives every mode — plain rows, group headers while grouping, and
                the open rows of a tree. Each row entry renders its row, then its detail row, so a
                tree reads parent → detail → children. -->
-          @for (item of renderItems; track item.trackKey) {
+          @if (virtualPadTop > 0) {
+            <tr class="we-grid__virtual-pad" aria-hidden="true"><td [attr.colspan]="totalColSpan" [style.height.px]="virtualPadTop"></td></tr>
+          }
+          @for (item of visibleItems; track item.trackKey; let i = $index) {
             @if (item.kind === 'group') {
               <tr class="we-grid__group-row" [class.we-grid__group-row--nested]="item.level > 0">
                 <td [attr.colspan]="totalColSpan" [style.padding-inline-start]="groupIndent(item.level)">
@@ -744,6 +747,7 @@
                 [attr.aria-posinset]="item.tree ? item.tree.index + 1 : null"
                 [attr.aria-setsize]="item.tree ? item.tree.siblingCount : null"
                 [attr.aria-expanded]="item.tree?.hasChildren ? item.tree?.expanded : null"
+                [attr.aria-rowindex]="virtualRowIndex(i)"
                 (click)="onRowClick(item.row, item.index, $event)"
                 [attr.tabindex]="rowContextMenu ? -1 : null"
                 (dblclick)="onRowDblClick(item.row, item.index, $event)"
@@ -910,6 +914,9 @@
                 }
               }
             }
+          }
+          @if (virtualPadBottom > 0) {
+            <tr class="we-grid__virtual-pad" aria-hidden="true"><td [attr.colspan]="totalColSpan" [style.height.px]="virtualPadBottom"></td></tr>
           }
         }
       </tbody>

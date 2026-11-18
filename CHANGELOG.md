@@ -2,6 +2,28 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.56.0 — unreleased
+
+### Added
+
+- `virtualScroll` and `rowHeight` inputs: only the rows in view (plus a few on each side) are in
+  the DOM, with spacer rows standing in for the rest — flat, grouped and tree grids alike, open
+  details included. Off by default; the markup of a grid without it is unchanged. Rows get
+  `aria-rowindex` while it is on. `scrollToRow` scrolls a row that is not in the DOM into view.
+  Past 10,000,000 px of content the scrollbar is scaled (browsers cap element height) and the
+  mouse wheel moves by pixels, not by scrollbar fractions.
+- we-grid Studio has a Performance tab that generates up to two million rows in the visitor's
+  browser and times rendering, sorting and scrolling.
+
+### Changed
+
+- Client-side sorting is an LSD radix sort over number, date and string keys (strings through a
+  sorted dictionary) instead of a comparison sort that read every cell on every comparison: one
+  million rows by a currency column went from about 5.4 s to about 0.6 s. Order and stability are
+  unchanged; NaN and invalid dates now sort with the empty values.
+- Without format rules or column styles the grid no longer walks every row on each change to
+  resolve cell formatting.
+
 ## 0.55.2 — 2026-11-13
 
 ### Added

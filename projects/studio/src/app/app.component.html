@@ -11,6 +11,7 @@
       <button type="button" role="tab" [attr.aria-selected]="tab === 'sheet'" (click)="select('sheet')">{{ text.tabSheet }}</button>
       <button type="button" role="tab" [attr.aria-selected]="tab === 'pivot'" (click)="select('pivot')">{{ text.tabPivot }}</button>
       <button type="button" role="tab" [attr.aria-selected]="tab === 'data'" (click)="select('data')">{{ text.tabData }}</button>
+      <button type="button" role="tab" [attr.aria-selected]="tab === 'perf'" (click)="select('perf')">{{ text.tabPerf }}</button>
       <button type="button" role="tab" [attr.aria-selected]="tab === 'start'" (click)="select('start')">{{ text.tabStart }}</button>
     </nav>
 
@@ -111,6 +112,10 @@
 
   @if (tab === 'data') {
     <studio-data-tab [text]="text" />
+  }
+
+  @if (tab === 'perf') {
+    <studio-perf-tab [text]="text" />
   }
 
   @if (tab === 'start') {
