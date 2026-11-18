@@ -42,9 +42,14 @@ function matchesFilter<T>(
   locale: WeGridLocale,
   valueOf: WeGridValueReader<T>
 ): boolean {
-  const type = col?.type ?? 'text';
   const raw = valueOf(row, filter.field);
+  // When displayValue is provided, a text filter searches the label the user sees, not the raw code
+  const value = col?.displayValue && filter.operator !== 'in' && weGridValueKind(col.type) === 'text' ? col.displayValue(row) : raw;
+  return weGridValueMatchesFilter(value, filter, col?.type ?? 'text', locale);
+}
 
+/** Whether one cell value passes a filter of a column of `type` — the rule `applyWeGridFilters` applies per row */
+export function weGridValueMatchesFilter(raw: unknown, filter: WeGridColumnFilterState, type: WeGridColumnType, locale: WeGridLocale = weGridLocaleEn): boolean {
   // 'in' comes from the checklist header filter and works the same way on every column type, so it
   // is answered before the per-type branches.
   if (filter.operator === 'in') return matchesIn(raw, filter);
@@ -57,8 +62,7 @@ function matchesFilter<T>(
     case 'boolean':
       return matchesBoolean(raw, filter);
     default:
-      // When displayValue is provided, search against the label the user sees, not the raw code
-      return matchesText(col?.displayValue ? col.displayValue(row) : raw, filter, locale);
+      return matchesText(raw, filter, locale);
   }
 }
 
@@ -153,7 +157,8 @@ function matchesDate(raw: unknown, filter: WeGridColumnFilterState): boolean {
 
 function toDayStart(value: unknown): Date | null {
   if (value === null || value === undefined || value === '') return null;
-  const d = value instanceof Date ? value : new Date(value as string);
+  // A copy — setHours below must not move the time of the row's own Date
+  const d = new Date(value instanceof Date ? value.getTime() : (value as string));
   if (isNaN(d.getTime())) return null;
   d.setHours(0, 0, 0, 0);
   return d;

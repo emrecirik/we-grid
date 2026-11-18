@@ -24,6 +24,12 @@ All notable changes to this project are documented in this file.
 - Without format rules or column styles the grid no longer walks every row on each change to
   resolve cell formatting.
 
+### Fixed
+
+- A date filter (filter row, popover or `eq` / `before` / `after` / `between`) moved the time of
+  every `Date` it compared to midnight — the row's own object, so the grid then showed and saved
+  the changed time. The comparison now works on a copy.
+
 ## 0.55.2 — 2026-11-13
 
 ### Added

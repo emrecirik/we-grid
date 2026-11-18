@@ -210,3 +210,14 @@ describe('we-grid-filter.util — the newer column types', () => {
     expect(weGridFilterOperatorLabel('eq', 'percent')).toBe('=');
   });
 });
+
+describe('we-grid-filter.util — date filters', () => {
+  it('leave the row dates alone', () => {
+    const at = new Date(2024, 4, 10, 15, 30);
+    const dated = [{ when: at }];
+    const result = applyWeGridFilters(dated, filters({ field: 'when', operator: 'eq', value: '2024-05-10' }), [{ field: 'when', type: 'date' as const }]);
+    expect(result.length).toBe(1);
+    expect(at.getHours()).toBe(15);
+    expect(at.getMinutes()).toBe(30);
+  });
+});
