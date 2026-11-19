@@ -1,0 +1,42 @@
+<header class="bar">
+  <h1>Sales analytics</h1>
+  <label>
+    Rows from
+    <select [(ngModel)]="where" [disabled]="busy">
+      <option value="browser">this browser</option>
+      <option value="database">a database</option>
+    </select>
+  </label>
+  @if (where === 'browser') {
+    <label>
+      Rows
+      <select [(ngModel)]="size" [disabled]="busy">
+        @for (s of sizes; track s) {
+          <option [ngValue]="s">{{ s.toLocaleString('en-US') }}</option>
+        }
+      </select>
+    </label>
+  } @else {
+    <label>Backend <input [(ngModel)]="backendUrl" spellcheck="false" /></label>
+    <label>Connection <input [(ngModel)]="connection" spellcheck="false" class="short" /></label>
+  }
+  <button type="button" (click)="load()" [disabled]="busy">Load</button>
+  <span class="status" aria-live="polite">{{ status }}</span>
+</header>
+
+@if (source) {
+  <main>
+    <we-grid
+      gridKey="big-data-sales"
+      [columns]="columns"
+      [dataSource]="source"
+      trackByField="id"
+      [maxHeight]="480"
+      [search]="true"
+      [grouping]="true"
+      footer="count"
+    />
+    <h2>Total by city and category</h2>
+    <we-pivot gridKey="big-data-pivot" [fields]="columns" [dataSource]="source" [config]="pivotConfig" [maxHeight]="360" />
+  </main>
+}

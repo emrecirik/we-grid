@@ -1,0 +1,10 @@
+/* Global styles — no CSS framework, only the we-grid default theme plus a few app-level rules. */
+@import '../../../projects/we-grid/styles/we-grid-theme.scss';
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  color: #1f2933;
+  background: #f6f7f9;
+}

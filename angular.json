@@ -436,6 +436,73 @@
           "builder": "@angular-devkit/build-angular:extract-i18n"
         }
       }
+    },
+    "big-data": {
+      "projectType": "application",
+      "schematics": {
+        "@schematics/angular:component": {
+          "style": "scss"
+        }
+      },
+      "root": "SampleUsageProjects/big-data",
+      "sourceRoot": "SampleUsageProjects/big-data/src",
+      "prefix": "app",
+      "architect": {
+        "build": {
+          "builder": "@angular-devkit/build-angular:application",
+          "options": {
+            "outputPath": "dist/samples/big-data",
+            "index": "SampleUsageProjects/big-data/src/index.html",
+            "browser": "SampleUsageProjects/big-data/src/main.ts",
+            "polyfills": [
+              "zone.js"
+            ],
+            "tsConfig": "SampleUsageProjects/big-data/tsconfig.app.json",
+            "inlineStyleLanguage": "scss",
+            "styles": [
+              "node_modules/@angular/cdk/overlay-prebuilt.css",
+              "SampleUsageProjects/big-data/src/styles.scss"
+            ],
+            "scripts": [],
+            "webWorkerTsConfig": "SampleUsageProjects/big-data/tsconfig.worker.json"
+          },
+          "configurations": {
+            "production": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "900kB",
+                  "maximumError": "1.5MB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "8kB",
+                  "maximumError": "16kB"
+                }
+              ],
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "extractLicenses": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular-devkit/build-angular:dev-server",
+          "configurations": {
+            "production": {
+              "buildTarget": "big-data:build:production"
+            },
+            "development": {
+              "buildTarget": "big-data:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        }
+      }
     }
   }
 }

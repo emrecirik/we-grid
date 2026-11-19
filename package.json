@@ -11,6 +11,7 @@
     "start:banking": "ng serve banking",
     "start:retail": "ng serve retail-market",
     "start:ecommerce": "ng serve ecommerce-dashboard",
+    "start:bigdata": "ng serve big-data",
     "start:studio": "ng serve studio"
   },
   "private": true,

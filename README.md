@@ -64,6 +64,10 @@ Material, no icon font. Standalone components and directives on top of Angular C
   same browser; in a Web Worker (`WeGridWorkerStore`) the page never freezes, even sorting, grouping
   or pivoting fifty million rows. `virtualScroll` keeps about twenty rows in the DOM whatever the count —
   [measured](docs/performance.md), and [repeatable in your browser](https://emrecirik.github.io/we-grid/studio/#perf)
+- **A billion rows from a database**: `WeGridProtocolDataSource` as a `[dataSource]` scrolls a whole
+  table window by window — a fictional billion-row DuckDB table opens in 0.3 s and jumps to row
+  750,000,000 in 0.4 s; search, grouping and the pivot run in the database
+  ([measured](docs/data-sources.md), sample app: [`big-data`](SampleUsageProjects/big-data))
 - **Multi-level grouping** with record counts and group summaries — automatic sums for numeric
   columns, per-column functions, in the group header or in a footer row under the columns
 - **Tree rows**: children in the same columns as their parent, indented and collapsible, with
@@ -246,7 +250,7 @@ comes back from a real `.xlsx` file.
 
 ## Examples
 
-Three full sample applications live in [`SampleUsageProjects/`](SampleUsageProjects/README.md), each
+Four full sample applications live in [`SampleUsageProjects/`](SampleUsageProjects/README.md), each
 registered in this workspace and runnable with the Angular CLI:
 
 | App | Shows |
@@ -254,6 +258,7 @@ registered in this workspace and runnable with the Angular CLI:
 | [`banking`](SampleUsageProjects/banking) | Currency columns with mixed per-row currencies, loan amounts stored in **kuruş** (`minorUnits`) and rates as `percent`, a pinned column, date-range filtering, backend-supplied totals, master-detail rows |
 | [`retail-market`](SampleUsageProjects/retail-market) | **Filtering the whole product table on the server**, not the 50 loaded rows, with checklist values from `checklistValuesProvider`; grouping with subtotals, `integer` columns, `rowClass` highlighting, multi-select with bulk actions, density switching |
 | [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | The server-side reference example: paging/sorting/filtering against a mock backend, checklist header filters fed from the whole dataset, KPI cards, `displayValue` status badges, a custom layout store, XML data source, a dark-theme switch |
+| [`big-data`](SampleUsageProjects/big-data) | **Up to a billion rows** through `[dataSource]`: 1–50 million sales in the column engine inside a Web Worker, or a whole database table through a we-report backend (a fictional billion-row DuckDB table) — search, grouping, checklist filters and a `<we-pivot>` over all of it |
 
 ```bash
 npm install
@@ -290,7 +295,7 @@ npm run start:ecommerce           # then any sample app
 ## Development
 
 This repo is an Angular CLI workspace with the library at `projects/we-grid`, a feature sandbox at
-`projects/playground`, and the three sample apps under `SampleUsageProjects/`.
+`projects/playground`, and the four sample apps under `SampleUsageProjects/`.
 
 ```bash
 npm install

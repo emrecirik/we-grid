@@ -6,6 +6,10 @@ All notable changes to this project are documented in this file.
 
 ### Added
 
+- New sample app `SampleUsageProjects/big-data` (`npm run start:bigdata`): one sales screen over
+  1–50 million rows in a `WeGridWorkerStore`, or a whole database table through a we-report data
+  backend (a fictional billion-row DuckDB table) — grid with search, grouping and checklist filters,
+  and a `<we-pivot>` over the same source.
 - `virtualScroll` and `rowHeight` inputs: only the rows in view (plus a few on each side) are in
   the DOM, with spacer rows standing in for the rest — flat, grouped and tree grids alike, open
   details included. Off by default; the markup of a grid without it is unchanged. Rows get

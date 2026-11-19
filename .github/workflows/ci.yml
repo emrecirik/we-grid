@@ -29,3 +29,4 @@ jobs:
           npx ng build banking
           npx ng build retail-market
           npx ng build ecommerce-dashboard
+          npx ng build big-data

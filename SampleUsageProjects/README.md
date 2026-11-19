@@ -1,6 +1,6 @@
 # we-grid sample applications
 
-Three self-contained Angular applications that use `we-grid-angular` the way a real product would.
+Four self-contained Angular applications that use `we-grid-angular` the way a real product would.
 They live in this workspace and are registered in `angular.json`, so they build and serve with the
 Angular CLI like any other project here.
 
@@ -13,6 +13,7 @@ Bootstrap, Material or any other CSS framework.
 | `banking` | Account activity + loan portfolio | Currency columns with mixed per-row currencies, loan amounts in kuruş (`minorUnits`) and rates as `percent`, negative amounts coloured through a custom cell template, a pinned account column, a date-range (`between`) filter, backend-supplied summary totals, master-detail row expansion |
 | `retail-market` | Products and stock | Filtering and checklist values over the whole product table on the server (not the loaded page), grouping with per-group subtotals, a boolean column and its boolean filter, `rowClass` row highlighting, multi-row selection with a bulk action bar, a density switch |
 | `ecommerce-dashboard` | Order operations | **The server-side reference example**: paging + sorting + filtering against a mock backend, KPI cards computed over the filtered set, a status badge column driven by `displayValue`, layout persistence through a custom `WeGridLayoutStore` |
+| `big-data` | Sales analytics | **Millions to a billion rows** through `[dataSource]`: 1–50 million generated sales in the column engine inside a Web Worker, or a whole database table through a we-report data backend — the same grid with search, grouping and checklist filters, and a `<we-pivot>` over all of it |
 
 ## Running them
 
@@ -26,6 +27,7 @@ npm run build:lib             # required before the first app build/serve
 npm run start:banking             # http://localhost:4200
 npm run start:retail
 npm run start:ecommerce
+npm run start:bigdata
 ```
 
 Production builds:
@@ -34,6 +36,7 @@ Production builds:
 npx ng build banking
 npx ng build retail-market
 npx ng build ecommerce-dashboard
+npx ng build big-data
 ```
 
 ## Feature map
@@ -64,6 +67,26 @@ npx ng build ecommerce-dashboard
 | Master-detail (`weGridRowDetail`) | ✔ | | |
 | Custom `WeGridLayoutStore` | | | ✔ |
 | XML data source (`DOMParser`) | | | ✔ |
+
+## big-data: a billion rows
+
+**In the browser** (the default) the app generates the sales as typed columns (`sales-data.ts`) and
+hands them to a `WeGridWorkerStore`; the rows live compressed in `sales.worker.ts` (a one-line
+worker), and sorting, filtering, search, grouping and the pivot run there without blocking the page.
+Ten million rows are ready in about a second.
+
+**From a database**, choose *a database* and point it at a we-report data backend
+([we-report](https://github.com/emrecirik/we-report) `samples/backends/node`) serving a `sales` table
+with the same columns. That backend builds a fictional billion-row DuckDB table on first start:
+
+```bash
+cd samples/backends/node && npm install @duckdb/node-api
+WE_REPORT_CORS_ORIGINS=http://localhost:4200 WE_REPORT_CONNECTIONS='[{"id":"big","name":"Sales","dialect":"duckdb","url":"./sales.duckdb","seed":"bigdata","seedRows":1000000000,"timeoutMs":120000}]' npm start
+```
+
+The grid asks for the rows in view only; with a protocol 1.2 backend the database also does the
+search, the groups and the pivot. Measured numbers: [`docs/data-sources.md`](../docs/data-sources.md)
+and [`docs/performance.md`](../docs/performance.md).
 
 ## Data
 
