@@ -1,11 +1,12 @@
 import { Observable, from, map } from 'rxjs';
-import { WeGridColumnDef, WeGridColumnType, WeGridSortDirection } from '../models/we-grid-column.model';
+import { WeGridColumnDef, WeGridColumnType, WeGridSortDirection, weGridValueKind } from '../models/we-grid-column.model';
 import { WeGridChecklistValuesProvider, WeGridColumnFilterState } from '../models/we-grid-filter.model';
+import { WeGridDataPage, WeGridDataRequest, WeGridDataSource, WeGridGroupNode, WeGridGroupRequest } from '../models/we-grid-data-source.model';
 import { WeGridLayout, WeGridLayoutStore } from '../models/we-grid-layout.model';
 import { WeSheetData, WeSheetStore } from '../we-sheet/we-sheet.model';
 
 /**
- * Talks to a backend that speaks the **we-report data protocol** (1.1) — the same small REST
+ * Talks to a backend that speaks the **we-report data protocol** (1.1, 1.2) — the same small REST
  * contract the we-report designer uses, with sample backends for .NET, Spring Boot, Node.js,
  * Python, Go and PHP. Nothing in the grid calls it on its own: you create a client and hand its
  * pieces (a data source, a layout store, a sheet store) to the components. See docs/data-sources.md.
@@ -22,7 +23,8 @@ export interface WeGridProtocolOptions {
 export interface WeGridProtocolInfo {
   protocol: number;
   server: string;
-  capabilities: { webServiceFetch?: boolean; demo?: boolean; grid?: boolean; layouts?: boolean };
+  /** `search` and `groups` arrived with protocol 1.2 — a 1.1 backend leaves them out */
+  capabilities: { webServiceFetch?: boolean; demo?: boolean; grid?: boolean; layouts?: boolean; search?: boolean; groups?: boolean };
 }
 
 export interface WeGridProtocolConnection {
@@ -43,10 +45,15 @@ export interface WeGridProtocolQuery {
   table: string;
   columns?: string[];
   where?: { column: string; op: WeGridProtocolOperator; value?: unknown }[];
-  orderBy?: { column: string; dir?: 'asc' | 'desc' }[];
+  orderBy?: { column: string; dir?: 'asc' | 'desc'; nulls?: 'first' | 'last' }[];
   limit?: number;
   offset?: number;
   distinct?: boolean;
+  /** 1.2 — every word of `text` in some of `columns` */
+  search?: { text: string; columns: string[] };
+  /** 1.2 — one row per combination, with `__count` and the aggregates */
+  groupBy?: string[];
+  aggregates?: { column: string; fn: 'sum' | 'avg' | 'min' | 'max' | 'count'; as: string }[];
 }
 
 export interface WeGridProtocolResult<T = Record<string, unknown>> {
@@ -153,25 +160,144 @@ export interface WeGridServerRequest {
 }
 
 /**
- * A table on a protocol backend as a server-side grid's data: `load()` returns one page and the
- * total, filtering and sorting in the database. `checklistValues` plugs into the grid's
- * `checklistValuesProvider`, so a header filter lists values from the whole table.
+ * A table on a protocol backend as a grid's data, filtering and sorting in the database:
+ *
+ * - `[dataSource]="source"` scrolls the whole table window by window — any number of rows. With a
+ *   protocol 1.2 backend (pass its `capabilities`) the search box searches the table and grouping
+ *   groups it, counts and group summaries worked out by the database.
+ * - On a `serverSide` grid, `load({ page, pageSize, sort, filters })` returns one page and the total.
+ *
+ * `checklistValues` lists a header filter's values from the whole table.
  *
  * ```ts
- * const source = new WeGridProtocolDataSource(client, 'sample', 'customers');
- * const { rows, total } = await source.load({ page, pageSize, sort, filters });
+ * const info = await client.info();
+ * const source = new WeGridProtocolDataSource(client, 'sample', 'customers', undefined, info.capabilities);
  * ```
  */
-export class WeGridProtocolDataSource<T = Record<string, unknown>> {
+export class WeGridProtocolDataSource<T = Record<string, unknown>> implements WeGridDataSource<T> {
+  /** Groups the table in the database — only when the backend speaks protocol 1.2 `groups` */
+  readonly groups?: (request: WeGridGroupRequest) => Promise<WeGridGroupNode[]>;
+
   constructor(
     private readonly client: WeGridProtocolClient,
     readonly connection: string,
     readonly table: string,
     /** Columns to fetch — all when omitted */
-    readonly columns?: string[]
-  ) {}
+    readonly columns?: string[],
+    /** The backend's `info().capabilities` — `search` and `groups` switch on what protocol 1.2 adds */
+    readonly capabilities: WeGridProtocolInfo['capabilities'] = {}
+  ) {
+    if (capabilities.groups) this.groups = (request) => this.loadGroups(request);
+  }
 
-  async load(request: WeGridServerRequest): Promise<{ rows: T[]; total: number }> {
+  /** A window of rows for `[dataSource]`, or a page for a `serverSide` grid */
+  load(request: WeGridDataRequest): Promise<WeGridDataPage<T>>;
+  load(request: WeGridServerRequest): Promise<{ rows: T[]; total: number }>;
+  async load(request: WeGridServerRequest | WeGridDataRequest): Promise<{ rows: T[]; total: number }> {
+    if ('offset' in request) return this.loadWindow(request);
+    return this.loadPage(request);
+  }
+
+  private async loadWindow(request: WeGridDataRequest): Promise<WeGridDataPage<T>> {
+    const query: WeGridProtocolQuery = {
+      ...this.where(request),
+      orderBy: [
+        // Group by group, in the order groups() lists them — so a group's rows are one run of offsets
+        ...(request.groupBy ?? []).map((column) => ({ column, nulls: 'first' as const })),
+        // The grid's own order: empty values first ascending, last descending
+        ...(request.sort ?? []).map((k) => ({ column: k.field, dir: k.direction, nulls: k.direction === 'asc' ? ('first' as const) : ('last' as const) }))
+      ],
+      limit: Math.max(1, Math.floor(request.limit)),
+      offset: Math.max(0, Math.floor(request.offset))
+    };
+    if (!query.orderBy!.length) delete query.orderBy;
+    if (this.columns?.length) query.columns = this.columns;
+    // Counting scans the whole result — on a billion rows seconds per window — so once per query,
+    // not once per window
+    const key = JSON.stringify({ ...query, offset: undefined, limit: undefined, orderBy: undefined });
+    const counted = this.lastCount?.key === key ? this.lastCount.total : undefined;
+    const result = await this.client.query<T>(this.connection, query, counted === undefined);
+    const total = counted ?? result.total ?? result.rows.length;
+    this.lastCount = { key, total };
+    return { rows: result.rows, total };
+  }
+
+  /** The total of the last query — the windows after its first don't count again */
+  private lastCount: { key: string; total: number } | null = null;
+
+  /** The table, the filters and — with protocol 1.2 — the search box as one query */
+  private where(request: Omit<WeGridDataRequest, 'offset' | 'limit'>): WeGridProtocolQuery {
+    const query: WeGridProtocolQuery = { table: this.table, where: weGridProtocolWhere(request.filters ?? []) };
+    const text = request.search?.trim();
+    if (text) {
+      if (!this.capabilities.search) throw new WeGridProtocolError(400, 'This backend cannot search a table — it needs protocol 1.2.');
+      // The text columns the grid shows: reading every number and date of a billion rows as text costs
+      // more than the search is worth — their column filters find them instead
+      const columns = (request.columns ?? [])
+        .filter((c) => weGridValueKind(c.type) === 'text' && (!this.columns?.length || this.columns.includes(c.field)))
+        .map((c) => c.field);
+      if (columns.length) query.search = { text, columns };
+    }
+    return query;
+  }
+
+  /**
+   * The groups of the filtered table: the database returns one row per combination of the group
+   * fields (protocol 1.2 `groupBy`), these become the nested groups the grid shows — counts,
+   * offsets and subtotals, outer levels added up from the inner ones.
+   */
+  private async loadGroups(request: WeGridGroupRequest): Promise<WeGridGroupNode[]> {
+    const aggregates = request.aggregates ?? [];
+    const query: WeGridProtocolQuery = {
+      ...this.where(request),
+      groupBy: [...request.groupBy],
+      aggregates: aggregates.flatMap((a, i) => [
+        { column: a.field, fn: a.fn, as: `a${i}` },
+        // How many values each figure covers — what an outer level's average is weighed by
+        ...(a.fn === 'avg' ? [{ column: a.field, fn: 'count' as const, as: `n${i}` }] : [])
+      ])
+    };
+    const result = await this.client.query<Record<string, unknown>>(this.connection, query);
+    if (result.truncated) throw new WeGridProtocolError(413, 'Too many groups for one answer — group by a coarser field.');
+    const roots: WeGridGroupNode[] = [];
+    const sums: { node: WeGridGroupNode; parts: Record<string, unknown>[] }[] = [];
+    const stack: { node: WeGridGroupNode; key: string; parts: Record<string, unknown>[] }[] = [];
+    let start = 0;
+    for (const row of result.rows) {
+      const count = Number(row['__count'] ?? 0);
+      let depth = 0;
+      while (depth < stack.length && stack[depth].key === groupKey(row[request.groupBy[depth]])) depth++;
+      stack.length = depth;
+      for (let level = depth; level < request.groupBy.length; level++) {
+        const value = row[request.groupBy[level]] ?? null;
+        const node: WeGridGroupNode = {
+          field: request.groupBy[level],
+          level,
+          value,
+          key: groupKey(value),
+          start,
+          count: 0,
+          aggregates: {},
+          ...(level < request.groupBy.length - 1 ? { children: [] } : {})
+        };
+        (level === 0 ? roots : stack[level - 1].node.children!).push(node);
+        const entry = { node, key: node.key, parts: [] as Record<string, unknown>[] };
+        stack.push(entry);
+        sums.push(entry);
+      }
+      for (const entry of stack) {
+        entry.node.count += count;
+        entry.parts.push(row);
+      }
+      start += count;
+    }
+    for (const { node, parts } of sums) {
+      aggregates.forEach((a, i) => (node.aggregates[a.key ?? a.field] = mergeAggregate(a.fn, parts, `a${i}`, `n${i}`)));
+    }
+    return roots;
+  }
+
+  private async loadPage(request: WeGridServerRequest): Promise<{ rows: T[]; total: number }> {
     const pageSize = Math.max(1, Math.floor(request.pageSize));
     const page = Math.max(1, Math.floor(request.page));
     const query: WeGridProtocolQuery = {
@@ -204,6 +330,40 @@ export class WeGridProtocolDataSource<T = Record<string, unknown>> {
         }
       )
     ).pipe(map((result) => ({ values: result.rows.map((r) => ({ value: r[request.field] ?? null })), hasMore: result.truncated })));
+}
+
+/** A group's key among its siblings: the value as text, '' for the empty group */
+function groupKey(value: unknown): string {
+  return value === null || value === undefined || value === '' ? '' : String(value);
+}
+
+/** The database's figures for the innermost groups, added up for a group that covers several */
+function mergeAggregate(fn: 'sum' | 'avg' | 'min' | 'max' | 'count', rows: Record<string, unknown>[], key: string, countKey: string): number | null {
+  const values = rows.map((r) => (r[key] === null || r[key] === undefined ? null : Number(r[key])));
+  const present = values.filter((v): v is number => v !== null && !Number.isNaN(v));
+  if (fn === 'count') return present.reduce((a, b) => a + b, 0);
+  if (!present.length) return null;
+  switch (fn) {
+    case 'sum':
+      return present.reduce((a, b) => a + b, 0);
+    case 'min':
+      return present.reduce((a, b) => (b < a ? b : a));
+    case 'max':
+      return present.reduce((a, b) => (b > a ? b : a));
+    default: {
+      // Each average weighed by the values it covers
+      let total = 0;
+      let n = 0;
+      rows.forEach((r, i) => {
+        const v = values[i];
+        const c = Number(r[countKey] ?? 0);
+        if (v === null || Number.isNaN(v) || !c) return;
+        total += v * c;
+        n += c;
+      });
+      return n ? total / n : null;
+    }
+  }
 }
 
 /** Grid filters as protocol conditions — every operator the grid's filter row and popovers produce */

@@ -3023,7 +3023,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return this.scrollAreaRef?.nativeElement.clientHeight || 600;
   }
 
-  /** `virtualScroll`, or a `dataSource` — which is only ever shown through the window */
+  /**
+   * `virtualScroll`, or a `dataSource` — which is only ever shown through the window. The scroll
+   * area then turns off the browser's scroll anchoring (template): it would answer every change of
+   * the top spacer by moving scrollTop, which the window follows, and past WE_GRID_MAX_SCROLL_PX
+   * that walks the grid to the last row on its own.
+   */
   get virtualActive(): boolean {
     return this.virtualScroll || !!this.dataSource;
   }
@@ -3078,21 +3083,43 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   private syncVirtualScrollTop(): void {
     const area = this.scrollAreaRef?.nativeElement;
-    if (area && Math.abs(area.scrollTop - this.virtualScrollTop) > 1) area.scrollTop = this.virtualScrollTop;
+    if (area && Math.abs(area.scrollTop - this.virtualScrollTop) > 1) this.setScrollTop(area, this.virtualScrollTop);
+  }
+
+  /** Where the grid itself last put the scrollbar — the scroll event that follows is not the user's */
+  private ownScrollTop: number | null = null;
+
+  /**
+   * Moves the scrollbar without the move counting as the user's scroll. Read back, the browser
+   * rounds or clamps the value; past WE_GRID_MAX_SCROLL_PX a pixel is thousands of rows, so taking
+   * that value as a new position would walk the window away on its own.
+   */
+  private setScrollTop(area: HTMLElement, top: number): void {
+    area.scrollTop = top;
+    this.ownScrollTop = area.scrollTop;
   }
 
   /** Average height of the rendered items — detail rows count towards their row */
   private measureVirtualItems(): void {
     const body = this.scrollAreaRef?.nativeElement.querySelector<HTMLElement>('.we-grid__table > tbody');
     if (this.rowHeight || !body || this.visibleItems.length === 0) return;
+    // Placeholders of rows still on their way are left out: their height would pull the average
+    // back and forth with every block that arrives
+    const items = this.visibleItems.filter((item) => item.kind !== 'pending').length;
+    if (items === 0) return;
     let px = this.showDraftRow ? -((body.firstElementChild as HTMLElement | null)?.offsetHeight ?? 0) : 0;
-    body.querySelectorAll<HTMLElement>(':scope > tr:not(.we-grid__virtual-pad)').forEach((tr) => (px += tr.offsetHeight));
-    if (px > 0) this.virtualItemPx = px / this.visibleItems.length;
+    body.querySelectorAll<HTMLElement>(':scope > tr:not(.we-grid__virtual-pad):not(.we-grid__skeleton-row)').forEach((tr) => (px += tr.offsetHeight));
+    if (px > 0) this.virtualItemPx = px / items;
   }
 
   private readonly onVirtualScroll = (): void => {
     const area = this.scrollAreaRef?.nativeElement;
     if (!this.virtualActive || !area || Math.abs(area.scrollTop - this.virtualScrollTop) < 1) return;
+    if (this.ownScrollTop !== null && Math.abs(area.scrollTop - this.ownScrollTop) < 2) {
+      this.ownScrollTop = null;
+      return;
+    }
+    this.ownScrollTop = null;
     this.virtualPos = weGridPosForScrollTop(this.virtualCount, this.virtualRowPx, area.scrollTop, this.virtualViewportPx);
     this.renderVirtualWindow();
   };
@@ -3110,7 +3137,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const unit = event.deltaMode === 1 ? rowPx : event.deltaMode === 2 ? this.virtualViewportPx : 1;
     this.virtualPos += event.deltaY * unit;
     this.renderVirtualWindow();
-    area.scrollTop = this.virtualScrollTop;
+    this.setScrollTop(area, this.virtualScrollTop);
   };
 
   private renderVirtualWindow(): void {
@@ -3220,7 +3247,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (!keepPosition) {
       this.virtualPos = 0;
       const area = this.scrollAreaRef?.nativeElement;
-      if (area) area.scrollTop = 0;
+      if (area) this.setScrollTop(area, 0);
     }
     if (this.dsGrouped) this.fetchGroups();
     else this.fetchBlock(Math.floor(this.virtualPos / this.virtualRowPx / WE_GRID_DATA_BLOCK));

@@ -68,6 +68,82 @@ describe('we-grid protocol client', () => {
     });
   });
 
+  it('loads a window for [dataSource]: offset, the grid order with empty values placed, search on 1.2', async () => {
+    const { fn, calls } = fakeFetch(() => ({ status: 200, body: { columns: [], rows: [{ id: 1 }], truncated: true, total: 1_000_000_000 } }));
+    const client = new WeGridProtocolClient({ baseUrl: 'http://x', fetch: fn });
+    const source = new WeGridProtocolDataSource(client, 'big', 'sales', undefined, { grid: true, search: true, groups: true });
+    const page = await source.load({
+      offset: 750_000_000,
+      limit: 256,
+      sort: [{ field: 'total', direction: 'desc' }, { field: 'id', direction: 'asc' }],
+      filters: [{ field: 'city', operator: 'in', value: ['Van'] }],
+      search: '  selin  ',
+      groupBy: ['category'],
+      columns: [{ field: 'customer', type: 'text' }, { field: 'total', type: 'currency' }]
+    });
+    expect(page).toEqual({ rows: [{ id: 1 }], total: 1_000_000_000 });
+    expect(calls[0].body).toEqual({
+      query: {
+        table: 'sales',
+        where: [{ column: 'city', op: 'in', value: ['Van'] }],
+        // Text columns only — a number column has its own filter
+        search: { text: 'selin', columns: ['customer'] },
+        orderBy: [
+          { column: 'category', nulls: 'first' },
+          { column: 'total', dir: 'desc', nulls: 'last' },
+          { column: 'id', dir: 'asc', nulls: 'first' }
+        ],
+        limit: 256,
+        offset: 750_000_000
+      },
+      count: true
+    });
+    // The next window of the same query, sorted differently or not, isn't counted again — a filter is
+    const request = { offset: 256, limit: 256, filters: [{ field: 'city', operator: 'in' as const, value: ['Van'] }], search: 'selin', columns: [{ field: 'customer', type: 'text' as const }] };
+    await source.load({ ...request, groupBy: ['category'] });
+    expect((calls[1].body as { count?: boolean }).count).toBeUndefined();
+    expect((await source.load({ ...request, sort: [{ field: 'id', direction: 'asc' }] })).total).toBe(1_000_000_000);
+    expect((calls[2].body as { count?: boolean }).count).toBeUndefined();
+    await source.load({ ...request, filters: [] });
+    expect((calls[3].body as { count?: boolean }).count).toBeTrue();
+    const old = new WeGridProtocolDataSource(client, 'big', 'sales');
+    expect(old.groups).toBeUndefined();
+    await expectAsync(old.load({ offset: 0, limit: 10, search: 'x', columns: [{ field: 'customer', type: 'text' }] })).toBeRejectedWithError(/protocol 1\.2/);
+  });
+
+  it('builds nested groups from the database rows: counts, offsets, subtotals added up', async () => {
+    const rows = [
+      { region: null, city: 'Van', __count: 2, a0: 10, a1: 3, n1: 2 },
+      { region: 'East', city: 'Kars', __count: 5, a0: 50, a1: 4, n1: 5 },
+      { region: 'East', city: 'Van', __count: 3, a0: null, a1: 8, n1: 3 }
+    ];
+    const { fn, calls } = fakeFetch(() => ({ status: 200, body: { columns: [], rows, truncated: false } }));
+    const source = new WeGridProtocolDataSource(new WeGridProtocolClient({ baseUrl: 'http://x', fetch: fn }), 'c', 'sales', undefined, { groups: true });
+    const groups = await source.groups!({
+      groupBy: ['region', 'city'],
+      aggregates: [{ field: 'total', fn: 'sum' }, { field: 'qty', fn: 'avg' }]
+    });
+    expect(calls[0].body).toEqual({
+      query: {
+        table: 'sales',
+        where: [],
+        groupBy: ['region', 'city'],
+        aggregates: [
+          { column: 'total', fn: 'sum', as: 'a0' },
+          { column: 'qty', fn: 'avg', as: 'a1' },
+          { column: 'qty', fn: 'count', as: 'n1' }
+        ]
+      }
+    });
+    expect(groups.map((g) => [g.key, g.start, g.count])).toEqual([['', 0, 2], ['East', 2, 8]]);
+    expect(groups[1].children!.map((g) => [g.key, g.start, g.count])).toEqual([['Kars', 2, 5], ['Van', 7, 3]]);
+    expect(groups[1].aggregates).toEqual({ total: 50, qty: (4 * 5 + 8 * 3) / 8 });
+    expect(groups[1].children![1].aggregates).toEqual({ total: null, qty: 8 });
+    const { fn: truncatedFetch } = fakeFetch(() => ({ status: 200, body: { columns: [], rows: [], truncated: true } }));
+    const truncated = new WeGridProtocolDataSource(new WeGridProtocolClient({ baseUrl: 'http://x', fetch: truncatedFetch }), 'c', 'sales', undefined, { groups: true });
+    await expectAsync(truncated.groups!({ groupBy: ['id'] })).toBeRejectedWithError(/Too many groups/);
+  });
+
   it('serves checklist values as a distinct query narrowed by search', async () => {
     const { fn, calls } = fakeFetch(() => ({ status: 200, body: { columns: [], rows: [{ city: 'A' }, { city: null }], truncated: false } }));
     const source = new WeGridProtocolDataSource(new WeGridProtocolClient({ baseUrl: 'http://x', fetch: fn }), 'c', 't');

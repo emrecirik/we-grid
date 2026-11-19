@@ -18,11 +18,12 @@ const CITIES = ['Ankara', 'Bursa', 'İzmir', 'Van'];
   standalone: true,
   imports: [WeGridComponent],
   template: `
-    <we-grid gridKey="ds-spec" [columns]="columns" [dataSource]="source" trackByField="id" [maxHeight]="300" [rowHeight]="30" [search]="true" />
+    <we-grid gridKey="ds-spec" [columns]="columns" [dataSource]="source" trackByField="id" [maxHeight]="300" [rowHeight]="rowHeight" [search]="true" />
   `
 })
 class DataSourceHostComponent {
   @ViewChild(WeGridComponent) grid!: WeGridComponent<Row>;
+  rowHeight: number | undefined = 30;
   columns: WeGridColumnDef<Row>[] = [
     { field: 'id', header: 'Id', type: 'integer', width: 90 },
     { field: 'city', header: 'City', width: 120, headerFilterMode: 'checklist' },
@@ -106,6 +107,25 @@ describe('WeGridComponent dataSource', () => {
     await settle();
     expect(firstCells()).toEqual(['42']);
     expect(requests[0].offset).toBe(0);
+  });
+
+  it('asks a billion-row source for the window only once while nobody scrolls', async () => {
+    // Measured row height, as in an app that doesn't set rowHeight
+    host.rowHeight = undefined;
+    const offsets: number[] = [];
+    host.source = {
+      load: (request) => {
+        offsets.push(request.offset);
+        return Promise.resolve({ rows: Array.from({ length: request.limit }, (_, i) => ({ id: request.offset + i, city: 'Van', amount: 1 })), total: 1_000_000_000 });
+      }
+    };
+    for (let i = 0; i < 10; i++) {
+      fixture.detectChanges();
+      await fixture.whenStable();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    }
+    expect(offsets.length).withContext(JSON.stringify(offsets.slice(0, 12))).toBeLessThanOrEqual(2);
+    expect(firstCells()[0]).toBe('0');
   });
 
   describe('grouped', () => {

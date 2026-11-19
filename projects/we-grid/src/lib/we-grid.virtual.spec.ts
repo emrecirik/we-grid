@@ -66,6 +66,8 @@ describe('WeGridComponent virtualScroll', () => {
     expect(area().scrollHeight).toBeGreaterThan(100_000 * 30 * 0.9);
     expect(rows()[0].textContent).toContain('Row 0');
     expect(rows()[0].getAttribute('aria-rowindex')).toBe('2');
+    // Scroll anchoring would move scrollTop with every spacer change and walk the window away
+    expect(area().style.overflowAnchor).toBe('none');
   });
 
   it('moves the window with the scroll position', async () => {

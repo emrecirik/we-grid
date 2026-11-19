@@ -339,6 +339,7 @@
     [class.we-grid__scroll--bounded]="!!scrollMaxHeight"
     [style.max-height]="scrollMaxHeight"
     [style.min-height]="scrollMinHeight"
+    [style.overflow-anchor]="virtualActive ? 'none' : null"
     [attr.tabindex]="pasteEnabled ? -1 : null"
     (paste)="onPaste($event)"
   >
