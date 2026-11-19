@@ -16,6 +16,8 @@ kurulu standalone component/direktiflerden oluşan, ücretsiz ve temalanabilir b
 
 ## Özellikler
 
+- **Tarayıcıda elli milyon satır**: `WeGridColumnStore` her kolonu değerlerinin izin verdiği en küçük tipli dizide tutar (satır başına ≈ 14 bayt) ve sıralama, filtre, aramayı bu kodlar üzerinde yapar. Bir milyon satırda aynı tarayıcıda AG Grid Community'den 12× hızlı görüntüler, 90× hızlı sıralar, 45× hızlı filtreler; Web Worker'da (`WeGridWorkerStore`) elli milyon satırı sıralarken, gruplarken ya da pivotlarken bile sayfa donmaz — [ölçümler](docs/performance.md), [kendi tarayıcınızda tekrarlayın](https://emrecirik.github.io/we-grid/studio/#perf)
+- **Veritabanından bir milyar satır**: `[dataSource]` olarak `WeGridProtocolDataSource` bütün bir tabloyu pencere pencere kaydırır — hayali, bir milyar satırlık bir DuckDB tablosu 0,3 sn'de açılır, 750.000.000. satıra 0,4 sn'de atlar; arama, gruplama ve pivot veritabanında çalışır ([ölçümler](docs/data-sources.md), örnek uygulama: [`big-data`](SampleUsageProjects/big-data))
 - Kolon gizle/göster, yeniden adlandır, sürükle-bırak ile sıralama, yeniden boyutlandırma, sabitleme (sol/sağ), içeriğe göre otomatik genişlik
 - Yoğunluk modları (rahat / normal / sıkışık)
 - Kullanıcı bazlı düzen otomatik olarak kalıcı (varsayılan localStorage, backend store eklenebilir)
@@ -145,6 +147,40 @@ bu sayfada aranıyor" uyarısının nedenleri — [server-side.md](docs/server-s
 Aşağıdaki görsellerin tamamı bu depodaki örnek uygulamalardan alınmış gerçek ekranlardır; hepsini
 tek sayfada görmek için [ekran galerisine](https://emrecirik.github.io/we-grid/) bakabilirsiniz.
 
+### Bir milyon satırda AG Grid Community ile kıyas, veritabanından bir milyar satır
+
+Aynı bir milyon hayali satır, kolon ve biçim, aynı tarayıcıda; AG Grid Community 36.3 kendi
+varsayılanlarıyla — üretim derlemesi, Windows 11 üzerinde Chrome. Her adımda iki süre:
+**sonucun ekrana gelmesi · bu arada sayfanın kare çizemediği en uzun süre**.
+
+| Bir milyon satır | AG Grid Community | we-grid sütun motoru | Hız farkı | Web Worker'da motor |
+|---|---:|---:|---:|---:|
+| İlk görüntü | 1.370 ms | 110 ms | **12×** | 140 · 24 ms |
+| Tutara göre sıralama | 5.741 ms | 63 ms | **90×** | 68 · 17 ms |
+| Şehir = Ankara filtresi | 2.079 ms | 46 ms | **45×** | 64 · 19 ms |
+| "selin izmir" araması | 1.189 ms, 0 satır bulur | 123 ms | **10×** | 98 · 18 ms |
+| Bellekteki veri | 336 MB JS heap | 14 MB | **24× az** | 14 MB, worker'da |
+| Şehre göre gruplama / pivot | Yalnız Enterprise | 73 ms / 94 ms | — | — |
+
+Süreler koşudan koşuya değişir — aşağıdaki görüntü daha sonraki bir koşudur (12× / 78× / 32× / 13×) —
+bu yüzden **kendiniz ölçün**: [we-grid Studio'nun Performans sekmesi](https://emrecirik.github.io/we-grid/studio/#perf)
+aynı adımları iki tablo için sizin cihazınızda çalıştırır. Yöntem, on ve elli milyon satır:
+[docs/performance.md](docs/performance.md). Yalnız AG Grid Community ile kıyaslıyoruz: açıkça
+çalıştırıp yayımlayabildiğimiz o; diğer tablolar ticari ve ölçülmedi.
+
+![we-grid Studio Performans sekmesi: bir milyon satır sütun motorunda, worker'da, satır nesneleri olarak ve AG Grid Community'de, her adımın süresiyle](docs/images/benchmark-vs-ag-grid.png)
+
+Web Worker'da on milyon üretilmiş satış, "kaan izmir" araması (71.905 satır) —
+[`big-data`](SampleUsageProjects/big-data) örneği:
+
+![big-data örneği: iki kelimeyle aranmış on milyon satır, altında Şehir × Kategori pivotu](docs/images/big-data-browser.png)
+
+Aynı ekran, we-report Node.js backend'i üzerinden **hayali, bir milyar satırlık bir DuckDB
+tablosunda**, 750.000.000. satıra kaydırılmış; pivotu veritabanı hesaplıyor
+([ölçümler](docs/data-sources.md)):
+
+![Bir milyar veritabanı satırında big-data örneği, 750.000.000. satıra kaydırılmış, pivot veritabanından](docs/images/big-data-billion.png)
+
 ### Kolon menüsü — son kullanıcının değiştirebildiği her şey
 
 Başlığa sağ tıklayın (veya ⚙ düğmesini kullanın): kolon gizleme, yeniden adlandırma, sabitleme,
@@ -198,7 +234,7 @@ dosyasına gider ve oradan geri gelir.
 
 ## Örnek uygulamalar
 
-Üçü de bu workspace'te kayıtlı ve Angular CLI ile çalıştırılabilir
+Dördü de bu workspace'te kayıtlı ve Angular CLI ile çalıştırılabilir
 ([`SampleUsageProjects/`](SampleUsageProjects/README.md)):
 
 | Uygulama | Gösterdiği |
@@ -206,6 +242,7 @@ dosyasına gider ve oradan geri gelir.
 | [`banking`](SampleUsageProjects/banking) | Satır bazında farklı para birimleri, **kuruş** olarak saklanan kredi tutarları (`minorUnits`) ve `percent` faiz oranları, sabitlenmiş kolon, tarih aralığı filtresi, backend'den gelen toplamlar, master-detail satırlar |
 | [`retail-market`](SampleUsageProjects/retail-market) | **Yüklü 50 satırda değil, tüm ürün tablosunda sunucu taraflı filtreleme**, checklist değerleri `checklistValuesProvider`'dan; alt toplamlı gruplama, `integer` kolonlar, `rowClass` ile satır vurgulama, çoklu seçim ve toplu aksiyonlar, yoğunluk değiştirme |
 | [`ecommerce-dashboard`](SampleUsageProjects/ecommerce-dashboard) | Sunucu taraflı referans örnek: mock backend'e karşı sayfalama/sıralama/filtreleme, tüm veri kümesinden beslenen checklist başlık filtreleri, KPI kartları, `displayValue` ile durum rozetleri, özel layout store, XML veri kaynağı, koyu tema anahtarı |
+| [`big-data`](SampleUsageProjects/big-data) | **Bir milyara kadar satır** `[dataSource]` ile: Web Worker'daki sütun motorunda 1–50 milyon satış ya da we-report backend'i üzerinden bütün bir veritabanı tablosu (hayali, bir milyar satırlık DuckDB tablosu) — arama, gruplama, checklist filtreleri ve hepsinin üzerinde bir `<we-pivot>` |
 
 ```bash
 npm install
@@ -229,7 +266,7 @@ npm run start:ecommerce           # sonra herhangi bir örnek uygulamayı
 
 ## Geliştirme
 
-Bu depo; kütüphanenin `projects/we-grid`, özellik denemelerinin `projects/playground` ve üç örnek
+Bu depo; kütüphanenin `projects/we-grid`, özellik denemelerinin `projects/playground` ve dört örnek
 uygulamanın `SampleUsageProjects/` altında olduğu bir Angular CLI workspace'idir.
 
 ```bash

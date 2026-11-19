@@ -281,8 +281,8 @@
     <p class="lede">Looking for the code rather than the pictures? <a href="./usage.html">How to use we-grid</a> walks through installation, the column definition and types, filtering the whole table on the server, export/import and inline row editing.</p>
 
     <dl class="facts">
-      <div class="fact"><dt>Sample apps</dt><dd>3</dd></div>
-      <div class="fact"><dt>Unit tests</dt><dd>693 passing</dd></div>
+      <div class="fact"><dt>Sample apps</dt><dd>4</dd></div>
+      <div class="fact"><dt>Unit tests</dt><dd>804 passing</dd></div>
       <div class="fact"><dt>CSS framework deps</dt><dd>0</dd></div>
       <div class="fact"><dt>Icon font deps</dt><dd>0 — inline SVG</dd></div>
       <div class="fact"><dt>Angular</dt><dd>18 &ndash; 22</dd></div>
@@ -291,6 +291,71 @@
   </header>
 
   <main class="log">
+    <section class="shot">
+      <div class="shot__head">
+        <span class="symbol">AG Grid Community 36.3, same rows</span>
+        <h2>A million rows, measured side by side</h2>
+        <p>
+          One million fictional rows, the same columns and formats, in the same browser. Against AG
+          Grid Community the column engine renders about 12&times;, sorts 90&times;, filters
+          45&times; and searches 10&times; faster in the documented run; this later run shows
+          12&times; / 78&times; / 32&times; / 13&times;. Each step shows two times: until the result
+          is on screen, and the longest the page went without drawing a frame. The JS heap column is
+          the whole page's, after the runs before it. Run it yourself in
+          <a href="./studio/#perf">we-grid Studio</a>; method in
+          <a href="https://github.com/emrecirik/we-grid/blob/main/docs/performance.md">performance.md</a>.
+        </p>
+      </div>
+      <figure class="frame">
+        <img src="images/benchmark-vs-ag-grid.png"
+             alt="we-grid Studio's Performance tab: a results table for one million rows in the column engine, in a Web Worker, as row objects and in AG Grid Community.">
+        <figcaption>
+          <span><b>studio</b> — Performance tab, production build</span>
+          <span>Chrome, Windows 11</span>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="shot">
+      <div class="shot__head">
+        <span class="symbol">[dataSource]="workerStore"</span>
+        <h2>Ten million rows in a Web Worker</h2>
+        <p>
+          Ten million generated sales are ready in about a second, stored as compact typed columns
+          inside a worker. The search for two words runs over all of them without freezing the page,
+          and the pivot below reads the same store.
+        </p>
+      </div>
+      <figure class="frame">
+        <img src="images/big-data-browser.png"
+             alt="Sales analytics sample: ten million rows searched for 'kaan izmir', 71,905 found, with a City by Category pivot below.">
+        <figcaption>
+          <span><b>big-data</b> — npm run start:bigdata</span>
+          <span>generated in the browser, seeded</span>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="shot">
+      <div class="shot__head">
+        <span class="symbol">WeGridProtocolDataSource</span>
+        <h2>A billion rows from a database</h2>
+        <p>
+          The same screen on a fictional billion-row DuckDB table behind the we-report Node.js
+          backend. The grid asks only for the rows in view, so it sits at row 750,000,000 as easily
+          as at row one; the pivot's groups are worked out by the database.
+        </p>
+      </div>
+      <figure class="frame">
+        <img src="images/big-data-billion.png"
+             alt="Sales analytics sample on a billion database rows, scrolled to row 750,000,000, with a pivot from the database.">
+        <figcaption>
+          <span><b>big-data</b> — through a we-report backend</span>
+          <span>DuckDB, 1,000,000,000 fictional rows</span>
+        </figcaption>
+      </figure>
+    </section>
+
     <section class="shot">
       <div class="shot__head">
         <span class="symbol">[serverSide]="true"</span>

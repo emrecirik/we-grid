@@ -193,6 +193,40 @@ The full walkthrough — component, request body, every operator, EF Core and SQ
 Every screenshot below is a real screen from one of the sample applications in this repository —
 see the [screen gallery](https://emrecirik.github.io/we-grid/) for all of them on one page.
 
+### A million rows against AG Grid Community, a billion from a database
+
+The same million fictional rows, columns and formats in the same browser, AG Grid Community 36.3
+with its defaults — production build, Chrome on Windows 11. Two times per step: **until the result
+is on screen · the longest the page went without drawing a frame**.
+
+| One million rows | AG Grid Community | we-grid column engine | Faster | engine in a Web Worker |
+|---|---:|---:|---:|---:|
+| First render | 1,370 ms | 110 ms | **12×** | 140 · 24 ms |
+| Sort by Total | 5,741 ms | 63 ms | **90×** | 68 · 17 ms |
+| Filter City = Ankara | 2,079 ms | 46 ms | **45×** | 64 · 19 ms |
+| Search "selin izmir" | 1,189 ms, finds 0 rows | 123 ms | **10×** | 98 · 18 ms |
+| Data in memory | 336 MB JS heap | 14 MB | **24× less** | 14 MB, in the worker |
+| Group by City / pivot | Enterprise only | 73 ms / 94 ms | — | — |
+
+Times vary from run to run — the screenshot below is a later run (12× / 78× / 32× / 13×) — so
+**measure it yourself**: the [Performance tab of we-grid Studio](https://emrecirik.github.io/we-grid/studio/#perf)
+runs the same steps for both grids on your device. Method, ten and fifty million rows:
+[docs/performance.md](docs/performance.md). Only AG Grid Community is compared: it is the one we
+can run and publish openly; other grids are commercial and were not measured.
+
+![we-grid Studio's Performance tab: one million rows in the column engine, in a worker, as row objects and in AG Grid Community, with the time of every step](docs/images/benchmark-vs-ag-grid.png)
+
+Ten million generated sales in a Web Worker, searched for "kaan izmir" (71,905 rows) — the
+[`big-data`](SampleUsageProjects/big-data) sample:
+
+![The big-data sample: ten million rows searched for two words, with a City × Category pivot below](docs/images/big-data-browser.png)
+
+The same screen on a **fictional billion-row DuckDB table** through the we-report Node.js backend,
+scrolled to row 750,000,000; the pivot is worked out by the database
+([measured](docs/data-sources.md)):
+
+![The big-data sample on a billion database rows, scrolled to row 750,000,000, with a pivot from the database](docs/images/big-data-billion.png)
+
 ### The column menu — everything the end user can change
 
 Right-click any header (or use the ⚙ button) to hide, rename, pin, sort, autofit, set a subtotal
