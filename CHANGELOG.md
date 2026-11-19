@@ -83,6 +83,10 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- Under an English (or any non-Turkish) locale, "izmir" didn't find "İzmir" in the search box, text
+  filters, the checklist's search, format rules, the sheet's Find or a pasted option label:
+  lowercasing "İ" leaves a combining dot. Matching
+  now drops it (`weGridFoldCase`, exported) — **behaviour change**: such grids find more rows.
 - In a pivot, the rows under a blank outer value ("(Empty)") weren't sorted by the inner fields — two
   blank keys compared as unequal.
 - A `min` or `max` summary over a few hundred thousand rows threw "Maximum call stack size

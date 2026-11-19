@@ -74,12 +74,12 @@ describe('WeGridFilterPopoverComponent — checklist search', () => {
     expect(popover.visibleOptions.map((o) => o.label)).toEqual(['Iğdır']);
   });
 
-  it('keeps the English default search as it was', async () => {
+  it('finds "İSTANBUL" for "istanbul" with the English default too', async () => {
     const popover = await createPopover();
     popover.search = 'ank';
     expect(popover.visibleOptions.map((o) => o.label)).toEqual(['Ankara']);
     popover.search = 'istanbul';
-    expect(popover.visibleOptions).toEqual([]);
+    expect(popover.visibleOptions.map((o) => o.label)).toEqual(['İSTANBUL']);
   });
 });
 

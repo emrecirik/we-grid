@@ -31,12 +31,17 @@ function matchesIn(raw: unknown, filter: WeGridColumnFilterState): boolean {
 }
 
 /**
- * Case-insensitive through the locale's own lowercasing: the locale-free `toLowerCase()` turns
- * "İSTANBUL" into "i̇stanbul" (an i plus a combining dot), which never equals "istanbul".
+ * Text as typed text matches it, ignoring case: the locale's lowercasing, then without the combining
+ * dot every locale but Turkish leaves after "İ" ("İzmir" → "i\u0307zmir"), so "izmir" finds "İzmir"
+ * whatever the grid's language. Search, text filters, checklist search and format rules all use it.
  */
+export function weGridFoldCase(text: string, locale?: string): string {
+  return text.toLocaleLowerCase(locale).replace(/\u0307/g, '');
+}
+
 function matchesText(raw: unknown, filter: WeGridColumnFilterState, locale: { intlLocale: string }): boolean {
-  const haystack = (raw === null || raw === undefined ? '' : String(raw)).toLocaleLowerCase(locale.intlLocale);
-  const needle = String(filter.value ?? '').toLocaleLowerCase(locale.intlLocale);
+  const haystack = weGridFoldCase(raw === null || raw === undefined ? '' : String(raw), locale.intlLocale);
+  const needle = weGridFoldCase(String(filter.value ?? ''), locale.intlLocale);
   if (needle === '') return true;
   switch (filter.operator) {
     case 'startsWith':

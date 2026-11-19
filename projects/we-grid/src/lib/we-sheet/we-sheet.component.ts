@@ -1,3 +1,4 @@
+import { weGridFoldCase } from 'we-grid-angular/engine';
 import { weGridSafeIcon } from '../services/we-grid-icon.util';
 import { CommonModule } from '@angular/common';
 import {
@@ -1215,8 +1216,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const f = this.find;
     this.findMatches = [];
     if (!f || !f.text) return;
-    const needle = f.matchCase ? f.text : f.text.toLocaleLowerCase(this.locale.intlLocale);
-    const norm = (t: string) => (f.matchCase ? t : t.toLocaleLowerCase(this.locale.intlLocale));
+    const needle = f.matchCase ? f.text : weGridFoldCase(f.text, this.locale.intlLocale);
+    const norm = (t: string) => (f.matchCase ? t : weGridFoldCase(t, this.locale.intlLocale));
     // Hidden rows and columns are left out, as Excel's Find does with values
     for (let r = 0; r < this.sheet.rows; r++) {
       if (this.hiddenRows.has(r)) continue;

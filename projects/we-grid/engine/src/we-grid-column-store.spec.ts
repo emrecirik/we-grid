@@ -102,6 +102,15 @@ describe('WeGridColumnStore', () => {
     expect(expected.length).toBeGreaterThan(0);
   });
 
+  it('finds "İ" from a typed "i" in every language, not only Turkish', () => {
+    const turkish = WeGridColumnStore.fromRows([{ city: 'İzmir' }, { city: 'Ankara' }, { city: 'İSTANBUL' }]);
+    const cities = (request: Parameters<typeof turkish.load>[0]): unknown[] => (turkish.load(request) as { rows: { city: unknown }[] }).rows.map((r) => r.city);
+    expect(cities({ offset: 0, limit: 10, search: 'izmir', locale: 'en-US' })).toEqual(['İzmir']);
+    expect(cities({ offset: 0, limit: 10, search: 'istanbul' })).toEqual(['İSTANBUL']);
+    expect(cities({ offset: 0, limit: 10, filters: [{ field: 'city', operator: 'contains', value: 'izm' }], locale: 'en-US' })).toEqual(['İzmir']);
+    expect(turkish.checklist({ field: 'city', search: 'iz', filters: [], limit: 10 }).values.map((v) => v.value)).toEqual(['İzmir']);
+  });
+
   it('pages through a result and keeps the last query', () => {
     const request = { sort: [{ field: 'price', direction: 'asc' as const }], filters: [{ field: 'qty', operator: 'gt' as const, value: 10 }] };
     const all = store.load({ ...request, offset: 0, limit: 1e9 });

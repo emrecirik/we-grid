@@ -1,3 +1,4 @@
+import { weGridFoldCase } from 'we-grid-angular/engine';
 import { weGridSafeIcon } from './services/we-grid-icon.util';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -899,19 +900,19 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** Rows whose shown text in any visible column contains every word of `text`, case-insensitively */
   private searchRows(rows: T[], text: string): T[] {
     const intl = this.locale.intlLocale;
-    const words = text.toLocaleLowerCase(intl).split(/\s+/).filter(Boolean);
+    const words = weGridFoldCase(text, intl).split(/\s+/).filter(Boolean);
     const columns = this.renderColumns;
     // Only a formatter reads the row, so other columns format each distinct value once — a million rows
     // formatted every cell on every keystroke
     const caches = columns.map((c) => (c.formatter ? null : new Map<unknown, string>()));
     const cellText = (row: T, i: number): string => {
       const cache = caches[i];
-      if (!cache) return this.formatCell(row, columns[i]).toLocaleLowerCase(intl);
+      if (!cache) return weGridFoldCase(this.formatCell(row, columns[i]), intl);
       const value = this.cellValue(row, columns[i]);
-      if (value !== null && typeof value === 'object') return this.formatCell(row, columns[i]).toLocaleLowerCase(intl);
+      if (value !== null && typeof value === 'object') return weGridFoldCase(this.formatCell(row, columns[i]), intl);
       let lowered = cache.get(value);
       if (lowered === undefined) {
-        lowered = this.formatCell(row, columns[i]).toLocaleLowerCase(intl);
+        lowered = weGridFoldCase(this.formatCell(row, columns[i]), intl);
         cache.set(value, lowered);
       }
       return lowered;
@@ -4870,11 +4871,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** A pasted text in the column's terms — a select column also accepts an option's label */
   private coercePastedValue(raw: string, col: WeGridInternalColumn<T>): { value: unknown; ok: boolean } {
     if (col.editorOptions && raw.trim() !== '') {
-      const text = raw.trim().toLocaleLowerCase(this.locale.intlLocale);
+      const text = weGridFoldCase(raw.trim(), this.locale.intlLocale);
       const option = col.editorOptions.find(
         (o) =>
-          o.label.toLocaleLowerCase(this.locale.intlLocale) === text ||
-          String(o.value).toLocaleLowerCase(this.locale.intlLocale) === text
+          weGridFoldCase(o.label, this.locale.intlLocale) === text ||
+          weGridFoldCase(String(o.value), this.locale.intlLocale) === text
       );
       return option ? { value: option.value, ok: true } : { value: null, ok: false };
     }

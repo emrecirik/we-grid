@@ -10,7 +10,7 @@ import {
 } from './we-grid-data-source.model';
 import { Observable, of } from 'rxjs';
 import { WeGridChecklistValuesRequest, WeGridChecklistValuesResult, isWeGridFilterActive } from './we-grid-filter.model';
-import { weGridValueMatchesFilter } from './we-grid-filter-match';
+import { weGridFoldCase, weGridValueMatchesFilter } from './we-grid-filter-match';
 import { formatWeGridColumnValue } from './we-grid-value.util';
 import { WeGridRadixWord, weGridCompareGroupValues, weGridCompareSortValues, weGridFloatSortWords, weGridRadixSort } from './we-grid-sort.util';
 
@@ -428,9 +428,9 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
 
   /** What `checklistValues` answers, synchronously — a worker store asks this across the thread */
   checklist(request: WeGridChecklistValuesRequest): WeGridChecklistValuesResult {
-    const needle = request.search?.toLocaleLowerCase() ?? '';
+    const needle = weGridFoldCase(request.search ?? '');
     const values = this.distinct(request.field, { filters: request.filters }).filter(
-      (v) => !needle || String(v ?? '').toLocaleLowerCase().includes(needle)
+      (v) => !needle || weGridFoldCase(String(v ?? '')).includes(needle)
     );
     return { values: values.slice(0, request.limit).map((value) => ({ value })), hasMore: values.length > request.limit };
   }
@@ -723,7 +723,7 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
 
   private matchRows(request: Omit<WeGridDataRequest, 'offset' | 'limit'>): Uint32Array | null {
     const filters = (request.filters ?? []).filter((f) => isWeGridFilterActive(f) && this.fields.includes(f.field));
-    const words = (request.search ?? '').toLocaleLowerCase(request.locale).split(/\s+/).filter(Boolean);
+    const words = weGridFoldCase(request.search ?? '', request.locale).split(/\s+/).filter(Boolean);
     if (filters.length === 0 && words.length === 0) return null;
     const keep = new Uint8Array(this.size).fill(1);
     const typeOf = (field: string): WeGridColumnType =>
@@ -769,7 +769,7 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
   /** Every word must appear in the cell text of some searched column */
   private search(keep: Uint8Array, words: string[], request: Omit<WeGridDataRequest, 'offset' | 'limit'>): void {
     const columns: WeGridDataColumn[] = request.columns?.length ? [...request.columns] : this.fields.map((field) => ({ field, type: 'text' as const }));
-    const lower = (s: string): string => s.toLocaleLowerCase(request.locale);
+    const lower = (s: string): string => weGridFoldCase(s, request.locale);
     for (const word of words) {
       const found = new Uint8Array(this.size);
       for (const col of columns) {

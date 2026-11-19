@@ -73,7 +73,9 @@ summaryPage: (functionLabel: string) => string;         // e.g. (fn) => `Page ${
 The locale does more than translate: `intlLocale` is the BCP 47 tag every cell **value** goes
 through. It drives `Intl.NumberFormat` / `Intl.DateTimeFormat` for number, currency, date and
 datetime cells — and so group headers, checklist labels, filter chips, summary numbers and exports —
-`toLocaleLowerCase` for the text filter and the checklist's search box, and `localeCompare` for the
+`toLocaleLowerCase` for the search box, text filters and the checklist's search box (`weGridFoldCase`:
+also without the combining dot that every locale but Turkish leaves on a lowercased "İ", so
+"izmir" finds "İzmir" under `weGridLocaleEn` too), and `localeCompare` for the
 order of text group headers and checklist values (number and date groups go by value — 2 before 10).
 Record counts are written with the locale's digit grouping (`50.000.000` under `tr-TR`).
 

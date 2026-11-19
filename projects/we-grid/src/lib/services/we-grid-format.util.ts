@@ -1,3 +1,4 @@
+import { weGridFoldCase } from 'we-grid-angular/engine';
 import { WE_GRID_FORMAT_COLORS, WeGridCellStyle, WeGridFormatColor, WeGridFormatIconSet, WeGridFormatOperator, WeGridFormatRule } from '../models/we-grid-format.model';
 
 /** Inline CSS for one cell, ready for `[ngStyle]` — only `var(--we-grid-format-*)` colours, never a literal */
@@ -339,7 +340,7 @@ function isEmpty(value: unknown): boolean {
 }
 
 function lower(value: unknown): string {
-  return isEmpty(value) ? '' : String(value).toLocaleLowerCase();
+  return isEmpty(value) ? '' : weGridFoldCase(String(value));
 }
 
 function textKey(value: unknown): string {

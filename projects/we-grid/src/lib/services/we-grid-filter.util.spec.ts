@@ -122,9 +122,10 @@ describe('we-grid-filter.util — text matching', () => {
     expect(matching('equals', 'İZMİR', weGridLocaleTr)).toEqual(['IZM']);
   });
 
-  it('should leave the English default as it was — its lowercasing keeps a combining dot on "İ"', () => {
-    expect(matching('contains', 'istanbul')).toEqual([]);
-    expect(matching('contains', 'istanbul', weGridLocaleEn)).toEqual([]);
+  it('should match "İSTANBUL" against "istanbul" with the English default too — the combining dot its lowercasing leaves on "İ" is dropped', () => {
+    expect(matching('contains', 'istanbul')).toEqual(['IST']);
+    expect(matching('contains', 'istanbul', weGridLocaleEn)).toEqual(['IST']);
+    expect(matching('equals', 'izmir', weGridLocaleEn)).toEqual(['IZM']);
   });
 });
 

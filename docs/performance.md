@@ -70,8 +70,8 @@ Two things the tables don't show:
 
 - **Turkish İ.** AG Grid's quick filter upper-cases text without a locale (`toUpperCase()`), so
   "izmir" never matches "İzmir" and "istanbul" never matches "İstanbul". we-grid lowercases with the
-  grid locale's rules (`tr-TR` under `weGridLocaleTr`). Under an English locale we-grid has the same
-  blind spot.
+  grid locale's rules (`tr-TR` under `weGridLocaleTr`) and drops the combining dot other locales
+  leave on a lowercased "İ", so "izmir" finds "İzmir" under any locale.
 - **Scrolling** is bounded by the display's refresh rate; every grid stays in the same range.
 
 Numbers vary by device — run the tab on yours.

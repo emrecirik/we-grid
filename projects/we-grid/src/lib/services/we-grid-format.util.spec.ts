@@ -70,6 +70,13 @@ describe('weGridResolveFormats', () => {
     expect(boldRows(rule('unique'))).toEqual(['Bora', 'Cem']);
   });
 
+  it('finds "İ" from a typed "i" in a text rule', () => {
+    const cities = [{ name: 'İzmir', amount: 1 }, { name: 'Ankara', amount: 2 }];
+    const rule: WeGridFormatRule = { ...cond('contains', 'izm'), field: 'name' };
+    const map = weGridResolveFormats(cities, [rule], fields, read, new Map());
+    expect(cities.filter((r) => map.get(r)?.['name']?.['font-weight'] === '600').map((r) => r.name)).toEqual(['İzmir']);
+  });
+
   it('evaluates formula rules through the supplied function', () => {
     const map = resolve([{ ...cond('formula', '=x'), field: 'name' }], (_s, r) => (r.amount ?? 0) > 40);
     expect(map.has(rows[0])).toBeFalse();

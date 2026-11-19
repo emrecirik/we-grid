@@ -1,3 +1,4 @@
+import { weGridFoldCase } from 'we-grid-angular/engine';
 import { weGridSafeIcon } from '../services/we-grid-icon.util';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -158,9 +159,9 @@ export class WeGridFilterPopoverComponent implements OnInit {
   get visibleOptions(): WeGridChecklistOption[] {
     if (this.remoteSearch) return this.options;
     const locale = this.locale.intlLocale;
-    const needle = this.search.trim().toLocaleLowerCase(locale);
+    const needle = weGridFoldCase(this.search.trim(), locale);
     if (!needle) return this.options;
-    return this.options.filter((option) => option.label.toLocaleLowerCase(locale).includes(needle));
+    return this.options.filter((option) => weGridFoldCase(option.label, locale).includes(needle));
   }
 
   isOptionSelected(option: WeGridChecklistOption): boolean {
