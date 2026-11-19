@@ -1,7 +1,8 @@
 import { ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, ViewChild } from '@angular/core';
 import type { GridApi } from 'ag-grid-community';
 import { FormsModule } from '@angular/forms';
-import { WeGridColumnDef, WeGridColumnStore, WeGridComponent } from 'we-grid-angular';
+import { of } from 'rxjs';
+import { WE_GRID_LAYOUT_STORE, WeGridColumnDef, WeGridColumnStore, WeGridComponent, WeGridDataSource, WeGridLayoutStore, WeGridWorkerStore } from 'we-grid-angular';
 import { StudioText } from './studio-text';
 
 interface PerfRow {
@@ -25,6 +26,12 @@ interface PerfResult {
   renderMs: number;
   domRows: number;
   dataMb: number | null;
+  /** The longest the page went without painting a frame, per step — what the user feels as a freeze */
+  renderFreezeMs: number;
+  sortFreezeMs: number | null;
+  filterFreezeMs: number | null;
+  searchFreezeMs: number | null;
+  worker: boolean;
   heapMb: number | null;
   sortMs: number | null;
   filterMs: number | null;
@@ -68,7 +75,7 @@ function generateRows(count: number): PerfRow[] {
 }
 
 /** The same data straight into columns — never a row object, so tens of millions fit */
-function generateStore(count: number): WeGridColumnStore<PerfRow> {
+function generateColumns(count: number): Parameters<typeof WeGridColumnStore.fromColumns>[0] {
   const next = prng();
   const id = new Int32Array(count);
   const customer = new Uint16Array(count);
@@ -90,7 +97,7 @@ function generateStore(count: number): WeGridColumnStore<PerfRow> {
     total[i] = q * cents;
     date[i] = Math.floor(next() * DAYS.length);
   }
-  return WeGridColumnStore.fromColumns<PerfRow>({
+  return {
     id,
     customer: { dictionary: CUSTOMERS, codes: customer },
     city: { dictionary: CITIES, codes: city },
@@ -99,7 +106,27 @@ function generateStore(count: number): WeGridColumnStore<PerfRow> {
     price: { fixed: price, scale: 100 },
     total: { fixed: total, scale: 100 },
     date: { dictionary: DAYS, codes: date }
-  });
+  };
+}
+
+/** Times an async step and the longest gap between painted frames while it ran */
+function frameWatch(): () => { ms: number; freezeMs: number } {
+  const start = performance.now();
+  let last = start;
+  let freeze = 0;
+  let on = true;
+  const tick = (): void => {
+    const now = performance.now();
+    freeze = Math.max(freeze, now - last);
+    last = now;
+    if (on) requestAnimationFrame(tick);
+  };
+  requestAnimationFrame(tick);
+  return () => {
+    on = false;
+    const now = performance.now();
+    return { ms: now - start, freezeMs: Math.max(freeze, now - last) };
+  };
 }
 
 const nextFrame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(() => setTimeout(() => resolve(performance.now()))));
@@ -113,7 +140,9 @@ const nextFrame = (): Promise<number> => new Promise((resolve) => requestAnimati
   standalone: true,
   imports: [FormsModule, WeGridComponent],
   templateUrl: './perf-tab.component.html',
-  styleUrl: './app.component.scss'
+  styleUrl: './app.component.scss',
+  // Every run starts from the same grid: no sort or width carried over from the run before
+  providers: [{ provide: WE_GRID_LAYOUT_STORE, useValue: { load: () => of(null), save: () => of(undefined), reset: () => of(undefined) } satisfies WeGridLayoutStore }]
 })
 export class PerfTabComponent implements OnDestroy {
   @Input({ required: true }) text!: StudioText;
@@ -133,9 +162,14 @@ export class PerfTabComponent implements OnDestroy {
   size = 10_000_000;
   virtual = true;
   data: PerfRow[] = [];
-  store: WeGridColumnStore<PerfRow> | null = null;
+  store: WeGridDataSource<PerfRow> | null = null;
+  /** Engine mode: run the store in a Web Worker */
+  useWorker = true;
+  private worker: Worker | null = null;
   busy = false;
   results: PerfResult[] = [];
+  /** A new number per run re-creates the grid, so no sort, filter or search survives into the next */
+  runId = 0;
   readonly columns: WeGridColumnDef<PerfRow>[] = [
     { field: 'id', header: '#', type: 'integer', width: 120 },
     { field: 'customer', header: 'Customer', width: 150 },
@@ -160,6 +194,7 @@ export class PerfTabComponent implements OnDestroy {
 
   ngOnDestroy(): void {
     this.agApi?.destroy();
+    this.worker?.terminate();
   }
 
   private async ensureAgGrid(): Promise<typeof import('ag-grid-community')> {
@@ -198,28 +233,44 @@ export class PerfTabComponent implements OnDestroy {
     this.busy = true;
     this.data = [];
     this.store = null;
+    this.runId++;
+    this.worker?.terminate();
+    this.worker = null;
     this.cdr.detectChanges();
     await nextFrame();
 
     this.agApi?.destroy();
     this.agApi = null;
     const ag = this.mode === 'aggrid' ? await this.ensureAgGrid() : null;
+    const worker = this.mode === 'engine' && this.useWorker;
 
     const t0 = performance.now();
     const rows = this.mode !== 'engine' ? generateRows(this.size) : null;
-    const store = this.mode === 'engine' ? generateStore(this.size) : null;
+    const columns = this.mode === 'engine' ? generateColumns(this.size) : null;
     const generateMs = performance.now() - t0;
 
     const t1 = performance.now();
+    const done = frameWatch();
+    let store: WeGridDataSource<PerfRow> | null = null;
+    let dataBytes: number | null = null;
+    if (columns && worker) {
+      this.worker = new Worker(new URL('./perf.worker', import.meta.url), { type: 'module' });
+      const remote = await WeGridWorkerStore.fromColumns<PerfRow>(this.worker, columns);
+      dataBytes = (await remote.describe()).reduce((sum, c) => sum + c.bytes, 0);
+      store = remote;
+    } else if (columns) {
+      const local = WeGridColumnStore.fromColumns<PerfRow>(columns);
+      dataBytes = local.describe().reduce((sum, c) => sum + c.bytes, 0);
+      store = local;
+    }
     if (ag && rows) this.createAgGrid(ag, rows);
     else if (rows) this.data = rows;
     this.store = store;
     this.cdr.detectChanges();
-    let renderMs = (await nextFrame()) - t1;
-    // AG Grid draws its rows a few frames later — the clock runs until they are in the page
-    for (let frame = 0; ag && frame < 600 && !this.agHost?.nativeElement.querySelector('.ag-row'); frame++) {
-      renderMs = (await nextFrame()) - t1;
-    }
+    await nextFrame();
+    // The rows are on screen once AG Grid has drawn them, or the grid's placeholders are gone
+    for (let frame = 0; frame < 3600 && !this.rowsShown(); frame++) await nextFrame();
+    const { ms: renderMs, freezeMs } = done();
 
     const result: PerfResult = {
       rows: this.size,
@@ -230,7 +281,12 @@ export class PerfTabComponent implements OnDestroy {
       domRows: ag
         ? (this.agHost?.nativeElement.querySelectorAll('.ag-row').length ?? 0)
         : (this.gridHost?.nativeElement.querySelectorAll('tbody > tr').length ?? 0),
-      dataMb: store ? store.describe().reduce((sum, c) => sum + c.bytes, 0) / 1_048_576 : null,
+      dataMb: dataBytes === null ? null : dataBytes / 1_048_576,
+      renderFreezeMs: freezeMs,
+      sortFreezeMs: null,
+      filterFreezeMs: null,
+      searchFreezeMs: null,
+      worker,
       heapMb: this.heapMb(),
       sortMs: null,
       filterMs: null,
@@ -244,7 +300,7 @@ export class PerfTabComponent implements OnDestroy {
 
   /** Clicks the Total header like a user would, and times until the sorted rows are painted */
   sort(): Promise<void> {
-    return this.measure('sortMs', () => {
+    return this.measure('sortMs', true, () => {
       if (this.agApi) {
         const sort = this.agApi.getColumnState().find((c) => c.colId === 'total')?.sort;
         this.agApi.applyColumnState({ state: [{ colId: 'total', sort: sort === 'asc' ? 'desc' : 'asc' }], defaultState: { sort: null } });
@@ -255,9 +311,9 @@ export class PerfTabComponent implements OnDestroy {
     });
   }
 
-  /** City = Ankara through the checklist filter, or back to all cities */
+  /** City = Ankara through the checklist filter, or back to all cities — only switching it on is timed */
   filter(): Promise<void> {
-    return this.measure('filterMs', () => {
+    return this.measure('filterMs', !this.filterActive, () => {
       if (this.agApi) {
         const on = !!this.agApi.getFilterModel()['city'];
         this.agApi.setFilterModel(on ? null : { city: { filterType: 'text', type: 'equals', filter: 'Ankara' } });
@@ -271,9 +327,9 @@ export class PerfTabComponent implements OnDestroy {
     });
   }
 
-  /** Two words that must both appear — a customer name and a city */
+  /** Two words that must both appear — a customer name and a city; only starting the search is timed */
   search(): Promise<void> {
-    return this.measure('searchMs', () => {
+    return this.measure('searchMs', !this.searchActive, () => {
       if (this.agApi) {
         // AG Grid's quick filter: every word must match some column, like the grid's search box
         this.agSearch = this.agSearch ? '' : 'selin izmir';
@@ -325,16 +381,37 @@ export class PerfTabComponent implements OnDestroy {
     return value === null ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: digits });
   }
 
-  private async measure(key: 'sortMs' | 'filterMs' | 'searchMs', action: () => void): Promise<void> {
+  get filterActive(): boolean {
+    return this.agApi ? !!this.agApi.getFilterModel()['city'] : !!this.grid?.hasActiveFilters;
+  }
+
+  get searchActive(): boolean {
+    return this.agApi ? !!this.agSearch : !!this.grid?.searchText;
+  }
+
+  /** "532 ms · 26 ms": how long the step took, and the longest the page froze meanwhile */
+  timing(ms: number | null, freezeMs: number | null): string {
+    return ms === null ? '—' : `${this.format(ms)} ms · ${this.format(freezeMs)} ms`;
+  }
+
+  private async measure(key: 'sortMs' | 'filterMs' | 'searchMs', record: boolean, action: () => void): Promise<void> {
     if (this.busy || !this.hasData) return;
     this.busy = true;
-    const t0 = performance.now();
+    const done = frameWatch();
     action();
     this.cdr.detectChanges();
-    const ms = (await nextFrame()) - t0;
-    this.patchResult({ [key]: ms });
+    await nextFrame();
+    for (let frame = 0; frame < 3600 && !this.rowsShown(); frame++) await nextFrame();
+    const { ms, freezeMs } = done();
+    if (record) this.patchResult({ [key]: ms, [key.replace('Ms', 'FreezeMs')]: freezeMs });
     this.busy = false;
     this.cdr.detectChanges();
+  }
+
+  /** Whether the result is on screen — no placeholder rows waiting for the worker, AG Grid's rows drawn */
+  private rowsShown(): boolean {
+    if (this.agApi) return !!this.agHost?.nativeElement.querySelector('.ag-row') || this.agApi.getDisplayedRowCount() === 0;
+    return !this.gridHost?.nativeElement.querySelector('tbody > tr.we-grid__skeleton-row');
   }
 
   private patchResult(patch: Partial<PerfResult>): void {

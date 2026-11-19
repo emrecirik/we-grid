@@ -4,62 +4,70 @@ title: Performance
 
 # Performance
 
-we-grid holds rows in one of two ways, and how far it goes depends on which:
+we-grid holds rows in one of three ways, and how far it goes depends on which:
 
 - **`[data]="rows"`** — an array of objects, as most grids take it. Add `[virtualScroll]="true"`
   and it scrolls a few million rows smoothly; memory is what stops it.
 - **`[dataSource]="store"`** with `WeGridColumnStore` — the column engine. Rows are never held as
   objects, so tens of millions fit, and sorting, filtering and search run on compact codes.
+- **`[dataSource]="store"`** with `WeGridWorkerStore` — the same engine in a Web Worker: the page
+  never freezes, however long a sort of fifty million rows takes.
 
 ## Measured
 
 Production build, Chrome 157 (Playwright) on the development machine, Windows 11, eight columns
-(id, customer, city, category, quantity, price, total, date), fictional rows from a fixed seed. The
-**Performance** tab of [we-grid Studio](https://emrecirik.github.io/we-grid/studio/#perf) repeats
-every run on your own device.
+(id, customer, city, category, quantity, price, total, date), fictional rows from a fixed seed, a
+fresh grid for every run. The **Performance** tab of
+[we-grid Studio](https://emrecirik.github.io/we-grid/studio/#perf) repeats every run on your own
+device.
 
-| | Rows as objects, 1M | Rows as objects, 2M | Column engine, 1M | Column engine, 10M | Column engine, 50M |
-|---|---:|---:|---:|---:|---:|
-| Data in memory | ≈ 150 MB | ≈ 300 MB | **14 MB** | **143 MB** | **715 MB** |
-| First render | 58 ms | 651 ms | 44 ms | 29 ms | 1,281 ms |
-| Sort by a currency column | 338 ms | 817 ms | **21 ms** | 268 ms | 1,195 ms |
-| Filter City = Ankara | 132 ms | 291 ms | **35 ms** | 124 ms | 948 ms |
-| Search two words, every column | 242 ms | 507 ms | **95 ms** | 265 ms | 1,036 ms |
-| Scroll FPS (top to bottom in 2 s) | 68 | 62 | 57 | 61 | 64 |
-| Rows in the DOM | 21 | 21 | 21 | 21 | 21 |
+Each step shows two times: **until the result is on screen · the longest the page went without
+drawing a frame meanwhile**. A short second number means scrolling and typing kept working.
 
-Both ways give the same result: on the same million rows the filter keeps 100,402 and the search
-7,240 rows in each. Rows as objects are measured with `virtualScroll` on; without it, 10,000 rows
-already took 9 s to render.
+### One million rows, side by side with AG Grid Community
 
-## Compared with AG Grid Community
+AG Grid Community 36.3 (MIT) runs on the same rows, columns and display formats, with its own
+defaults otherwise — client-side row model, text column filter, quick filter for the search. It is
+loaded only when that mode is picked; we-grid doesn't depend on it. A first render counts until the
+rows are actually in the page, which AG Grid reaches a few frames after `createGrid`.
 
-The Performance tab also runs **AG Grid Community 36.3** (MIT) on the same rows, columns and display
-formats, with its own defaults otherwise — client-side row model, text column filter, quick filter
-for the search. It is loaded only when that mode is picked; we-grid doesn't depend on it. Same
-session, same machine as above; a first render counts until the rows are actually in the page,
-which AG Grid reaches a few frames after `createGrid`.
-
-| One million rows | AG Grid Community | we-grid, rows as objects | we-grid, column engine | Engine vs AG Grid |
+| One million rows | AG Grid Community | we-grid, rows as objects | we-grid, column engine | we-grid, engine in a worker |
 |---|---:|---:|---:|---:|
-| First render | 1,118 ms | 70 ms | 41 ms | 27× |
-| Sort by Total | 4,949 ms | 347 ms | 62 ms | 80× |
-| Filter City = Ankara | 1,893 ms | 154 ms | 46 ms | 41× |
-| Search "selin izmir" | 1,367 ms — finds **0** rows | 242 ms — 7,240 rows | 76 ms — 7,240 rows | 18× |
-| Memory | 358 MB JS heap (fresh page) | 151 MB JS heap (fresh page) | 14 MB of data | ≈ 25× |
-| Scroll FPS | 42 | 57 | 51 | — |
+| First render | 1,370 · 1,344 ms | 96 · 90 ms | 110 · 90 ms | 140 · **24** ms |
+| Sort by Total | 5,741 · 5,724 ms | 406 · 397 ms | **63** · 55 ms | 68 · **17** ms |
+| Filter City = Ankara | 2,079 · 2,068 ms | 167 · 161 ms | **46** · 39 ms | 64 · **19** ms |
+| Search "selin izmir" | 1,189 · 1,181 ms, finds **0** rows | 414 · 409 ms | 123 · 116 ms | **98** · **18** ms |
+| Data in memory | 336 MB JS heap | ≈ 150 MB JS heap | **14 MB** | **14 MB**, in the worker |
+| Scroll FPS | 39 | 54 | 44 | 50 |
 
-At two million rows AG Grid took 2.6 s to render, 12.1 s to sort, 4.6 s to filter and 3.0 s to
-search; at five million, 32 s to sort with 1.6 GB of heap. The column engine goes on to fifty
-million (table above).
+Against AG Grid the column engine renders about 12×, sorts 90×, filters 45× and searches 10×
+faster; in a worker the page's longest freeze is 56× to 340× shorter. All three we-grid modes give
+the same result — the filter keeps 100,402 rows and the search 7,240 — and at two million rows AG
+Grid took 2.6 s to render, 12.1 s to sort, 4.6 s to filter and 3.0 s to search; at five million,
+32 s to sort with 1.6 GB of heap.
 
-Two things the numbers don't show:
+### Ten and fifty million rows: main thread or worker
+
+| | 10M, main thread | 10M, worker | 50M, main thread | 50M, worker |
+|---|---:|---:|---:|---:|
+| Build the store and show it | 828 · 822 ms | 788 · **25** ms | 2,791 · 2,780 ms | 2,323 · **25** ms |
+| Sort by Total | 542 · 534 ms | 523 · **29** ms | 2,484 · 2,473 ms | 2,365 · **18** ms |
+| Filter City = Ankara | 230 · 223 ms | 206 · **17** ms | 993 · 985 ms | 784 · **21** ms |
+| Search "selin izmir" | 447 · 441 ms | 472 · **26** ms | 1,488 · 1,483 ms | 1,601 · **20** ms |
+| Data in memory | 143 MB | 143 MB | 715 MB | 715 MB |
+| Scroll FPS | 40 | 44 | 45 | 51 |
+
+The work takes as long in a worker; the page just doesn't wait for it — the rows in view show
+placeholders until the answer arrives. Generating the test data itself (on the page) is not part of
+these numbers.
+
+Two things the tables don't show:
 
 - **Turkish İ.** AG Grid's quick filter upper-cases text without a locale (`toUpperCase()`), so
   "izmir" never matches "İzmir" and "istanbul" never matches "İstanbul". we-grid lowercases with the
   grid locale's rules (`tr-TR` under `weGridLocaleTr`). Under an English locale we-grid has the same
   blind spot.
-- **Scrolling** is bounded by the display's refresh rate; both grids stay in the same range.
+- **Scrolling** is bounded by the display's refresh rate; every grid stays in the same range.
 
 Numbers vary by device — run the tab on yours.
 
@@ -106,6 +114,35 @@ Each column is stored in the smallest form its values allow, chosen on its own:
 The engine follows the grid's own rules — the same filter operators and Turkish-aware lowercasing,
 the same sort order with empty values first — and its tests compare it with the row-object path.
 
+## In a Web Worker
+
+The engine has its own entry point, `we-grid-angular/engine`, with no Angular in it — a worker
+built from it is about 27 kB (9 kB gzipped). The whole worker file:
+
+```ts
+// grid.worker.ts
+import { weGridServeColumnStore } from 'we-grid-angular/engine';
+weGridServeColumnStore();
+```
+
+and on the page:
+
+```ts
+import { WeGridWorkerStore } from 'we-grid-angular';
+
+const worker = new Worker(new URL('./grid.worker', import.meta.url), { type: 'module' });
+store = await WeGridWorkerStore.fromColumns<Order>(worker, { id, city: { dictionary, codes }, total });
+```
+
+The Angular CLI builds the worker once `webWorkerTsConfig` is set for the app (`ng generate
+web-worker` sets it up). Typed arrays handed to `fromColumns` are transferred, not copied — they are
+empty on the page afterwards; `fromRows` copies the rows over once. `aggregate`, `distinct`, `set`
+and `describe` return promises. Search in the worker formats cells with the column's built-in
+formatting (type, `format`, `minorUnits`, the grid's locale); a column's own `formatter` function
+can't cross into the worker and isn't applied there.
+
+The engine entry point also runs in Node — the same store can answer a backend's requests.
+
 ### What a `dataSource` grid does differently
 
 - Sorting, filters (including the checklist, which lists values from the whole store) and the
@@ -126,8 +163,6 @@ rows it has.
 
 ## Limits today
 
-- The engine runs on the main thread. 50 million rows take about a second per sort, filter or
-  search, during which the page doesn't respond.
 - Rows of very different heights (wrapped text, open details) make the scrollbar approximate
   under virtual scrolling; the rows themselves are always right.
 - A search on a number column checks the characters of its first 256 cells before formatting every

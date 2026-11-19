@@ -60,8 +60,9 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - **Fifty million rows in the browser**: `WeGridColumnStore` keeps each column in the smallest
   typed array it allows (≈ 14 bytes a row) and sorts, filters and searches the encoded columns —
   a two-word search over a million rows in 95 ms, ~130× faster than over row objects.
-  On a million rows it renders 27×, sorts 80× and filters 41× faster than AG Grid Community in the
-  same browser. `virtualScroll` keeps about twenty rows in the DOM whatever the count —
+  On a million rows it renders 12×, sorts 90× and filters 45× faster than AG Grid Community in the
+  same browser; in a Web Worker (`WeGridWorkerStore`) the page never freezes, even sorting fifty
+  million rows. `virtualScroll` keeps about twenty rows in the DOM whatever the count —
   [measured](docs/performance.md), and [repeatable in your browser](https://emrecirik.github.io/we-grid/studio/#perf)
 - **Multi-level grouping** with record counts and group summaries — automatic sums for numeric
   columns, per-column functions, in the group header or in a footer row under the columns

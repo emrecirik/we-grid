@@ -23,9 +23,19 @@ All notable changes to this project are documented in this file.
   `fromRows`, `fromColumns` (plain or typed arrays, `{ dictionary, codes }`, `{ fixed, scale }`),
   `set`, `aggregate`, `distinct`, `describe`. Grid: `refreshDataSource()`, locale key `loadFailed`
   (en, tr, de, fr, es), render item kind `pending` (a row on its way, drawn as a placeholder).
+- `WeGridWorkerStore` runs the column engine in a Web Worker: sorting, filtering and searching fifty
+  million rows no longer freezes the page (longest gap between frames ≈ 20 ms instead of 2.5 s). The
+  worker file is `weGridServeColumnStore()`; typed arrays given to `fromColumns` are transferred,
+  not copied. Search there formats with the column's built-in formatting
+  (`WeGridDataColumn.formatSpec`, filled in by the grid).
+- New secondary entry point **`we-grid-angular/engine`** without Angular: the column engine, the
+  worker store, the filter matching, radix sort and value formatting. A worker built from it is
+  ≈ 27 kB instead of 1.5 MB with the whole grid, and it runs in Node too. Everything in it is still
+  exported from `we-grid-angular`; existing imports don't change.
 - we-grid Studio has a Performance tab: up to two million row objects or fifty million rows in the
   column engine, generated in the visitor's browser, with render, sort, filter, search, scroll and
-  memory timed — and AG Grid Community on the same rows for comparison, loaded only on demand.
+  memory timed, each step with the longest freeze of the page — in the column engine on the page or
+  in a Web Worker, and AG Grid Community on the same rows for comparison, loaded only on demand.
 
 ### Changed
 

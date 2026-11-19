@@ -20,6 +20,12 @@
         }
       </select>
     </label>
+    @if (mode === 'engine') {
+      <label class="perf-check">
+        <input type="checkbox" name="worker" [(ngModel)]="useWorker" [disabled]="busy" />
+        <span>Web Worker</span>
+      </label>
+    }
     @if (mode === 'rows') {
       <label class="perf-check">
         <input type="checkbox" name="virtual" [(ngModel)]="virtual" [disabled]="busy" />
@@ -61,15 +67,15 @@
           @for (r of results; track $index) {
             <tr>
               <td>{{ format(r.rows) }}</td>
-              <td>{{ r.mode === 'engine' ? text.perfModeEngine : r.mode === 'aggrid' ? 'AG Grid Community' : text.perfModeRows + (r.virtual ? ' · virtual' : '') }}</td>
+              <td>{{ r.mode === 'engine' ? text.perfModeEngine + (r.worker ? ' · Worker' : '') : r.mode === 'aggrid' ? 'AG Grid Community' : text.perfModeRows + (r.virtual ? ' · virtual' : '') }}</td>
               <td>{{ format(r.generateMs) }} ms</td>
-              <td>{{ format(r.renderMs) }} ms</td>
+              <td>{{ timing(r.renderMs, r.renderFreezeMs) }}</td>
               <td>{{ format(r.domRows) }}</td>
               <td>{{ r.dataMb === null ? '—' : format(r.dataMb) + ' MB' }}</td>
               <td>{{ r.heapMb === null ? '—' : format(r.heapMb) + ' MB' }}</td>
-              <td>{{ r.sortMs === null ? '—' : format(r.sortMs) + ' ms' }}</td>
-              <td>{{ r.filterMs === null ? '—' : format(r.filterMs) + ' ms' }}</td>
-              <td>{{ r.searchMs === null ? '—' : format(r.searchMs) + ' ms' }}</td>
+              <td>{{ timing(r.sortMs, r.sortFreezeMs) }}</td>
+              <td>{{ timing(r.filterMs, r.filterFreezeMs) }}</td>
+              <td>{{ timing(r.searchMs, r.searchFreezeMs) }}</td>
               <td>{{ format(r.fps) }}</td>
             </tr>
           }
@@ -84,6 +90,7 @@
   }
 
   <div #gridHost [hidden]="mode === 'aggrid'">
+    @for (run of [runId]; track run) {
     <we-grid
       gridKey="studio-perf"
       [columns]="columns"
@@ -96,7 +103,9 @@
       [search]="true"
       footer="count"
     />
+    }
   </div>
 
+  <p class="muted">{{ text.perfTimingNote }}</p>
   <p class="muted">{{ text.perfNote }}</p>
 </section>
