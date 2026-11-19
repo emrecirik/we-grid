@@ -71,11 +71,15 @@
   @if (result.truncated) {
     <p class="we-pivot__note" role="status">{{ locale.pivotTruncated }}</p>
   }
+  @if (error) {
+    <p class="we-pivot__note" role="alert">{{ error }}</p>
+  }
 
   <we-grid
       [gridKey]="resultKey"
       [columns]="$any(result.columns)"
       [data]="result.rows"
+      [loading]="loading"
       trackByField="pivot:id"
       [grouping]="result.groupBy.length > 0"
       [groupBy]="result.groupBy"

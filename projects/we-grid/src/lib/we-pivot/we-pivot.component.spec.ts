@@ -4,6 +4,8 @@ import { Observable, of } from 'rxjs';
 import { WeGridColumnDef } from '../models/we-grid-column.model';
 import { WE_GRID_LAYOUT_STORE, WeGridLayout, WeGridLayoutStore } from '../models/we-grid-layout.model';
 import { WeGridComponent } from '../we-grid.component';
+import { WeGridColumnStore } from 'we-grid-angular/engine';
+import { WeGridDataSource } from '../models/we-grid-data-source.model';
 import { WePivotComponent } from './we-pivot.component';
 import { WePivotCellClickEvent, WePivotConfig } from './we-pivot.util';
 
@@ -28,7 +30,7 @@ interface Sale {
 @Component({
   standalone: true,
   imports: [WePivotComponent],
-  template: `<we-pivot [data]="data" [fields]="fields" [config]="config" (configChange)="changes.push($event)" (cellClick)="clicks.push($event)" />`
+  template: `<we-pivot [data]="data" [dataSource]="source" [fields]="fields" [config]="config" (configChange)="changes.push($event)" (cellClick)="clicks.push($event)" />`
 })
 class HostComponent {
   fields: WeGridColumnDef<Sale>[] = [
@@ -44,6 +46,7 @@ class HostComponent {
   config: WePivotConfig = { rows: ['city'], columns: [], values: [{ field: 'total', aggregate: 'sum' }] };
   changes: WePivotConfig[] = [];
   clicks: WePivotCellClickEvent[] = [];
+  source: WeGridDataSource<Sale> | null = null;
   @ViewChild(WePivotComponent) pivot!: WePivotComponent<Sale>;
 }
 
@@ -64,6 +67,46 @@ describe('WePivotComponent', () => {
     expect(grid().displayData.map((r) => r['r:city'])).toEqual(['Ankara', 'Izmir']);
     const valueCol = grid().internalColumns[1];
     expect(grid().summaryCellText(valueCol)).toContain('22');
+  });
+
+  it('pivots a data source through its groups, the same table as from the rows', async () => {
+    const fromRows = grid().displayData.map((r) => ({ ...r }));
+    host.source = WeGridColumnStore.fromRows(host.data);
+    host.data = [];
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(grid().displayData.map((r) => ({ ...r }))).toEqual(fromRows);
+  });
+
+  it('refuses a formula field over a data source instead of leaving it out', async () => {
+    host.fields = [...host.fields, { field: 'double', header: 'Double', type: 'number', formula: '=[total]*2' }];
+    host.config = { rows: ['city'], columns: [], values: [{ field: 'double', aggregate: 'sum' }] };
+    host.source = WeGridColumnStore.fromRows(host.data);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el().querySelector('.we-pivot__note[role="alert"]')?.textContent).toContain('Double is a formula field');
+    expect(grid().displayData.length).toBe(0);
+  });
+
+  it('says so when the data source fails, and drops an answer to an older configuration', async () => {
+    let resolveFirst!: (v: never[]) => void;
+    let calls = 0;
+    host.source = {
+      load: () => ({ rows: [], total: 0 }),
+      groups: () => (++calls === 1 ? new Promise((resolve) => (resolveFirst = resolve as never)) : Promise.reject(new Error('offline')))
+    };
+    fixture.detectChanges();
+    host.config = { ...host.config, values: [{ field: 'total', aggregate: 'max' }] };
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el().querySelector('.we-pivot__note[role="alert"]')?.textContent).toContain('offline');
+    resolveFirst([]);
+    await fixture.whenStable();
+    fixture.detectChanges();
+    expect(el().querySelector('.we-pivot__note[role="alert"]')?.textContent).toContain('offline');
   });
 
   it('adds a column field from its picker and spreads the values', () => {

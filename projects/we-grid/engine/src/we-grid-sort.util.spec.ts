@@ -14,10 +14,14 @@ describe('weGridSortedIndices', () => {
     expect(Array.from(weGridSortedIndices([city, qty], ['asc', 'desc']))).toEqual([1, 3, 2, 0]);
   });
 
-  it('matches the generic comparison for mixed values', () => {
-    const values: unknown[] = ['b', 2, null, 'a', 10, new Date(5) as unknown];
+  // Values no typed key can hold (booleans here) take the comparison sort — mixing strings and numbers
+  // would make `<` itself inconsistent ('b' and 2 compare equal), and then no order is the right one
+  it('falls back to the generic comparison, stable, for values it cannot encode', () => {
+    const values: unknown[] = [true, null, false, true, undefined, false, true];
     const generic = values.map((_, i) => i).sort((a, b) => weGridCompareSortValues(values[a], values[b], 'asc') || a - b);
     expect(Array.from(weGridSortedIndices([values], ['asc']))).toEqual(generic);
+    expect(generic).toEqual([1, 4, 2, 5, 0, 3, 6]);
+    expect(Array.from(weGridSortedIndices([values], ['desc']))).toEqual([0, 3, 6, 2, 5, 1, 4]);
   });
 
   it('gives the comparison order for random numbers, strings and dates over several keys', () => {

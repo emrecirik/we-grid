@@ -400,6 +400,8 @@ export interface WeGridLocale {
   pivotAggregate: string;
   pivotTotal: string;
   pivotTruncated: string;
+  /** `<we-pivot [dataSource]>` with a formula field — the source can't work formulas out */
+  pivotFormulaFromSource: (field: string) => string;
   pivotSwap: string;
 
   // ─── <we-chart> ───
@@ -800,6 +802,7 @@ export const weGridLocaleEn: WeGridLocale = {
   pivotAggregate: 'Summarise by',
   pivotTotal: 'Total',
   pivotTruncated: 'Only the first columns are shown — use fewer column fields.',
+  pivotFormulaFromSource: (field) => `${field} is a formula field — a pivot over a data source can't use it.`,
   pivotSwap: 'Swap rows and columns',
   chartLabel: 'Chart',
   chartShowTable: 'Show as table',
@@ -1203,6 +1206,7 @@ export const weGridLocaleTr: WeGridLocale = {
   pivotAggregate: 'Özetleme',
   pivotTotal: 'Toplam',
   pivotTruncated: 'Yalnızca ilk kolonlar gösteriliyor — daha az kolon alanı kullanın.',
+  pivotFormulaFromSource: (field) => `${field} bir formül alanı — veri kaynağı üzerindeki pivot bunu kullanamaz.`,
   pivotSwap: 'Satırlarla kolonları değiştir',
   chartLabel: 'Grafik',
   chartShowTable: 'Tablo olarak göster',

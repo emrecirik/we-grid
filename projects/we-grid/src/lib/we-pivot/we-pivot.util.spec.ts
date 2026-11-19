@@ -1,5 +1,6 @@
 import { WeGridColumnDef } from '../models/we-grid-column.model';
-import { WePivotLabels, wePivot } from './we-pivot.util';
+import { WeGridColumnStore } from 'we-grid-angular/engine';
+import { WePivotConfig, WePivotLabels, wePivot, wePivotFromGroups, wePivotGroupRequest } from './we-pivot.util';
 
 const labels: WePivotLabels = { aggregate: { sum: 'Sum', count: 'Count', avg: 'Average', min: 'Min', max: 'Max' }, total: 'Total', empty: '(Empty)' };
 const fields: WeGridColumnDef<unknown>[] = [
@@ -79,5 +80,71 @@ describe('wePivot dates', () => {
     expect(p.rowValues).toEqual([{ city: 'Ankara' }, { city: 'Izmir' }, { city: null }]);
     expect(p.cellSources![p.columns[1].field]).toEqual({ columnValues: { year: 2025 }, valueField: 'amount' });
     expect(p.cellSources!['t:0']).toEqual({ columnValues: {}, valueField: 'amount' });
+  });
+});
+
+describe('wePivotFromGroups', () => {
+  interface Sale {
+    region: string | null;
+    city: string;
+    status: string;
+    total: number | null;
+    qty: number;
+    day: Date;
+    /** Numeric text and blanks — the pivot only adds up real numbers */
+    code: string | number | null;
+  }
+  let seed = 3;
+  const rnd = (): number => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const sales: Sale[] = Array.from({ length: 1500 }, () => ({
+    region: rnd() < 0.05 ? null : ['North', 'South', 'East'][Math.floor(rnd() * 3)],
+    city: ['Ankara', 'Bursa', 'İzmir', 'Van'][Math.floor(rnd() * 4)],
+    status: ['Open', 'Closed'][Math.floor(rnd() * 2)],
+    total: rnd() < 0.1 ? null : Math.round(rnd() * 100_000) / 100,
+    qty: 1 + Math.floor(rnd() * 9),
+    // Several times a day: the pivot keys a day, the engine groups each time, so groups merge
+    day: new Date(2025, 0, 1 + Math.floor(rnd() * 5), rnd() < 0.5 ? 0 : 9, rnd() < 0.5 ? 0 : 30),
+    code: rnd() < 0.3 ? String(Math.floor(rnd() * 50)) : rnd() < 0.5 ? null : Math.floor(rnd() * 50)
+  }));
+  const saleFields: WeGridColumnDef<unknown>[] = [
+    { field: 'region', header: 'Region' },
+    { field: 'city', header: 'City' },
+    { field: 'status', header: 'Status' },
+    { field: 'total', header: 'Total', type: 'currency' },
+    { field: 'qty', header: 'Qty', type: 'integer' },
+    { field: 'day', header: 'Day', type: 'date' },
+    { field: 'code', header: 'Code' }
+  ];
+  const store = WeGridColumnStore.fromRows(sales as unknown as Record<string, unknown>[]);
+
+  it('sorts the rows under a blank outer value by the inner fields too', () => {
+    const result = wePivot(sales as unknown as Record<string, unknown>[], { rows: ['region', 'city'], columns: [], values: [] }, saleFields, labels);
+    const blank = result.rows.filter((r) => r['r:region'] === labels.empty).map((r) => r['r:city']);
+    expect(blank).toEqual(['Ankara', 'Bursa', 'İzmir', 'Van']);
+  });
+
+  it('builds the same table from a data source as from the rows', () => {
+    const configs: WePivotConfig[] = [
+      { rows: ['region', 'city'], columns: ['status'], values: [{ field: 'total', aggregate: 'sum' }, { field: 'total', aggregate: 'avg' }, { field: 'qty', aggregate: 'max' }] },
+      { rows: ['city'], columns: [], values: [{ field: 'total', aggregate: 'count' }, { field: 'qty', aggregate: 'min' }] },
+      { rows: [], columns: ['status', 'region'], values: [{ field: 'total', aggregate: 'sum' }] },
+      { rows: ['day'], columns: ['city'], values: [{ field: 'total', aggregate: 'avg' }] },
+      // Numeric text and dates: neither adds up, both still count
+      { rows: ['day'], columns: ['status'], values: [{ field: 'code', aggregate: 'avg' }, { field: 'code', aggregate: 'sum' }, { field: 'code', aggregate: 'count' }, { field: 'day', aggregate: 'max' }] }
+    ];
+    for (const config of configs) {
+      const fromRows = wePivot(sales as unknown as Record<string, unknown>[], config, saleFields, labels);
+      const request = wePivotGroupRequest(config, saleFields);
+      const fromGroups = wePivotFromGroups(store.groups(request), config, saleFields, labels);
+      expect(fromGroups.columns.map((c) => c.field)).withContext(JSON.stringify(config)).toEqual(fromRows.columns.map((c) => c.field));
+      expect(fromGroups.rows.length).withContext(JSON.stringify(config)).toBe(fromRows.rows.length);
+      fromRows.rows.forEach((row, r) => {
+        for (const [key, value] of Object.entries(row)) {
+          const other = fromGroups.rows[r][key];
+          if (typeof value === 'number' && typeof other === 'number') expect(other).withContext(`${JSON.stringify(config)} ${r} ${key}`).toBeCloseTo(value, 6);
+          else expect(other).withContext(`${JSON.stringify(config)} ${r} ${key}`).toEqual(value);
+        }
+      });
+    }
   });
 });

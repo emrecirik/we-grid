@@ -209,6 +209,19 @@ describe('WeGridColumnStore', () => {
       expect(s.aggregate('t', 'count')).toBe(2);
     });
 
+    it('says which field it cannot group by, instead of leaving it out', () => {
+      expect(() => store.groups({ groupBy: ['city', 'nope'] })).toThrowError(/no field nope/);
+      expect(() => store.load({ offset: 0, limit: 1, groupBy: ['nope'] })).toThrowError(/no field nope/);
+    });
+
+    it('counts and adds up only real numbers when asked to — the pivot rule', () => {
+      const s = WeGridColumnStore.fromRows([{ g: 'a', v: '12' }, { g: 'a', v: 3 }, { g: 'a', v: null }, { g: 'a', v: 'x' }]);
+      const [plain] = s.groups({ groupBy: ['g'], aggregates: [{ field: 'v', fn: 'sum', key: 's' }, { field: 'v', fn: 'count', key: 'c' }] });
+      const [strict] = s.groups({ groupBy: ['g'], aggregates: [{ field: 'v', fn: 'sum', key: 's', numbersOnly: true }, { field: 'v', fn: 'count', key: 'c', numbersOnly: true }] });
+      expect(plain.aggregates).toEqual({ s: 15, c: 3 });
+      expect(strict.aggregates).toEqual({ s: 3, c: 1 });
+    });
+
     it('refuses a grouping with too many groups instead of running out of memory', () => {
       const s = WeGridColumnStore.fromColumns({ id: Float64Array.from({ length: 250_000 }, (_, i) => i + 0.5) });
       expect(() => s.groups({ groupBy: ['id'] })).toThrowError(/more than 200000 groups/);

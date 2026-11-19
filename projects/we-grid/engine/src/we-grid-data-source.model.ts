@@ -43,6 +43,13 @@ export interface WeGridGroupAggregate {
   fn: 'sum' | 'avg' | 'min' | 'max' | 'count';
   /** `avg` weighted by this field — see WeGridColumnDef.summaryWeightField */
   weightField?: string;
+  /** Where the figure lands in `WeGridGroupNode.aggregates` — the field when left out; set it to ask for one field twice */
+  key?: string;
+  /**
+   * Only cells that hold a number take part — count counts them too. A pivot's rule; without it the
+   * summary row's applies, which reads numeric text ('12') as a number and counts every non-empty cell.
+   */
+  numbersOnly?: boolean;
 }
 
 /** What `groups()` is asked for: the groups of the filtered and searched result */
@@ -63,7 +70,7 @@ export interface WeGridGroupNode {
   /** Offset of the group's first row in the grouped result `load({ groupBy })` returns */
   start: number;
   count: number;
-  /** By field, for each requested aggregate — null when no row had a number */
+  /** By `key` (the field unless given), for each requested aggregate — null when no row had a number */
   aggregates: Record<string, number | null>;
   children?: WeGridGroupNode[];
 }

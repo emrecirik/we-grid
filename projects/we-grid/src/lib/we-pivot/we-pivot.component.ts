@@ -1,6 +1,7 @@
 import { weGridSafeIcon } from '../services/we-grid-icon.util';
 import { CommonModule } from '@angular/common';
-import { ChangeDetectionStrategy, Component, EventEmitter, Inject, Input, OnChanges, OnInit, Output, ViewChild } from '@angular/core';
+import { ChangeDetectionStrategy, ChangeDetectorRef, Component, EventEmitter, Inject, Input, OnChanges, OnInit, Output, ViewChild } from '@angular/core';
+import { WeGridDataSource } from '../models/we-grid-data-source.model';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { WeGridColumnDef, weGridValueKind } from '../models/we-grid-column.model';
@@ -11,7 +12,7 @@ import { WeGridComponent } from '../we-grid.component';
 import { WeGridFormulaError, weGridTryCompileFormula } from '../services/we-grid-formula.util';
 import { getNestedValue } from '../services/we-grid-value.util';
 import { WeGridCellClickEvent } from '../models/we-grid-events.model';
-import { WePivotAggregate, WePivotCellClickEvent, WePivotConfig, WePivotResult, wePivot } from './we-pivot.util';
+import { WePivotAggregate, WePivotCellClickEvent, WePivotConfig, WePivotLabels, WePivotResult, wePivot, wePivotFromGroups, wePivotGroupRequest } from './we-pivot.util';
 import { WeChartComponent } from '../we-chart/we-chart.component';
 import { WeChartData, WeChartType } from '../we-chart/we-chart.util';
 
@@ -35,6 +36,12 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges,
   @Input() data: readonly T[] = [];
   /** The fields that can be used — headers, types and formats come from here (formula columns too) */
   @Input({ required: true }) fields: WeGridColumnDef<T>[] = [];
+  /**
+   * Rows from a data source instead of `data` — the pivot is worked out by its `groups()` in one
+   * aggregation pass, so a `WeGridColumnStore` or `WeGridWorkerStore` pivots tens of millions of
+   * rows. Formula fields can't be pivoted this way; the source needs at least one row or column field.
+   */
+  @Input() dataSource?: WeGridDataSource<T> | null;
   @Input() config: WePivotConfig = { rows: [], columns: [], values: [] };
   /** Layout key of the result grid — the configuration is part of it, so each pivot keeps its own widths */
   @Input() gridKey = 'pivot';
@@ -63,12 +70,19 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges,
   chartData: WeChartData = { categories: [], series: [] };
 
   result: WePivotResult = { columns: [], rows: [], groupBy: [], truncated: false };
+  /** Waiting for a data source's groups */
+  loading = false;
+  /** A data source failed — the message shown above the table */
+  error: string | null = null;
+  /** Bumped per rebuild, so a slow answer for an older configuration is dropped */
+  private generation = 0;
   readonly aggregates: WePivotAggregate[] = ['sum', 'count', 'avg', 'min', 'max'];
 
   constructor(
     @Inject(WE_GRID_LOCALE) readonly locale: WeGridLocale,
     @Inject(WE_GRID_ICONS) private readonly icons: WeGridIcons,
-    private readonly sanitizer: DomSanitizer
+    private readonly sanitizer: DomSanitizer,
+    private readonly cdr: ChangeDetectorRef
   ) {}
 
   ngOnChanges(): void {
@@ -185,20 +199,55 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges,
     return fmt ? fmt(row[field], row) : String(row[field] ?? '');
   }
 
+  private get labels(): WePivotLabels {
+    return {
+      aggregate: { sum: this.locale.sum, count: this.locale.count, avg: this.locale.average, min: this.locale.min, max: this.locale.max },
+      total: this.locale.pivotTotal,
+      empty: this.locale.emptyGroupValue
+    };
+  }
+
   private rebuild(): void {
-    this.result = wePivot(
-      this.data as readonly Record<string, unknown>[],
-      this.config,
-      this.fields as WeGridColumnDef<unknown>[],
-      {
-        aggregate: { sum: this.locale.sum, count: this.locale.count, avg: this.locale.average, min: this.locale.min, max: this.locale.max },
-        total: this.locale.pivotTotal,
-        empty: this.locale.emptyGroupValue
-      },
-      this.read,
-      this.locale.intlLocale,
-      this.maxColumns
-    );
+    const generation = ++this.generation;
+    const source = this.dataSource;
+    const fields = this.fields as WeGridColumnDef<unknown>[];
+    if (source?.groups) {
+      // A formula is worked out per row on the page; the source never sees one
+      const formula = [...this.config.rows, ...this.config.columns, ...this.config.values.map((v) => v.field)].find(
+        (f) => this.fields.find((d) => d.field === f)?.formula
+      );
+      if (formula) {
+        this.loading = false;
+        this.error = this.locale.pivotFormulaFromSource(this.header(formula));
+        this.apply({ columns: [], rows: [], groupBy: [], truncated: false });
+        return;
+      }
+      this.loading = true;
+      this.error = null;
+      Promise.resolve()
+        .then(() => source.groups!(wePivotGroupRequest(this.config, fields)))
+        .then(
+          (groups) => {
+            if (generation !== this.generation) return;
+            this.loading = false;
+            this.apply(wePivotFromGroups(groups, this.config, fields, this.labels, this.locale.intlLocale, this.maxColumns));
+          },
+          (error: unknown) => {
+            if (generation !== this.generation) return;
+            this.loading = false;
+            this.error = error instanceof Error && error.message ? `${this.locale.loadFailed}: ${error.message}` : this.locale.loadFailed;
+            this.cdr.markForCheck();
+          }
+        );
+      return;
+    }
+    this.loading = false;
+    this.error = null;
+    this.apply(wePivot(this.data as readonly Record<string, unknown>[], this.config, fields, this.labels, this.read, this.locale.intlLocale, this.maxColumns));
+  }
+
+  private apply(result: WePivotResult): void {
+    this.result = result;
     // The chart plots the value cells (not the row totals): one category per pivot row
     const valueColumns = this.result.columns.filter((c) => c.field.startsWith('c:'));
     const labelFields = this.result.columns.filter((c) => c.field.startsWith('r:')).map((c) => c.field);
@@ -206,5 +255,6 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges,
       categories: this.result.rows.map((r) => labelFields.map((f) => this.rowLabel(r, f)).join(' · ') || this.locale.pivotTotal),
       series: valueColumns.map((c) => ({ name: c.header, values: this.result.rows.map((r) => (typeof r[c.field] === 'number' ? (r[c.field] as number) : null)) }))
     };
+    this.cdr.markForCheck();
   }
 }

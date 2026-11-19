@@ -382,7 +382,9 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
    * query is kept, so scrolling through the same result doesn't repeat the work.
    */
   order(request: Omit<WeGridDataRequest, 'offset' | 'limit'>): Uint32Array | null {
-    const groupBy = (request.groupBy ?? []).filter((f) => this.fields.includes(f));
+    const groupBy = request.groupBy ?? [];
+    const unknown = groupBy.filter((f) => !this.fields.includes(f));
+    if (unknown.length) throw new Error(`WeGridColumnStore: no field ${unknown.join(', ')} to group by`);
     const key = JSON.stringify([request.sort ?? [], request.filters ?? [], request.search ?? '', request.locale ?? '', groupBy]);
     if (this.lastQuery?.key === key) return this.lastQuery.order;
     let order = this.match(request);
@@ -459,7 +461,9 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
    * columns' codes: fifty million rows by two dictionary columns is one pass.
    */
   groups(request: WeGridGroupRequest): WeGridGroupNode[] {
-    const levels = request.groupBy.map((f) => this.fields.indexOf(f)).filter((c) => c >= 0);
+    const unknown = request.groupBy.filter((f) => !this.fields.includes(f));
+    if (unknown.length) throw new Error(`WeGridColumnStore.groups: no field ${unknown.join(', ')} to group by`);
+    const levels = request.groupBy.map((f) => this.fields.indexOf(f));
     if (levels.length === 0) return [];
     const rows = this.match(request);
     const count = rows ? rows.length : this.size;
@@ -532,7 +536,7 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
       start += counts[id];
     }
     // Subtotals: every node merges the combinations under it
-    for (const { node, ids: under } of covered) specs.forEach((spec, k) => (node.aggregates[spec.field] = accs[k].merge(under)));
+    for (const { node, ids: under } of covered) specs.forEach((spec, k) => (node.aggregates[spec.key ?? spec.field] = accs[k].merge(under)));
     return roots;
   }
 
@@ -592,8 +596,8 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
    * group, `merge` groups into one figure
    */
   private accumulator(spec: WeGridGroupAggregate): { add(id: number, row: number): void; result(id: number): number | null; merge(ids: number[]): number | null } {
-    const read = this.numberReader(this.fields.indexOf(spec.field));
-    const present = this.presenceReader(this.fields.indexOf(spec.field));
+    const read = this.numberReader(this.fields.indexOf(spec.field), spec.numbersOnly);
+    const present = spec.numbersOnly ? (row: number) => !Number.isNaN(read(row)) : this.presenceReader(this.fields.indexOf(spec.field));
     const weight = spec.fn === 'avg' && spec.weightField && this.fields.includes(spec.weightField) ? this.numberReader(this.fields.indexOf(spec.weightField)) : null;
     const n: number[] = [];
     const sum: number[] = [];
@@ -652,11 +656,17 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
     };
   }
 
-  /** A cell as a number the way the summary row reads it — NaN for an empty or non-numeric cell */
-  private numberReader(c: number): (row: number) => number {
+  /**
+   * A cell as a number the way the summary row reads it — NaN for an empty or non-numeric cell. With
+   * `numbersOnly`, only a cell that holds a number reads as one (no numeric text, no dates).
+   */
+  private numberReader(c: number, numbersOnly = false): (row: number) => number {
     const column = this.columns[c];
     const toNumber = (v: unknown): number =>
-      v === null || v === undefined || v === '' ? NaN : v instanceof Date ? v.getTime() : Number(v);
+      numbersOnly
+        ? typeof v === 'number' ? v : NaN
+        : v === null || v === undefined || v === '' ? NaN : v instanceof Date ? v.getTime() : Number(v);
+    if (numbersOnly && column.kind === 'date') return () => NaN;
     switch (column.kind) {
       case 'int':
         return (row) => {
