@@ -2,7 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
-## 0.56.0 — unreleased
+## 0.56.0 — 2026-11-19
+
+A minor release: everything new is opt-in (`virtualScroll`, `[dataSource]`, the
+`we-grid-angular/engine` entry point). One behaviour change, under Fixed: outside the Turkish
+locale, "izmir" now finds "İzmir".
 
 ### Added
 
