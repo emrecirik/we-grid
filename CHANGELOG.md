@@ -28,6 +28,14 @@ All notable changes to this project are documented in this file.
   worker file is `weGridServeColumnStore()`; typed arrays given to `fromColumns` are transferred,
   not copied. Search there formats with the column's built-in formatting
   (`WeGridDataColumn.formatSpec`, filled in by the grid).
+- A `dataSource` grid groups: `WeGridDataSource.groups()` returns the groups of the current query
+  with counts, offsets and subtotals, and `load({ groupBy })` returns the rows group by group, so the
+  grid shows grouped results window by window — group headers, footers, group summaries and
+  collapsing (which doesn't ask the source again) as with `data`. `WeGridColumnStore.groups()` is a
+  hash aggregation over the encoded columns: fifty million rows by City with each group's Total in
+  ≈ 1.4 s, in a worker without freezing the page. `WeGridGroupSection` gained `count`, `start` and
+  `aggregates` for groups whose rows stay in the source; `weGridSummaryValueText` formats such a
+  subtotal; `weGridCompareGroupValues` is the group order.
 - New secondary entry point **`we-grid-angular/engine`** without Angular: the column engine, the
   worker store, the filter matching, radix sort and value formatting. A worker built from it is
   ≈ 27 kB instead of 1.5 MB with the whole grid, and it runs in Node too. Everything in it is still
@@ -45,6 +53,11 @@ All notable changes to this project are documented in this file.
   unchanged; NaN and invalid dates now sort with the empty values.
 - Without format rules or column styles the grid no longer walks every row on each change to
   resolve cell formatting.
+- Groups are listed in value order: numbers 1, 2, 10 (they were compared as text: 1, 10, 2) and
+  dates by date (they were ordered by the text `String(date)` gives, which starts with the weekday).
+  Text groups still follow the locale, and the empty group still comes first.
+- Record counts in the footer, group headers and the summary row use the locale's digit grouping:
+  `1,250 records` under `en-US`, `1.250 kayıt` under `tr-TR`.
 - The search box formats each distinct value of a column once instead of every cell (a column with
   a `formatter` still per row), and skips a number or date column for a word with a character its
   cells never show: a two-word search over a million rows went from 12.7 s to 0.24 s. Results are
@@ -52,6 +65,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- A `min` or `max` summary over a few hundred thousand rows threw "Maximum call stack size
+  exceeded" (the values were spread into `Math.min`); it is a loop now.
 - A date filter (filter row, popover or `eq` / `before` / `after` / `between`) moved the time of
   every `Date` it compared to midnight — the row's own object, so the grid then showed and saved
   the changed time. The comparison now works on a copy.

@@ -36,6 +36,7 @@
     <button type="button" class="link-btn" (click)="sort()" [disabled]="busy || !hasData">{{ text.perfSort }}</button>
     <button type="button" class="link-btn" (click)="filter()" [disabled]="busy || !hasData">{{ text.perfFilter }}</button>
     <button type="button" class="link-btn" (click)="search()" [disabled]="busy || !hasData">{{ text.perfSearch }}</button>
+    <button type="button" class="link-btn" (click)="group()" [disabled]="busy || !hasData || mode === 'aggrid'" [title]="mode === 'aggrid' ? text.perfAgNoGroup : ''">{{ text.perfGroup }}</button>
     <button type="button" class="link-btn" (click)="scrollTest()" [disabled]="busy || !hasData">{{ text.perfScroll }}</button>
   </div>
 
@@ -60,6 +61,7 @@
             <th>{{ text.perfSortMs }}</th>
             <th>{{ text.perfFilterMs }}</th>
             <th>{{ text.perfSearchMs }}</th>
+            <th>{{ text.perfGroupMs }}</th>
             <th>{{ text.perfFps }}</th>
           </tr>
         </thead>
@@ -76,6 +78,7 @@
               <td>{{ timing(r.sortMs, r.sortFreezeMs) }}</td>
               <td>{{ timing(r.filterMs, r.filterFreezeMs) }}</td>
               <td>{{ timing(r.searchMs, r.searchFreezeMs) }}</td>
+              <td>{{ r.mode === 'aggrid' ? text.perfAgNoGroupShort : timing(r.groupMs, r.groupFreezeMs) }}</td>
               <td>{{ format(r.fps) }}</td>
             </tr>
           }

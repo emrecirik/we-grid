@@ -31,11 +31,13 @@ interface PerfResult {
   sortFreezeMs: number | null;
   filterFreezeMs: number | null;
   searchFreezeMs: number | null;
+  groupFreezeMs: number | null;
   worker: boolean;
   heapMb: number | null;
   sortMs: number | null;
   filterMs: number | null;
   searchMs: number | null;
+  groupMs: number | null;
   fps: number | null;
 }
 
@@ -177,7 +179,7 @@ export class PerfTabComponent implements OnDestroy {
     { field: 'category', header: 'Category', width: 140, headerFilterMode: 'checklist' },
     { field: 'qty', header: 'Qty', type: 'integer', width: 90 },
     { field: 'price', header: 'Price', type: 'currency', width: 120 },
-    { field: 'total', header: 'Total', type: 'currency', width: 130 },
+    { field: 'total', header: 'Total', type: 'currency', width: 130, groupSummary: 'sum' },
     { field: 'date', header: 'Date', type: 'date', width: 120 }
   ];
 
@@ -286,6 +288,8 @@ export class PerfTabComponent implements OnDestroy {
       sortFreezeMs: null,
       filterFreezeMs: null,
       searchFreezeMs: null,
+      groupMs: null,
+      groupFreezeMs: null,
       worker,
       heapMb: this.heapMb(),
       sortMs: null,
@@ -381,6 +385,19 @@ export class PerfTabComponent implements OnDestroy {
     return value === null ? '—' : value.toLocaleString(undefined, { maximumFractionDigits: digits });
   }
 
+  /** Groups by City with each group's total, or back to a flat list; only grouping is timed. AG Grid Community can't group rows */
+  group(): Promise<void> {
+    return this.measure('groupMs', !this.groupActive, () => {
+      const grid = this.grid;
+      if (!grid || this.agApi) return;
+      grid.setGrouping(grid.groupFields.length ? [] : ['city']);
+    });
+  }
+
+  get groupActive(): boolean {
+    return !!this.grid?.groupFields.length;
+  }
+
   get filterActive(): boolean {
     return this.agApi ? !!this.agApi.getFilterModel()['city'] : !!this.grid?.hasActiveFilters;
   }
@@ -394,7 +411,7 @@ export class PerfTabComponent implements OnDestroy {
     return ms === null ? '—' : `${this.format(ms)} ms · ${this.format(freezeMs)} ms`;
   }
 
-  private async measure(key: 'sortMs' | 'filterMs' | 'searchMs', record: boolean, action: () => void): Promise<void> {
+  private async measure(key: 'sortMs' | 'filterMs' | 'searchMs' | 'groupMs', record: boolean, action: () => void): Promise<void> {
     if (this.busy || !this.hasData) return;
     this.busy = true;
     const done = frameWatch();
