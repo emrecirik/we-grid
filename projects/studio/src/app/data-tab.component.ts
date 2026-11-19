@@ -11,6 +11,7 @@ import {
   WeGridProtocolClient,
   WeGridProtocolConnection,
   WeGridProtocolDataSource,
+  WeGridProtocolInfo,
   WeGridProtocolLayoutStore,
   WeGridProtocolTable,
   WeGridSortChange,
@@ -60,6 +61,10 @@ export class DataTabComponent {
   error = '';
   server = '';
   layoutsOnServer = false;
+  /** What the backend can do — protocol 1.2 adds searching and grouping the whole table */
+  capabilities: WeGridProtocolInfo['capabilities'] = {};
+  /** Scroll through the whole table (`[dataSource]`), or page through it (`serverSide`) */
+  scroll = true;
   connections: WeGridProtocolConnection[] = [];
   tables: WeGridProtocolTable[] = [];
   connection = '';
@@ -91,6 +96,7 @@ export class DataTabComponent {
       const info = await this.client.info();
       this.server = info.server;
       this.layoutsOnServer = !!info.capabilities.layouts;
+      this.capabilities = info.capabilities;
       if (!info.capabilities.grid) throw new Error(this.text.dataNeedsGrid);
       this.connections = await this.client.connections();
       this.write(URL_KEY, this.baseUrl.trim());
@@ -114,12 +120,23 @@ export class DataTabComponent {
     DataTabComponent.layoutStore = this.layoutsOnServer ? new WeGridProtocolLayoutStore(this.client, 'studio:') : new LocalStorageGridLayoutStore();
     this.table = name;
     this.columns = weGridColumnsFromTable<Row>(table);
-    this.source = new WeGridProtocolDataSource<Row>(this.client, this.connection, name);
+    this.source = new WeGridProtocolDataSource<Row>(this.client, this.connection, name, undefined, this.capabilities);
     this.page = 1;
     this.sortField = null;
     this.sortDirection = null;
     this.filters = [];
     void this.load();
+  }
+
+  /** A column called id keeps rows apart while scrolling; without one the grid tracks the row objects */
+  get idField(): string | undefined {
+    return this.columns.find((c) => c.field === 'id')?.field;
+  }
+
+  setScroll(scroll: boolean): void {
+    if (scroll === this.scroll) return;
+    this.scroll = scroll;
+    if (!scroll) void this.load();
   }
 
   onPageChange(e: WeGridPageChange): void {
@@ -142,7 +159,7 @@ export class DataTabComponent {
   }
 
   private async load(): Promise<void> {
-    if (!this.source) return;
+    if (!this.source || this.scroll) return;
     const seq = ++this.loadSeq;
     this.loading = true;
     try {

@@ -102,6 +102,11 @@ const en = {
   dataLayoutsOnServer: 'Layouts saved on the backend',
   dataConnection: 'Connection',
   dataTable: 'Table',
+  dataMode: 'How to browse',
+  dataScroll: 'Scroll the whole table',
+  dataPaged: 'Page by page',
+  dataScrollFull: 'Search and grouping run in the database',
+  dataScrollBasic: 'Protocol 1.1 backend: search and grouping need 1.2',
   dataHowTitle: 'How it works',
   dataSteps: [
     'Clone github.com/emrecirik/we-report and open samples/backends — pick your language.',
@@ -201,6 +206,11 @@ const tr: typeof en = {
   dataLayoutsOnServer: 'Düzenler backend’de saklanıyor',
   dataConnection: 'Bağlantı',
   dataTable: 'Tablo',
+  dataMode: 'Gezinme',
+  dataScroll: 'Tüm tabloyu kaydır',
+  dataPaged: 'Sayfa sayfa',
+  dataScrollFull: 'Arama ve gruplama veritabanında çalışır',
+  dataScrollBasic: 'Protokol 1.1 backend: arama ve gruplama için 1.2 gerekir',
   dataHowTitle: 'Nasıl çalışır',
   dataSteps: [
     'github.com/emrecirik/we-report deposunu klonlayın ve samples/backends altından dilinizi seçin.',

@@ -91,6 +91,44 @@ filters and the search box — for the Excel-style checklist header filter.
 `weGridColumnsFromTable(table)` builds columns from the schema: numbers, dates and booleans get
 their column types, `order_date` becomes "Order date". Use it as a starting point and adjust.
 
+## 2b. Scroll the whole table — any number of rows *(0.56.0)*
+
+The same source is a `[dataSource]`: no pages, the grid asks for the 256 rows around what is in view,
+and the scrollbar spans the whole table.
+
+```ts
+const info = await client.info();
+readonly source = new WeGridProtocolDataSource<Sale>(client, 'warehouse', 'sales', undefined, info.capabilities);
+```
+
+```html
+<we-grid gridKey="sales" [columns]="columns" [dataSource]="source" trackByField="id"
+         [search]="true" [grouping]="true" [checklistValuesProvider]="source.checklistValues" />
+```
+
+Sorting, filters and the checklist work against any protocol 1.1 backend. With a **protocol 1.2**
+backend (`capabilities.search` / `capabilities.groups`, every sample backend since we-report 0.9)
+the search box searches the table's text columns and grouping groups it, counts and group summaries
+worked out by the database. The total is counted once per query, not once per window.
+
+Measured against the Node.js sample backend on a fictional **billion-row** DuckDB table (8 columns,
+10 GB on disk), in a browser on the same machine:
+
+| | Time |
+|---|---:|
+| Open the table, first rows and the total (1,000,000,000) | 0.3 s |
+| Jump to row 750,000,000 | 0.3–0.4 s |
+| Search "kaan bursa" — rows and the total (7,139,749) | 3.0 s |
+| Filter City = Ankara (99,991,754 rows) | 5.2 s |
+| Group by City with counts | 12 s |
+| Sort by Total, first rows | 5.6 s |
+| Sort by Total, then jump to the middle | minutes — see below |
+
+Each window is one query, so a jump deep into a **sorted** billion rows makes the database sort them
+again for that window; DuckDB has no index to read an order from. Filter first, or sort on a column
+an index of your database covers. The backend's timeout (`timeoutMs`) stops a query that takes too
+long and the grid says so.
+
 ## 3. Save layouts, views and sheets on the backend
 
 ```ts

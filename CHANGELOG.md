@@ -44,6 +44,12 @@ All notable changes to this project are documented in this file.
   from a source and the pivot says so — locale key `pivotFormulaFromSource` (en, tr, de, fr, es).
   `WeGridColumnStore.groups()` and `load({ groupBy })` throw for a field the store doesn't have
   instead of leaving it out.
+- `WeGridProtocolDataSource` is a `WeGridDataSource`: `[dataSource]="source"` scrolls a whole
+  database table window by window — a fictional billion-row DuckDB table opens in 0.3 s and jumps to
+  row 750,000,000 in 0.4 s. Given the backend's `capabilities` (protocol 1.2), the search box searches
+  the table's text columns and grouping runs in the database (`groups()`); the total is counted once
+  per query. `load({ page, pageSize })` for a `serverSide` grid works as before. we-grid Studio's
+  "Your database" tab scrolls the whole table, searching and grouping on a 1.2 backend.
 - New secondary entry point **`we-grid-angular/engine`** without Angular: the column engine, the
   worker store, the filter matching, radix sort and value formatting. A worker built from it is
   ≈ 27 kB instead of 1.5 MB with the whole grid, and it runs in Node too. Everything in it is still

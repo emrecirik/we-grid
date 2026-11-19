@@ -52,6 +52,30 @@
   }
 
   @if (source) {
+    <div class="connect">
+      <div class="segmented segmented--small" role="group" [attr.aria-label]="text.dataMode">
+        <button type="button" [attr.aria-pressed]="scroll" (click)="setScroll(true)">{{ text.dataScroll }}</button>
+        <button type="button" [attr.aria-pressed]="!scroll" (click)="setScroll(false)">{{ text.dataPaged }}</button>
+      </div>
+      @if (scroll) {
+        <span class="pill" [class.pill--ok]="capabilities.search && capabilities.groups">{{ capabilities.search && capabilities.groups ? text.dataScrollFull : text.dataScrollBasic }}</span>
+      }
+    </div>
+    @if (scroll) {
+      <we-grid
+        [gridKey]="'data-scroll-' + connection + ':' + table"
+        [columns]="columns"
+        [dataSource]="source"
+        [trackByField]="$any(idField)"
+        [search]="!!capabilities.search"
+        [grouping]="!!capabilities.groups"
+        [checklistValuesProvider]="source.checklistValues"
+        [formatting]="true"
+        [savedViews]="true"
+        [maxHeight]="560"
+        footer="count"
+      ></we-grid>
+    } @else {
         <we-grid
         [gridKey]="'data-' + connection + ':' + table"
         [columns]="columns"
@@ -73,6 +97,7 @@
         [savedViews]="true"
         [maxHeight]="560"
       ></we-grid>
+    }
   } @else {
     <aside class="tips">
       <h2>{{ text.dataHowTitle }}</h2>
