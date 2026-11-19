@@ -21,4 +21,11 @@ export interface WeGridGroupSection<T> {
   path?: string;
   /** Sub-groups, when more than one field is grouped */
   children?: WeGridGroupSection<T>[];
+  /**
+   * A `dataSource` grid's group, whose rows stay in the source: how many there are, where they
+   * start in the grouped result, and the subtotals it worked out. `rows` is empty then.
+   */
+  count?: number;
+  start?: number;
+  aggregates?: Record<string, number | null>;
 }

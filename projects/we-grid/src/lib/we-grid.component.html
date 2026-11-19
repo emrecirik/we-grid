@@ -706,7 +706,7 @@
                     <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
                   </button>
                   <span class="we-grid__group-label">{{ groupSectionFieldLabel(item.section) }}: {{ item.section.label }}</span>
-                  <span class="we-grid__group-count">{{ item.section.rows.length }} {{ locale.recordsLabel }}</span>
+                  <span class="we-grid__group-count">{{ countText(groupCount(item.section)) }} {{ locale.recordsLabel }}</span>
                   @if (groupSummaryLabel(item.section); as sumText) {
                     <span class="we-grid__group-summary">{{ sumText }}</span>
                   }
@@ -719,7 +719,7 @@
                 }
                 @if (selectable !== 'none') {
                   <td class="we-grid__select-col" [style.left.px]="expandColWidthPx">
-                    <span class="we-grid__summary-count">{{ item.section.rows.length }}</span>
+                    <span class="we-grid__summary-count">{{ countText(groupCount(item.section)) }}</span>
                   </td>
                 }
                 @for (col of renderColumns; track col.field; let first = $first) {
@@ -737,7 +737,7 @@
                       <!-- Which group this footer closes — with several levels the footers stack up -->
                       <span class="we-grid__group-footer-label">{{ item.section.label }}</span>
                       @if (selectable === 'none') {
-                        <span class="we-grid__summary-count">{{ item.section.rows.length }} {{ locale.recordsLabel }}</span>
+                        <span class="we-grid__summary-count">{{ countText(groupCount(item.section)) }} {{ locale.recordsLabel }}</span>
                       }
                     }
                     @if (groupFooterCellText(item.section, col); as text) {
@@ -943,7 +943,7 @@
             }
             @if (selectable !== 'none') {
               <td class="we-grid__select-col" [style.left.px]="expandColWidthPx" [title]="totalRecordCountForSummary + ' ' + locale.recordsLabel">
-                <span class="we-grid__summary-count">{{ totalRecordCountForSummary }}</span>
+                <span class="we-grid__summary-count">{{ countText(totalRecordCountForSummary) }}</span>
               </td>
             }
             @for (col of renderColumns; track col.field; let first = $first) {
@@ -958,7 +958,7 @@
                 [attr.title]="summaryCellText(col)"
               >
                 @if (first && selectable === 'none') {
-                  <span class="we-grid__summary-count" [title]="totalRecordCountForSummary + ' ' + locale.recordsLabel">{{ totalRecordCountForSummary }} {{ locale.recordsLabel }}</span>
+                  <span class="we-grid__summary-count" [title]="countText(totalRecordCountForSummary) + ' ' + locale.recordsLabel">{{ countText(totalRecordCountForSummary) }} {{ locale.recordsLabel }}</span>
                 }
                 @if (summaryCellText(col); as text) {
                   <span class="we-grid__summary-value">{{ text }}</span>
@@ -977,9 +977,9 @@
   @if (footerMode !== 'none') {
   <div class="we-grid__footer">
     @if (footerMode === 'count') {
-      <div class="we-grid__footer-info">{{ rowTotal }} {{ locale.recordsLabel }}</div>
+      <div class="we-grid__footer-info">{{ countText(rowTotal) }} {{ locale.recordsLabel }}</div>
     } @else {
-      <div class="we-grid__footer-info">{{ rowTotal }} {{ locale.recordsLabel }} — {{ locale.pageOf(page, totalPagesComputed) }}</div>
+      <div class="we-grid__footer-info">{{ countText(rowTotal) }} {{ locale.recordsLabel }} — {{ locale.pageOf(page, totalPagesComputed) }}</div>
     }
     @if (footerMode === 'full') {
     <nav class="we-grid__pager" [attr.aria-label]="locale.paginationAriaLabel">

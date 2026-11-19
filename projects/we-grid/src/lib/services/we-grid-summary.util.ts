@@ -87,10 +87,11 @@ export function computeWeGridSummary<T>(
       return numbers.reduce((a, b) => a + b, 0);
     case 'avg':
       return numbers.reduce((a, b) => a + b, 0) / numbers.length;
+    // A loop, not Math.min(...numbers): spreading a million arguments overflows the stack
     case 'min':
-      return Math.min(...numbers);
+      return numbers.reduce((a, b) => (b < a ? b : a));
     case 'max':
-      return Math.max(...numbers);
+      return numbers.reduce((a, b) => (b > a ? b : a));
     default:
       return null;
   }
@@ -126,8 +127,17 @@ export function buildWeGridSummaryText<T>(
     return `${weGridSummaryLabel(fn, 'override', locale)}: ${formatSummaryNumber(overrideValue, col, fn, locale)}`;
   }
 
-  const computed = computeWeGridSummary(rows, col.field, fn, valueOf, col.summaryWeightField);
+  return weGridSummaryValueText(computeWeGridSummary(rows, col.field, fn, valueOf, col.summaryWeightField), col, fn, scope, locale);
+}
+
+/** "Label: value" for a figure worked out elsewhere — a data source's group subtotal; "-" when there is none */
+export function weGridSummaryValueText(
+  value: number | null,
+  col: SummaryColumnLike,
+  fn: Exclude<WeGridSummaryFunction, 'none'>,
+  scope: WeGridSummaryScope,
+  locale: WeGridLocale = weGridLocaleEn
+): string {
   const label = weGridSummaryLabel(fn, scope, locale);
-  if (computed === null) return `${label}: -`;
-  return `${label}: ${formatSummaryNumber(computed, col, fn, locale)}`;
+  return value === null ? `${label}: -` : `${label}: ${formatSummaryNumber(value, col, fn, locale)}`;
 }

@@ -1,7 +1,7 @@
 import { WeGridColumnFilterState } from './we-grid-filter.model';
 import { weGridLocaleTr } from '../../src/lib/models/we-grid-locale.model';
 import { applyWeGridFilters } from '../../src/lib/services/we-grid-filter.util';
-import { weGridSortedIndices } from './we-grid-sort.util';
+import { weGridCompareGroupValues, weGridSortedIndices } from './we-grid-sort.util';
 import { WeGridColumnStore } from './we-grid-column-store';
 
 interface Row {
@@ -140,6 +140,79 @@ describe('WeGridColumnStore', () => {
     expect(s.aggregate('amount', 'max', { filters: [{ field: 'city', operator: 'equals', value: 'rize' }] })).toBe(6);
     expect(s.distinct('city')).toEqual(['Ağrı', 'Rize']);
     expect(() => WeGridColumnStore.fromColumns({ a: [1, 2], b: [1] })).toThrowError(/differ in length/);
+  });
+
+  describe('grouping', () => {
+    const empty = (v: unknown): boolean => v === null || v === undefined || v === '';
+    /** Reference grouping over the rows: key, count and price sum per group value, in group order */
+    const reference = (field: keyof Row, subset = rows) => {
+      const buckets = new Map<string, { value: unknown; rows: Row[] }>();
+      for (const r of subset) {
+        const v = r[field];
+        const key = empty(v) ? '' : String(v);
+        if (!buckets.has(key)) buckets.set(key, { value: empty(v) ? null : v, rows: [] });
+        buckets.get(key)!.rows.push(r);
+      }
+      return Array.from(buckets.values())
+        .sort((a, b) => weGridCompareGroupValues(a.value, b.value, 'tr-TR'))
+        .map((b) => ({ value: b.value, count: b.rows.length, sum: b.rows.reduce((s, r) => s + r.price, 0) }));
+    };
+
+    it('counts and subtotals every group, in group order — numbers by value, the empty group first', () => {
+      for (const field of ['city', 'qty', 'active'] as const) {
+        const groups = store.groups({ groupBy: [field], aggregates: [{ field: 'price', fn: 'sum' }], locale: 'tr-TR' });
+        const expected = reference(field);
+        expect(groups.map((g) => g.value)).withContext(field).toEqual(expected.map((e) => e.value));
+        expect(groups.map((g) => g.count)).withContext(field).toEqual(expected.map((e) => e.count));
+        groups.forEach((g, i) => expect(g.aggregates['price']!).toBeCloseTo(expected[i].sum, 6));
+      }
+      const byQty = store.groups({ groupBy: ['qty'] }).map((g) => g.value);
+      expect(byQty[0]).toBeNull();
+      expect(byQty.slice(1)).toEqual([...(byQty.slice(1) as number[])].sort((a, b) => a - b));
+    });
+
+    it('puts each group in one run of offsets, sorted inside, nested groups included', () => {
+      const request = { groupBy: ['city', 'active'], sort: [{ field: 'price', direction: 'desc' as const }], filters: [{ field: 'qty', operator: 'gt' as const, value: 0 }], locale: 'tr-TR' };
+      const groups = store.groups(request);
+      const all = store.load({ ...request, offset: 0, limit: 1e9 }).rows;
+      expect(groups.reduce((n, g) => n + g.count, 0)).toBe(all.length);
+      for (const city of groups) {
+        const slice = all.slice(city.start, city.start + city.count);
+        expect(slice.every((r) => (r.city ?? null) === city.value)).withContext(String(city.value)).toBeTrue();
+        expect(city.children!.reduce((n, g) => n + g.count, 0)).toBe(city.count);
+        for (const sub of city.children!) {
+          const inner = all.slice(sub.start, sub.start + sub.count);
+          expect(inner.every((r) => r.active === sub.value && (r.city ?? null) === city.value)).toBeTrue();
+          expect(inner.every((r, i) => i === 0 || r.price <= inner[i - 1].price)).toBeTrue();
+        }
+      }
+    });
+
+    it('follows the summary row: count skips empty cells, avg can be weighted, min and max', () => {
+      const s = WeGridColumnStore.fromRows([
+        { g: 'a', v: 10, w: 1, t: 'x' },
+        { g: 'a', v: 20, w: 3, t: '' },
+        { g: 'a', v: null, w: 5, t: null },
+        { g: 'b', v: 5, w: 2, t: 'y' }
+      ]);
+      const [a, b] = s.groups({
+        groupBy: ['g'],
+        aggregates: [
+          { field: 'v', fn: 'avg', weightField: 'w' },
+          { field: 't', fn: 'count' }
+        ]
+      });
+      expect(a.aggregates).toEqual({ v: 17.5, t: 1 });
+      expect(b.aggregates).toEqual({ v: 5, t: 1 });
+      expect(s.aggregate('v', 'min')).toBe(5);
+      expect(s.aggregate('v', 'max')).toBe(20);
+      expect(s.aggregate('t', 'count')).toBe(2);
+    });
+
+    it('refuses a grouping with too many groups instead of running out of memory', () => {
+      const s = WeGridColumnStore.fromColumns({ id: Float64Array.from({ length: 250_000 }, (_, i) => i + 0.5) });
+      expect(() => s.groups({ groupBy: ['id'] })).toThrowError(/more than 200000 groups/);
+    });
   });
 
   it('takes amounts as integers with a scale', () => {

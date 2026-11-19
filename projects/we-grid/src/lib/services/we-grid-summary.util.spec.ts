@@ -147,3 +147,13 @@ describe('Summary labels and numbers with the Turkish locale', () => {
     expect(weGridSummaryLabel('sum', 'server', { ...weGridLocaleTr, sum: 'Tutar' })).toBe('Sayfa tutar');
   });
 });
+
+describe('computeWeGridSummary over a large set', () => {
+  it('finds min and max of a million values without running out of stack', () => {
+    const rows = Array.from({ length: 1_000_000 }, (_, i) => ({ v: (i * 7919) % 1_000_003 }));
+    let max = 0;
+    for (const r of rows) if (r.v > max) max = r.v;
+    expect(computeWeGridSummary(rows, 'v', 'min')).toBe(0);
+    expect(computeWeGridSummary(rows, 'v', 'max')).toBe(max);
+  });
+});

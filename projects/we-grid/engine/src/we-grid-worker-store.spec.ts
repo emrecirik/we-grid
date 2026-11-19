@@ -47,6 +47,15 @@ describe('WeGridWorkerStore', () => {
     remote.close();
   });
 
+  it('groups in the worker like the store does', async () => {
+    const local = WeGridColumnStore.fromColumns<Row>(columns(2000));
+    const remote = await WeGridWorkerStore.fromColumns<Row>(channel(), columns(2000));
+    const request = { groupBy: ['city'], aggregates: [{ field: 'price', fn: 'sum' as const }], sort: [{ field: 'price', direction: 'asc' as const }] };
+    expect(await remote.groups(request)).toEqual(local.groups(request));
+    expect(await remote.load({ ...request, offset: 490, limit: 20 })).toEqual(local.load({ ...request, offset: 490, limit: 20 }));
+    remote.close();
+  });
+
   it('searches with the built-in formatting when the formatter function cannot cross', async () => {
     const remote = await WeGridWorkerStore.fromRows<Row>(channel(), [
       { id: 1, city: 'Van', price: 1234.5 },

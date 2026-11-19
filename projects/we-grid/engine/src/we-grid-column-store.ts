@@ -1,10 +1,18 @@
 import { WeGridColumnType } from './we-grid-column-kind';
-import { WeGridDataColumn, WeGridDataPage, WeGridDataRequest, WeGridDataSource } from './we-grid-data-source.model';
+import {
+  WeGridDataColumn,
+  WeGridDataPage,
+  WeGridDataRequest,
+  WeGridDataSource,
+  WeGridGroupAggregate,
+  WeGridGroupNode,
+  WeGridGroupRequest
+} from './we-grid-data-source.model';
 import { Observable, of } from 'rxjs';
 import { WeGridChecklistValuesRequest, WeGridChecklistValuesResult, isWeGridFilterActive } from './we-grid-filter.model';
 import { weGridValueMatchesFilter } from './we-grid-filter-match';
 import { formatWeGridColumnValue } from './we-grid-value.util';
-import { WeGridRadixWord, weGridCompareSortValues, weGridFloatSortWords, weGridRadixSort } from './we-grid-sort.util';
+import { WeGridRadixWord, weGridCompareGroupValues, weGridCompareSortValues, weGridFloatSortWords, weGridRadixSort } from './we-grid-sort.util';
 
 type Codes = Uint8Array | Uint16Array | Uint32Array;
 
@@ -52,6 +60,8 @@ export interface WeGridStoredColumnInfo {
 }
 
 const SCALES = [1, 10, 100, 1000, 10000];
+/** More distinct groups than this is an error: a grouping that fine helps nobody and costs memory */
+const GROUP_LIMIT = 200_000;
 const MASK_CODE_LIMIT = 1 << 18;
 
 function codesFor(maxCode: number, n: number): Codes {
@@ -234,6 +244,16 @@ function readNested(row: unknown, path: string): unknown {
  */
 export class WeGridColumnStore<T extends object = Record<string, unknown>> implements WeGridDataSource<T> {
   private lastQuery: { key: string; order: Uint32Array | null } | null = null;
+  private lastMatch: { key: string; rows: Uint32Array | null } | null = null;
+  /** Group order of each row, by column and locale — see `groupRanks` */
+  private readonly rankCache = new Map<string, { ranks: Uint32Array; values: unknown[] }>();
+
+  /** Forgets everything worked out from the data — after an edit */
+  private invalidate(): void {
+    this.lastQuery = null;
+    this.lastMatch = null;
+    this.rankCache.clear();
+  }
 
   private constructor(
     readonly fields: readonly string[],
@@ -302,7 +322,7 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
     const c = this.fields.indexOf(field);
     if (c < 0 || row < 0 || row >= this.size) throw new RangeError(`WeGridColumnStore.set: no cell ${field}[${row}]`);
     const column = this.columns[c];
-    this.lastQuery = null;
+    this.invalidate();
     const v = value === undefined ? null : value;
     if (column.kind === 'int' && (v === null || typeof v === 'number')) {
       const q = v === null ? null : Math.round((v as number) * column.scale);
@@ -362,15 +382,20 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
    * query is kept, so scrolling through the same result doesn't repeat the work.
    */
   order(request: Omit<WeGridDataRequest, 'offset' | 'limit'>): Uint32Array | null {
-    const key = JSON.stringify([request.sort ?? [], request.filters ?? [], request.search ?? '', request.locale ?? '']);
+    const groupBy = (request.groupBy ?? []).filter((f) => this.fields.includes(f));
+    const key = JSON.stringify([request.sort ?? [], request.filters ?? [], request.search ?? '', request.locale ?? '', groupBy]);
     if (this.lastQuery?.key === key) return this.lastQuery.order;
     let order = this.match(request);
-    if (request.sort?.length) {
+    if (request.sort?.length || groupBy.length) {
       if (!order) {
         order = new Uint32Array(this.size);
         for (let i = 0; i < this.size; i++) order[i] = i;
       }
-      for (let k = request.sort.length - 1; k >= 0; k--) order = this.sortBy(order, request.sort[k].field, request.sort[k].direction);
+      for (let k = (request.sort?.length ?? 0) - 1; k >= 0; k--) order = this.sortBy(order, request.sort![k].field, request.sort![k].direction);
+      // Then group by group, innermost level first — each pass is stable, so the sort holds inside a group
+      for (let level = groupBy.length - 1; level >= 0; level--) {
+        order = weGridRadixSort(order, [this.groupRanks(this.fields.indexOf(groupBy[level]), request.locale).ranks]);
+      }
     }
     this.lastQuery = { key, order };
     return order;
@@ -408,52 +433,285 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
     return { values: values.slice(0, request.limit).map((value) => ({ value })), hasMore: values.length > request.limit };
   }
 
-  /** sum / avg / min / max / count of a number column over the result of the filters and search */
-  aggregate(field: string, fn: 'sum' | 'avg' | 'min' | 'max' | 'count', request: Omit<WeGridDataRequest, 'offset' | 'limit'> = {}): number | null {
-    const c = this.fields.indexOf(field);
-    if (c < 0) return null;
-    const column = this.columns[c];
-    const order = this.match(request);
-    const count = order ? order.length : this.size;
-    if (column.kind === 'int' && fn !== 'min' && fn !== 'max') {
-      // Integer codes add up exactly; the scale and offset are applied once at the end
-      let n = 0;
-      let codeSum = 0;
-      for (let i = 0; i < count; i++) {
-        const code = column.codes[order ? order[i] : i];
-        if (code === 0) continue;
-        n++;
-        codeSum += code;
-      }
-      if (fn === 'count') return n;
-      if (n === 0) return null;
-      const sum = (codeSum + n * (column.min - 1)) / column.scale;
-      return fn === 'sum' ? sum : sum / n;
-    }
-    let n = 0;
-    let sum = 0;
-    let min = Infinity;
-    let max = -Infinity;
+  /**
+   * sum / avg / min / max / count of a column over the result of the filters and search — by the
+   * summary row's rules: count counts the non-empty cells, the rest take the cells that are numbers.
+   */
+  aggregate(
+    field: string,
+    fn: 'sum' | 'avg' | 'min' | 'max' | 'count',
+    request: Omit<WeGridDataRequest, 'offset' | 'limit'> = {},
+    weightField?: string
+  ): number | null {
+    if (!this.fields.includes(field)) return null;
+    const rows = this.match(request);
+    const acc = this.accumulator({ field, fn, weightField });
+    const count = rows ? rows.length : this.size;
+    for (let i = 0; i < count; i++) acc.add(0, rows ? rows[i] : i);
+    return acc.result(0);
+  }
+
+  // ─── Grouping ─────────────────────────────────────────────────────
+
+  /**
+   * The groups of the filtered and searched result, nested by `groupBy`, with their row counts,
+   * offsets into `load({ groupBy })` and the requested subtotals. A hash aggregation over the
+   * columns' codes: fifty million rows by two dictionary columns is one pass.
+   */
+  groups(request: WeGridGroupRequest): WeGridGroupNode[] {
+    const levels = request.groupBy.map((f) => this.fields.indexOf(f)).filter((c) => c >= 0);
+    if (levels.length === 0) return [];
+    const rows = this.match(request);
+    const count = rows ? rows.length : this.size;
+    const ranked = levels.map((c) => this.groupRanks(c, request.locale));
+    const sizes = ranked.map((r) => r.values.length);
+    const specs = (request.aggregates ?? []).filter((a) => this.fields.includes(a.field));
+    const accs = specs.map((spec) => this.accumulator(spec));
+
+    // One id per distinct combination of the levels' ranks — a table when the combinations are few
+    const combos = sizes.reduce((a, b) => a * b, 1);
+    if (combos > Number.MAX_SAFE_INTEGER) throw new Error('WeGridColumnStore.groups: too many fields with too many values to group by at once');
+    const table = combos <= 1 << 24 ? new Int32Array(combos).fill(-1) : null;
+    const map = table ? null : new Map<number, number>();
+    const keys: number[] = [];
+    const counts: number[] = [];
     for (let i = 0; i < count; i++) {
-      const v = decode(column, order ? order[i] : i);
-      if (v === null) continue;
-      n++;
-      if (fn === 'count') continue;
-      const x = typeof v === 'number' ? v : v instanceof Date ? v.getTime() : Number(v);
-      if (Number.isNaN(x)) continue;
-      sum += x;
-      if (x < min) min = x;
-      if (x > max) max = x;
+      const row = rows ? rows[i] : i;
+      let key = 0;
+      for (let l = 0; l < ranked.length; l++) key = key * sizes[l] + ranked[l].ranks[row];
+      let id = table ? table[key] : (map!.get(key) ?? -1);
+      if (id < 0) {
+        id = keys.length;
+        if (id >= GROUP_LIMIT) throw new Error(`WeGridColumnStore.groups: more than ${GROUP_LIMIT} groups — group by a coarser field`);
+        keys.push(key);
+        counts.push(0);
+        if (table) table[key] = id;
+        else map!.set(key, id);
+      }
+      counts[id]++;
+      for (const acc of accs) acc.add(id, row);
     }
-    if (fn === 'count') return n;
-    if (n === 0) return null;
-    return fn === 'sum' ? sum : fn === 'avg' ? sum / n : fn === 'min' ? min : max;
+
+    // Combination keys sort in group order, level by level, since ranks do
+    const ids = keys.map((_, id) => id).sort((a, b) => keys[a] - keys[b]);
+    const roots: WeGridGroupNode[] = [];
+    const stack: { node: WeGridGroupNode; rank: number; ids: number[] }[] = [];
+    const covered: { node: WeGridGroupNode; ids: number[] }[] = [];
+    let start = 0;
+    for (const id of ids) {
+      // Ranks of this combination, outermost first
+      const path: number[] = new Array(ranked.length);
+      for (let l = ranked.length - 1, k = keys[id]; l >= 0; l--) {
+        path[l] = k % sizes[l];
+        k = Math.floor(k / sizes[l]);
+      }
+      let depth = 0;
+      while (depth < stack.length && stack[depth].rank === path[depth]) depth++;
+      stack.length = depth;
+      for (let l = depth; l < ranked.length; l++) {
+        const value = ranked[l].values[path[l]];
+        const node: WeGridGroupNode = {
+          field: this.fields[levels[l]],
+          level: l,
+          value: value === undefined ? null : value,
+          key: value === null || value === undefined || value === '' ? '' : String(value),
+          start,
+          count: 0,
+          aggregates: {},
+          ...(l < ranked.length - 1 ? { children: [] } : {})
+        };
+        (l === 0 ? roots : stack[l - 1].node.children!).push(node);
+        const entry = { node, rank: path[l], ids: [] as number[] };
+        stack.push(entry);
+        covered.push(entry);
+      }
+      for (const entry of stack) {
+        entry.node.count += counts[id];
+        entry.ids.push(id);
+      }
+      start += counts[id];
+    }
+    // Subtotals: every node merges the combinations under it
+    for (const { node, ids: under } of covered) specs.forEach((spec, k) => (node.aggregates[spec.field] = accs[k].merge(under)));
+    return roots;
+  }
+
+  /**
+   * Each row's group rank for a column — 0 for the empty group, then in `weGridCompareGroupValues`
+   * order — and the value of every rank. Values that read the same (5 and '5') share a group.
+   */
+  private groupRanks(c: number, locale?: string): { ranks: Uint32Array; values: unknown[] } {
+    const cacheKey = `${c}|${locale ?? ''}`;
+    const cached = this.rankCache.get(cacheKey);
+    if (cached) return cached;
+    const column = this.columns[c];
+    const keyOf = (v: unknown): string => (v === null || v === undefined || v === '' ? '' : String(v));
+    const n = this.size;
+    // Distinct values first: per code where the column has codes, per row otherwise
+    let codeValues: unknown[] | null = null;
+    let codes: Codes | null = null;
+    if (column.kind === 'dict') {
+      codeValues = column.values;
+      codes = column.codes;
+    } else if (column.kind === 'int' && column.top < MASK_CODE_LIMIT) {
+      codeValues = Array.from({ length: column.top + 1 }, (_, code) => (code === 0 ? null : (code - 1 + column.min) / column.scale));
+      codes = column.codes;
+    }
+    const idOfKey = new Map<string, number>([['', 0]]);
+    const reps: unknown[] = [null];
+    const idOf = (v: unknown): number => {
+      const k = keyOf(v);
+      let id = idOfKey.get(k);
+      if (id === undefined) {
+        id = reps.length;
+        if (id >= GROUP_LIMIT) throw new Error(`WeGridColumnStore.groups: more than ${GROUP_LIMIT} groups in ${this.fields[c]} — group by a coarser field`);
+        idOfKey.set(k, id);
+        reps.push(v);
+      }
+      return id;
+    };
+    const rawIds = new Uint32Array(n);
+    if (codeValues && codes) {
+      const idOfCode = Uint32Array.from(codeValues, (v) => idOf(v));
+      for (let i = 0; i < n; i++) rawIds[i] = idOfCode[codes[i]];
+    } else {
+      for (let i = 0; i < n; i++) rawIds[i] = idOf(decode(column, i));
+    }
+    // Ranks in group order; the empty group stays rank 0
+    const order = reps.map((_, id) => id).sort((a, b) => (a === 0 ? -1 : b === 0 ? 1 : weGridCompareGroupValues(reps[a], reps[b], locale)));
+    const rankOfId = new Uint32Array(reps.length);
+    order.forEach((id, rank) => (rankOfId[id] = rank));
+    for (let i = 0; i < n; i++) rawIds[i] = rankOfId[rawIds[i]];
+    const result = { ranks: rawIds, values: order.map((id) => reps[id]) };
+    this.rankCache.set(cacheKey, result);
+    return result;
+  }
+
+  /**
+   * Running subtotal of one column, per group id, by the summary row's rules — `add` a row to a
+   * group, `merge` groups into one figure
+   */
+  private accumulator(spec: WeGridGroupAggregate): { add(id: number, row: number): void; result(id: number): number | null; merge(ids: number[]): number | null } {
+    const read = this.numberReader(this.fields.indexOf(spec.field));
+    const present = this.presenceReader(this.fields.indexOf(spec.field));
+    const weight = spec.fn === 'avg' && spec.weightField && this.fields.includes(spec.weightField) ? this.numberReader(this.fields.indexOf(spec.weightField)) : null;
+    const n: number[] = [];
+    const sum: number[] = [];
+    const min: number[] = [];
+    const max: number[] = [];
+    const weights: number[] = [];
+    const add = (id: number, row: number): void => {
+      if (n[id] === undefined) {
+        n[id] = sum[id] = weights[id] = 0;
+        min[id] = Infinity;
+        max[id] = -Infinity;
+      }
+      if (spec.fn === 'count') {
+        if (present(row)) n[id]++;
+        return;
+      }
+      const x = read(row);
+      if (Number.isNaN(x)) return;
+      if (weight) {
+        const w = weight(row);
+        if (Number.isNaN(w)) return;
+        sum[id] += x * w;
+        weights[id] += w;
+        return;
+      }
+      n[id]++;
+      sum[id] += x;
+      if (x < min[id]) min[id] = x;
+      if (x > max[id]) max[id] = x;
+    };
+    const finish = (count: number, total: number, low: number, high: number, w: number): number | null => {
+      if (spec.fn === 'count') return count;
+      if (weight) return w === 0 ? null : total / w;
+      if (count === 0) return null;
+      return spec.fn === 'sum' ? total : spec.fn === 'avg' ? total / count : spec.fn === 'min' ? low : high;
+    };
+    return {
+      add,
+      result: (id) => finish(n[id] ?? 0, sum[id] ?? 0, min[id] ?? Infinity, max[id] ?? -Infinity, weights[id] ?? 0),
+      merge: (ids) => {
+        let count = 0;
+        let total = 0;
+        let low = Infinity;
+        let high = -Infinity;
+        let w = 0;
+        for (const id of ids) {
+          if (n[id] === undefined) continue;
+          count += n[id];
+          total += sum[id];
+          w += weights[id];
+          if (min[id] < low) low = min[id];
+          if (max[id] > high) high = max[id];
+        }
+        return finish(count, total, low, high, w);
+      }
+    };
+  }
+
+  /** A cell as a number the way the summary row reads it — NaN for an empty or non-numeric cell */
+  private numberReader(c: number): (row: number) => number {
+    const column = this.columns[c];
+    const toNumber = (v: unknown): number =>
+      v === null || v === undefined || v === '' ? NaN : v instanceof Date ? v.getTime() : Number(v);
+    switch (column.kind) {
+      case 'int':
+        return (row) => {
+          const code = column.codes[row];
+          return code === 0 ? NaN : (code - 1 + column.min) / column.scale;
+        };
+      case 'f64':
+      case 'date':
+        return (row) => column.data[row];
+      case 'seq':
+        return (row) => column.start + row * column.step;
+      case 'dict': {
+        const numbers = Float64Array.from(column.values, toNumber);
+        return (row) => numbers[column.codes[row]];
+      }
+      default:
+        return (row) => toNumber(column.data[row]);
+    }
+  }
+
+  /** Whether a cell has a value — what count counts */
+  private presenceReader(c: number): (row: number) => boolean {
+    const column = this.columns[c];
+    switch (column.kind) {
+      case 'int':
+        return (row) => column.codes[row] !== 0;
+      case 'f64':
+      case 'date':
+        return (row) => !Number.isNaN(column.data[row]);
+      case 'seq':
+        return () => true;
+      case 'dict': {
+        const has = Uint8Array.from(column.values, (v) => (v === null || v === undefined || v === '' ? 0 : 1));
+        return (row) => has[column.codes[row]] === 1;
+      }
+      default:
+        return (row) => {
+          const v = column.data[row];
+          return v !== null && v !== undefined && v !== '';
+        };
+    }
   }
 
   // ─── Filtering and search ─────────────────────────────────────────
 
   /** Rows that pass the filters and the search, in stored order; null when nothing narrows them */
   private match(request: Omit<WeGridDataRequest, 'offset' | 'limit'>): Uint32Array | null {
+    const key = JSON.stringify([request.filters ?? [], request.search ?? '', request.locale ?? '', request.columns?.map((c) => [c.field, c.type]) ?? []]);
+    if (this.lastMatch?.key === key) return this.lastMatch.rows;
+    const rows = this.matchRows(request);
+    this.lastMatch = { key, rows };
+    return rows;
+  }
+
+  private matchRows(request: Omit<WeGridDataRequest, 'offset' | 'limit'>): Uint32Array | null {
     const filters = (request.filters ?? []).filter((f) => isWeGridFilterActive(f) && this.fields.includes(f.field));
     const words = (request.search ?? '').toLocaleLowerCase(request.locale).split(/\s+/).filter(Boolean);
     if (filters.length === 0 && words.length === 0) return null;

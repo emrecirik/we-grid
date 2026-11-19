@@ -58,9 +58,11 @@ describe('WeGridComponent dataSource', () => {
     expect(rows().length).toBeGreaterThan(5);
     expect(rows().length).toBeLessThan(60);
     expect(firstCells()[0]).toBe('0');
-    expect(fixture.nativeElement.querySelector('.we-grid__footer-info').textContent).toContain('200');
+    expect(fixture.nativeElement.querySelector('.we-grid__footer-info').textContent).toContain('200,000 records');
     expect(fixture.nativeElement.querySelector('.we-grid__pager')).toBeNull();
     expect(fixture.nativeElement.querySelector('.we-grid__table').getAttribute('aria-rowcount')).toBe('200000');
+    // The summary row counts the source's rows, not the window's
+    expect(host.grid.totalRecordCountForSummary).toBe(200_000);
   });
 
   it('hands sorting to the source', async () => {
@@ -104,6 +106,76 @@ describe('WeGridComponent dataSource', () => {
     await settle();
     expect(firstCells()).toEqual(['42']);
     expect(requests[0].offset).toBe(0);
+  });
+
+  describe('grouped', () => {
+    const groupRows = (): HTMLElement[] => Array.from(fixture.nativeElement.querySelectorAll('tbody > tr.we-grid__group-row'));
+    const bodyOutline = (): string[] =>
+      Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('tbody > tr:not(.we-grid__virtual-pad)')).map((tr) =>
+        tr.classList.contains('we-grid__group-row')
+          ? `G:${tr.querySelector('.we-grid__group-label')!.textContent!.trim()} ${tr.querySelector('.we-grid__group-count')!.textContent!.trim()}`
+          : `R:${tr.querySelectorAll('td')[1]?.textContent?.trim()}`
+      );
+
+    beforeEach(async () => {
+      host.source = WeGridColumnStore.fromRows<Row>(Array.from({ length: 400 }, (_, i) => ({ id: i, city: CITIES[i % 4], amount: i })));
+      await settle();
+    });
+
+    it('asks the source for groups and shows each group with its own rows, counted by the source', async () => {
+      host.grid.setGrouping(['city']);
+      await settle();
+      const outline = bodyOutline();
+      expect(outline[0]).toBe('G:City: Ankara 100 records');
+      expect(outline.slice(1, 6).every((l) => l === 'R:Ankara')).toBeTrue();
+      expect(fixture.nativeElement.querySelector('.we-grid__footer-info').textContent).toContain('400');
+    });
+
+    it('collapses a group without asking again, and the next group follows right after', async () => {
+      host.grid.setGrouping(['city']);
+      await settle();
+      const spy = spyOn(host.source as WeGridColumnStore<Row>, 'groups').and.callThrough();
+      host.grid.toggleGroupCollapse(host.grid.groupedSections![0]);
+      await settle();
+      expect(spy).not.toHaveBeenCalled();
+      expect(bodyOutline().slice(0, 3)).toEqual(['G:City: Ankara 100 records', 'G:City: Bursa 100 records', 'R:Bursa']);
+      host.grid.collapseAllGroups();
+      await settle();
+      expect(groupRows().length).toBe(4);
+      expect(bodyOutline().every((l) => l.startsWith('G:'))).toBeTrue();
+    });
+
+    it('with footers, a closed group shows its header only', async () => {
+      // Five rows a city, so an open group and its footer fit in view
+      host.source = WeGridColumnStore.fromRows<Row>(Array.from({ length: 20 }, (_, i) => ({ id: i, city: CITIES[i % 4], amount: i })));
+      await settle();
+      host.grid.groupSummaryPosition = 'both';
+      host.grid.groupAutoSummary = true;
+      host.grid.setGrouping(['city']);
+      await settle();
+      host.grid.collapseAllGroups();
+      await settle();
+      expect(fixture.nativeElement.querySelectorAll('tbody > tr.we-grid__group-footer-row').length).toBe(0);
+      host.grid.toggleGroupCollapse(host.grid.groupedSections![3]);
+      await settle();
+      const body = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('tbody > tr:not(.we-grid__virtual-pad)'));
+      expect(body.filter((tr) => tr.classList.contains('we-grid__group-footer-row')).length).toBe(1);
+      expect(body[body.length - 1].classList.contains('we-grid__group-footer-row')).toBeTrue();
+    });
+
+    it('shows the subtotals the source worked out', async () => {
+      // Numeric columns sum per group — set directly, as a saved layout would bring back a column's own summary
+      host.grid.groupAutoSummary = true;
+      host.grid.setGrouping(['city']);
+      await settle();
+      const store = host.source as WeGridColumnStore<Row>;
+      const expected = store.aggregate('amount', 'sum', { filters: [{ field: 'city', operator: 'in', value: ['Van'] }] })!;
+      // Closed, every group header is in view
+      host.grid.collapseAllGroups();
+      await settle();
+      const van = groupRows().find((r) => r.textContent!.includes('Van'))!;
+      expect(van.querySelector('.we-grid__group-summary')!.textContent!.replace(/\D/g, '')).toContain(String(expected));
+    });
   });
 
   it('falls back to data when the source is removed', async () => {

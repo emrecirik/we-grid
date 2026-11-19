@@ -123,8 +123,8 @@ import {
   weGridSameEditValue
 } from './models/we-grid-edit.model';
 import { mergeGridLayout, toColumnLayout } from './services/we-grid-layout-merge';
-import { weGridCompareSortValues, weGridSortedIndices } from './services/we-grid-sort.util';
-import { WeGridDataPage, WeGridDataRequest, WeGridDataSource } from './models/we-grid-data-source.model';
+import { weGridCompareGroupValues, weGridCompareSortValues, weGridSortedIndices } from './services/we-grid-sort.util';
+import { WeGridDataPage, WeGridDataRequest, WeGridDataSource, WeGridGroupNode } from './models/we-grid-data-source.model';
 import { WE_GRID_DEFAULT_ROW_PX, WE_GRID_MAX_SCROLL_PX, weGridPosForScrollTop, weGridVirtualWindow } from './services/we-grid-virtual.util';
 import {
   applyWeGridFilters,
@@ -133,7 +133,7 @@ import {
   weGridInFilterValueLabel,
   weGridQuickFilterValueToInputString
 } from './services/we-grid-filter.util';
-import { buildWeGridSummaryText } from './services/we-grid-summary.util';
+import { buildWeGridSummaryText, weGridSummaryValueText } from './services/we-grid-summary.util';
 import {
   WeGridFormatValueOptions,
   formatWeGridColumnValue,
@@ -1108,6 +1108,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** "how many records" — the backend's overall total when serverSide, otherwise the loaded row count */
   get totalRecordCountForSummary(): number {
+    // A data source grid only holds the window — the source's total is the count
+    if (this.dataSource) return this.dsTotal;
     return this.serverSide ? this.totalCount : this.displayData.length;
   }
 
@@ -2818,6 +2820,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   // ─── Grouping ────────────────────────────────────────────────────────
   /** Called at the end of refreshDisplayData whenever displayData (post filter+sort) changes */
   private applyGrouping(): void {
+    if (this.dataSource) {
+      this.reloadDataSource();
+      return;
+    }
     if (this.groupField && this.treeActive) {
       this.warnTreeOnce('grouping', 'grouping is ignored while treeChildren is set — rows and a tree cannot be grouped at the same time.');
     }
@@ -2840,16 +2846,21 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     // different raw codes that map to the same label (e.g. two legacy status codes both showing
     // "Draft") would end up as two separate groups with the same visible heading, which is confusing.
     const buckets = new Map<string, T[]>();
+    const sortValue = new Map<string, unknown>();
     for (const row of rows) {
       const raw = this.readCellValue(row, field);
       const isEmptyRaw = raw === null || raw === undefined || raw === '';
       const key = isEmptyRaw ? ' EMPTY' : col?.displayValue ? col.displayValue(row) : String(raw);
       const bucket = buckets.get(key);
       if (bucket) bucket.push(row);
-      else buckets.set(key, [row]);
+      else {
+        buckets.set(key, [row]);
+        // A label groups by its text; a plain value by itself, so 2 comes before 10 and dates in date order
+        sortValue.set(key, isEmptyRaw ? null : col?.displayValue ? key : raw);
+      }
     }
     return Array.from(buckets.entries())
-      .sort((a, b) => a[0].localeCompare(b[0], this.locale.intlLocale))
+      .sort((a, b) => weGridCompareGroupValues(sortValue.get(a[0]), sortValue.get(b[0]), this.locale.intlLocale))
       .map(([key, bucketRows]) => {
         const isEmpty = key === ' EMPTY';
         const label = isEmpty
@@ -2910,8 +2921,23 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   expandAllGroups(): void {
     this.groupCollapsedKeys.clear();
-    this.applyGrouping();
+    this.regroupView();
     this.cdr.markForCheck();
+  }
+
+  /** Shows the open/closed state again — a data source's groups are already known, so nothing is asked again */
+  private regroupView(): void {
+    if (!this.dataSource) {
+      this.applyGrouping();
+      return;
+    }
+    const walk = (sections: WeGridGroupSection<T>[]): void =>
+      sections.forEach((section) => {
+        section.collapsed = this.groupCollapsedKeys.has(section.path ?? section.key);
+        walk(section.children ?? []);
+      });
+    walk(this.groupedSections ?? []);
+    this.rebuildRenderItems();
   }
 
   collapseAllGroups(): void {
@@ -2921,7 +2947,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         collect(section.children ?? []);
       });
     collect(this.groupedSections ?? []);
-    this.applyGrouping();
+    this.regroupView();
     this.cdr.markForCheck();
   }
 
@@ -2950,6 +2976,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private layoutRenderItems(): void {
     if (this.dataSource) {
       this.renderItems = [];
+      this.layoutDataSourceGroups();
       return;
     }
     if (this.treeActive) {
@@ -3003,7 +3030,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** Items the scrollbar spans — the source's total for a `dataSource` grid */
   private get virtualCount(): number {
-    return this.dataSource ? this.dsTotal : this.renderItems.length;
+    if (!this.dataSource) return this.renderItems.length;
+    return this.dsSegments ? this.dsItemCount : this.dsTotal;
   }
 
   /** Picks the slice of `renderItems` for the current scroll position */
@@ -3019,7 +3047,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (this.dataSource) {
       this.visibleItems = this.dataSourceItems(win.start, win.end);
       this.displayData = this.visibleItems.flatMap((item) => (item.kind === 'row' ? [item.row] : []));
-      this.requestBlocks(win.start, win.end);
+      this.requestBlocks(this.visibleItems);
     } else if (win.start !== this.virtualStart || win.end !== this.virtualStart + this.visibleItems.length || this.visibleItems[0] !== this.renderItems[win.start]) {
       this.visibleItems = this.renderItems.slice(win.start, win.end);
     }
@@ -3144,6 +3172,19 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private dsGeneration = 0;
   /** True until the first answer for the current query is in */
   dsLoading = false;
+  /**
+   * A grouped data source grid as runs of items: a group header, the rows of an open innermost group
+   * (offsets `start` … `start + count` of the grouped result), a group footer. Null when not grouped.
+   */
+  private dsSegments: ({ kind: 'group' | 'groupFooter'; section: WeGridGroupSection<T> } | { kind: 'rows'; start: number; count: number })[] | null = null;
+  /** Item index just past each segment */
+  private dsSegmentEnds: number[] = [];
+  private dsItemCount = 0;
+
+  /** Whether the data source is asked for groups — it can group, and the grid is grouped */
+  private get dsGrouped(): boolean {
+    return !!this.dataSource?.groups && this.groupFields.length > 0 && !this.treeActive;
+  }
 
   /** Nothing to show — no rows loaded, or a data source reporting none */
   get bodyEmpty(): boolean {
@@ -3174,15 +3215,96 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.dsPending.clear();
     this.dsLoading = true;
     this.groupedSections = null;
+    this.dsSegments = null;
     this.renderItems = [];
     if (!keepPosition) {
       this.virtualPos = 0;
       const area = this.scrollAreaRef?.nativeElement;
       if (area) area.scrollTop = 0;
     }
-    this.fetchBlock(Math.floor(this.virtualPos / this.virtualRowPx / WE_GRID_DATA_BLOCK));
+    if (this.dsGrouped) this.fetchGroups();
+    else this.fetchBlock(Math.floor(this.virtualPos / this.virtualRowPx / WE_GRID_DATA_BLOCK));
     this.updateVirtualWindow();
     this.cdr.markForCheck();
+  }
+
+  /** Asks the source for the groups of the current query, then lays them out */
+  private fetchGroups(): void {
+    const source = this.dataSource;
+    if (!source?.groups) return;
+    const generation = this.dsGeneration;
+    const aggregates = this.internalColumns.flatMap((col) => {
+      const fn = this.groupSummaryFunction(col);
+      return fn === 'none' ? [] : [{ field: col.field, fn, ...(col.summaryWeightField ? { weightField: col.summaryWeightField } : {}) }];
+    });
+    Promise.resolve()
+      .then(() => source.groups!({ ...this.dataSourceQuery(), groupBy: [...this.groupFields], aggregates }))
+      .then(
+        (nodes) => {
+          if (generation !== this.dsGeneration) return;
+          this.groupedSections = this.sectionsFromGroups(nodes, '');
+          this.dsTotal = nodes.reduce((n, g) => n + g.count, 0);
+          this.dsLoading = false;
+          this.rebuildRenderItems();
+          this.cdr.detectChanges();
+        },
+        (error: unknown) => {
+          if (generation !== this.dsGeneration) return;
+          this.dsLoading = false;
+          this.showNotice(this.describeError(error, this.locale.loadFailed), true);
+          this.cdr.detectChanges();
+        }
+      );
+  }
+
+  /** A data source's groups in the shape the group rows render — the rows themselves stay in the source */
+  private sectionsFromGroups(nodes: WeGridGroupNode[], parentPath: string): WeGridGroupSection<T>[] {
+    return nodes.map((node) => {
+      const col = this.internalColumns.find((c) => c.field === node.field);
+      const empty = node.value === null || node.value === undefined || node.value === '';
+      // The same keys as the client grouping, so a collapsed group stays collapsed either way
+      const key = empty ? ' EMPTY' : node.key;
+      const path = node.level === 0 ? key : `${parentPath}\u001f${key}`;
+      const section: WeGridGroupSection<T> = {
+        key,
+        label: empty ? this.locale.emptyGroupValue : col ? this.formatColumnValue(col, node.value) : String(node.value),
+        rows: [],
+        collapsed: this.groupCollapsedKeys.has(path),
+        field: node.field,
+        level: node.level,
+        path,
+        count: node.count,
+        start: node.start,
+        aggregates: node.aggregates
+      };
+      if (node.children) section.children = this.sectionsFromGroups(node.children, path);
+      return section;
+    });
+  }
+
+  /** Header, rows of an open group, footer — the segments the window walks; see `dsSegments` */
+  private layoutDataSourceGroups(): void {
+    if (!this.groupedSections || !this.dsGrouped) {
+      this.dsSegments = null;
+      return;
+    }
+    const segments: NonNullable<typeof this.dsSegments> = [];
+    const footers = this.groupSummaryPosition !== 'header';
+    const walk = (sections: WeGridGroupSection<T>[]): void => {
+      for (const section of sections) {
+        segments.push({ kind: 'group', section });
+        // A closed group shows its header only — as on a grid with data
+        if (section.collapsed) continue;
+        if (section.children) walk(section.children);
+        else if (section.count) segments.push({ kind: 'rows', start: section.start ?? 0, count: section.count });
+        if (footers) segments.push({ kind: 'groupFooter', section });
+      }
+    };
+    walk(this.groupedSections);
+    let end = 0;
+    this.dsSegmentEnds = segments.map((seg) => (end += seg.kind === 'rows' ? seg.count : 1));
+    this.dsSegments = segments;
+    this.dsItemCount = end;
   }
 
   /** What the source is asked for — the grid's sort, filters and search, and how its columns read */
@@ -3192,6 +3314,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       sort: sort.filter((k): k is { field: string; direction: 'asc' | 'desc' } => !!k.direction),
       filters: Array.from(this.filterState.values()).filter((f) => isWeGridFilterActive(f)),
       search: this.searchText || undefined,
+      ...(this.dsGrouped ? { groupBy: [...this.groupFields] } : {}),
       columns: this.renderColumns.map((col) => ({
         field: col.field,
         type: col.type,
@@ -3204,20 +3327,53 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   private dataSourceItems(start: number, end: number): WeGridRenderItem<T>[] {
     const items: WeGridRenderItem<T>[] = [];
-    for (let i = start; i < end; i++) {
-      const row = this.dsBlocks.get(Math.floor(i / WE_GRID_DATA_BLOCK))?.[i % WE_GRID_DATA_BLOCK];
-      items.push(row === undefined ? { kind: 'pending', index: i, trackKey: `\u0002${i}` } : { kind: 'row', row, index: i, tree: null, trackKey: this.rowKey(row) });
+    const rowAt = (offset: number, stripe?: number): WeGridRenderItem<T> => {
+      const row = this.dsBlocks.get(Math.floor(offset / WE_GRID_DATA_BLOCK))?.[offset % WE_GRID_DATA_BLOCK];
+      return row === undefined
+        ? { kind: 'pending', index: offset, trackKey: `\u0002${offset}` }
+        : { kind: 'row', row, index: offset, ...(stripe === undefined ? {} : { stripe }), tree: null, trackKey: this.rowKey(row) };
+    };
+    const segments = this.dsSegments;
+    if (!segments) {
+      for (let i = start; i < end; i++) items.push(rowAt(i));
+      return items;
+    }
+    // The segment holding `start`: the first whose end lies past it
+    let lo = 0;
+    let hi = segments.length - 1;
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1;
+      if (this.dsSegmentEnds[mid] > start) hi = mid;
+      else lo = mid + 1;
+    }
+    for (let seg = lo, i = start; seg < segments.length && i < end; seg++) {
+      const segment = segments[seg];
+      const first = seg === 0 ? 0 : this.dsSegmentEnds[seg - 1];
+      if (segment.kind === 'rows') {
+        for (; i < end && i < this.dsSegmentEnds[seg]; i++) items.push(rowAt(segment.start + (i - first), i - first));
+        continue;
+      }
+      const path = segment.section.path ?? segment.section.key;
+      const level = segment.section.level ?? 0;
+      items.push(
+        segment.kind === 'group'
+          ? { kind: 'group', section: segment.section, level, trackKey: this.groupTrackToken(path) }
+          : { kind: 'groupFooter', section: segment.section, level, trackKey: this.groupTrackToken(`\u0001${path}`) }
+      );
+      i++;
     }
     return items;
   }
 
-  /** Loads the blocks the window needs and lets go of the ones far from it */
-  private requestBlocks(start: number, end: number): void {
-    if (end <= start) return;
-    const first = Math.floor(start / WE_GRID_DATA_BLOCK);
-    const last = Math.floor((end - 1) / WE_GRID_DATA_BLOCK);
+  /** Loads the blocks of the rows in the window and lets go of the ones far from them */
+  private requestBlocks(items: WeGridRenderItem<T>[]): void {
+    const needed = new Set<number>();
+    for (const item of items) if (item.kind === 'row' || item.kind === 'pending') needed.add(Math.floor(item.index / WE_GRID_DATA_BLOCK));
+    if (needed.size === 0) return;
+    const first = Math.min(...needed);
+    const last = Math.max(...needed);
     for (const block of this.dsBlocks.keys()) if (block < first - 8 || block > last + 8) this.dsBlocks.delete(block);
-    for (let block = first; block <= last; block++) this.fetchBlock(block);
+    for (const block of needed) this.fetchBlock(block);
   }
 
   private fetchBlock(block: number): void {
@@ -3294,21 +3450,29 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** "Column Label: value" fragments shown in the group header — null if no column has a group summary */
   groupSummaryLabel(section: WeGridGroupSection<T>): string | null {
     if (this.groupSummaryPosition === 'footer' || !this.hasGroupSummary) return null;
-    const rows = section.rows.map((e) => e.row);
     const parts: string[] = [];
     for (const col of this.internalColumns) {
-      const fn = this.groupSummaryFunction(col);
-      if (fn === 'none') continue;
-      const text = buildWeGridSummaryText(rows, { ...col, summary: fn }, 'client', undefined, this.locale, this.readCellValue);
+      const text = this.groupSummaryText(section, col);
       if (text) parts.push(`${weGridDisplayHeader(col)} ${text}`);
     }
     return parts.length ? parts.join(' · ') : null;
   }
 
-  /** A group footer cell — the column's group summary over the group's rows, or null */
-  groupFooterCellText(section: WeGridGroupSection<T>, col: WeGridInternalColumn<T>): string | null {
+  /** A record count as the locale writes numbers — 50.000.000, not 50000000 */
+  countText(count: number): string {
+    return count.toLocaleString(this.locale.intlLocale);
+  }
+
+  /** A group's row count — its rows, or what the data source counted */
+  groupCount(section: WeGridGroupSection<T>): number {
+    return section.count ?? section.rows.length;
+  }
+
+  /** One column's group summary — over the group's rows, or the data source's subtotal */
+  private groupSummaryText(section: WeGridGroupSection<T>, col: WeGridInternalColumn<T>): string | null {
     const fn = this.groupSummaryFunction(col);
     if (fn === 'none') return null;
+    if (section.aggregates) return weGridSummaryValueText(section.aggregates[col.field] ?? null, { ...col, summary: fn }, fn, 'client', this.locale);
     return buildWeGridSummaryText(
       section.rows.map((e) => e.row),
       { ...col, summary: fn },
@@ -3317,6 +3481,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       this.locale,
       this.readCellValue
     );
+  }
+
+  /** A group footer cell — the column's group summary over the group's rows, or null */
+  groupFooterCellText(section: WeGridGroupSection<T>, col: WeGridInternalColumn<T>): string | null {
+    return this.groupSummaryText(section, col);
   }
 
   // ─── Tree rows (treeChildren) ───────────────────────────────────────

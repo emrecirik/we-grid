@@ -11,6 +11,20 @@ export function weGridCompareSortValues(va: unknown, vb: unknown, direction: WeG
 }
 
 /**
+ * The order groups are listed in: the empty group first, then numbers and dates by value, booleans
+ * false before true, and text the way the locale orders it (`localeCompare`).
+ */
+export function weGridCompareGroupValues(a: unknown, b: unknown, locale?: string): number {
+  const emptyA = a === null || a === undefined || a === '';
+  const emptyB = b === null || b === undefined || b === '';
+  if (emptyA || emptyB) return emptyA === emptyB ? 0 : emptyA ? -1 : 1;
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
+  if (typeof a === 'boolean' && typeof b === 'boolean') return Number(a) - Number(b);
+  return String(a).localeCompare(String(b), locale);
+}
+
+/**
  * The order of rows sorted by one or more key columns (`keys[k][row]`), stable — the same order
  * weGridCompareSortValues gives, without comparing. Number, Date and string columns become
  * unsigned integer keys (strings through a sorted dictionary) and go through an LSD radix sort,

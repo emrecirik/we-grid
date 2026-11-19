@@ -113,6 +113,21 @@ describe('WeGridComponent — multi-level grouping and group summaries', () => {
     expect(outerCell.hasAttribute('style')).toBeFalse();
   });
 
+  it('lists groups in value order — 2 before 10, dates by date — with the empty group first', () => {
+    host.data = [
+      { id: 'a', city: 'X', status: 'S', qty: 10, amount: 1 },
+      { id: 'b', city: 'X', status: 'S', qty: 2, amount: 1 },
+      { id: 'c', city: '', status: 'S', qty: 9, amount: 1 },
+      { id: 'd', city: 'X', status: 'S', qty: 1, amount: 1 }
+    ];
+    host.groupBy = ['qty'];
+    render();
+    expect(outline().filter((l) => l.startsWith('G'))).toEqual(['G0:Qty: 1 (1)', 'G0:Qty: 2 (1)', 'G0:Qty: 9 (1)', 'G0:Qty: 10 (1)']);
+    host.groupBy = ['city'];
+    render();
+    expect(outline().filter((l) => l.startsWith('G'))[0]).toBe(`G0:City: ${weGridLocaleEn.emptyGroupValue} (1)`);
+  });
+
   it('collapsing an outer group hides its sub-groups; the state survives a new data array', () => {
     host.groupBy = ['city', 'status'];
     render();

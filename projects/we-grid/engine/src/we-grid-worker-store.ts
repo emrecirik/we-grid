@@ -1,5 +1,5 @@
 import { Observable, from } from 'rxjs';
-import { WeGridDataPage, WeGridDataRequest, WeGridDataSource } from './we-grid-data-source.model';
+import { WeGridDataPage, WeGridDataRequest, WeGridDataSource, WeGridGroupNode, WeGridGroupRequest } from './we-grid-data-source.model';
 import { WeGridChecklistValuesRequest, WeGridChecklistValuesResult } from './we-grid-filter.model';
 import { WeGridColumnStore, WeGridDictionaryColumn, WeGridFixedPointColumn, WeGridStoredColumnInfo } from './we-grid-column-store';
 
@@ -12,7 +12,8 @@ type WorkerCall =
   | { op: 'fromRows'; rows: object[]; fields?: readonly string[] }
   | { op: 'load'; request: WeGridDataRequest }
   | { op: 'checklist'; request: WeGridChecklistValuesRequest }
-  | { op: 'aggregate'; field: string; fn: 'sum' | 'avg' | 'min' | 'max' | 'count'; request: Query }
+  | { op: 'groups'; request: WeGridGroupRequest }
+  | { op: 'aggregate'; field: string; fn: 'sum' | 'avg' | 'min' | 'max' | 'count'; request: Query; weightField?: string }
   | { op: 'distinct'; field: string; request: Query; limit: number }
   | { op: 'set'; row: number; field: string; value: unknown }
   | { op: 'describe' };
@@ -54,7 +55,8 @@ export function weGridServeColumnStore(scope: WorkerScope = self as unknown as W
         throw new Error('WeGridWorkerStore: the store was not built yet');
       } else if (call.op === 'load') result = store.load(call.request);
       else if (call.op === 'checklist') result = store.checklist(call.request);
-      else if (call.op === 'aggregate') result = store.aggregate(call.field, call.fn, call.request);
+      else if (call.op === 'groups') result = store.groups(call.request);
+      else if (call.op === 'aggregate') result = store.aggregate(call.field, call.fn, call.request, call.weightField);
       else if (call.op === 'distinct') result = store.distinct(call.field, call.request, call.limit);
       else if (call.op === 'set') result = store.set(call.row, call.field, call.value);
       else result = store.describe();
@@ -76,7 +78,7 @@ function transferables(columns: ColumnsInput): ArrayBuffer[] {
 }
 
 /** A request with the column formatters left out — a function can't be posted; the worker formats from `formatSpec` */
-function postable(request: Query): Query {
+function postable<Q extends Query>(request: Q): Q {
   return request.columns ? { ...request, columns: request.columns.map(({ format: _format, ...column }) => column) } : request;
 }
 
@@ -139,8 +141,12 @@ export class WeGridWorkerStore<T extends object = Record<string, unknown>> imple
   readonly checklistValues = (request: WeGridChecklistValuesRequest): Observable<WeGridChecklistValuesResult> =>
     from(this.call({ op: 'checklist', request }) as Promise<WeGridChecklistValuesResult>);
 
-  aggregate(field: string, fn: 'sum' | 'avg' | 'min' | 'max' | 'count', request: Query = {}): Promise<number | null> {
-    return this.call({ op: 'aggregate', field, fn, request: postable(request) }) as Promise<number | null>;
+  aggregate(field: string, fn: 'sum' | 'avg' | 'min' | 'max' | 'count', request: Query = {}, weightField?: string): Promise<number | null> {
+    return this.call({ op: 'aggregate', field, fn, request: postable(request), weightField }) as Promise<number | null>;
+  }
+
+  groups(request: WeGridGroupRequest): Promise<WeGridGroupNode[]> {
+    return this.call({ op: 'groups', request: postable(request) }) as Promise<WeGridGroupNode[]>;
   }
 
   distinct(field: string, request: Query = {}, limit = Infinity): Promise<unknown[]> {
