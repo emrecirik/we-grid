@@ -240,6 +240,7 @@ parser's own messages are English too.
 ## Keys added in 0.56.0
 
 - `loadFailed` — the notice when a `dataSource` can't deliver rows
+- `pivotFormulaFromSource(field)` — `<we-pivot [dataSource]>` asked to pivot a formula field
 
 ## Keys added in 0.48.0
 

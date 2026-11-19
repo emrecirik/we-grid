@@ -214,6 +214,13 @@ reference in [sheet.md](sheet.md).
 
 ## `<we-pivot>` (`WePivotComponent`) *(0.11.0)*
 
+`[dataSource]` *(0.56.0)* — a `WeGridDataSource` with `groups()` (`WeGridColumnStore`,
+`WeGridWorkerStore`) instead of `data`: the pivot is one aggregation in the source, so tens of
+millions of rows pivot in about a second. The table is the one `data` would give — `wePivotGroupRequest`
+and `wePivotFromGroups` do it by hand. It needs at least one row or column field. A formula field
+can't come from a source — the pivot says so (`pivotFormulaFromSource`) instead of leaving it out — and
+a source that fails shows `loadFailed` above the table.
+
 A pivot table — inputs `data`, `fields`, `config` (`WePivotConfig`, two-way), `gridKey`,
 `exportFormats`, `maxHeight`, `maxColumns`, `chart` (`WeChartType | null`, 0.12.0); outputs `configChange`,
 `chartChange` (0.12.0), `cellClick` (`WePivotCellClickEvent`, 0.55.0 — `{ rowValues, columnValues, valueField, value }`

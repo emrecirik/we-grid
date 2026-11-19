@@ -42,8 +42,9 @@ rows are actually in the page, which AG Grid reaches a few frames after `createG
 
 Against AG Grid the column engine renders about 12×, sorts 90×, filters 45× and searches 10×
 faster; in a worker the page's longest freeze is 56× to 340× shorter. Grouping a million rows by
-City with each group's total takes the engine 73 ms (row objects: 818 ms); AG Grid Community can't
-group rows at all — row grouping is part of AG Grid Enterprise. All three we-grid modes give
+City with each group's total takes the engine 73 ms (row objects: 818 ms), and a City × Category
+pivot of the sum of Total 94 ms (row objects: 560 ms) — the same cells either way. AG Grid Community
+can't group rows or pivot at all; both are part of AG Grid Enterprise. All three we-grid modes give
 the same result — the filter keeps 100,402 rows and the search 7,240 — and at two million rows AG
 Grid took 2.6 s to render, 12.1 s to sort, 4.6 s to filter and 3.0 s to search; at five million,
 32 s to sort with 1.6 GB of heap.
@@ -57,6 +58,7 @@ Grid took 2.6 s to render, 12.1 s to sort, 4.6 s to filter and 3.0 s to search; 
 | Filter City = Ankara | 230 · 223 ms | 206 · **17** ms | 993 · 985 ms | 784 · **21** ms |
 | Search "selin izmir" | 447 · 441 ms | 472 · **26** ms | 1,488 · 1,483 ms | 1,601 · **20** ms |
 | Group by City, with each group's Total | 373 · 367 ms | 338 · **15** ms | — | 1,375 · **17** ms |
+| Pivot City × Category, sum of Total | — | 535 · **23** ms | — | 2,950 · **25** ms |
 | Data in memory | 143 MB | 143 MB | 715 MB | 715 MB |
 | Scroll FPS | 40 | 44 | 45 | 51 |
 
@@ -115,6 +117,8 @@ Each column is stored in the smallest form its values allow, chosen on its own:
 - **Grouping** is a hash aggregation over the codes: one pass counts every group and adds up its
   subtotals; the rows then come group by group, so a group is one run of offsets and the grid can
   show fifty million grouped rows window by window. More than 200,000 groups is refused.
+- **Pivots** come from the same aggregation: `<we-pivot [dataSource]="store">` asks for the groups
+  by the row and column fields with each value's aggregate, and builds the table from those cells.
 - **Rows** become objects only for the window in view (256 at a time).
 
 The engine follows the grid's own rules — the same filter operators and Turkish-aware lowercasing,

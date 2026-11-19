@@ -2,7 +2,17 @@ import { ChangeDetectorRef, Component, ElementRef, Input, OnDestroy, ViewChild }
 import type { GridApi } from 'ag-grid-community';
 import { FormsModule } from '@angular/forms';
 import { of } from 'rxjs';
-import { WE_GRID_LAYOUT_STORE, WeGridColumnDef, WeGridColumnStore, WeGridComponent, WeGridDataSource, WeGridLayoutStore, WeGridWorkerStore } from 'we-grid-angular';
+import {
+  WE_GRID_LAYOUT_STORE,
+  WeGridColumnDef,
+  WeGridColumnStore,
+  WeGridComponent,
+  WeGridDataSource,
+  WeGridLayoutStore,
+  WeGridWorkerStore,
+  WePivotComponent,
+  WePivotConfig
+} from 'we-grid-angular';
 import { StudioText } from './studio-text';
 
 interface PerfRow {
@@ -32,12 +42,14 @@ interface PerfResult {
   filterFreezeMs: number | null;
   searchFreezeMs: number | null;
   groupFreezeMs: number | null;
+  pivotFreezeMs: number | null;
   worker: boolean;
   heapMb: number | null;
   sortMs: number | null;
   filterMs: number | null;
   searchMs: number | null;
   groupMs: number | null;
+  pivotMs: number | null;
   fps: number | null;
 }
 
@@ -140,7 +152,7 @@ const nextFrame = (): Promise<number> => new Promise((resolve) => requestAnimati
 @Component({
   selector: 'studio-perf-tab',
   standalone: true,
-  imports: [FormsModule, WeGridComponent],
+  imports: [FormsModule, WeGridComponent, WePivotComponent],
   templateUrl: './perf-tab.component.html',
   styleUrl: './app.component.scss',
   // Every run starts from the same grid: no sort or width carried over from the run before
@@ -153,7 +165,11 @@ export class PerfTabComponent implements OnDestroy {
   /** AG Grid Community, loaded only when its mode is picked — the comparison, not part of we-grid */
   private agApi: GridApi<PerfRow> | null = null;
   private agSearch = '';
-  @ViewChild(WeGridComponent) grid?: WeGridComponent<PerfRow>;
+  @ViewChild('mainGrid') grid?: WeGridComponent<PerfRow>;
+  @ViewChild(WePivotComponent) pivotView?: WePivotComponent<PerfRow>;
+  /** Shown under the grid once "Pivot" is pressed — City down, Category across, the sum of Total */
+  showPivot = false;
+  readonly pivotConfig: WePivotConfig = { rows: ['city'], columns: ['category'], values: [{ field: 'total', aggregate: 'sum' }] };
 
   readonly sizesByMode: Record<Mode, number[]> = {
     rows: [10_000, 100_000, 1_000_000, 2_000_000],
@@ -235,6 +251,7 @@ export class PerfTabComponent implements OnDestroy {
     this.busy = true;
     this.data = [];
     this.store = null;
+    this.showPivot = false;
     this.runId++;
     this.worker?.terminate();
     this.worker = null;
@@ -290,6 +307,8 @@ export class PerfTabComponent implements OnDestroy {
       searchFreezeMs: null,
       groupMs: null,
       groupFreezeMs: null,
+      pivotMs: null,
+      pivotFreezeMs: null,
       worker,
       heapMb: this.heapMb(),
       sortMs: null,
@@ -394,6 +413,11 @@ export class PerfTabComponent implements OnDestroy {
     });
   }
 
+  /** City × Category pivot of the whole set, from the rows or the store; only showing it is timed */
+  pivot(): Promise<void> {
+    return this.measure('pivotMs', !this.showPivot, () => (this.showPivot = !this.showPivot));
+  }
+
   get groupActive(): boolean {
     return !!this.grid?.groupFields.length;
   }
@@ -411,7 +435,7 @@ export class PerfTabComponent implements OnDestroy {
     return ms === null ? '—' : `${this.format(ms)} ms · ${this.format(freezeMs)} ms`;
   }
 
-  private async measure(key: 'sortMs' | 'filterMs' | 'searchMs' | 'groupMs', record: boolean, action: () => void): Promise<void> {
+  private async measure(key: 'sortMs' | 'filterMs' | 'searchMs' | 'groupMs' | 'pivotMs', record: boolean, action: () => void): Promise<void> {
     if (this.busy || !this.hasData) return;
     this.busy = true;
     const done = frameWatch();
@@ -428,6 +452,7 @@ export class PerfTabComponent implements OnDestroy {
   /** Whether the result is on screen — no placeholder rows waiting for the worker, AG Grid's rows drawn */
   private rowsShown(): boolean {
     if (this.agApi) return !!this.agHost?.nativeElement.querySelector('.ag-row') || this.agApi.getDisplayedRowCount() === 0;
+    if (this.showPivot && (!this.pivotView || this.pivotView.loading)) return false;
     return !this.gridHost?.nativeElement.querySelector('tbody > tr.we-grid__skeleton-row');
   }
 

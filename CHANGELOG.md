@@ -36,6 +36,14 @@ All notable changes to this project are documented in this file.
   ≈ 1.4 s, in a worker without freezing the page. `WeGridGroupSection` gained `count`, `start` and
   `aggregates` for groups whose rows stay in the source; `weGridSummaryValueText` formats such a
   subtotal; `weGridCompareGroupValues` is the group order.
+- `<we-pivot [dataSource]>`: pivots a data source through its `groups()` — the same table as from
+  `data`, cell for cell, but one aggregation in the column engine: City × Category over fifty million
+  rows in ≈ 3 s in a worker, without freezing the page. `wePivotGroupRequest` and `wePivotFromGroups`
+  build it by hand; `WeGridGroupAggregate.key` asks for one field with two aggregates and
+  `numbersOnly` applies the pivot's rule (only real numbers add up). A formula field can't be pivoted
+  from a source and the pivot says so — locale key `pivotFormulaFromSource` (en, tr, de, fr, es).
+  `WeGridColumnStore.groups()` and `load({ groupBy })` throw for a field the store doesn't have
+  instead of leaving it out.
 - New secondary entry point **`we-grid-angular/engine`** without Angular: the column engine, the
   worker store, the filter matching, radix sort and value formatting. A worker built from it is
   ≈ 27 kB instead of 1.5 MB with the whole grid, and it runs in Node too. Everything in it is still
@@ -65,6 +73,8 @@ All notable changes to this project are documented in this file.
 
 ### Fixed
 
+- In a pivot, the rows under a blank outer value ("(Empty)") weren't sorted by the inner fields — two
+  blank keys compared as unequal.
 - A `min` or `max` summary over a few hundred thousand rows threw "Maximum call stack size
   exceeded" (the values were spread into `Math.min`); it is a loop now.
 - A date filter (filter row, popover or `eq` / `before` / `after` / `between`) moved the time of
