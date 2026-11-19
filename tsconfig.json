@@ -26,6 +26,9 @@
     "paths": {
       "we-grid-angular": [
         "./dist/we-grid"
+      ],
+      "we-grid-angular/engine": [
+        "./dist/we-grid/engine"
       ]
     }
   },

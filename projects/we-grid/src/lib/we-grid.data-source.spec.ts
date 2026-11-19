@@ -2,7 +2,7 @@ import { Component, ViewChild } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { firstValueFrom } from 'rxjs';
 import { WeGridComponent } from './we-grid.component';
-import { WeGridColumnStore } from './engine/we-grid-column-store';
+import { WeGridColumnStore } from 'we-grid-angular/engine';
 import { WeGridColumnDef } from './models/we-grid-column.model';
 import { WeGridDataPage, WeGridDataRequest, WeGridDataSource } from './models/we-grid-data-source.model';
 

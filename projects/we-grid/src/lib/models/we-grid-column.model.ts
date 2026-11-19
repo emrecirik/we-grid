@@ -3,62 +3,12 @@ import { WeGridEditorOption, WeGridEditorType } from './we-grid-edit.model';
 import { WeGridRowEventName } from './we-grid-events.model';
 import { WeGridTreeInfo } from './we-grid-tree.model';
 import { WeGridFilterOperator } from './we-grid-filter.model';
+import { WeGridColumnType, WeGridHeaderFilterMode, WeGridSortDirection, weGridValueKind } from 'we-grid-angular/engine';
+
+// Defined in the framework-free engine entry point, so a Web Worker can use them without Angular
+export type { WeGridColumnType, WeGridHeaderFilterMode, WeGridSortDirection, WeGridValueKind } from 'we-grid-angular/engine';
+export { weGridValueKind } from 'we-grid-angular/engine';
 import { WeGridCellStyle } from './we-grid-format.model';
-
-/**
- * Column data type — cell rendering, default formatting, filtering, editing, export and import are
- * driven by this.
- *
- * - `'text'` — plain text
- * - `'number'` — a number; `format: '2-2'` sets the min-max fraction digits
- * - `'integer'` — a whole number, shown without fraction digits
- * - `'currency'` — money in the locale's (or `format`'s) currency; add `minorUnits: true` when the
- *   value is stored in the minor unit (kuruş, cents — `12345` → ₺123,45)
- * - `'percent'` — a FRACTION shown as a percentage (`0.255` → %25,5); `format` sets fraction digits
- * - `'date'` / `'datetime'` — a `Date` or anything `new Date()` accepts
- * - `'time'` — a time of day, either `'HH:mm'` / `'HH:mm:ss'` text or a `Date`
- * - `'boolean'` — shown as the locale's Yes / No
- * - `'email'` / `'url'` / `'phone'` — text rendered as a `mailto:` / web / `tel:` link
- * - `'custom'` — rendered by a cell template only
- */
-export type WeGridColumnType =
-  | 'text'
-  | 'number'
-  | 'integer'
-  | 'date'
-  | 'datetime'
-  | 'time'
-  | 'currency'
-  | 'percent'
-  | 'boolean'
-  | 'email'
-  | 'url'
-  | 'phone'
-  | 'custom';
-
-/**
- * The family a column type behaves like when filtering, sorting and summarising: every numeric type
- * filters with = > < between, every date type with a calendar picker, and so on.
- */
-export type WeGridValueKind = 'text' | 'number' | 'date' | 'boolean';
-
-/** Maps a column type onto the family it filters, sums and edits like — see WeGridValueKind */
-export function weGridValueKind(type: WeGridColumnType | undefined): WeGridValueKind {
-  switch (type) {
-    case 'number':
-    case 'integer':
-    case 'currency':
-    case 'percent':
-      return 'number';
-    case 'date':
-    case 'datetime':
-      return 'date';
-    case 'boolean':
-      return 'boolean';
-    default:
-      return 'text';
-  }
-}
 
 /** Column types whose cells render as a link — see WeGridColumnType */
 export function isWeGridLinkType(type: WeGridColumnType): boolean {
@@ -80,18 +30,10 @@ export type WeGridPinned = 'left' | 'right' | null;
 /** Grid density mode — determines row height */
 export type WeGridDensity = 'comfortable' | 'normal' | 'compact';
 
-/** Sort direction */
-export type WeGridSortDirection = 'asc' | 'desc' | null;
 
 /** Subtotal (summary row) function — a column with 'none' does not participate in the summary row */
 export type WeGridSummaryFunction = 'sum' | 'count' | 'avg' | 'min' | 'max' | 'none';
 
-/**
- * What the column header's funnel icon opens.
- * 'checklist' (the grid default since 0.5.0) is the Excel/DevExpress style list of the distinct
- * values in the data; 'operator' is the classic operator + single value popover.
- */
-export type WeGridHeaderFilterMode = 'operator' | 'checklist';
 
 /** Whether a checklist header filter accepts several values (checkboxes) or exactly one (radios) */
 export type WeGridHeaderFilterSelection = 'multi' | 'single';

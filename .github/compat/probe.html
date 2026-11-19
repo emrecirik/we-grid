@@ -43,3 +43,5 @@
     <div>{{ i }} — {{ row.name }} ({{ row.category }})</div>
   </ng-template>
 </we-grid>
+
+<we-grid gridKey="probe-engine" [columns]="columns" [dataSource]="store" trackByField="id" [maxHeight]="240" />

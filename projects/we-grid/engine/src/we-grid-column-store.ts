@@ -1,10 +1,10 @@
-import { WeGridColumnType } from '../models/we-grid-column.model';
-import { WeGridDataColumn, WeGridDataPage, WeGridDataRequest, WeGridDataSource } from '../models/we-grid-data-source.model';
+import { WeGridColumnType } from './we-grid-column-kind';
+import { WeGridDataColumn, WeGridDataPage, WeGridDataRequest, WeGridDataSource } from './we-grid-data-source.model';
 import { Observable, of } from 'rxjs';
-import { WeGridChecklistValuesRequest, WeGridChecklistValuesResult, isWeGridFilterActive } from '../models/we-grid-filter.model';
-import { weGridLocaleEn } from '../models/we-grid-locale.model';
-import { weGridValueMatchesFilter } from '../services/we-grid-filter.util';
-import { WeGridRadixWord, weGridCompareSortValues, weGridFloatSortWords, weGridRadixSort } from '../services/we-grid-sort.util';
+import { WeGridChecklistValuesRequest, WeGridChecklistValuesResult, isWeGridFilterActive } from './we-grid-filter.model';
+import { weGridValueMatchesFilter } from './we-grid-filter-match';
+import { formatWeGridColumnValue } from './we-grid-value.util';
+import { WeGridRadixWord, weGridCompareSortValues, weGridFloatSortWords, weGridRadixSort } from './we-grid-sort.util';
 
 type Codes = Uint8Array | Uint16Array | Uint32Array;
 
@@ -397,13 +397,16 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
   }
 
   /** The grid's checklist header filter, listing values across the whole store */
-  readonly checklistValues = (request: WeGridChecklistValuesRequest): Observable<WeGridChecklistValuesResult> => {
+  readonly checklistValues = (request: WeGridChecklistValuesRequest): Observable<WeGridChecklistValuesResult> => of(this.checklist(request));
+
+  /** What `checklistValues` answers, synchronously — a worker store asks this across the thread */
+  checklist(request: WeGridChecklistValuesRequest): WeGridChecklistValuesResult {
     const needle = request.search?.toLocaleLowerCase() ?? '';
     const values = this.distinct(request.field, { filters: request.filters }).filter(
       (v) => !needle || String(v ?? '').toLocaleLowerCase().includes(needle)
     );
-    return of({ values: values.slice(0, request.limit).map((value) => ({ value })), hasMore: values.length > request.limit });
-  };
+    return { values: values.slice(0, request.limit).map((value) => ({ value })), hasMore: values.length > request.limit };
+  }
 
   /** sum / avg / min / max / count of a number column over the result of the filters and search */
   aggregate(field: string, fn: 'sum' | 'avg' | 'min' | 'max' | 'count', request: Omit<WeGridDataRequest, 'offset' | 'limit'> = {}): number | null {
@@ -457,8 +460,8 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
     const keep = new Uint8Array(this.size).fill(1);
     const typeOf = (field: string): WeGridColumnType =>
       request.columns?.find((c) => c.field === field)?.type ?? inferType(this.columns[this.fields.indexOf(field)]);
-    // The text filters lowercase with this — the rest of the locale is never read there
-    const locale = { ...weGridLocaleEn, intlLocale: request.locale ?? weGridLocaleEn.intlLocale };
+    // What the text filters lowercase with
+    const locale = { intlLocale: request.locale ?? 'en-US' };
     for (const filter of filters) {
       const type = typeOf(filter.field);
       this.narrow(keep, this.fields.indexOf(filter.field), (v) => weGridValueMatchesFilter(v, filter, type, locale));
@@ -505,7 +508,9 @@ export class WeGridColumnStore<T extends object = Record<string, unknown>> imple
         const c = this.fields.indexOf(col.field);
         if (c < 0) continue;
         const column = this.columns[c];
-        const text = (v: unknown): string => lower(v === null || v === undefined ? '' : col.format ? col.format(v) : String(v));
+        const spec = col.formatSpec;
+        const show = col.format ?? (spec ? (v: unknown) => formatWeGridColumnValue(v, { type: col.type, format: spec.format, minorUnits: spec.minorUnits }, spec.options) : String);
+        const text = (v: unknown): string => lower(v === null || v === undefined ? '' : show(v));
         if (!this.mayContain(column, text, word)) continue;
         const mask = this.codeMask(column, (v) => text(v).includes(word));
         if (mask && (column.kind === 'dict' || column.kind === 'int')) {

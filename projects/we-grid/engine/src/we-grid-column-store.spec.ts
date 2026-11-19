@@ -1,7 +1,7 @@
-import { WeGridColumnFilterState } from '../models/we-grid-filter.model';
-import { weGridLocaleTr } from '../models/we-grid-locale.model';
-import { applyWeGridFilters } from '../services/we-grid-filter.util';
-import { weGridSortedIndices } from '../services/we-grid-sort.util';
+import { WeGridColumnFilterState } from './we-grid-filter.model';
+import { weGridLocaleTr } from '../../src/lib/models/we-grid-locale.model';
+import { applyWeGridFilters } from '../../src/lib/services/we-grid-filter.util';
+import { weGridSortedIndices } from './we-grid-sort.util';
 import { WeGridColumnStore } from './we-grid-column-store';
 
 interface Row {

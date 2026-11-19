@@ -78,5 +78,5 @@ export * from './lib/we-pivot/we-pivot.util';
 export * from './lib/we-chart/we-chart.component';
 export * from './lib/we-chart/we-chart.util';
 
-// WeGridColumnStore — the in-browser columnar engine behind a [dataSource] grid
-export * from './lib/engine/we-grid-column-store';
+// The column engine — also on its own, without Angular, as 'we-grid-angular/engine'
+export * from 'we-grid-angular/engine';

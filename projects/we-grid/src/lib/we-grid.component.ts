@@ -3192,7 +3192,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       sort: sort.filter((k): k is { field: string; direction: 'asc' | 'desc' } => !!k.direction),
       filters: Array.from(this.filterState.values()).filter((f) => isWeGridFilterActive(f)),
       search: this.searchText || undefined,
-      columns: this.renderColumns.map((col) => ({ field: col.field, type: col.type, format: (value: unknown) => this.formatColumnValue(col, value) })),
+      columns: this.renderColumns.map((col) => ({
+        field: col.field,
+        type: col.type,
+        format: (value: unknown) => this.formatColumnValue(col, value),
+        ...(col.formatter ? {} : { formatSpec: { format: col.format, minorUnits: col.minorUnits, options: this.valueFormatOptions() } })
+      })),
       locale: this.locale.intlLocale
     };
   }

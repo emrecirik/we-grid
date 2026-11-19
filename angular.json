@@ -37,6 +37,10 @@
             ],
             "styles": [
               "node_modules/@angular/cdk/overlay-prebuilt.css"
+            ],
+            "include": [
+              "**/*.spec.ts",
+              "../engine/**/*.spec.ts"
             ]
           }
         }
@@ -389,7 +393,8 @@
               "node_modules/@angular/cdk/overlay-prebuilt.css",
               "projects/studio/src/styles.scss"
             ],
-            "scripts": []
+            "scripts": [],
+            "webWorkerTsConfig": "projects/studio/tsconfig.worker.json"
           },
           "configurations": {
             "production": {

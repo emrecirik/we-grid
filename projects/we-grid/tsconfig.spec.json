@@ -6,7 +6,13 @@
     "outDir": "../../out-tsc/spec",
     "types": [
       "jasmine"
-    ]
+    ],
+    // The engine entry point from source while testing — the apps read it from dist
+    "baseUrl": "./",
+    "paths": {
+      "we-grid-angular/engine": ["./engine/src/public-api.ts"],
+      "we-grid-angular": ["../../dist/we-grid"]
+    }
   },
   "include": [
     "**/*.spec.ts",

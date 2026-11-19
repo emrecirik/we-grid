@@ -20,6 +20,8 @@ import {
   weGridParseCsv,
   weGridToCsv
 } from 'we-grid-angular';
+// The framework-free secondary entry point — what a Web Worker imports
+import { WeGridColumnStore } from 'we-grid-angular/engine';
 
 interface Product {
   id: number;
@@ -71,6 +73,9 @@ export class ProbeApp {
     { id: 1, code: 'PRD-1', name: 'Alpha', category: 'Bikes', price: 20, inStock: true, updatedAt: '2026-01-01' },
     { id: 2, code: 'PRD-2', name: 'Beta', category: 'Components', price: 35, inStock: false, updatedAt: '2026-01-02' }
   ];
+
+  /** The same rows in the column engine, shown through [dataSource] */
+  readonly store = WeGridColumnStore.fromRows(this.data);
 
   exportFormats: WeGridExportFormat[] = ['csv', 'xlsx', 'pdf'];
   importFormats: WeGridImportFormat[] = ['csv', 'xlsx'];
