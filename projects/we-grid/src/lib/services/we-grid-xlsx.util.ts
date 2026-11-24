@@ -263,9 +263,10 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
   if (top) {
     const bandCells: string[] = [];
     table.columns.forEach((col, i) => {
-      if (!col.group || (i > 0 && table.columns[i - 1].group === col.group)) return;
+      const continues = (k: number) => k > 0 && table.columns[k].group === table.columns[k - 1].group && !table.columns[k].groupStart;
+      if (!col.group || continues(i)) return;
       let end = i;
-      while (end + 1 < table.columns.length && table.columns[end + 1].group === col.group) end++;
+      while (end + 1 < table.columns.length && continues(end + 1)) end++;
       bandCells.push(inlineStringCell(`${columnLetter(i)}1`, col.group, STYLE_HEADER));
       if (end > i) merges.push(`${columnLetter(i)}1:${columnLetter(end)}1`);
     });

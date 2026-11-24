@@ -35,6 +35,11 @@ describe('weGridBuildXlsx', () => {
     expect(xml).toContain('<row r="2"><c r="A2"');
     expect(xml).toContain('<row r="3"><c r="A3"');
     expect(xml).toContain('<row r="4"><c r="B4"');
+    // Two bands with the same text that start apart stay apart
+    const split = table({ columns: table().columns.map((c, i) => ({ ...c, group: 'Money', groupStart: i !== 1 })) });
+    const splitXml = await weGridBuildXlsx(split).text();
+    expect(splitXml).toContain('<mergeCell ref="A1:B1"/>');
+    expect(splitXml).toMatch(/<c r="C1"[^>]*><is><t[^>]*>Money</);
     // Without bands the file is as before
     const plain = await weGridBuildXlsx(table()).text();
     expect(plain).not.toContain('mergeCell');

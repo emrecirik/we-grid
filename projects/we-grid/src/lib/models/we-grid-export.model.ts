@@ -37,6 +37,8 @@ export interface WeGridExportColumn {
   numberScale?: number;
   /** The column's header band (`headerGroup`) — Excel writes the bands in a merged row above the headers */
   group?: string | null;
+  /** First column of its band — two bands with the same text that a pin splits on screen stay apart in the file */
+  groupStart?: boolean;
 }
 
 /** One exported row: the raw values (used by xlsx to keep numbers numeric) alongside the display text */

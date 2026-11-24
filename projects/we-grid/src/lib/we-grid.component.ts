@@ -4174,6 +4174,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    */
   private buildExportTable(rows: T[], withStyles = false, summaryRows?: T[], onlyFields?: ReadonlySet<string>): WeGridExportTable {
     const columns = onlyFields ? this.exportColumns.filter((c) => onlyFields.has(c.field)) : this.exportColumns;
+    // The on-screen band of each column, so the file splits a band exactly where the grid does
+    const bandOf = new Map<WeGridInternalColumn<T>, unknown>();
+    for (const band of this.headerBands) for (const c of band.columns) bandOf.set(c, band);
     const title = this.exportFileName || this.gridKey;
     // The look of each cell — column styles and format rules — for exporters that can carry it
     const looks = new Map<T, Record<string, WeGridCellStyle>>();
@@ -4183,7 +4186,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return {
       fileName: title,
       title,
-      columns: columns.map((col) => ({
+      columns: columns.map((col, i) => ({
         field: col.field,
         header: weGridDisplayHeader(col),
         type: col.type,
@@ -4192,7 +4195,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         width: col.width,
         useDisplayText: !!col.displayValue,
         numberScale: col.type === 'currency' && col.minorUnits ? this.inputScale(col) : 1,
-        group: col.headerGroup
+        group: col.headerGroup,
+        groupStart: !!col.headerGroup && (i === 0 || bandOf.get(columns[i - 1]) !== bandOf.get(col))
       })),
       rows: rows.map((row) => {
         const values = columns.map((col) => {

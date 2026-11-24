@@ -96,6 +96,14 @@ describe('WeGridComponent — header bands (headerGroup)', () => {
     expect(bands().map((b) => b.text)).toEqual(['Sales', '', 'Sales', 'Costs']);
     const pinned = fixture.nativeElement.querySelector('.we-grid__band--pinned-left') as HTMLElement;
     expect(pinned.style.left).toBe('0px');
+    // The export splits the band where the grid does
+    host.grid.exportAs('xlsx');
+    expect(exported[0].columns.map((c) => [c.field, c.groupStart])).toEqual([
+      ['feb', true],
+      ['name', false],
+      ['jan', true],
+      ['cost', true]
+    ]);
   });
 
   it('draws no band row, colgroup or class when no column has a group', () => {
