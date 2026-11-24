@@ -253,7 +253,7 @@ parser's own messages are English too.
 ## Keys added in 0.59.0
 
 - Charts: `chartTotal` (a waterfall's last bar), `chartSummaryText(s)` (the chart in one sentence),
-  `chartKeyboardHint`; `chartTypeLabels` gained `waterfall`
+  `chartKeyboardHint`; `chartTypeLabels` gained `waterfall` and (0.60.0) `heatmap`
 
 ## Keys added in 0.56.0
 

@@ -234,7 +234,7 @@ rowMenu = (row: Order, ctx: WeGridRowMenuContext<Order>): WeGridMenuItem[] => [
 ### Range charts
 
 *(0.57.0)* The block menu's **Chart range ▸** lists column, bar, line, area, pie, donut, radial bar,
-funnel and (0.59.0) waterfall; the one picked opens the chart dialog over the block. `openRangeChart(type?)` opens it
+funnel, (0.59.0) waterfall and (0.60.0) heatmap; the one picked opens the chart dialog over the block. `openRangeChart(type?)` opens it
 from your own button — over the block, or with none over the filtered rows and visible columns.
 
 - **Set up:** the first text column of the block is the category, its number columns are the

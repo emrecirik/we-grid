@@ -41,8 +41,8 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - **Select cells like a spreadsheet** (`cellSelection`): drag, Shift+click or Shift+arrows; Ctrl+C,
   **Copy with headers** and **Export selection** (CSV / Excel / PDF of just those cells) from the right
   click, and count / sum / average / min / max in the footer — features AG Grid sells in Enterprise
-- **Chart a selection** in one right click: column, bar, line, area, pie, donut, radial bar, funnel or
-  waterfall; groups and repeated categories are summed for you; download as PNG or SVG, as an
+- **Chart a selection** in one right click: column, bar, line, area, pie, donut, radial bar, funnel,
+  waterfall or heatmap; groups and repeated categories are summed for you; download as PNG or SVG, as an
   **Excel file with a native, editable Excel chart**, copy as an image, or click a bar to filter the
   grid ([docs](docs/api.md#range-charts))
 - **Header bands** (`headerGroup`) over related columns — sticky with the header and merged in the
@@ -57,7 +57,7 @@ Material, no icon font. Standalone components and directives on top of Angular C
   no `eval`
 - **Macros**: scripts like `FILTER [Status] = "Open"` / `GROUP BY [City]` / `SET [Price] = [Price] * 1.1` run from toolbar buttons, a recorder that writes them for you, and your own TypeScript commands — no `eval` ([docs](docs/macros.md))
 - **Your database in a few lines**: a client for the we-report data protocol with ready backends in **.NET, Spring Boot, Node.js, Python, Go and PHP** — server-side paging, filtering and checklist values, and layouts/views/sheets saved on the server ([docs](docs/data-sources.md))
-- **`<we-chart>`** column, bar, line, area, pie, donut, waterfall, gauge, funnel and more in plain SVG, with value labels, **keyboard navigation** (one tab stop, arrow keys, values announced) and a one-sentence summary for screen readers — and charts straight from the pivot table and the spreadsheet ([docs](docs/charts.md))
+- **`<we-chart>`** column, bar, line, area, pie, donut, waterfall, heatmap, gauge, funnel and more in plain SVG, with value labels, **keyboard navigation** (one tab stop, arrow keys, values announced) and a one-sentence summary for screen readers — and charts straight from the pivot table and the spreadsheet ([docs](docs/charts.md))
 - **`<we-pivot>`** pivot tables: rows, columns and sum/count/average/min/max values from chips, with subtotals, totals and export ([docs](docs/pivot.md))
 - **`<we-sheet>`**, a spreadsheet in the same package: A1 formulas and named ranges, a formula bar,
   copy and paste with Excel, undo, styles, number formats (dates and times too), merge and centre,
@@ -253,7 +253,7 @@ downloads as PNG, SVG or an Excel file with a native, editable Excel chart.
 ### Charts you can read with the keyboard
 
 Every `<we-chart>` type over the same orders in [Studio's Charts tab](https://emrecirik.github.io/we-grid/studio/#charts):
-a waterfall, stacked columns, a donut, a funnel… Each plot is one tab stop — the arrow keys step
+a waterfall, stacked columns, a donut, a funnel, a heatmap… Each plot is one tab stop — the arrow keys step
 through its values and a screen reader hears each one — and a one-sentence summary (highest,
 lowest, total, the trend of a line) is written under it.
 

@@ -28,7 +28,7 @@ export class SalesChartComponent {
 
 | Input | Type | Default | |
 |---|---|---|---|
-| `type` | `'column' \| 'bar' \| 'line' \| 'area' \| 'pie' \| 'donut'` | `'column'` | Pie and donut chart the first series |
+| `type` | `WeChartType`: `'column' \| 'bar' \| 'line' \| 'area' \| 'pie' \| 'donut' \| 'gauge' \| 'radialBar' \| 'progress' \| 'funnel' \| 'sparkline' \| 'waterfall' \| 'heatmap'` | `'column'` | Pie, donut, radial bar and funnel chart the first series |
 | `data` | `WeChartData` | empty | `{ categories: string[], series: { name, values }[] }` |
 | `stacked` | `boolean` | `false` | Stack column, bar and area series |
 | `title` | `string` | `''` | Shown above the chart, and its accessible name |
@@ -41,6 +41,12 @@ export class SalesChartComponent {
 **Waterfall** *(0.59.0)*: `type="waterfall"` draws the first series as changes — each bar starts
 where the running total stands and rises (success colour) or falls (danger colour) by its value,
 and a last **Total** bar (`chartTotal`) shows where it ends. Empty values move nothing.
+
+**Heatmap** *(0.60.0)*: `type="heatmap"` draws a grid — one row per series, one column per category
+— with each cell in the first chart colour (`--we-grid-chart-1`), faint for the lowest value and full
+for the highest, and a five-step scale under it. Every series keeps its own row (none is folded into
+"Other"), an empty value leaves its cell blank, the tooltip shows the hovered cell only, and ↑/↓ move
+between rows. `showValues` writes each value in its cell when it fits.
 
 **Keyboard and screen readers** *(0.59.0)*: the plot is one tab stop (not on a gauge or a sparkline, which show one value or a trend). The arrow keys move a ring
 from value to value — along the categories with ←/→ (↑/↓ on a bar chart) and across the series with

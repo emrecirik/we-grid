@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+### Added
+
+- `type="heatmap"` for `<we-chart>` and the range chart dialog: one row per series, one column per
+  category, each cell the first chart colour stronger the higher its value (`weChartHeatShade`), with
+  a lowest-to-highest scale under it. Rows are never folded into "Other"; an empty value leaves its
+  cell blank. The tooltip shows the one cell, and the arrow keys step cell by cell (↑/↓ between rows).
+- Locale key `chartTypeLabels.heatmap` (all five languages).
+
 ## 0.59.1 — 2026-11-24
 
 A patch release: two fixes found while building the Studio pages.
