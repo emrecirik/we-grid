@@ -2,10 +2,11 @@ import { Component, OnInit } from '@angular/core';
 import { WeGridComponent, WeGridExportFormat, WeGridImportFormat, WePivotComponent, WePivotConfig, WeWorkbookComponent, WeWorkbookData } from 'we-grid-angular';
 import { DataTabComponent } from './data-tab.component';
 import { PerfTabComponent } from './perf-tab.component';
-import { studioWorkbook, studioColumns, studioMacros, studioOrders, studioRules } from './studio-data';
+import { ChartsTabComponent } from './charts-tab.component';
+import { StudioOrder, studioWorkbook, studioColumns, studioMacros, studioOrders, studioRules } from './studio-data';
 import { STUDIO_TEXT, StudioLanguage, saveStudioLanguage, studioLanguage } from './studio-text';
 
-type Tab = 'grid' | 'sheet' | 'pivot' | 'data' | 'perf' | 'start';
+type Tab = 'grid' | 'sheet' | 'pivot' | 'charts' | 'data' | 'perf' | 'start';
 type Theme = 'light' | 'dark';
 
 const THEME_KEY = 'we-grid-studio:theme';
@@ -14,7 +15,7 @@ const SHEET_KEY = 'studio-book';
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [WeGridComponent, WeWorkbookComponent, WePivotComponent, DataTabComponent, PerfTabComponent],
+  imports: [WeGridComponent, WeWorkbookComponent, WePivotComponent, DataTabComponent, PerfTabComponent, ChartsTabComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
 })
@@ -25,6 +26,9 @@ export class AppComponent implements OnInit {
   readonly orders = studioOrders(this.lang);
   readonly rules = studioRules(this.lang);
   readonly macros = studioMacros(this.lang);
+  /** Pinned under the data: the mean order — its Total comes from the same formula column */
+  readonly averageRow: StudioOrder[] = [averageOrder(this.orders, this.text.averageOrder)];
+  readonly numberLocale = this.lang === 'tr' ? 'tr-TR' : 'en-US';
   pivotConfig: WePivotConfig = { rows: ['city', 'category'], columns: ['status'], values: [{ field: 'total', aggregate: 'sum' }] };
   readonly exportFormats: WeGridExportFormat[] = ['xlsx', 'csv', 'pdf'];
   readonly importFormats: WeGridImportFormat[] = ['xlsx', 'csv'];
@@ -55,7 +59,7 @@ export class OrdersComponent {
 
   ngOnInit(): void {
     const hash = location.hash.replace('#', '');
-    if (hash === 'sheet' || hash === 'start' || hash === 'grid' || hash === 'data' || hash === 'pivot' || hash === 'perf') this.tab = hash;
+    if (hash === 'sheet' || hash === 'start' || hash === 'grid' || hash === 'data' || hash === 'pivot' || hash === 'charts' || hash === 'perf') this.tab = hash;
     this.theme = this.read(THEME_KEY) === 'dark' ? 'dark' : this.read(THEME_KEY) === 'light' ? 'light' : matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     this.applyTheme();
     if (this.read(`we-sheet:book:${this.sheetKey}`) === null) this.sheetData = studioWorkbook(this.lang);
@@ -106,4 +110,22 @@ export class OrdersComponent {
       // storage blocked — the choice lasts for this visit
     }
   }
+}
+
+/** The mean of the orders' numbers, as one row the grid can pin */
+function averageOrder(orders: readonly StudioOrder[], label: string): StudioOrder {
+  const mean = (pick: (o: StudioOrder) => number) => orders.reduce((a, o) => a + pick(o), 0) / Math.max(1, orders.length);
+  return {
+    id: -1,
+    orderNo: label,
+    date: '',
+    customer: '',
+    city: '',
+    category: '',
+    product: '',
+    qty: Math.round(mean((o) => o.qty) * 10) / 10,
+    unitPrice: Math.round(mean((o) => o.unitPrice) * 100) / 100,
+    discount: Math.round(mean((o) => o.discount) * 1000) / 1000,
+    status: ''
+  };
 }

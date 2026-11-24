@@ -10,6 +10,7 @@
       <button type="button" role="tab" [attr.aria-selected]="tab === 'grid'" (click)="select('grid')">{{ text.tabGrid }}</button>
       <button type="button" role="tab" [attr.aria-selected]="tab === 'sheet'" (click)="select('sheet')">{{ text.tabSheet }}</button>
       <button type="button" role="tab" [attr.aria-selected]="tab === 'pivot'" (click)="select('pivot')">{{ text.tabPivot }}</button>
+      <button type="button" role="tab" [attr.aria-selected]="tab === 'charts'" (click)="select('charts')">{{ text.tabCharts }}</button>
       <button type="button" role="tab" [attr.aria-selected]="tab === 'data'" (click)="select('data')">{{ text.tabData }}</button>
       <button type="button" role="tab" [attr.aria-selected]="tab === 'perf'" (click)="select('perf')">{{ text.tabPerf }}</button>
       <button type="button" role="tab" [attr.aria-selected]="tab === 'start'" (click)="select('start')">{{ text.tabStart }}</button>
@@ -41,6 +42,14 @@
           <p class="muted">{{ text.gridIntro }}</p>
         </div>
       </div>
+      <aside class="tips tips--new">
+        <h2><span class="badge">{{ text.newTitle }}</span></h2>
+        <ul>
+          @for (item of text.newItems; track item) {
+            <li>{{ item }}</li>
+          }
+        </ul>
+      </aside>
       <we-grid
         [gridKey]="'studio-orders-' + lang"
         [columns]="columns"
@@ -64,6 +73,7 @@
         [importFormats]="importFormats"
         selectable="multi"
         [cellSelection]="true"
+        [pinnedBottomRows]="averageRow"
         [maxHeight]="620"
         exportFileName="orders"
       ></we-grid>
@@ -111,6 +121,10 @@
     </section>
   }
 
+  @if (tab === 'charts') {
+    <studio-charts-tab [text]="text" [orders]="orders" [locale]="numberLocale" />
+  }
+
   @if (tab === 'data') {
     <studio-data-tab [text]="text" />
   }
@@ -122,6 +136,12 @@
   @if (tab === 'start') {
     <section class="panel panel--narrow" role="tabpanel" [attr.aria-label]="text.tabStart">
       <h1>{{ text.startTitle }}</h1>
+      <h2>{{ text.startNewTitle }}</h2>
+      <ul class="new-list">
+        @for (item of text.startNewItems; track item) {
+          <li><code>{{ item }}</code></li>
+        }
+      </ul>
       <h2>{{ text.install }}</h2>
       <pre><code>{{ installSnippet }}</code></pre>
       <pre><code>{{ usageSnippet }}</code></pre>
