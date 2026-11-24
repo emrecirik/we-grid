@@ -2,7 +2,10 @@
 
 All notable changes to this project are documented in this file.
 
-## Unreleased
+## 0.58.0 — 2026-11-24
+
+A minor release: header bands (`headerGroup`) and pinned rows (`pinnedTopRows` /
+`pinnedBottomRows`), both opt-in — a grid without them renders as before.
 
 ### Added
 
