@@ -36,7 +36,9 @@ const en = {
     'Double-click a row to edit it; paste rows straight from Excel with Ctrl+V.',
     'Press a macro button (Top sellers, By city) — or Macros → Record, use the grid, Stop, and save your own.',
     'Type in the search box to find text in every column; tick rows and press Ctrl+C to paste them into Excel.',
-    'Export to Excel, CSV or PDF from the toolbar — cell styles, colour scales and data bars come along.'
+    'Export to Excel, CSV or PDF from the toolbar — cell styles, colour scales and data bars come along.',
+    'Drag over cells (or Shift+arrows): the footer adds them up. Right-click the block to copy it with headers or export just those cells.',
+    'Right-click a block → Chart range: pick a chart, download it as PNG, SVG or an Excel file with a real Excel chart, or click a bar to filter the grid.'
   ],
   sheetTitle: 'Budget',
   sheetIntro: 'A spreadsheet with Excel formulas, copy and paste, undo and export — saved in this browser.',
@@ -140,7 +142,9 @@ const tr: typeof en = {
     'Bir satırı düzenlemek için çift tıklayın; Excel’den satırları Ctrl+V ile doğrudan yapıştırın.',
     'Bir makro butonuna basın (En çok satanlar, Şehre göre) — ya da Makrolar → Kaydet, tabloyu kullanın, Durdurun ve kendi makronuzu kaydedin.',
     'Arama kutusuna yazarak tüm kolonlarda arayın; satırları seçip Ctrl+C ile Excel’e yapıştırın.',
-    'Araç çubuğundan Excel, CSV ya da PDF olarak dışa aktarın — hücre stilleri, renk skalaları ve veri çubukları da gider.'
+    'Araç çubuğundan Excel, CSV ya da PDF olarak dışa aktarın — hücre stilleri, renk skalaları ve veri çubukları da gider.',
+    'Hücrelerin üzerinde sürükleyin (ya da Shift+ok): alt bilgi toplamı gösterir. Bloğa sağ tıklayıp başlıklarıyla kopyalayın ya da yalnız o hücreleri dışa aktarın.',
+    'Bir bloğa sağ tıklayın → Grafik oluştur: grafik seçin, PNG, SVG ya da gerçek Excel grafiğiyle Excel olarak indirin, ya da bir çubuğa tıklayıp tabloyu filtreleyin.'
   ],
   sheetTitle: 'Bütçe',
   sheetIntro: 'Excel formülleri, kopyala-yapıştır, geri al ve dışa aktarma ile bir hesap tablosu — bu tarayıcıda saklanır.',

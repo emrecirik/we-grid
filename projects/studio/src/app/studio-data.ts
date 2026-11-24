@@ -70,19 +70,20 @@ export function studioColumns(lang: StudioLanguage): WeGridColumnDef<StudioOrder
   return [
     { field: 'orderNo', header: tr ? 'Sipariş' : 'Order', width: 130, pinned: 'left' },
     { field: 'date', header: tr ? 'Tarih' : 'Date', type: 'date', width: 130 },
-    { field: 'customer', header: tr ? 'Müşteri' : 'Customer', width: 160 },
-    { field: 'city', header: tr ? 'Şehir' : 'City', width: 120 },
-    { field: 'category', header: tr ? 'Kategori' : 'Category', width: 130 },
-    { field: 'product', header: tr ? 'Ürün' : 'Product', width: 190 },
-    { field: 'qty', header: tr ? 'Adet' : 'Qty', type: 'integer', width: 100, summary: 'sum' },
-    { field: 'unitPrice', header: tr ? 'Birim fiyat' : 'Unit price', type: 'currency', width: 150 },
-    { field: 'discount', header: tr ? 'İndirim' : 'Discount', type: 'percent', width: 120 },
+    { field: 'customer', header: tr ? 'Müşteri' : 'Customer', width: 160, headerGroup: tr ? 'Müşteri' : 'Customer' },
+    { field: 'city', header: tr ? 'Şehir' : 'City', width: 120, headerGroup: tr ? 'Müşteri' : 'Customer' },
+    { field: 'category', header: tr ? 'Kategori' : 'Category', width: 130, headerGroup: tr ? 'Ürün' : 'Product' },
+    { field: 'product', header: tr ? 'Ürün' : 'Product', width: 190, headerGroup: tr ? 'Ürün' : 'Product' },
+    { field: 'qty', header: tr ? 'Adet' : 'Qty', type: 'integer', width: 100, summary: 'sum', headerGroup: tr ? 'Tutar' : 'Amount' },
+    { field: 'unitPrice', header: tr ? 'Birim fiyat' : 'Unit price', type: 'currency', width: 150, headerGroup: tr ? 'Tutar' : 'Amount' },
+    { field: 'discount', header: tr ? 'İndirim' : 'Discount', type: 'percent', width: 120, headerGroup: tr ? 'Tutar' : 'Amount' },
     {
       field: 'total',
       header: tr ? 'Toplam' : 'Total',
       type: 'currency',
       width: 140,
       summary: 'sum',
+      headerGroup: tr ? 'Tutar' : 'Amount',
       formula: tr ? '=[Adet] * [Birim fiyat] * (1 - [İndirim])' : '=[Qty] * [Unit price] * (1 - [Discount])'
     },
     { field: 'status', header: tr ? 'Durum' : 'Status', width: 130 }
