@@ -2,7 +2,11 @@
 
 All notable changes to this project are documented in this file.
 
-## Unreleased
+## 0.57.0 — 2026-11-24
+
+A minor release: everything new is opt-in behind `cellSelection`; a grid without it renders and
+behaves as before. A hand-written full `WeGridLocale` needs the new keys (and the two new
+`chartTypeLabels` entries) to compile.
 
 ### Added
 
