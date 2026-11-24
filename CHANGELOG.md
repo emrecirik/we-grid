@@ -2,6 +2,13 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+### Fixed
+
+- A menu's sub-list (the range chart types, Export selection) shows up to 320px before it scrolls,
+  so all nine chart types fit; it stopped at 220px and hid Waterfall.
+
 ## 0.59.0 — 2026-11-24
 
 A minor release for `<we-chart>`: keyboard navigation, a text summary and a waterfall type. The

@@ -65,7 +65,8 @@
   margin-left: 0.75rem;
   padding-left: 0.5rem;
   border-left: 2px solid var(--we-grid-border-color, #dee2e6);
-  max-height: 220px;
+  // Room for the nine range chart types without a scrollbar; longer lists (columns) still scroll
+  max-height: 320px;
   overflow-y: auto;
 }
 
