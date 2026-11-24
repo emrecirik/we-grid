@@ -180,6 +180,16 @@ export interface WeGridLocale {
   viewLinkCopied: string;
   /** Shown with the link itself when the clipboard refused it, so the user can copy it by hand */
   viewLinkCopyFailed: string;
+  /** Right-click menu of a selected cell block (`cellSelection`) */
+  cellCopy: string;
+  cellCopyWithHeaders: string;
+  /** Opens the CSV / Excel / PDF list for the block */
+  cellExportRange: string;
+  cellCopyFailed: string;
+  /** The cell's column menu — under `grouping`, moved into the block's menu */
+  cellColumnMenu: string;
+  /** Accessible name of the footer line with the block's count, sum, average, min and max */
+  cellRangeSummary: string;
   /** Banner over a grid opened from a shared view link — the view is applied only on Apply */
   sharedViewPrompt: (name: string) => string;
   /** Prefixes of the banner's lines that say what the shared view changes */
@@ -603,6 +613,12 @@ export const weGridLocaleEn: WeGridLocale = {
   noSavedViews: 'No saved views yet',
   viewLinkCopied: 'Link copied',
   viewLinkCopyFailed: 'Copy this link:',
+  cellCopy: 'Copy',
+  cellCopyWithHeaders: 'Copy with headers',
+  cellExportRange: 'Export selection',
+  cellCopyFailed: 'Could not copy to the clipboard',
+  cellColumnMenu: 'Column menu',
+  cellRangeSummary: 'Selection summary',
   sharedViewPrompt: (name) => `Shared view: ${name}`,
   sharedViewFilters: 'Filters',
   sharedViewRenamed: 'Renamed headers',
@@ -1007,6 +1023,12 @@ export const weGridLocaleTr: WeGridLocale = {
   noSavedViews: 'Henüz kayıtlı görünüm yok',
   viewLinkCopied: 'Bağlantı kopyalandı',
   viewLinkCopyFailed: 'Bu bağlantıyı kopyalayın:',
+  cellCopy: 'Kopyala',
+  cellCopyWithHeaders: 'Başlıklarla kopyala',
+  cellExportRange: 'Seçimi dışa aktar',
+  cellCopyFailed: 'Panoya kopyalanamadı',
+  cellColumnMenu: 'Sütun menüsü',
+  cellRangeSummary: 'Seçim özeti',
   sharedViewPrompt: (name) => `Paylaşılan görünüm: ${name}`,
   sharedViewFilters: 'Filtreler',
   sharedViewRenamed: 'Yeniden adlandırılan başlıklar',

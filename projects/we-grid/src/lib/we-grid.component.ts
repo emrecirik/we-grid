@@ -155,6 +155,7 @@ import { WeGridSavedView, WeGridViewShareEvent } from './models/we-grid-view.mod
 import { WeGridHeaderMenuComponent } from './we-grid-header-menu/we-grid-header-menu.component';
 import { WeGridRowMenuComponent } from './we-grid-row-menu/we-grid-row-menu.component';
 import { WeGridMenuItem, WeGridRowMenuFn, WeGridRowMenuItemClickEvent } from './models/we-grid-row-menu.model';
+import { WeGridCellRange, WeGridCellRef, WeGridRangeStats, weGridRangeStats, weGridSpan, weGridToTsv } from './services/we-grid-cell-range.util';
 import { WeGridCellEditorComponent } from './we-grid-cell-editor/we-grid-cell-editor.component';
 import { WeGridEditFormChange, WeGridEditFormComponent } from './we-grid-edit-form/we-grid-edit-form.component';
 import { WeGridFilterPopoverAction, WeGridFilterPopoverComponent } from './we-grid-filter-popover/we-grid-filter-popover.component';
@@ -410,6 +411,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Input() rowContextMenu?: WeGridRowMenuFn<T>;
 
   /**
+   * Lets the user select a block of cells — press and drag, Shift+click, or the arrow keys (with
+   * Shift to grow the block) on a focused row. Ctrl+C copies the block as tab-separated text, a right
+   * click offers Copy, Copy with headers and Export ahead of any `rowContextMenu` items, and the
+   * footer shows the count, sum, average, min and max of its numbers. Off by default.
+   */
+  @Input() cellSelection = false;
+
+  /**
    * Bump this when state the rows are drawn from changes outside `data` — a Map of unsaved
    * decisions, say. Any change (`!==`) makes the grid re-evaluate `rowClass` and the cell templates
    * without rebuilding them, so an input inside a template keeps its focus. Use a counter or a
@@ -582,6 +591,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Output() cellClick = new EventEmitter<WeGridCellClickEvent<T>>();
   /** A leaf item of the `rowContextMenu` menu was chosen — after its own `action`, if any */
   @Output() rowMenuItemClick = new EventEmitter<WeGridRowMenuItemClickEvent<T>>();
+  /** The selected block of cells (`cellSelection`) changed — null once it is cleared */
+  @Output() cellRangeChange = new EventEmitter<WeGridCellRange<T> | null>();
   @Output() selectionChange = new EventEmitter<T[]>();
   @Output() layoutChange = new EventEmitter<WeGridLayout>();
   /**
@@ -1301,6 +1312,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (typeof document !== 'undefined') {
       document.removeEventListener('pointerdown', this.onDocumentPointerDown, true);
       document.removeEventListener('copy', this.onDocumentCopy);
+      this.endRangeDrag?.();
     }
     this.closeHeaderMenu();
     this.closeFilterPopover();
@@ -4153,8 +4165,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * Flattens the current column/row state into the renderer-agnostic shape every exporter consumes.
    * `summaryRows` sums those rows instead of the on-screen summary (which covers the loaded page).
    */
-  private buildExportTable(rows: T[], withStyles = false, summaryRows?: T[]): WeGridExportTable {
-    const columns = this.exportColumns;
+  private buildExportTable(rows: T[], withStyles = false, summaryRows?: T[], onlyFields?: ReadonlySet<string>): WeGridExportTable {
+    const columns = onlyFields ? this.exportColumns.filter((c) => onlyFields.has(c.field)) : this.exportColumns;
     const title = this.exportFileName || this.gridKey;
     // The look of each cell — column styles and format rules — for exporters that can carry it
     const looks = new Map<T, Record<string, WeGridCellStyle>>();
@@ -4728,20 +4740,250 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * rows with a header line, else the active cell. Null when there is nothing to copy.
    */
   copyText(): string | null {
-    const cell = (text: string) => (/[\t\n"]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text);
     const columns = this.renderColumns;
+    const block = this.rangeState;
+    // A block of more than one cell is the latest thing the user picked; one cell yields to a row selection
+    if (block && (block.cellCount > 1 || this.selectedKeys.size === 0)) return this.rangeText(false);
     if (this.selectedKeys.size > 0) {
       const rows = this.visibleRowsInOrder.filter((row) => this.selectedKeys.has(this.rowKey(row)));
       if (rows.length === 0) return null;
-      const lines = [columns.map((c) => cell(weGridDisplayHeader(c))).join('\t')];
-      for (const row of rows) lines.push(columns.map((c) => cell(this.formatCell(row, c))).join('\t'));
-      return lines.join('\n');
+      return weGridToTsv(
+        columns.map((c) => weGridDisplayHeader(c)),
+        rows.map((row) => columns.map((c) => this.formatCell(row, c)))
+      );
     }
     const active = this.activeCell;
     if (!active) return null;
     const row = this.visibleRowsInOrder.find((r) => this.rowKey(r) === active.key);
     const col = columns.find((c) => c.field === active.field);
     return row !== undefined && col ? this.formatCell(row, col) : null;
+  }
+
+  // ─── Cell range selection ────────────────────────────────────────────
+  /** The block of cells picked under `cellSelection` — held by row key and field, so it survives a re-render */
+  private cellRange: { anchor: WeGridCellRef; focus: WeGridCellRef } | null = null;
+  private rangeCache: {
+    items: unknown;
+    columns: unknown;
+    range: unknown;
+    rows: T[];
+    columnList: WeGridInternalColumn<T>[];
+    keys: Set<unknown>;
+    fields: Set<string>;
+    cellCount: number;
+  } | null = null;
+  private endRangeDrag: (() => void) | null = null;
+
+  /** The block's rows and columns in screen order; null when nothing is selected or a corner left the data */
+  private get rangeState() {
+    const range = this.cellRange;
+    if (!range) return null;
+    const cached = this.rangeCache;
+    if (cached && cached.items === this.renderItems && cached.columns === this.renderColumns && cached.range === range) {
+      return cached.cellCount > 0 ? cached : null;
+    }
+    const allRows = this.visibleRowsInOrder;
+    const keys = allRows.map((row) => this.rowKey(row));
+    const columns = this.renderColumns;
+    const rowSpan = weGridSpan(keys.indexOf(range.anchor.key), keys.indexOf(range.focus.key));
+    const colSpan = weGridSpan(
+      columns.findIndex((c) => c.field === range.anchor.field),
+      columns.findIndex((c) => c.field === range.focus.field)
+    );
+    const rows = rowSpan && colSpan ? allRows.slice(rowSpan[0], rowSpan[1] + 1) : [];
+    const columnList = rowSpan && colSpan ? columns.slice(colSpan[0], colSpan[1] + 1) : [];
+    this.rangeCache = {
+      items: this.renderItems,
+      columns,
+      range,
+      rows,
+      columnList,
+      keys: new Set(rows.map((row) => this.rowKey(row))),
+      fields: new Set(columnList.map((c) => c.field)),
+      cellCount: rows.length * columnList.length
+    };
+    return this.rangeCache.cellCount > 0 ? this.rangeCache : null;
+  }
+
+  /** The selected block as rows and fields; null when nothing is selected */
+  getCellRange(): WeGridCellRange<T> | null {
+    const block = this.rangeState;
+    return block ? { rows: [...block.rows], fields: block.columnList.map((c) => c.field) } : null;
+  }
+
+  clearCellRange(): void {
+    if (!this.cellRange) return;
+    this.cellRange = null;
+    this.cellRangeChange.emit(null);
+    this.cdr.markForCheck();
+  }
+
+  isInRange(row: T, col: WeGridInternalColumn<T>): boolean {
+    const block = this.rangeState;
+    return !!block && block.fields.has(col.field) && block.keys.has(this.rowKey(row));
+  }
+
+  isRangeFocus(row: T, col: WeGridInternalColumn<T>): boolean {
+    const focus = this.cellRange?.focus;
+    return !!focus && focus.field === col.field && focus.key === this.rowKey(row);
+  }
+
+  /** The block as tab-separated text, optionally under its column headers */
+  rangeText(withHeaders: boolean): string | null {
+    const block = this.rangeState;
+    if (!block) return null;
+    return weGridToTsv(
+      withHeaders ? block.columnList.map((c) => weGridDisplayHeader(c)) : null,
+      block.rows.map((row) => block.columnList.map((c) => this.formatCell(row, c)))
+    );
+  }
+
+  /** Count, sum, average, min and max of the block — null for a single cell, where they say nothing */
+  get rangeStats(): WeGridRangeStats | null {
+    const block = this.rangeState;
+    if (!block || block.cellCount < 2) return null;
+    const values: unknown[] = [];
+    const numberColumns = new Set<WeGridInternalColumn<T>>();
+    for (const row of block.rows) {
+      for (const col of block.columnList) {
+        const value = this.cellValue(row, col);
+        values.push(value);
+        if (typeof value === 'number') numberColumns.add(col);
+      }
+    }
+    // Money from one currency column reads as money ($133.70), as its cells do; anything else as a plain number
+    const [only] = numberColumns;
+    this.rangeMoneyColumn = numberColumns.size === 1 && only.type === 'currency' && !only.formatter ? only : null;
+    return weGridRangeStats(values);
+  }
+  private rangeMoneyColumn: WeGridInternalColumn<T> | null = null;
+
+  rangeNumber(value: number): string {
+    const money = this.rangeMoneyColumn;
+    if (money) return formatWeGridColumnValue(value, money, this.valueFormatOptions());
+    return value.toLocaleString(this.locale.intlLocale, { maximumFractionDigits: 2 });
+  }
+
+  onCellMouseDown(event: MouseEvent, row: T, col: WeGridInternalColumn<T>): void {
+    if (!this.cellSelection || event.button !== 0 || this.isCellEditing(row, col)) return;
+    const td = event.currentTarget instanceof Element ? event.currentTarget : null;
+    // A button, checkbox or link inside the cell keeps its press
+    if (weGridIsInteractiveTarget(event, td)) return;
+    const cell = { key: this.rowKey(row), field: col.field };
+    this.setCellRange(event.shiftKey && this.cellRange ? { anchor: this.cellRange.anchor, focus: cell } : { anchor: cell, focus: cell }, false);
+    // No text selection while dragging across cells; the row still takes focus for the arrow keys
+    event.preventDefault();
+    (td?.closest('tr') as HTMLElement | null)?.focus({ preventScroll: true });
+    this.startRangeDrag();
+  }
+
+  private setCellRange(range: { anchor: WeGridCellRef; focus: WeGridCellRef }, emit = true): void {
+    this.cellRange = range;
+    if (emit) this.cellRangeChange.emit(this.getCellRange());
+    this.cdr.markForCheck();
+  }
+
+  // shortcut: mouse only — a touch drag scrolls the grid instead; Shift+tap or the keys grow the block there
+  private startRangeDrag(): void {
+    this.endRangeDrag?.();
+    const host = this.elementRef.nativeElement as HTMLElement;
+    const move = (event: PointerEvent): void => {
+      const target = event.target instanceof Element ? event.target : null;
+      const td = target?.closest('td[data-we-grid-field]');
+      const tr = td?.closest('tr[data-we-grid-item]');
+      if (!td || !tr || !host.contains(tr) || !this.cellRange) return;
+      const item = this.visibleItems[Number(tr.getAttribute('data-we-grid-item'))];
+      const field = td.getAttribute('data-we-grid-field');
+      if (item?.kind !== 'row' || !field) return;
+      const key = this.rowKey(item.row);
+      const { anchor, focus } = this.cellRange;
+      if (focus.key === key && focus.field === field) return;
+      this.ngZone.run(() => this.setCellRange({ anchor, focus: { key, field } }, false));
+    };
+    const end = (): void => {
+      document.removeEventListener('pointermove', move);
+      document.removeEventListener('pointerup', up);
+      this.endRangeDrag = null;
+    };
+    const up = (): void => {
+      end();
+      this.ngZone.run(() => this.cellRangeChange.emit(this.getCellRange()));
+    };
+    this.ngZone.runOutsideAngular(() => {
+      document.addEventListener('pointermove', move);
+      document.addEventListener('pointerup', up);
+    });
+    this.endRangeDrag = end;
+  }
+
+  /** Arrow keys move the block's focus cell (Shift grows the block); Escape clears it. True when handled. */
+  private onRangeKeydown(event: KeyboardEvent): boolean {
+    if (!this.cellSelection || !this.cellRange) return false;
+    if (event.key === 'Escape') {
+      this.clearCellRange();
+      return true;
+    }
+    const steps: Record<string, [number, number]> = {
+      ArrowUp: [-1, 0],
+      ArrowDown: [1, 0],
+      ArrowLeft: [0, this.isRtl ? 1 : -1],
+      ArrowRight: [0, this.isRtl ? -1 : 1]
+    };
+    const step = steps[event.key];
+    if (!step) return false;
+    const rows = this.visibleRowsInOrder;
+    const columns = this.renderColumns;
+    const { anchor, focus } = this.cellRange;
+    const r = rows.findIndex((row) => this.rowKey(row) === focus.key);
+    const c = columns.findIndex((col) => col.field === focus.field);
+    if (r === -1 || c === -1) return false;
+    const row = rows[Math.min(rows.length - 1, Math.max(0, r + step[0]))];
+    const col = columns[Math.min(columns.length - 1, Math.max(0, c + step[1]))];
+    const next = { key: this.rowKey(row), field: col.field };
+    this.setCellRange(event.shiftKey ? { anchor, focus: next } : { anchor: next, focus: next });
+    this.focusRangeRow(next.key);
+    return true;
+  }
+
+  /** Moves focus to the row holding the block's focus cell, scrolling a virtual grid to it first */
+  private focusRangeRow(key: unknown): void {
+    this.revealVirtualItem(key);
+    this.cdr.detectChanges();
+    const index = this.visibleItems.findIndex((item) => item.kind === 'row' && this.rowKey(item.row) === key);
+    (this.elementRef.nativeElement as HTMLElement).querySelector<HTMLElement>(`tr[data-we-grid-item="${index}"]`)?.focus();
+  }
+
+  /** The built-in items a right click on a selected block offers */
+  private rangeMenuItems(): WeGridMenuItem[] {
+    const copy = (withHeaders: boolean): void => {
+      const text = this.rangeText(withHeaders);
+      if (text === null) return;
+      const failed = (): void => this.showNotice(this.locale.cellCopyFailed, true);
+      if (typeof navigator === 'undefined' || !navigator.clipboard) return failed();
+      navigator.clipboard.writeText(text).then(() => undefined, failed);
+    };
+    const exportItem = (format: WeGridExportFormat): WeGridMenuItem => ({
+      id: `we-range-export-${format}`,
+      label: this.exportFormatLabel(format),
+      icon: this.exportFormatIcon(format),
+      action: () => this.exportRange(format)
+    });
+    return [
+      { id: 'we-range-copy', label: this.locale.cellCopy, icon: 'copy', action: () => copy(false) },
+      { id: 'we-range-copy-headers', label: this.locale.cellCopyWithHeaders, icon: 'copy', action: () => copy(true) },
+      { id: 'we-range-export', label: this.locale.cellExportRange, icon: 'download', children: (['csv', 'xlsx', 'pdf'] as const).map(exportItem) }
+    ];
+  }
+
+  /** Writes the selected block — its rows, and only its columns — through the grid's exporter */
+  exportRange(format: WeGridExportFormat): void {
+    const block = this.rangeState;
+    if (!block) return;
+    const table = this.buildExportTable(block.rows, format === 'xlsx', undefined, block.fields);
+    table.summary = null;
+    void Promise.resolve(this.exporter.export(table, format)).catch((error: unknown) => {
+      this.showNotice(this.describeError(error, this.locale.saveFailed), true);
+    });
   }
 
   // ─── Pasting a spreadsheet range ─────────────────────────────────────
@@ -5142,6 +5384,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
     if (!this.grouping) return;
     event.preventDefault();
+    this.openCellColumnMenu({ x: event.clientX, y: event.clientY }, col, row);
+  }
+
+  /** The column menu of a cell, with "filter by this value" — what a right click opens under `grouping` */
+  private openCellColumnMenu(origin: WeGridMenuOrigin, col: WeGridInternalColumn<T>, row: T): void {
     const raw = getNestedValue(row, col.field);
     if (col.headerFilterMode === 'checklist') {
       // A checklist filters on raw codes, so the raw value travels and its label is remembered for
@@ -5149,12 +5396,12 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       if (col.displayValue && raw !== null && raw !== undefined && raw !== '') {
         this.checklistLabelsFor(col.field).set(weGridFilterValueKey(raw), col.displayValue(row));
       }
-      this.openHeaderMenu({ x: event.clientX, y: event.clientY }, col, { value: raw });
+      this.openHeaderMenu(origin, col, { value: raw });
       return;
     }
     // When displayValue is given, "filter by this value" uses the label the user sees instead of the raw code
     const value = col.displayValue ? col.displayValue(row) : raw;
-    this.openHeaderMenu({ x: event.clientX, y: event.clientY }, col, { value });
+    this.openHeaderMenu(origin, col, { value });
   }
 
   /** Right click on a row outside the data cells (selection and expand columns) */
@@ -5165,23 +5412,47 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** ContextMenu / Shift+F10 on the row or on a control inside it */
   onRowKeydown(event: KeyboardEvent, row: T): void {
-    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
     const target = event.target instanceof HTMLElement ? event.target : null;
     if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
-    if (target && this.openRowMenu(target, row, null)) event.preventDefault();
+    if (target?.matches('tr') && this.onRangeKeydown(event)) {
+      event.preventDefault();
+      return;
+    }
+    if (event.key !== 'ContextMenu' && !(event.shiftKey && event.key === 'F10')) return;
+    const focus = this.cellSelection ? this.cellRange?.focus : undefined;
+    const field = focus && focus.key === this.rowKey(row) ? focus.field : null;
+    if (target && this.openRowMenu(target, row, field)) event.preventDefault();
   }
 
-  /** Opens the `rowContextMenu` menu; false when there is nothing to show (the browser keeps its menu) */
+  /**
+   * Opens the row menu — the built-in block items under `cellSelection`, then `rowContextMenu`'s;
+   * false when there is nothing to show (the browser keeps its menu)
+   */
   private openRowMenu(origin: WeGridMenuOrigin, row: T, field: string | null): boolean {
-    if (!this.rowContextMenu) return false;
-    if (this.selectable !== 'none' && !this.isSelected(row)) {
-      this.selectedKeys.clear();
-      this.selectedKeys.add(this.rowKey(row));
-      this.emitSelectionChange();
+    const column = field === null ? undefined : this.renderColumns.find((c) => c.field === field);
+    // A right click outside the block starts a new one on that cell, as in a spreadsheet
+    if (this.cellSelection && column && !this.isInRange(row, column)) {
+      const cell = { key: this.rowKey(row), field: column.field };
+      this.setCellRange({ anchor: cell, focus: cell });
     }
-    const selectedRows = this.selectable === 'none' ? [row] : this.selectedRows;
-    const items = this.rowContextMenu(row, { field, selectedRows });
-    if (!items?.length) return false;
+    const rangeItems = this.cellSelection && this.rangeState ? this.rangeMenuItems() : [];
+    // The block's items take the right click, so the cell's column menu that `grouping` opens there moves into it
+    if (rangeItems.length > 0 && this.grouping && column) {
+      rangeItems.push({ id: 'we-column-menu', label: this.locale.cellColumnMenu, icon: 'listSettings', separatorBefore: true, action: () => this.openCellColumnMenu(origin, column, row) });
+    }
+    let items: WeGridMenuItem[] = [];
+    if (this.rowContextMenu) {
+      if (this.selectable !== 'none' && !this.isSelected(row)) {
+        this.selectedKeys.clear();
+        this.selectedKeys.add(this.rowKey(row));
+        this.emitSelectionChange();
+      }
+      const selectedRows = this.selectable === 'none' ? [row] : this.selectedRows;
+      items = this.rowContextMenu(row, { field, selectedRows }) ?? [];
+    }
+    if (rangeItems.length > 0 && items.length > 0) items = [...rangeItems, { ...items[0], separatorBefore: true }, ...items.slice(1)];
+    else if (rangeItems.length > 0) items = rangeItems;
+    if (!items.length) return false;
 
     const returnFocusEl = origin instanceof HTMLElement ? origin : null;
     this.createMenuOverlay(origin, returnFocusEl);

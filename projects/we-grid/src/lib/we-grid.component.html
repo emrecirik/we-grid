@@ -765,7 +765,8 @@
                 [attr.aria-expanded]="item.tree?.hasChildren ? item.tree?.expanded : null"
                 [attr.aria-rowindex]="virtualRowIndex(i)"
                 (click)="onRowClick(item.row, item.index, $event)"
-                [attr.tabindex]="rowContextMenu ? -1 : null"
+                [attr.tabindex]="rowContextMenu || cellSelection ? -1 : null"
+                [attr.data-we-grid-item]="cellSelection ? i : null"
                 (dblclick)="onRowDblClick(item.row, item.index, $event)"
                 (contextmenu)="onRowContextMenu($event, item.row)"
                 (keydown)="onRowKeydown($event, item.row)"
@@ -810,8 +811,13 @@
                     [attr.title]="col.wrap || getCellTemplate(col) ? null : formatCell(item.row, col)"
                     [class.we-grid__td--active]="isActiveCell(item.row, col)"
                     [class.we-grid__td--overflow]="col.allowOverflow"
+                    [class.we-grid__td--range]="cellSelection && isInRange(item.row, col)"
+                    [class.we-grid__td--range-focus]="cellSelection && isRangeFocus(item.row, col)"
+                    [attr.data-we-grid-field]="cellSelection ? col.field : null"
+                    [attr.aria-selected]="cellSelection ? isInRange(item.row, col) : null"
                     [ngStyle]="cellCss(item.row, col)"
                     [style.padding-inline-start]="isTreeCell(item, col) ? treeIndent(item.tree) : null"
+                    (mousedown)="onCellMouseDown($event, item.row, col)"
                     (click)="onCellClick($event, item.row, col, item.index)"
                     (dblclick)="onCellDblClick($event, col)"
                     (contextmenu)="onCellContextMenu($event, col, item.row)"
@@ -981,6 +987,17 @@
       <div class="we-grid__footer-info">{{ countText(rowTotal) }} {{ locale.recordsLabel }}</div>
     } @else {
       <div class="we-grid__footer-info">{{ countText(rowTotal) }} {{ locale.recordsLabel }} — {{ locale.pageOf(page, totalPagesComputed) }}</div>
+    }
+    @if (cellSelection && rangeStats; as stats) {
+      <div class="we-grid__range-stats" role="status" [attr.aria-label]="locale.cellRangeSummary">
+        <span>{{ locale.count }}: {{ countText(stats.count) }}</span>
+        @if (stats.numbers > 0) {
+          <span>{{ locale.sum }}: {{ rangeNumber(stats.sum) }}</span>
+          <span>{{ locale.average }}: {{ rangeNumber(stats.average) }}</span>
+          <span>{{ locale.min }}: {{ rangeNumber(stats.min) }}</span>
+          <span>{{ locale.max }}: {{ rangeNumber(stats.max) }}</span>
+        }
+      </div>
     }
     @if (footerMode === 'full') {
     <nav class="we-grid__pager" [attr.aria-label]="locale.paginationAriaLabel">

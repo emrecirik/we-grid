@@ -2,6 +2,20 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+### Added
+
+- `cellSelection` input: select a block of cells by dragging, Shift+click or the arrow keys
+  (Shift+arrows grow it, Esc clears it). Ctrl+C copies it as tab-separated text; a right click
+  offers Copy, Copy with headers and Export selection ▸ CSV / Excel / PDF (its rows and only its
+  columns), ahead of any `rowContextMenu` items; the footer shows count, sum, average, min and max
+  of its numbers. Works on grouped and virtual grids. Off by default — the markup of a grid
+  without it is unchanged. `cellRangeChange` output and `getCellRange()`, `clearCellRange()`,
+  `rangeText(withHeaders)`, `exportRange(format)`; `WeGridCellRange`, `weGridToTsv`,
+  `weGridRangeStats` exported. CSS `--we-grid-range-bg` in both themes, icon `copy`, locale keys
+  `cellCopy` … `cellRangeSummary` in every shipped locale (a hand-written full locale needs them).
+
 ## 0.56.0 — 2026-11-19
 
 A minor release: everything new is opt-in (`virtualScroll`, `[dataSource]`, the

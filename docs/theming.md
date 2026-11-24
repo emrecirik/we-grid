@@ -20,6 +20,7 @@ you can theme it two ways:
 | `--we-grid-header-bg` / `--we-grid-header-color` | Header row background/text |
 | `--we-grid-row-hover-bg` | Row hover background |
 | `--we-grid-row-selected-bg` | Selected row background |
+| `--we-grid-range-bg` *(0.57.0)* | Tint over the cells of a selected block (`cellSelection`), laid over their own background |
 | `--we-grid-accent-color` | Sort icon, active states, chips, pager active button |
 | `--we-grid-muted-color` | Secondary/muted text (footer info, group summary) |
 | `--we-grid-font-size` / `--we-grid-font-size-compact` | Base font size / compact density font size |

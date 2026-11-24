@@ -47,6 +47,7 @@ export * from './lib/services/local-storage-grid-layout-store';
 // Export / import — the default implementations behind WE_GRID_EXPORTER / WE_GRID_IMPORT_PARSER,
 // plus the primitives a consumer's own implementation can build on
 export * from './lib/services/we-grid-csv.util';
+export * from './lib/services/we-grid-cell-range.util';
 export * from './lib/services/we-grid-default-exporter';
 export * from './lib/services/we-grid-import.util';
 export * from './lib/services/we-grid-pdf.util';

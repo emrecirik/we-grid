@@ -46,6 +46,7 @@
 | `savedViews` | `boolean` | `false` | Adds a Views toolbar button: named, shareable snapshots of columns, filters, sort and grouping — see [saved-views.md](saved-views.md). |
 | `ignoreInteractiveTargets` *(0.7.0)* | `boolean` | `false` | Clicks, double clicks and right clicks that start on a control inside a row stay with it — see [cell-templates.md](cell-templates.md). |
 | `rowContextMenu` *(0.52.0)* | `(row, { field, selectedRows }) => WeGridMenuItem[] \| null` | — | The right-click menu of a data row — see [Row context menu](#row-context-menu). Left out (or returning `null` / `[]`), the browser's own menu opens as before. |
+| `cellSelection` *(0.57.0)* | `boolean` | `false` | Lets the user select a block of cells (drag, Shift+click, arrow keys) to copy, copy with headers or export from a right-click menu, with count / sum / average / min / max in the footer — see [Cell range selection](#cell-range-selection). Off, the markup is unchanged. |
 | `rowStateVersion` *(0.7.0)* | `unknown` | — | Any change (`!==`) re-evaluates `rowClass` and the cell templates without rebuilding them. Use a counter. |
 | `maxHeight` / `minHeight` *(0.7.0)* | `number \| string` | — | Bounds of the scroll area (px or CSS length). With `maxHeight` the grid scrolls inside itself: header and filter row stick to the top, the summary row to the bottom. |
 | `virtualScroll` *(0.56.0)* | `boolean` | `false` | Renders only the rows in view plus a few around them, so hundreds of thousands of rows (grouped, tree or flat) scroll like fifty. Needs a bounded height — `maxHeight`, or 600px when that is left out. Past 10,000,000 px of content the scrollbar is scaled and the wheel moves row by row, so the row count has no practical limit. See `docs/performance.md`. |
@@ -79,6 +80,7 @@
 | `rowClick` / `rowDblClick` | `WeGridRowClickEvent<T>` | `{ row, rowIndex }` |
 | `cellClick` *(0.55.0)* | `WeGridCellClickEvent<T>` | `{ row, rowIndex, field, value }` — a data cell was clicked (raw value; formula columns: the result). Fires before `rowClick`, which still fires; skipped for clicks on controls inside the row like `rowClick`. |
 | `rowMenuItemClick` *(0.52.0)* | `WeGridRowMenuItemClickEvent<T>` | `{ item, row }` — a leaf item of the `rowContextMenu` menu was chosen, after its own `action`. One `switch (item.id)` can replace the per-item `action`s. |
+| `cellRangeChange` *(0.57.0)* | `WeGridCellRange<T> \| null` | `{ rows, fields }` of the selected block (`cellSelection`) — on release of a drag, a Shift+click, each arrow key; `null` once Escape clears it. |
 | `selectionChange` | `T[]` | Currently selected rows. |
 | `layoutChange` | `WeGridLayout` | Fires whenever the user's layout is persisted, and on "Reset layout" (with the default layout). |
 | `filterChange` | `WeGridFilterChangeEvent` | Debounced (`filterDebounceMs`), only the active filters. The payload **is** the `WeGridColumnFilterState[]` it has always been, plus `filters` and `resetPage` — see [server-side.md](server-side.md). "Reset layout" emits it at once when it cleared an active filter. |
@@ -119,6 +121,9 @@
   grid's current columns, headers, formatters, formula columns and (xlsx) format rules, through
   `WE_GRID_EXPORTER`; the summary row is worked out over those rows. Never emits `exportRequest`,
   ignores `exportMode`. Returns the exporter's promise.
+- `getCellRange()`, `clearCellRange()`, `rangeText(withHeaders)`, `exportRange(format)` *(0.57.0)* —
+  the block selected under `cellSelection`: its rows and fields, cleared, as tab-separated text,
+  written through `WE_GRID_EXPORTER` (its rows and only its columns, no summary row)
 - `openImportPicker()`, `importAccept`
 - `edit: WeGridEditState<T> | null`, `startEdit(row, index, event?)`, `startCreate()`, `commitEdit()`,
   `cancelEdit()`, `requestDelete(row, index, event?)`, `isEditingRow(row)`, `isCreating`, `hasRowActions`
@@ -155,6 +160,7 @@
 | Column header | Alt+← / Alt+→ | Moves the column one place within its pin group (left-pinned, unpinned, right-pinned); Alt+Shift moves it to the group's first / last place. A `lockOrder` column doesn't move and nothing passes it. Announced politely; saved like a drag. Only on the header itself — elsewhere Alt+arrows stay the browser's. Mirrored in a right-to-left page. |
 | Column header | Shift+F10 / ContextMenu | Opens the column menu. |
 | Data row *(0.52.0, with `rowContextMenu`)* | Shift+F10 / ContextMenu | Opens the row menu for the row holding focus (a click focuses the row). In the menu: ↑ / ↓ / Home / End, Enter, → opens a sub-list, ← closes it, Esc closes the menu. |
+| Data row *(0.57.0, with `cellSelection`)* | ← → ↑ ↓ / Shift+arrows / Esc | Moves the selected cell, grows the block from its first cell, clears it. Ctrl+C copies the block; Shift+F10 / ContextMenu opens its menu. |
 | Resize handle (`role="separator"`, focusable) | ← / → | ∓8 / ±8 px; with Shift ±32 px. |
 | | Home | The column's `minWidth`. |
 | | Enter (or a double click) | Fits the column to its content. |
@@ -194,6 +200,33 @@ rowMenu = (row: Order, ctx: WeGridRowMenuContext<Order>): WeGridMenuItem[] => [
   of the cell opens as before.
 - With `rowContextMenu` set, data rows get `tabindex="-1"` so Shift+F10 / ContextMenu work after a
   click; without it the markup is unchanged.
+
+### Cell range selection
+
+*(0.57.0)* `cellSelection` turns the grid into a spreadsheet-like block picker:
+
+```html
+<we-grid [cellSelection]="true" (cellRangeChange)="range = $event" …>
+```
+
+- Press and drag over the cells, or click one and Shift+click another; on a focused row the arrow
+  keys move the selected cell and Shift+arrows grow the block. Esc clears it. Controls inside a
+  cell (buttons, checkboxes, links) keep their own click. A touch drag scrolls the grid instead.
+- Ctrl+C copies the block as tab-separated text, without headers, the way Excel and Google Sheets
+  paste it. A block of one cell yields to a row selection (the selected rows are copied).
+- A right click offers **Copy**, **Copy with headers** and **Export selection ▸ CSV / Excel / PDF**
+  (its rows and only its columns), followed by the `rowContextMenu` items when there are any. A
+  right click outside the block starts a new one on that cell. Under `grouping`, the cell's column
+  menu moves into this menu as **Column menu**.
+- The footer shows count, sum, average, min and max of the block's numbers (count only when it
+  holds none). Nothing is shown for a single cell or with `footer="none"`.
+- Grouped grids select across group headers: the block covers the data rows between its corners
+  as the user sees them; a collapsed group's rows are skipped.
+- The block is held by its two corner cells (row key and field — set `trackByField`), so it stays
+  put across re-renders. After a sort it spans the rows between those corners in the new order;
+  when a filter or a collapsed group hides a corner, it lapses.
+- While it is on, data cells get `aria-selected` and `data-we-grid-field`, rows `data-we-grid-item`
+  and `tabindex="-1"`; off, the markup is unchanged.
 
 ### Saved layouts and layoutVersion
 
