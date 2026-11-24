@@ -162,6 +162,8 @@ import { WeGridFilterPopoverAction, WeGridFilterPopoverComponent } from './we-gr
 import { WeGridFormatPanelComponent } from './we-grid-format-panel/we-grid-format-panel.component';
 import { WeGridFormulaDialogComponent } from './we-grid-formula-dialog/we-grid-formula-dialog.component';
 import { WeGridMacroDialogComponent } from './we-grid-macro-dialog/we-grid-macro-dialog.component';
+import { WeGridChartColumn, WeGridChartDialogComponent } from './we-grid-chart-dialog/we-grid-chart-dialog.component';
+import { WE_GRID_RANGE_CHART_TYPES, WeGridRangeChartType } from './services/we-grid-range-chart.util';
 import { WeGridCellStyle, WeGridFormatRule } from './models/we-grid-format.model';
 import { WeGridCellCss, weGridResolveFormats } from './services/we-grid-format.util';
 import { WeGridFormulaError, weGridTryCompileFormula } from './services/we-grid-formula.util';
@@ -227,7 +229,7 @@ const WE_GRID_DATA_BLOCK = 256;
 @Component({
   selector: 'we-grid',
   standalone: true,
-  imports: [CommonModule, FormsModule, DragDropModule, WeGridCellEditorComponent, WeGridEditFormComponent, WeGridFormatPanelComponent, WeGridFormulaDialogComponent, WeGridMacroDialogComponent],
+  imports: [CommonModule, FormsModule, DragDropModule, WeGridCellEditorComponent, WeGridEditFormComponent, WeGridFormatPanelComponent, WeGridFormulaDialogComponent, WeGridMacroDialogComponent, WeGridChartDialogComponent],
   templateUrl: './we-grid.component.html',
   styleUrls: ['./we-grid.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -4971,8 +4973,77 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return [
       { id: 'we-range-copy', label: this.locale.cellCopy, icon: 'copy', action: () => copy(false) },
       { id: 'we-range-copy-headers', label: this.locale.cellCopyWithHeaders, icon: 'copy', action: () => copy(true) },
-      { id: 'we-range-export', label: this.locale.cellExportRange, icon: 'download', children: (['csv', 'xlsx', 'pdf'] as const).map(exportItem) }
+      { id: 'we-range-export', label: this.locale.cellExportRange, icon: 'download', children: (['csv', 'xlsx', 'pdf'] as const).map(exportItem) },
+      {
+        id: 'we-range-chart',
+        label: this.locale.chartRange,
+        icon: 'chart',
+        separatorBefore: true,
+        children: WE_GRID_RANGE_CHART_TYPES.map((type) => ({ id: `we-range-chart-${type}`, label: this.locale.chartTypeLabels[type], action: () => this.openRangeChart(type) }))
+      }
     ];
+  }
+
+  // ─── Range charts ────────────────────────────────────────────────────
+  /** The open chart dialog — the rows and columns it charts, frozen when it opened */
+  chartDialog: { rows: T[]; columns: WeGridChartColumn<T>[]; groupColumns: WeGridChartColumn<T>[]; type: WeGridRangeChartType } | null = null;
+
+  /**
+   * Opens the chart dialog over the selected block (`cellSelection`) — or, with no block, over the
+   * filtered rows and the visible columns. On a grouped grid the group columns are offered as
+   * categories, and the first one is the default.
+   */
+  openRangeChart(type: WeGridRangeChartType = 'column'): void {
+    const block = this.rangeState;
+    const rows = block ? [...block.rows] : this.treeActive ? [...this.treeFilteredRows] : [...this.displayData];
+    const columns = block ? block.columnList : this.renderColumns;
+    const groupColumns = this.groupFields
+      .filter((field) => !columns.some((c) => c.field === field))
+      .map((field) => this.internalColumns.find((c) => c.field === field))
+      .filter((c): c is WeGridInternalColumn<T> => !!c);
+    this.chartDialog = {
+      rows,
+      columns: columns.map((c) => this.chartColumn(c, rows)),
+      groupColumns: groupColumns.map((c) => this.chartColumn(c, rows)),
+      type
+    };
+    this.cdr.markForCheck();
+  }
+
+  closeRangeChart(): void {
+    this.chartDialog = null;
+    this.cdr.markForCheck();
+  }
+
+  /** A click on a chart category filters the grid by it, as "filter by this value" does */
+  onChartFilter(event: { field: string; value: unknown }): void {
+    this.applyQuickFilter(event.field, event.value);
+    this.cdr.markForCheck();
+  }
+
+  private chartColumn(col: WeGridInternalColumn<T>, rows: readonly T[]): WeGridChartColumn<T> {
+    const value = (row: T): unknown => {
+      const v = this.cellValue(row, col);
+      return v instanceof WeGridFormulaError ? null : v;
+    };
+    const kind = weGridValueKind(col.type);
+    // A custom or formula column counts as numeric when its first filled value is a number
+    const sample = rows.map(value).find((v) => v !== null && v !== undefined && v !== '');
+    return {
+      field: col.field,
+      header: weGridDisplayHeader(col),
+      numeric: kind === 'number' || ((!col.type || col.type === 'custom' || !!col.formula) && typeof sample === 'number'),
+      filterable: col.filterable && weGridQuickFilterOperator(col) !== null,
+      value,
+      text: (row) => this.formatCell(row, col),
+      // The same value "filter by this value" uses: raw codes on a checklist, else the label when there is one
+      filterValue: (row) => (col.headerFilterMode !== 'checklist' && col.displayValue ? col.displayValue(row) : getNestedValue(row, col.field)),
+      // An average of whole numbers has decimals, and a formatter is written for row values — both show plain numbers
+      format: (n) =>
+        col.formatter || col.type === 'integer'
+          ? n.toLocaleString(this.locale.intlLocale, { maximumFractionDigits: 2 })
+          : formatWeGridColumnValue(n, col, this.valueFormatOptions())
+    };
   }
 
   /** Writes the selected block — its rows, and only its columns — through the grid's exporter */

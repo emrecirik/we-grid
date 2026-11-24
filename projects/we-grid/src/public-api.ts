@@ -48,6 +48,8 @@ export * from './lib/services/local-storage-grid-layout-store';
 // plus the primitives a consumer's own implementation can build on
 export * from './lib/services/we-grid-csv.util';
 export * from './lib/services/we-grid-cell-range.util';
+export * from './lib/services/we-grid-range-chart.util';
+export * from './lib/we-grid-chart-dialog/we-grid-chart-dialog.component';
 export * from './lib/services/we-grid-default-exporter';
 export * from './lib/services/we-grid-import.util';
 export * from './lib/services/we-grid-pdf.util';
@@ -78,6 +80,7 @@ export * from './lib/we-pivot/we-pivot.util';
 // <we-chart> — column, bar, line, area, pie and donut charts in SVG
 export * from './lib/we-chart/we-chart.component';
 export * from './lib/we-chart/we-chart.util';
+export * from './lib/we-chart/we-chart-export.util';
 
 // The column engine — also on its own, without Angular, as 'we-grid-angular/engine'
 export * from 'we-grid-angular/engine';

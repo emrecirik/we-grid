@@ -1,0 +1,119 @@
+// The dialog shell (backdrop, header, footer, buttons, fields) comes from the record form stylesheet
+.we-grid-chd {
+  width: min(68rem, 100%);
+}
+
+.we-grid-chd--max {
+  width: 100%;
+  height: 100%;
+}
+
+.we-grid-chd__max {
+  margin-inline-start: auto;
+}
+
+.we-grid-chd__layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16rem;
+  gap: 1rem;
+  padding: 1rem;
+  overflow-y: auto;
+  flex: 1;
+
+  @media (max-width: 760px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.we-grid-chd__main {
+  min-width: 0;
+}
+
+.we-grid-chd__panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.we-grid-chd__group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.we-grid-chd__types {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.25rem;
+}
+
+.we-grid-chd__type {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+
+  &[aria-pressed='true'] {
+    border-color: var(--we-grid-accent-color, #405189);
+    background: var(--we-grid-row-selected-bg, rgba(64, 81, 137, 0.1));
+    font-weight: 600;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: 1px;
+  }
+}
+
+.we-grid-chd__input {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--we-grid-border-color, #dee2e6);
+  border-radius: var(--we-grid-radius, 0.25rem);
+  background: var(--we-grid-bg, #fff);
+  color: inherit;
+  font: inherit;
+
+  &:focus-visible {
+    outline: 2px solid var(--we-grid-accent-color, #405189);
+    outline-offset: -1px;
+  }
+}
+
+.we-grid-chd__check {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  cursor: pointer;
+}
+
+.we-grid-chd__empty,
+.we-grid-chd__hint {
+  margin: 0;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-grid-chd__empty {
+  padding: 4rem 1rem;
+  text-align: center;
+}
+
+.we-grid-chd__status {
+  min-height: 1.25rem;
+  margin-top: 0.5rem;
+  color: var(--we-grid-muted-color, #878a99);
+}
+
+.we-grid-chd__status--error {
+  color: var(--we-grid-danger-color, #f06548);
+}
+
+.we-grid-chd__spacer {
+  flex: 1;
+}

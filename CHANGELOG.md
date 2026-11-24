@@ -15,6 +15,17 @@ All notable changes to this project are documented in this file.
   `rangeText(withHeaders)`, `exportRange(format)`; `WeGridCellRange`, `weGridToTsv`,
   `weGridRangeStats` exported. CSS `--we-grid-range-bg` in both themes, icon `copy`, locale keys
   `cellCopy` … `cellRangeSummary` in every shipped locale (a hand-written full locale needs them).
+- Range charts: the block's right-click menu gains **Chart range ▸** (column, bar, line, area, pie,
+  donut, radial bar, funnel), opening a chart dialog — category and series picked from the block
+  (on a grouped grid the group columns are offered as categories), same categories combined by
+  sum / average / count / min / max, switched rows and series, stacked, values on the marks in the
+  column's own format, maximize. Downloads as PNG or SVG (title and legend drawn in, theme colours
+  written out), as an **Excel file with a native, editable Excel chart** over its data, or copies
+  as an image; a click on a category can filter the grid by it. `openRangeChart(type?)` opens it
+  from your own button. New exports: `weChartToSvg`, `weChartSvgToPng`, `weGridRangeChartData`,
+  `weGridRangeChartSheet`, `WeGridRangeChartType`, `WeGridChartDialogComponent`; locale keys
+  `chartRange` … `chartNoSeries`, and `chartTypeLabels` gained `radialBar` and `funnel` — a
+  hand-written full locale needs them.
 
 ## 0.56.0 — 2026-11-19
 

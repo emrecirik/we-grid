@@ -1111,6 +1111,18 @@
     />
   }
 
+  @if (chartDialog) {
+    <we-grid-chart-dialog
+      [rows]="chartDialog.rows"
+      [columns]="chartDialog.columns"
+      [groupColumns]="chartDialog.groupColumns"
+      [type]="chartDialog.type"
+      [fileName]="exportFileName || gridKey"
+      (filter)="onChartFilter($event)"
+      (closed)="closeRangeChart()"
+    />
+  }
+
   @if (liveRegionOn) {
     <div class="we-grid__sr-only" role="status" aria-live="polite">{{ liveMessage }}</div>
   }

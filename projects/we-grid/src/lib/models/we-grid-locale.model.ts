@@ -423,10 +423,36 @@ export interface WeGridLocale {
   chartLegend: string;
   /** Gauge/progress target caption — `value` is already formatted */
   chartTarget: (value: string) => string;
-  chartTypeLabels: Record<'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut', string>;
+  chartTypeLabels: Record<'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'radialBar' | 'funnel', string>;
   chartStacked: string;
   chartInsert: string;
   chartRemove: string;
+  /** Range charts (`cellSelection`): the right-click entry and the chart dialog */
+  chartRange: string;
+  chartType: string;
+  chartCategory: string;
+  /** The category choice that charts the rows in their order, numbered */
+  chartRowOrder: string;
+  chartSeries: string;
+  /** How rows of the same category combine — the choice list reuses `sum`, `average`, `count`, `min`, `max` */
+  chartCombine: string;
+  chartCombineNone: string;
+  chartSwitch: string;
+  chartShowValues: string;
+  chartTitle: string;
+  chartPng: string;
+  chartSvg: string;
+  /** The workbook download — a native Excel chart over the data, for the types Excel has */
+  chartExcel: string;
+  chartCopyImage: string;
+  chartCopied: string;
+  chartImageFailed: string;
+  chartClickFilters: string;
+  /** Status after a click filtered the grid, e.g. `(c, v) => \`Grid filtered: ${c} = ${v}\`` */
+  chartFiltered: (column: string, value: string) => string;
+  chartMaximize: string;
+  chartRestore: string;
+  chartNoSeries: string;
 
   // ─── Search and number format ───
   searchPlaceholder: string;
@@ -827,10 +853,31 @@ export const weGridLocaleEn: WeGridLocale = {
   chartOther: 'Other',
   chartLegend: 'Legend',
   chartTarget: (value) => `Target: ${value}`,
-  chartTypeLabels: { column: 'Column', bar: 'Bar', line: 'Line', area: 'Area', pie: 'Pie', donut: 'Donut' },
+  chartTypeLabels: { column: 'Column', bar: 'Bar', line: 'Line', area: 'Area', pie: 'Pie', donut: 'Donut', radialBar: 'Radial bar', funnel: 'Funnel' },
   chartStacked: 'Stacked',
   chartInsert: 'Chart',
   chartRemove: 'Remove chart',
+  chartRange: 'Chart range',
+  chartType: 'Chart type',
+  chartCategory: 'Categories',
+  chartRowOrder: '(Row order)',
+  chartSeries: 'Series',
+  chartCombine: 'Same categories',
+  chartCombineNone: 'One point per row',
+  chartSwitch: 'Switch rows and series',
+  chartShowValues: 'Show values',
+  chartTitle: 'Title',
+  chartPng: 'PNG image',
+  chartSvg: 'SVG image',
+  chartExcel: 'Excel with chart',
+  chartCopyImage: 'Copy image',
+  chartCopied: 'Chart copied to the clipboard',
+  chartImageFailed: 'Could not create the image',
+  chartClickFilters: 'Clicking a category filters the grid',
+  chartFiltered: (c, v) => `Grid filtered: ${c} = ${v}`,
+  chartMaximize: 'Maximize',
+  chartRestore: 'Restore size',
+  chartNoSeries: 'Pick at least one number column',
   searchPlaceholder: 'Search',
   searchClear: 'Clear search',
   formatNumber: 'Number',
@@ -1237,10 +1284,31 @@ export const weGridLocaleTr: WeGridLocale = {
   chartOther: 'Diğer',
   chartLegend: 'Açıklama',
   chartTarget: (value) => `Hedef: ${value}`,
-  chartTypeLabels: { column: 'Sütun', bar: 'Çubuk', line: 'Çizgi', area: 'Alan', pie: 'Pasta', donut: 'Halka' },
+  chartTypeLabels: { column: 'Sütun', bar: 'Çubuk', line: 'Çizgi', area: 'Alan', pie: 'Pasta', donut: 'Halka', radialBar: 'Dairesel çubuk', funnel: 'Huni' },
   chartStacked: 'Yığılmış',
   chartInsert: 'Grafik',
   chartRemove: 'Grafiği kaldır',
+  chartRange: 'Grafik oluştur',
+  chartType: 'Grafik tipi',
+  chartCategory: 'Kategoriler',
+  chartRowOrder: '(Satır sırası)',
+  chartSeries: 'Seriler',
+  chartCombine: 'Aynı kategoriler',
+  chartCombineNone: 'Her satır ayrı nokta',
+  chartSwitch: 'Satırlar ile serileri değiştir',
+  chartShowValues: 'Değerleri göster',
+  chartTitle: 'Başlık',
+  chartPng: 'PNG görsel',
+  chartSvg: 'SVG görsel',
+  chartExcel: 'Grafikli Excel',
+  chartCopyImage: 'Görseli kopyala',
+  chartCopied: 'Grafik panoya kopyalandı',
+  chartImageFailed: 'Görsel oluşturulamadı',
+  chartClickFilters: 'Kategoriye tıklamak grid\'i filtreler',
+  chartFiltered: (c, v) => `Grid filtrelendi: ${c} = ${v}`,
+  chartMaximize: 'Büyüt',
+  chartRestore: 'Eski boyut',
+  chartNoSeries: 'En az bir sayısal sütun seçin',
   searchPlaceholder: 'Ara',
   searchClear: 'Aramayı temizle',
   formatNumber: 'Sayı',

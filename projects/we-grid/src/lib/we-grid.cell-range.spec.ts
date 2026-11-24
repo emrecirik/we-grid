@@ -157,7 +157,7 @@ describe('WeGridComponent — cell range selection', () => {
     dragTo(cell(1, 2));
     expect(rightClick(cell(1, 1)).defaultPrevented).toBeTrue();
     const ids = Array.from(document.querySelectorAll('.we-grid-menu > [data-item-id]')).map((el) => el.getAttribute('data-item-id'));
-    expect(ids).toEqual(['we-range-copy', 'we-range-copy-headers', 'we-range-export', 'open']);
+    expect(ids).toEqual(['we-range-copy', 'we-range-copy-headers', 'we-range-export', 'we-range-chart', 'open']);
 
     const write = spyOn(navigator.clipboard, 'writeText').and.returnValue(Promise.resolve());
     menuItem('we-range-copy-headers')!.click();

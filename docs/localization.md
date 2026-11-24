@@ -243,6 +243,12 @@ parser's own messages are English too.
 
 - Cell range selection (`cellSelection`): `cellCopy`, `cellCopyWithHeaders`, `cellExportRange`,
   `cellCopyFailed`, `cellColumnMenu`, `cellRangeSummary`
+- Range charts: `chartRange`, `chartType`, `chartCategory`, `chartRowOrder`, `chartSeries`,
+  `chartCombine`, `chartCombineNone`, `chartSwitch`, `chartShowValues`, `chartTitle`, `chartPng`,
+  `chartSvg`, `chartExcel`, `chartCopyImage`, `chartCopied`, `chartImageFailed`,
+  `chartClickFilters`, `chartFiltered(column, value)`, `chartMaximize`, `chartRestore`,
+  `chartNoSeries`
+- `chartTypeLabels` gained `radialBar` and `funnel`
 
 ## Keys added in 0.56.0
 

@@ -124,6 +124,8 @@
 - `getCellRange()`, `clearCellRange()`, `rangeText(withHeaders)`, `exportRange(format)` *(0.57.0)* —
   the block selected under `cellSelection`: its rows and fields, cleared, as tab-separated text,
   written through `WE_GRID_EXPORTER` (its rows and only its columns, no summary row)
+- `openRangeChart(type?)`, `closeRangeChart()`, `chartDialog` *(0.57.0)* — the chart dialog, see
+  [Range charts](#range-charts)
 - `openImportPicker()`, `importAccept`
 - `edit: WeGridEditState<T> | null`, `startEdit(row, index, event?)`, `startCreate()`, `commitEdit()`,
   `cancelEdit()`, `requestDelete(row, index, event?)`, `isEditingRow(row)`, `isCreating`, `hasRowActions`
@@ -227,6 +229,32 @@ rowMenu = (row: Order, ctx: WeGridRowMenuContext<Order>): WeGridMenuItem[] => [
   when a filter or a collapsed group hides a corner, it lapses.
 - While it is on, data cells get `aria-selected` and `data-we-grid-field`, rows `data-we-grid-item`
   and `tabindex="-1"`; off, the markup is unchanged.
+
+### Range charts
+
+*(0.57.0)* The block menu's **Chart range ▸** lists column, bar, line, area, pie, donut, radial bar
+and funnel; the one picked opens the chart dialog over the block. `openRangeChart(type?)` opens it
+from your own button — over the block, or with none over the filtered rows and visible columns.
+
+- **Set up:** the first text column of the block is the category, its number columns are the
+  series (a custom or formula column counts when its values are numbers). On a grouped grid the
+  group columns are offered as categories too, the first of them preselected. When a category
+  repeats, rows of the same category are combined with a sum; the list also has average, count,
+  min, max and *One point per row*. *(Row order)* charts the rows numbered, without a category.
+- **Shape:** type, stacked (column, bar, line, area), title, *Switch rows and series*, *Show
+  values*. Values read in the column's own format (currency, percent …) when one column is
+  charted — not for a count, nor for an average of an `integer` column.
+- **Export:** PNG (twice the size on screen) and SVG with the title and legend drawn in and the
+  theme's colours written out; **Excel with chart** — the chart's data in a worksheet with a
+  native Excel chart over those cells (column, bar, line, area, pie, donut; radial bar and funnel
+  go as data only); **Copy image** puts the PNG on the clipboard (where the browser allows it).
+- **Click to filter:** *Clicking a category filters the grid* applies the same filter as the
+  column menu's "filter by this value" to the category column — when it is filterable and the
+  chart is not switched. The status line says what was filtered.
+- The dialog charts the rows it opened with; close it and open it again to chart new data. It
+  writes its files itself (`weGridBuildXlsxWorkbook`, `weGridDownloadBlob`), not through
+  `WE_GRID_EXPORTER`.
+- `chartDialog` (the open dialog's rows and columns, or null), `closeRangeChart()`.
 
 ### Saved layouts and layoutVersion
 

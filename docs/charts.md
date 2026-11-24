@@ -54,6 +54,22 @@ labels are `aria-hidden`.
 `weChartStackedLabelFits`, `weChartPieLabelFits`, `weChartColumnLabelFits`, `weChartBarLabelFits`,
 `weChartLabelCollides` and `weChartLabelColor` are the pure helpers the component uses.
 
+*(0.57.0)* `weChartToSvg(element, { background?, title? })` turns a rendered `<we-chart>` (or an
+element holding one) into a standalone SVG document — the plot with every colour and font written
+onto its shapes, the title above, the legend below; `null` while the chart shows its table.
+`weChartSvgToPng(svg, width, height, scale = 2)` renders that to a PNG `Blob`:
+
+```ts
+const image = weChartToSvg(chartEl, { background: '#fff' });
+if (image) weGridDownloadBlob(await weChartSvgToPng(image.svg, image.width, image.height), 'sales.png');
+```
+
+## In the grid
+
+*(0.57.0)* With `cellSelection`, a right click on a selected block offers **Chart range ▸** — a
+chart dialog with type, category, series, combining, PNG / SVG / Excel-with-chart export and
+click-to-filter. See [Range charts](api.md#range-charts).
+
 ## In the pivot table and the spreadsheet
 
 - `<we-pivot>` has chart buttons next to its fields (and a `chart` input / `chartChange` output,

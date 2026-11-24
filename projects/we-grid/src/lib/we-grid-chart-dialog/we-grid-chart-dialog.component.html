@@ -1,0 +1,127 @@
+<div class="we-grid-form__backdrop" (click)="closed.emit()">
+  <div
+    class="we-grid-form we-grid-chd"
+    [class.we-grid-chd--max]="maximized"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="we-grid-chd-title"
+    cdkTrapFocus
+    [cdkTrapFocusAutoCapture]="true"
+    (click)="$event.stopPropagation()"
+    (keydown)="onKeydown($event)"
+  >
+    <div class="we-grid-form__header">
+      <h2 id="we-grid-chd-title" class="we-grid-form__title">{{ locale.chartInsert }}</h2>
+      <button
+        type="button"
+        class="we-grid-form__close we-grid-chd__max"
+        [attr.aria-pressed]="maximized"
+        [attr.aria-label]="maximized ? locale.chartRestore : locale.chartMaximize"
+        [title]="maximized ? locale.chartRestore : locale.chartMaximize"
+        (click)="maximized = !maximized"
+      >
+        <span [innerHTML]="icon('arrowLeftRight')" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="we-grid-form__close" (click)="closed.emit()" [attr.aria-label]="locale.close" [title]="locale.close">
+        <span [innerHTML]="icon('close')" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <div class="we-grid-chd__layout">
+      <div class="we-grid-chd__main">
+        @if (result.data.series.length) {
+          <we-chart
+            [type]="type"
+            [data]="result.data"
+            [stacked]="stackable && stacked"
+            [title]="title"
+            [height]="chartHeight"
+            [showValues]="showValues"
+            [valueFormatter]="valueFormatter"
+            (pointClick)="onPointClick($event)"
+          />
+        } @else {
+          <p class="we-grid-chd__empty">{{ locale.chartNoSeries }}</p>
+        }
+        <div class="we-grid-chd__status" role="status" aria-live="polite">
+          @if (message) {
+            <span [class.we-grid-chd__status--error]="message.error">{{ message.text }}</span>
+          }
+        </div>
+      </div>
+
+      <aside class="we-grid-chd__panel">
+        <fieldset class="we-grid-chd__group">
+          <legend class="we-grid-form__label">{{ locale.chartType }}</legend>
+          <div class="we-grid-chd__types">
+            @for (t of types; track t) {
+              <button type="button" class="we-grid-chd__type" [attr.aria-pressed]="type === t" (click)="setType(t)">{{ locale.chartTypeLabels[t] }}</button>
+            }
+          </div>
+          @if (stackable) {
+            <label class="we-grid-chd__check"><input type="checkbox" [(ngModel)]="stacked" /> {{ locale.chartStacked }}</label>
+          }
+        </fieldset>
+
+        <label class="we-grid-form__field">
+          <span class="we-grid-form__label">{{ locale.chartTitle }}</span>
+          <input class="we-grid-chd__input" [(ngModel)]="title" maxlength="120" />
+        </label>
+
+        <label class="we-grid-form__field">
+          <span class="we-grid-form__label">{{ locale.chartCategory }}</span>
+          <select class="we-grid-chd__input" [ngModel]="categoryField" (ngModelChange)="setCategory($event)">
+            <option value="">{{ locale.chartRowOrder }}</option>
+            @for (c of categoryColumns; track c.field) {
+              <option [value]="c.field">{{ c.header }}</option>
+            }
+          </select>
+        </label>
+
+        <label class="we-grid-form__field">
+          <span class="we-grid-form__label">{{ locale.chartCombine }}</span>
+          <select class="we-grid-chd__input" [disabled]="!category" [(ngModel)]="aggregate" (ngModelChange)="rebuild()">
+            @for (a of aggregates; track a) {
+              <option [value]="a">{{ aggregateLabel(a) }}</option>
+            }
+          </select>
+        </label>
+
+        <fieldset class="we-grid-chd__group">
+          <legend class="we-grid-form__label">{{ locale.chartSeries }}</legend>
+          @for (c of seriesColumns; track c.field) {
+            <label class="we-grid-chd__check">
+              <input type="checkbox" [checked]="seriesFields.has(c.field)" (change)="toggleSeries(c.field, $any($event.target).checked)" /> {{ c.header }}
+            </label>
+          } @empty {
+            <p class="we-grid-chd__hint">{{ locale.chartNoSeries }}</p>
+          }
+        </fieldset>
+
+        <label class="we-grid-chd__check"><input type="checkbox" [(ngModel)]="switched" (ngModelChange)="rebuild()" /> {{ locale.chartSwitch }}</label>
+        <label class="we-grid-chd__check"><input type="checkbox" [(ngModel)]="showValues" /> {{ locale.chartShowValues }}</label>
+        @if (canFilter) {
+          <label class="we-grid-chd__check"><input type="checkbox" [(ngModel)]="filterOnClick" /> {{ locale.chartClickFilters }}</label>
+        }
+      </aside>
+    </div>
+
+    <div class="we-grid-form__footer">
+      <span class="we-grid-form__label">{{ locale.exportButton }}:</span>
+      <button type="button" class="we-grid-form__btn" [disabled]="!result.data.series.length" (click)="downloadPng()">
+        <span [innerHTML]="icon('download')" aria-hidden="true"></span> {{ locale.chartPng }}
+      </button>
+      <button type="button" class="we-grid-form__btn" [disabled]="!result.data.series.length" (click)="downloadSvg()">
+        <span [innerHTML]="icon('download')" aria-hidden="true"></span> {{ locale.chartSvg }}
+      </button>
+      <button type="button" class="we-grid-form__btn" [disabled]="!result.data.series.length" (click)="downloadExcel()">
+        <span [innerHTML]="icon('fileTable')" aria-hidden="true"></span> {{ locale.chartExcel }}
+      </button>
+      <button type="button" class="we-grid-form__btn" [disabled]="!result.data.series.length" (click)="copyImage()">
+        <span [innerHTML]="icon('copy')" aria-hidden="true"></span> {{ locale.chartCopyImage }}
+      </button>
+      <span class="we-grid-chd__spacer"></span>
+      <button type="button" class="we-grid-form__btn we-grid-form__btn--primary" (click)="closed.emit()">{{ locale.close }}</button>
+    </div>
+  </div>
+</div>
