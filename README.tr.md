@@ -195,6 +195,12 @@ Grafik, kategori ve seriler seçilmiş olarak açılır — tekrar eden kategori
 
 ![Aralık grafiği penceresi: kategoriye göre adet, sütun grafiği; grafik tipleri, kategoriler, seriler ve dışa aktarma düğmeleri](docs/images/range-chart.png)
 
+### Klavyeyle okunabilen grafikler
+
+[Studio'nun Grafikler sekmesinde](https://emrecirik.github.io/we-grid/studio/#charts) aynı siparişler üzerinde tüm `<we-chart>` tipleri: şelale, yığılmış sütun, halka, huni… Her grafik tek bir sekme durağıdır — ok tuşları değerleri gezer, ekran okuyucu her birini okur — ve altında tek cümlelik bir özet (en yüksek, en düşük, toplam, çizgide eğilim) yazar.
+
+![Studio Grafikler sekmesi: şehre göre ciro, klavyesi Laptops'ta olan kategori şelalesi, aylara göre ciro, duruma göre siparişler, yığılmış ciro ve kategoriye göre adet](docs/images/charts.png)
+
 ### Kolon menüsü — son kullanıcının değiştirebildiği her şey
 
 Başlığa sağ tıklayın (veya ⚙ düğmesini kullanın): kolon gizleme, yeniden adlandırma, sabitleme,

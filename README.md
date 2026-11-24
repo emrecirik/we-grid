@@ -250,6 +250,15 @@ downloads as PNG, SVG or an Excel file with a native, editable Excel chart.
 
 ![The range chart dialog: quantity by category as a column chart, with chart types, categories, series and export buttons](docs/images/range-chart.png)
 
+### Charts you can read with the keyboard
+
+Every `<we-chart>` type over the same orders in [Studio's Charts tab](https://emrecirik.github.io/we-grid/studio/#charts):
+a waterfall, stacked columns, a donut, a funnel… Each plot is one tab stop — the arrow keys step
+through its values and a screen reader hears each one — and a one-sentence summary (highest,
+lowest, total, the trend of a line) is written under it.
+
+![Studio's Charts tab: revenue by city, a revenue waterfall by category with the keyboard on Laptops, revenue by month, orders by status, stacked revenue and quantity by category](docs/images/charts.png)
+
 ### The column menu — everything the end user can change
 
 Right-click any header (or use the ⚙ button) to hide, rename, pin, sort, autofit, set a subtotal
