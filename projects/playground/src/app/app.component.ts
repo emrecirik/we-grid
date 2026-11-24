@@ -144,6 +144,14 @@ export class AppComponent {
   basicData = ALL_PRODUCTS.slice(0, 20);
   /** Section 16 — what (cellRangeChange) last reported */
   rangeInfo = 'none';
+  /** Section 17 — the same columns under header bands; Code is pinned, so its band is too */
+  bandColumns: WeGridColumnDef<Product>[] = [
+    { field: 'code', header: 'Code', width: 120, pinned: 'left', headerGroup: 'Product' },
+    { field: 'name', header: 'Name', width: 200, headerGroup: 'Product' },
+    { field: 'category', header: 'Category', width: 160, headerGroup: 'Product' },
+    { field: 'price', header: 'Price', type: 'currency', width: 120, summary: 'sum', headerGroup: 'Sales' },
+    { field: 'updatedAt', header: 'Updated', type: 'date', width: 140 }
+  ];
 
   // ─── 2. Custom cell template (weGridCell) ────────────────────────
   templateColumns: WeGridColumnDef<Product>[] = [
