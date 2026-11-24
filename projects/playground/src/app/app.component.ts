@@ -144,6 +144,9 @@ export class AppComponent {
   basicData = ALL_PRODUCTS.slice(0, 20);
   /** Section 16 — what (cellRangeChange) last reported */
   rangeInfo = 'none';
+  /** Section 17 — a target row held above the data and last year's total below it */
+  bandTargetRows: Product[] = [{ ...ALL_PRODUCTS[0], id: -1, code: 'TARGET', name: 'Monthly target', category: '—', price: 1200 }];
+  bandLastYearRows: Product[] = [{ ...ALL_PRODUCTS[0], id: -2, code: 'LY', name: 'Last year', category: '—', price: 980.5 }];
   /** Section 17 — the same columns under header bands; Code is pinned, so its band is too */
   bandColumns: WeGridColumnDef<Product>[] = [
     { field: 'code', header: 'Code', width: 120, pinned: 'left', headerGroup: 'Product' },

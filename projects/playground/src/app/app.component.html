@@ -426,7 +426,9 @@
     <p class="demo__hint">
       Neighbouring columns with the same <code>headerGroup</code> share a band above their headers. Code is pinned, so
       "Product" splits at the pin; move a column out of a band and the band splits around it. The bands stay on top
-      while the grid scrolls inside 320px, and the Excel export writes them as merged cells.
+      while the grid scrolls inside 320px, and the Excel export writes them as merged cells. A target row is pinned above
+      the data and last year's total below it (<code>pinnedTopRows</code>, <code>pinnedBottomRows</code>) — they stay put
+      while the rows scroll and sort.
     </p>
     <we-grid
       gridKey="playground-bands"
@@ -435,6 +437,8 @@
       trackByField="id"
       [filterRow]="true"
       [maxHeight]="320"
+      [pinnedTopRows]="bandTargetRows"
+      [pinnedBottomRows]="bandLastYearRows"
       [exportFormats]="exportFormats"
       exportFileName="bands"
     ></we-grid>
