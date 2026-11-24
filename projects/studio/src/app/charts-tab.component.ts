@@ -36,7 +36,7 @@ function sumBy(orders: readonly StudioOrder[], key: (o: StudioOrder) => string, 
       </div>
       <div class="charts">
         @for (card of cards; track $index) {
-          <we-chart [type]="card.type" [data]="card.data" [title]="card.title" [stacked]="!!card.stacked" [height]="260" [showValues]="card.type === 'waterfall' || card.type === 'column'" [showSummary]="true" [valueFormatter]="whole" />
+          <we-chart [type]="card.type" [data]="card.data" [title]="card.title" [stacked]="!!card.stacked" [height]="260" [showValues]="card.type === 'waterfall' || card.type === 'column' || card.type === 'heatmap'" [showSummary]="true" [valueFormatter]="whole" />
         }
       </div>
     </section>
@@ -74,6 +74,11 @@ export class ChartsTabComponent implements OnChanges {
       categories: byCategory.keys,
       series: statuses.map((s) => ({ name: s, values: byCategory.keys.map((c) => Math.round(o.filter((x) => x.category === c && x.status === s).reduce((a, x) => a + orderTotal(x), 0))) }))
     };
+    // Orders per category (rows) and month (columns)
+    const heat: WeChartData = {
+      categories: months,
+      series: byCategory.keys.map((c) => ({ name: c, values: months.map((m) => o.filter((x) => x.category === c && x.date.startsWith(m)).length) }))
+    };
     this.cards = [
       { type: 'column', title: t.chartRevenueByCity, data: named(byCity, t.chartRevenue) },
       { type: 'waterfall', title: t.chartRevenueBuildUp, data: named(byCategory, t.chartRevenue) },
@@ -82,7 +87,8 @@ export class ChartsTabComponent implements OnChanges {
       { type: 'column', title: t.chartCategoryByStatus, data: stacked, stacked: true },
       { type: 'bar', title: t.chartQtyByCategory, data: named(qtyByCategory, t.chartQty) },
       { type: 'funnel', title: t.chartOrdersByStatus, data: named(byStatus, t.chartOrders) },
-      { type: 'radialBar', title: t.chartQtyByCategory, data: named(qtyByCategory, t.chartQty) }
+      { type: 'radialBar', title: t.chartQtyByCategory, data: named(qtyByCategory, t.chartQty) },
+      { type: 'heatmap', title: t.chartOrdersHeatmap, data: heat }
     ];
   }
 }

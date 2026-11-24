@@ -38,6 +38,7 @@ const en = {
   chartOrdersByStatus: 'Orders by status',
   chartCategoryByStatus: 'Revenue by category and status (stacked)',
   chartQtyByCategory: 'Quantity by category',
+  chartOrdersHeatmap: 'Orders by category and month (heatmap)',
   newTitle: 'New',
   newItems: [
     'Select cells: drag over them (or Shift+arrows) — the footer shows count, sum, average, min and max.',
@@ -172,6 +173,7 @@ const tr: typeof en = {
   chartOrdersByStatus: 'Duruma göre siparişler',
   chartCategoryByStatus: 'Kategori ve duruma göre ciro (yığılmış)',
   chartQtyByCategory: 'Kategoriye göre adet',
+  chartOrdersHeatmap: 'Kategori ve aya göre siparişler (ısı haritası)',
   newTitle: 'Yeni',
   newItems: [
     'Hücre seçin: üzerlerinde sürükleyin (ya da Shift+ok) — alt bilgi sayı, toplam, ortalama, min ve maks gösterir.',
