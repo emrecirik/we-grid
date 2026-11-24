@@ -142,6 +142,8 @@ export class AppComponent {
     { field: 'updatedAt', header: 'Updated', type: 'date', width: 140 }
   ];
   basicData = ALL_PRODUCTS.slice(0, 20);
+  /** Section 16 — what (cellRangeChange) last reported */
+  rangeInfo = 'none';
 
   // ─── 2. Custom cell template (weGridCell) ────────────────────────
   templateColumns: WeGridColumnDef<Product>[] = [

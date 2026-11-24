@@ -400,4 +400,23 @@
     </p>
     <we-sheet sheetKey="playground-sheet" [data]="sheetDemo" exportFileName="products" />
   </section>
+
+  <section class="demo">
+    <h2>16. Cell range selection</h2>
+    <p class="demo__hint">
+      Drag over cells, Shift+click, or Shift+arrows on a focused row (<code>cellSelection</code>). Ctrl+C copies the block;
+      right click for Copy, Copy with headers and Export selection. The footer shows count, sum, average, min and max.
+      Group by a column from the header menu — the block still works.
+    </p>
+    <we-grid
+      gridKey="playground-range"
+      [columns]="basicColumns"
+      [data]="basicData"
+      trackByField="id"
+      [cellSelection]="true"
+      [grouping]="true"
+      (cellRangeChange)="rangeInfo = $event ? $event.rows.length + ' rows × ' + $event.fields.join(', ') : 'none'"
+    ></we-grid>
+    <p class="demo__hint">Selected: {{ rangeInfo }}</p>
+  </section>
 </div>
