@@ -505,6 +505,32 @@
   }
 }
 
+// ─── Pinned rows (pinnedTopRows / pinnedBottomRows) ──────────────────
+// Opaque, so data rows scroll under them; in a bounded grid they stick at offsets the component measures
+.we-grid__row--pinned td {
+  background: var(--we-grid-bg, #fff);
+}
+
+.we-grid__pinned-body--top tr:last-child td {
+  border-bottom: 2px solid var(--we-grid-border-color, #dee2e6);
+}
+
+.we-grid__pinned-body--bottom tr:first-child td {
+  border-top: 2px solid var(--we-grid-border-color, #dee2e6);
+}
+
+.we-grid__scroll--bounded .we-grid__row--pinned td {
+  position: sticky;
+  z-index: 1;
+}
+
+.we-grid__scroll--bounded .we-grid__row--pinned td.we-grid__td--pinned-left,
+.we-grid__scroll--bounded .we-grid__row--pinned td.we-grid__td--pinned-right,
+.we-grid__scroll--bounded .we-grid__row--pinned td.we-grid__select-col,
+.we-grid__scroll--bounded .we-grid__row--pinned td.we-grid__expand-col {
+  z-index: 2;
+}
+
 // ─── Header bands (headerGroup) ──────────────────────────────────────
 // A row above the header; it sticks to the top and pushes the header and filter rows below it
 .we-grid__band-row th {

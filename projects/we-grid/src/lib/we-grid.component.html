@@ -623,6 +623,13 @@
           </tr>
         }
       </thead>
+      @if (pinnedTopRows.length) {
+        <tbody class="we-grid__pinned-body we-grid__pinned-body--top">
+          @for (row of pinnedTopRows; track $index; let ri = $index) {
+            <ng-container *ngTemplateOutlet="pinnedRow; context: { $implicit: row, top: pinnedTopOffsets[ri], bottom: null }"></ng-container>
+          }
+        </tbody>
+      }
       <tbody>
         <!-- The draft row of a record being created. Rendered before every other branch so it is
              also visible on a completely empty grid, which is exactly when "Add row" is pressed most. -->
@@ -988,6 +995,13 @@
           }
         }
       </tbody>
+      @if (pinnedBottomRows.length) {
+        <tbody class="we-grid__pinned-body we-grid__pinned-body--bottom">
+          @for (row of pinnedBottomRows; track $index; let ri = $index) {
+            <ng-container *ngTemplateOutlet="pinnedRow; context: { $implicit: row, top: null, bottom: pinnedBottomOffsets[ri] }"></ng-container>
+          }
+        </tbody>
+      }
       @if (hasSummaryRow) {
         <tfoot>
           <tr class="we-grid__summary-row">
@@ -1174,6 +1188,41 @@
   }
 
   <!-- A detail's content — wrapped in a labelled region once any of the newer detail options is in use -->
+  <!-- A pinned row (pinnedTopRows / pinnedBottomRows): the cells as data rows show them, sticky at a measured offset -->
+  <ng-template #pinnedRow let-row let-top="top" let-bottom="bottom">
+    <tr class="we-grid__row we-grid__row--pinned">
+      @if (showExpandCol) {
+        <td class="we-grid__expand-col" [style.top.px]="top" [style.bottom.px]="bottom"></td>
+      }
+      @if (selectable !== 'none') {
+        <td class="we-grid__select-col" [style.left.px]="expandColWidthPx" [style.top.px]="top" [style.bottom.px]="bottom"></td>
+      }
+      @for (col of renderColumns; track col.field) {
+        <td
+          [style.text-align]="col.align"
+          [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+          [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+          [style.top.px]="top"
+          [style.bottom.px]="bottom"
+          [class.we-grid__td--wrap]="col.wrap"
+          [class.we-grid__td--nowrap]="!col.wrap"
+          [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+          [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+          [ngStyle]="cellCss(row, col)"
+        >
+          @if (getCellTemplate(col); as tmpl) {
+            <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(row, col, -1)"></ng-container>
+          } @else {
+            {{ formatCell(row, col) }}
+          }
+        </td>
+      }
+      @if (hasRowActions) {
+        <td class="we-grid__action-col" [style.top.px]="top" [style.bottom.px]="bottom"></td>
+      }
+    </tr>
+  </ng-template>
+
   <ng-template #detailContent let-item>
     @if (detailEnhanced) {
       <div

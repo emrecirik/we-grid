@@ -422,6 +422,15 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   @Input() cellSelection = false;
 
   /**
+   * Rows held above the data rows, below the header — a target line, a "this month" total. They are
+   * not sorted, filtered, paged, grouped or selected; cell templates, formatters and format rules
+   * apply. In a `maxHeight` grid they stay in view while the rows scroll. Not exported.
+   */
+  @Input() pinnedTopRows: T[] = [];
+  /** Rows held below the data rows, above the summary row — see `pinnedTopRows` */
+  @Input() pinnedBottomRows: T[] = [];
+
+  /**
    * Bump this when state the rows are drawn from changes outside `data` — a Map of unsaved
    * decisions, say. Any change (`!==`) makes the grid re-evaluate `rowClass` and the cell templates
    * without rebuilding them, so an input inside a template keeps its focus. Use a counter or a
@@ -1195,6 +1204,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if ((changes['pinnedTopRows'] || changes['pinnedBottomRows']) && this.scrollAreaRef) this.observePinnedRows();
     if (
       (changes['columns'] && !changes['columns'].firstChange) ||
       (changes['headerFilterMode'] && !changes['headerFilterMode'].firstChange)
@@ -1297,6 +1307,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   ngAfterViewInit(): void {
+    this.observePinnedRows();
     this.syncViewportObserver();
     this.bindVirtualScroll();
     if (this.virtualActive) this.scheduleVirtualMeasure();
@@ -1316,6 +1327,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       document.removeEventListener('pointerdown', this.onDocumentPointerDown, true);
       document.removeEventListener('copy', this.onDocumentCopy);
       this.endRangeDrag?.();
+      this.pinnedObserver?.disconnect();
     }
     this.closeHeaderMenu();
     this.closeFilterPopover();
@@ -3121,7 +3133,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** Average height of the rendered items — detail rows count towards their row */
   private measureVirtualItems(): void {
-    const body = this.scrollAreaRef?.nativeElement.querySelector<HTMLElement>('.we-grid__table > tbody');
+    const body = this.scrollAreaRef?.nativeElement.querySelector<HTMLElement>('.we-grid__table > tbody:not(.we-grid__pinned-body)');
     if (this.rowHeight || !body || this.visibleItems.length === 0) return;
     // Placeholders of rows still on their way are left out: their height would pull the average
     // back and forth with every block that arrives
@@ -3646,7 +3658,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       .filter((item) => item.kind === 'row')
       .findIndex((item) => item.kind === 'row' && this.rowKey(item.row) === key);
     // The draft row of "Add row" is the first .we-grid__row while it is open
-    const rows = host.querySelectorAll<HTMLElement>('tbody > tr.we-grid__row');
+    const rows = host.querySelectorAll<HTMLElement>('tbody:not(.we-grid__pinned-body) > tr.we-grid__row');
     const element = rows[position + (this.showDraftRow ? 1 : 0)];
     if (!element) return;
     // Inside a bounded grid the sticky header would cover a row scrolled to the very top
@@ -4994,6 +5006,45 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     ];
   }
 
+  // ─── Pinned rows ─────────────────────────────────────────────────────
+  /** Where each pinned row sticks in a bounded grid — measured, so it sits flush under the header and over the summary */
+  pinnedTopOffsets: number[] = [];
+  pinnedBottomOffsets: number[] = [];
+  private pinnedObserver: ResizeObserver | null = null;
+
+  /** Re-measures the pinned rows' sticky offsets whenever the table changes size — observed only while there are any */
+  private observePinnedRows(): void {
+    const wanted = this.pinnedTopRows.length > 0 || this.pinnedBottomRows.length > 0;
+    if (!wanted) {
+      this.pinnedObserver?.disconnect();
+      this.pinnedObserver = null;
+    }
+    if (!wanted || this.pinnedObserver || typeof ResizeObserver === 'undefined') return;
+    const table = this.scrollAreaRef?.nativeElement.querySelector('.we-grid__table');
+    if (!table) return;
+    this.ngZone.runOutsideAngular(() => {
+      this.pinnedObserver = new ResizeObserver(() => this.measurePinnedRows(table));
+      this.pinnedObserver.observe(table);
+    });
+  }
+
+  private measurePinnedRows(table: Element): void {
+    if (!this.pinnedTopRows.length && !this.pinnedBottomRows.length) return;
+    const heights = (selector: string) => Array.from(table.querySelectorAll<HTMLElement>(selector)).map((tr) => tr.offsetHeight);
+    const head = table.querySelector<HTMLElement>(':scope > thead')?.offsetHeight ?? 0;
+    const foot = table.querySelector<HTMLElement>(':scope > tfoot')?.offsetHeight ?? 0;
+    const top: number[] = [];
+    heights(':scope > tbody.we-grid__pinned-body--top > tr').reduce((at, h) => (top.push(at), at + h), head);
+    const bottom: number[] = [];
+    heights(':scope > tbody.we-grid__pinned-body--bottom > tr').reduceRight((at, h) => (bottom.unshift(at), at + h), foot);
+    if (top.join() === this.pinnedTopOffsets.join() && bottom.join() === this.pinnedBottomOffsets.join()) return;
+    this.ngZone.run(() => {
+      this.pinnedTopOffsets = top;
+      this.pinnedBottomOffsets = bottom;
+      this.cdr.markForCheck();
+    });
+  }
+
   // ─── Range charts ────────────────────────────────────────────────────
   /** The open chart dialog — the rows and columns it charts, frozen when it opened */
   chartDialog: { rows: T[]; columns: WeGridChartColumn<T>[]; groupColumns: WeGridChartColumn<T>[]; type: WeGridRangeChartType } | null = null;
@@ -5858,7 +5909,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         if (width > cells) cells = width;
       }
     }
-    const cellPadding = this.horizontalPadding(host.querySelector<HTMLElement>('.we-grid__row td')) ?? 16;
+    const cellPadding = this.horizontalPadding(host.querySelector<HTMLElement>('tbody:not(.we-grid__pinned-body) .we-grid__row td')) ?? 16;
     // A few px of slack — canvas text metrics and the rendered text don't round the same way
     const fitted = Math.max(col.minWidth, Math.ceil(Math.max(header, cells + cellPadding)) + 4);
     const bound = col.maxWidth ?? maxWidth;

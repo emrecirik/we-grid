@@ -11,6 +11,15 @@ All notable changes to this project are documented in this file.
   user moves away; it sticks with the header in a `maxHeight` grid, and the Excel export writes the
   bands as merged cells in a row above the headers (`WeGridExportColumn.group`). Without any
   `headerGroup` the markup is unchanged. CSS `--we-grid-band-height`; `weGridHeaderBands` exported.
+- `pinnedTopRows` / `pinnedBottomRows` inputs: rows held above and below the data rows — a target
+  line, last year's total. Not sorted, filtered, paged, grouped, selected or exported; cell
+  templates, formatters and format rules apply. In a `maxHeight` grid they stay in view, flush
+  under the header and over the summary row at measured offsets.
+
+### Fixed
+
+- The Excel export of header bands splits a band where the grid does — at a pin — instead of
+  merging the two pieces (`WeGridExportColumn.groupStart`).
 
 ## 0.57.0 — 2026-11-24
 
