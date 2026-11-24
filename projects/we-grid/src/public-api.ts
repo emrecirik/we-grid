@@ -48,6 +48,7 @@ export * from './lib/services/local-storage-grid-layout-store';
 // plus the primitives a consumer's own implementation can build on
 export * from './lib/services/we-grid-csv.util';
 export * from './lib/services/we-grid-cell-range.util';
+export * from './lib/services/we-grid-header-bands.util';
 export * from './lib/services/we-grid-range-chart.util';
 export * from './lib/we-grid-chart-dialog/we-grid-chart-dialog.component';
 export * from './lib/services/we-grid-default-exporter';

@@ -61,6 +61,8 @@ export interface WeGridInternalColumn<T> {
   lockOrder: boolean;
   /** See WeGridColumnDef.headerHint */
   headerHint: string | undefined;
+  /** See WeGridColumnDef.headerGroup — null when the column has none */
+  headerGroup: string | null;
   /** See WeGridColumnDef.headerTemplate */
   headerTemplate: TemplateRef<WeGridHeaderContext<T>> | undefined;
   stopRowClick: boolean;

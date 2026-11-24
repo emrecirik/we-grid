@@ -2,6 +2,16 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+### Added
+
+- `headerGroup` column option: header bands — neighbouring columns with the same text share a
+  header cell above their own. A band never crosses a pinned side and splits around a column the
+  user moves away; it sticks with the header in a `maxHeight` grid, and the Excel export writes the
+  bands as merged cells in a row above the headers (`WeGridExportColumn.group`). Without any
+  `headerGroup` the markup is unchanged. CSS `--we-grid-band-height`; `weGridHeaderBands` exported.
+
 ## 0.57.0 — 2026-11-24
 
 A minor release: everything new is opt-in behind `cellSelection`; a grid without it renders and

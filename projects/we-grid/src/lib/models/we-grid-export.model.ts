@@ -35,6 +35,8 @@ export interface WeGridExportColumn {
    * optional so a table built by hand keeps working.
    */
   numberScale?: number;
+  /** The column's header band (`headerGroup`) — Excel writes the bands in a merged row above the headers */
+  group?: string | null;
 }
 
 /** One exported row: the raw values (used by xlsx to keep numbers numeric) alongside the display text */

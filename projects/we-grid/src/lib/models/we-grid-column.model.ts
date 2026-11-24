@@ -143,6 +143,12 @@ export interface WeGridColumnDef<T> {
    * When set, `headerTooltip` is not rendered (one tooltip per header).
    */
   headerHint?: string;
+  /**
+   * A band over the header: neighbouring columns with the same `headerGroup` share one header cell
+   * above their own — "Q1 sales" over Jan, Feb and Mar. A band never crosses a pinned side; a column
+   * the user moves away takes its own piece of the band with it. Already translated text.
+   */
+  headerGroup?: string;
   /** Custom header content — the `weGridHeader` directive does the same from the template */
   headerTemplate?: TemplateRef<WeGridHeaderContext<T>>;
   /** If true, the user cannot hide this column (e.g. an actions column) */

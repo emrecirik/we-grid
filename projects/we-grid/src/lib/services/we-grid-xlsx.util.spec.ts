@@ -24,6 +24,23 @@ async function roundTrip(source: WeGridExportTable): Promise<{ headers: string[]
 }
 
 describe('weGridBuildXlsx', () => {
+  it('writes header bands in a merged row above the headers, and moves everything else down one row', async () => {
+    const banded = table({
+      columns: table().columns.map((c, i) => ({ ...c, group: i === 0 ? null : 'Money' })),
+      summary: ['', '12.5', '']
+    });
+    const xml = await weGridBuildXlsx(banded).text();
+    expect(xml).toContain('<mergeCell ref="B1:C1"/>');
+    expect(xml).toMatch(/<row r="1"><c r="B1"[^>]*t="inlineStr"[^>]*><is><t[^>]*>Money<\/t>/);
+    expect(xml).toContain('<row r="2"><c r="A2"');
+    expect(xml).toContain('<row r="3"><c r="A3"');
+    expect(xml).toContain('<row r="4"><c r="B4"');
+    // Without bands the file is as before
+    const plain = await weGridBuildXlsx(table()).text();
+    expect(plain).not.toContain('mergeCell');
+    expect(plain).toContain('<row r="1"><c r="A1"');
+  });
+
   it('produces a ZIP archive with the xlsx mime type', async () => {
     const blob = weGridBuildXlsx(table());
     expect(blob.type).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

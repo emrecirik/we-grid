@@ -155,6 +155,7 @@ import { WeGridSavedView, WeGridViewShareEvent } from './models/we-grid-view.mod
 import { WeGridHeaderMenuComponent } from './we-grid-header-menu/we-grid-header-menu.component';
 import { WeGridRowMenuComponent } from './we-grid-row-menu/we-grid-row-menu.component';
 import { WeGridMenuItem, WeGridRowMenuFn, WeGridRowMenuItemClickEvent } from './models/we-grid-row-menu.model';
+import { WeGridHeaderBand, weGridHeaderBands } from './services/we-grid-header-bands.util';
 import { WeGridCellRange, WeGridCellRef, WeGridRangeStats, weGridRangeStats, weGridSpan, weGridToTsv } from './services/we-grid-cell-range.util';
 import { WeGridCellEditorComponent } from './we-grid-cell-editor/we-grid-cell-editor.component';
 import { WeGridEditFormChange, WeGridEditFormComponent } from './we-grid-edit-form/we-grid-edit-form.component';
@@ -998,7 +999,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   }
 
   /** Selection column width in px — also used when computing pinned-left offsets (recomputeRenderColumns) */
-  private get selectColWidthPx(): number {
+  get selectColWidthPx(): number {
     return this.selectable !== 'none' ? 42 : 0;
   }
 
@@ -1368,6 +1369,9 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.recomputeRenderColumns();
   }
 
+  /** Bands over the header row (`headerGroup`); empty when no visible column has one, and then no band row is drawn */
+  headerBands: WeGridHeaderBand<WeGridInternalColumn<T>>[] = [];
+
   private recomputeRenderColumns(): void {
     const visible = this.internalColumns.filter((c) => c.visible).sort((a, b) => a.order - b.order);
     const left = visible.filter((c) => c.pinned === 'left');
@@ -1392,6 +1396,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
 
     this.renderColumns = [...left, ...middle, ...right];
+    this.headerBands = this.renderColumns.some((c) => c.headerGroup) ? weGridHeaderBands(this.renderColumns) : [];
     this.resolveTreeColumn();
   }
 
@@ -3447,7 +3452,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   /** aria-rowindex of a virtual row — header rows count, the rows scrolled out of the DOM too */
   virtualRowIndex(i: number): number | null {
-    return this.virtualActive ? this.virtualStart + i + (this.filterRow ? 3 : 2) : null;
+    return this.virtualActive ? this.virtualStart + i + (this.filterRow ? 3 : 2) + (this.headerBands.length ? 1 : 0) : null;
   }
 
   private groupTrackToken(key: string): object {
@@ -4186,7 +4191,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         align: col.align,
         width: col.width,
         useDisplayText: !!col.displayValue,
-        numberScale: col.type === 'currency' && col.minorUnits ? this.inputScale(col) : 1
+        numberScale: col.type === 'currency' && col.minorUnits ? this.inputScale(col) : 1,
+        group: col.headerGroup
       })),
       rows: rows.map((row) => {
         const values = columns.map((col) => {

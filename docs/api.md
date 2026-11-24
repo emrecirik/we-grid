@@ -358,6 +358,7 @@ Several sheets behind tabs — inputs `workbookKey`, `store` (0.51.0), `data` (`
   | `stopRowEvents` *(0.7.0)* | `true` or `('click' \| 'dblclick' \| 'contextmenu')[]` — the events stop at the cell. `stopRowClick` alone still stops only `'click'`. |
   | `allowOverflow` *(0.7.0)* | The cell doesn't clip its content (dropdowns, tooltips). |
   | `headerHint` *(0.7.0)* | An ⓘ icon next to the header, its hint on hover and keyboard focus (an overlay, wraps at ~320px, keeps line breaks). Replaces the native `headerTooltip` title. |
+  | `headerGroup` *(0.58.0)* | A band over the header: neighbouring columns with the same text share one header cell above their own ("Q1 sales" over Jan, Feb, Mar). A band never crosses a pinned side, and a column the user moves away takes its own piece of the band. The band row sticks with the header in a `maxHeight` grid; the Excel export writes the bands as merged cells in a row above the headers. Without any `headerGroup` there is no band row and the markup is unchanged; with one, the table gets a `<colgroup>` that holds the column widths. |
   | `headerTemplate` *(0.7.0)* | Custom header content — same as the `weGridHeader` directive. |
   | `lockPinned` / `lockOrder` *(0.7.0)* | The user can't change the pin / move the column (no pin items, no drag, no move items; stored pin / position ignored). |
   | `fixed` *(0.7.0)* | `lockVisible` + `lockRename` + `lockPinned` + `lockOrder`; an explicit sub-flag wins. |

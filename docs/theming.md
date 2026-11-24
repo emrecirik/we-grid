@@ -26,6 +26,7 @@ you can theme it two ways:
 | `--we-grid-font-size` / `--we-grid-font-size-compact` | Base font size / compact density font size |
 | `--we-grid-radius` | Border radius on buttons, chips, the grid container |
 | `--we-grid-row-height` | Row height — also switched per density (`comfortable`/`compact`) |
+| `--we-grid-band-height` *(0.58.0)* | Height of the header band row (`headerGroup`); the header and filter rows stick below it |
 | `--we-grid-skeleton-base` / `--we-grid-skeleton-shine` | Loading skeleton gradient colors |
 | `--we-grid-menu-bg` / `--we-grid-menu-color` | Header/filter context menu background & text |
 | `--we-grid-menu-shadow` | Context menu drop shadow |

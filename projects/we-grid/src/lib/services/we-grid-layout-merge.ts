@@ -96,6 +96,7 @@ export function mergeGridLayout<T>(
       lockPinned,
       lockOrder,
       headerHint: def.headerHint,
+      headerGroup: def.headerGroup ?? null,
       headerTemplate: def.headerTemplate,
       stopRowClick: def.stopRowClick ?? false,
       stopRowEvents: resolveStopRowEvents(def.stopRowEvents, def.stopRowClick),

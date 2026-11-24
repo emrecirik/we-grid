@@ -505,6 +505,47 @@
   }
 }
 
+// ─── Header bands (headerGroup) ──────────────────────────────────────
+// A row above the header; it sticks to the top and pushes the header and filter rows below it
+.we-grid__band-row th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  box-sizing: border-box;
+  height: var(--we-grid-band-height, 2rem);
+  padding: 0 0.6rem;
+  background: var(--we-grid-header-bg, #f3f6f9);
+  color: var(--we-grid-header-color, inherit);
+  border-bottom: 1px solid var(--we-grid-border-color, #dee2e6);
+  font-weight: 600;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.we-grid__band-row th.we-grid__band:not(.we-grid__band--empty) {
+  border-inline: 1px solid var(--we-grid-border-color, #dee2e6);
+}
+
+.we-grid__band-row th.we-grid__band--pinned-left,
+.we-grid__band-row th.we-grid__band--pinned-right {
+  z-index: 3;
+}
+
+.we-grid__band-row th.we-grid__select-col,
+.we-grid__band-row th.we-grid__expand-col {
+  z-index: 4;
+}
+
+.we-grid__table--banded .we-grid__header-row th {
+  top: var(--we-grid-band-height, 2rem);
+}
+
+.we-grid__table--banded .we-grid__filter-row th {
+  top: calc(var(--we-grid-row-height, 2.75rem) + var(--we-grid-band-height, 2rem));
+}
+
 // ─── Filter row (opt-in, filterRow=true) ──────────────────────────────
 // NOTE: the vertical sticky position is based approximately on the row-height variable
 // (--we-grid-row-height), not the header's ACTUAL height — since header padding differs slightly

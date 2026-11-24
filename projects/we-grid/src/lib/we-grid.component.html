@@ -345,12 +345,58 @@
   >
     <table
       class="we-grid__table"
+      [class.we-grid__table--banded]="headerBands.length > 0"
       [attr.role]="treeActive ? 'treegrid' : 'grid'"
       [style.width.px]="tableWidthPx"
       [attr.aria-rowcount]="rowTotal"
       [attr.aria-colcount]="renderColumns.length"
     >
+      @if (headerBands.length) {
+        <!-- With a band row on top, table-layout:fixed would take the widths from its spanning cells -->
+        <colgroup>
+          @if (showExpandCol) {
+            <col [style.width.px]="expandColWidthPx" />
+          }
+          @if (selectable !== 'none') {
+            <col [style.width.px]="selectColWidthPx" />
+          }
+          @for (col of renderColumns; track col.field) {
+            <col [style.width.px]="col.width" />
+          }
+          @if (hasRowActions) {
+            <col [style.width.px]="actionColWidthPx" />
+          }
+        </colgroup>
+      }
       <thead>
+        @if (headerBands.length) {
+          <tr class="we-grid__band-row">
+            @if (showExpandCol) {
+              <th class="we-grid__expand-col" [style.left.px]="0"></th>
+            }
+            @if (selectable !== 'none') {
+              <th class="we-grid__select-col" [style.left.px]="expandColWidthPx"></th>
+            }
+            @for (band of headerBands; track $index) {
+              <th
+                class="we-grid__band"
+                [class.we-grid__band--empty]="!band.label"
+                [class.we-grid__band--pinned-left]="band.columns[0].pinned === 'left'"
+                [class.we-grid__band--pinned-right]="band.columns[0].pinned === 'right'"
+                [attr.colspan]="band.columns.length"
+                [attr.scope]="band.label ? 'colgroup' : null"
+                [style.left.px]="band.columns[0].pinned === 'left' ? band.columns[0].pinnedOffset : null"
+                [style.right.px]="band.columns[0].pinned === 'right' ? band.columns[band.columns.length - 1].pinnedOffset : null"
+                [attr.title]="band.label"
+              >
+                {{ band.label }}
+              </th>
+            }
+            @if (hasRowActions) {
+              <th class="we-grid__action-col"></th>
+            }
+          </tr>
+        }
         <tr
           class="we-grid__header-row"
           cdkDropList

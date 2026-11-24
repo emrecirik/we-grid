@@ -257,15 +257,29 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
     .join('');
 
   const rowsXml: string[] = [];
+  // Header bands (headerGroup) take a row of their own above the headers, each merged across its columns
+  const merges: string[] = [];
+  const top = table.columns.some((c) => c.group) ? 1 : 0;
+  if (top) {
+    const bandCells: string[] = [];
+    table.columns.forEach((col, i) => {
+      if (!col.group || (i > 0 && table.columns[i - 1].group === col.group)) return;
+      let end = i;
+      while (end + 1 < table.columns.length && table.columns[end + 1].group === col.group) end++;
+      bandCells.push(inlineStringCell(`${columnLetter(i)}1`, col.group, STYLE_HEADER));
+      if (end > i) merges.push(`${columnLetter(i)}1:${columnLetter(end)}1`);
+    });
+    rowsXml.push(`<row r="1">${bandCells.join('')}</row>`);
+  }
   rowsXml.push(
-    `<row r="1">` +
-      table.columns.map((col, i) => inlineStringCell(`${columnLetter(i)}1`, col.header, STYLE_HEADER)).join('') +
+    `<row r="${1 + top}">` +
+      table.columns.map((col, i) => inlineStringCell(`${columnLetter(i)}${1 + top}`, col.header, STYLE_HEADER)).join('') +
       `</row>`
   );
 
   const extra = new ExtraStyles();
   table.rows.forEach((row, rowIndex) => {
-    const r = rowIndex + 2;
+    const r = rowIndex + 2 + top;
     const cells: string[] = [];
     table.columns.forEach((col, colIndex) => {
       const ref = `${columnLetter(colIndex)}${r}`;
@@ -310,7 +324,7 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
   });
 
   if (table.summary) {
-    const r = table.rows.length + 2;
+    const r = table.rows.length + 2 + top;
     const cells = table.summary
       .map((text, i) => (text ? inlineStringCell(`${columnLetter(i)}${r}`, text, STYLE_HEADER) : ''))
       .join('');
@@ -322,7 +336,7 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
   for (const rule of table.formatRules ?? []) {
     const i = table.columns.findIndex((c) => c.field === rule.field);
     if (i < 0 || !table.rows.length) continue;
-    const ref = `${columnLetter(i)}2:${columnLetter(i)}${table.rows.length + 1}`;
+    const ref = `${columnLetter(i)}${2 + top}:${columnLetter(i)}${table.rows.length + 1 + top}`;
     if (rule.type === 'colorScale' && (rule.colors?.length ?? 0) >= 2) visuals.push({ ref, type: 'colorScale', colors: rule.colors!.map((c) => weGridFormatHex(c, 'fg')) });
     else if (rule.type === 'dataBar') visuals.push({ ref, type: 'dataBar', colors: [weGridFormatHex(rule.color ?? 'blue', 'fg')] });
     else if (rule.type === 'iconSet') visuals.push({ ref, type: 'iconSet', iconSet: rule.icons === 'dots' ? '3TrafficLights1' : '3Arrows', reverse: rule.reverse });
@@ -333,6 +347,7 @@ export function weGridBuildXlsx(table: WeGridExportTable): Blob {
     `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">` +
     (cols ? `<cols>${cols}</cols>` : '') +
     `<sheetData>${rowsXml.join('')}</sheetData>` +
+    (merges.length ? `<mergeCells count="${merges.length}">${merges.map((m) => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '') +
     conditionalFormattingXml(visuals, () => 0) +
     `</worksheet>`;
 
