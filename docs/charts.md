@@ -47,7 +47,7 @@ from value to value — along the categories with ←/→ (↑/↓ on a bar char
 ↑/↓ — Home/End jump to the ends, Enter or Space fires `pointClick`, Esc leaves. Each value is
 announced in a polite live region, and the plot is described by a deterministic summary
 (`weChartSummary` + the locale's `chartSummaryText`): how many values, the highest and lowest point,
-the total, and whether the first series rose, fell or stayed within 5 %. No language model, the same
+the total, and — on a line or area chart — whether the first series rose, fell or stayed within 5 %. No language model, the same
 sentence every time. When the chart is clickable each mark also stays focusable, as before.
 
 Series colours are the theme's `--we-grid-chart-1` … `--we-grid-chart-8`, always in that order: a

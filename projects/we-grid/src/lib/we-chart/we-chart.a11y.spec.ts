@@ -85,7 +85,8 @@ describe('<we-chart> — keyboard, summary and waterfall', () => {
     const described = document.getElementById(svg().getAttribute('aria-describedby')!)!;
     expect(described.textContent).toContain('6 values. Highest Mar · Sales: 20, lowest Jan · Costs: 4');
     expect(described.textContent).toContain('total 57');
-    expect(described.textContent).toContain('Rising overall.');
+    // Months, cities or products on a column chart have no direction to read
+    expect(described.textContent).not.toContain('overall');
     expect(described.textContent).toContain('Arrow keys move between values');
   });
 
@@ -115,6 +116,12 @@ describe('<we-chart> — keyboard, summary and waterfall', () => {
     host.type = 'gauge';
     fixture.detectChanges();
     expect(svg().getAttribute('tabindex')).toBeNull();
+  });
+
+  it('reads a trend along the axis of a line or area chart', () => {
+    host.type = 'line';
+    fixture.detectChanges();
+    expect(document.getElementById(svg().getAttribute('aria-describedby')!)!.textContent).toContain('Rising overall.');
   });
 
   it('shows the summary under the chart on request', () => {

@@ -404,7 +404,9 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     const many = data.series.length > 1;
     const say = (p: { category: string; series: string; value: number }) => `${p.category}${many ? ` · ${p.series}` : ''}: ${this.format(p.value)}`;
     const count = data.series.reduce((a, s) => a + s.values.filter((v) => v !== null).length, 0);
-    return this.locale.chartSummaryText({ count, high: say(facts.high), low: say(facts.low), total: this.format(facts.total), trend: facts.trend });
+    // A trend reads along an ordered axis — time on a line or area chart, not cities on a column chart
+    const trend = this.type === 'line' || this.type === 'area' ? facts.trend : null;
+    return this.locale.chartSummaryText({ count, high: say(facts.high), low: say(facts.low), total: this.format(facts.total), trend });
   }
 
   /** A half ring from 9 to 3 o'clock — the first series' total over `max`, coloured by its share of `target` */

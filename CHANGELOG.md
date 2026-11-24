@@ -8,6 +8,8 @@ All notable changes to this project are documented in this file.
 
 - A menu's sub-list (the range chart types, Export selection) shows up to 320px before it scrolls,
   so all nine chart types fit; it stopped at 220px and hid Waterfall.
+- `<we-chart>`'s text summary says whether values rose or fell only on line and area charts — a
+  column chart of cities read "Rising overall".
 
 ## 0.59.0 — 2026-11-24
 
