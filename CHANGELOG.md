@@ -2,7 +2,10 @@
 
 All notable changes to this project are documented in this file.
 
-## Unreleased
+## 0.59.0 — 2026-11-24
+
+A minor release for `<we-chart>`: keyboard navigation, a text summary and a waterfall type. The
+plot of every chart except a gauge or a sparkline is now one tab stop.
 
 ### Added
 
