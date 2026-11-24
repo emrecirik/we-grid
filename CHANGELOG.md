@@ -2,7 +2,9 @@
 
 All notable changes to this project are documented in this file.
 
-## Unreleased
+## 0.60.0 — 2026-11-24
+
+A minor release: a heatmap chart type. Nothing changes for existing chart types.
 
 ### Added
 
