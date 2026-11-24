@@ -38,6 +38,16 @@ Material, no icon font. Standalone components and directives on top of Angular C
 - **Paste a range from Excel / Google Sheets** onto the grid: every cell converted to its column's
   type (`₺1.234,56`, `12,5%`, `evet`), extra rows become new rows, one `(rowsPaste)` batch event
 - **Search** every visible column from the toolbar, as shown on screen
+- **Select cells like a spreadsheet** (`cellSelection`): drag, Shift+click or Shift+arrows; Ctrl+C,
+  **Copy with headers** and **Export selection** (CSV / Excel / PDF of just those cells) from the right
+  click, and count / sum / average / min / max in the footer — features AG Grid sells in Enterprise
+- **Chart a selection** in one right click: column, bar, line, area, pie, donut, radial bar, funnel or
+  waterfall; groups and repeated categories are summed for you; download as PNG or SVG, as an
+  **Excel file with a native, editable Excel chart**, copy as an image, or click a bar to filter the
+  grid ([docs](docs/api.md#range-charts))
+- **Header bands** (`headerGroup`) over related columns — sticky with the header and merged in the
+  Excel export — and **pinned rows** (`pinnedTopRows` / `pinnedBottomRows`) for a target or last
+  year's total that stay in view
 - **Saved views**: named snapshots of columns, filters, sort and grouping, shareable as a link
 - **Excel-style formatting** the user controls: bold and colours per column, conditional rules
   (greater than, between, top 10, above average, duplicates, formula), colour scales, data bars and
@@ -47,7 +57,7 @@ Material, no icon font. Standalone components and directives on top of Angular C
   no `eval`
 - **Macros**: scripts like `FILTER [Status] = "Open"` / `GROUP BY [City]` / `SET [Price] = [Price] * 1.1` run from toolbar buttons, a recorder that writes them for you, and your own TypeScript commands — no `eval` ([docs](docs/macros.md))
 - **Your database in a few lines**: a client for the we-report data protocol with ready backends in **.NET, Spring Boot, Node.js, Python, Go and PHP** — server-side paging, filtering and checklist values, and layouts/views/sheets saved on the server ([docs](docs/data-sources.md))
-- **`<we-chart>`** column, bar, line, area, pie and donut charts in plain SVG, with optional value labels on each data point — and charts straight from the pivot table and the spreadsheet ([docs](docs/charts.md))
+- **`<we-chart>`** column, bar, line, area, pie, donut, waterfall, gauge, funnel and more in plain SVG, with value labels, **keyboard navigation** (one tab stop, arrow keys, values announced) and a one-sentence summary for screen readers — and charts straight from the pivot table and the spreadsheet ([docs](docs/charts.md))
 - **`<we-pivot>`** pivot tables: rows, columns and sum/count/average/min/max values from chips, with subtotals, totals and export ([docs](docs/pivot.md))
 - **`<we-sheet>`**, a spreadsheet in the same package: A1 formulas and named ranges, a formula bar,
   copy and paste with Excel, undo, styles, number formats (dates and times too), merge and centre,
@@ -226,6 +236,19 @@ scrolled to row 750,000,000; the pivot is worked out by the database
 ([measured](docs/data-sources.md)):
 
 ![The big-data sample on a billion database rows, scrolled to row 750,000,000, with a pivot from the database](docs/images/big-data-billion.png)
+
+### Select a block of cells — copy it, export it, chart it
+
+Drag over cells and the footer adds them up; right-click the block to copy it (with or without
+headers), export just those cells, or chart them. The header bands above (`headerGroup`) group the
+customer, product and amount columns. Try it in [we-grid Studio](https://emrecirik.github.io/we-grid/studio/).
+
+![A block of cells selected in we-grid Studio, the footer showing count, sum, average, min and max, and the right-click menu open on Chart range](docs/images/range-selection.png)
+
+The chart opens with the category and series already picked — repeated categories summed — and
+downloads as PNG, SVG or an Excel file with a native, editable Excel chart.
+
+![The range chart dialog: quantity by category as a column chart, with chart types, categories, series and export buttons](docs/images/range-chart.png)
 
 ### The column menu — everything the end user can change
 

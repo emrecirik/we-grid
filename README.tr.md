@@ -18,6 +18,10 @@ kurulu standalone component/direktiflerden oluşan, ücretsiz ve temalanabilir b
 
 - **Tarayıcıda elli milyon satır**: `WeGridColumnStore` her kolonu değerlerinin izin verdiği en küçük tipli dizide tutar (satır başına ≈ 14 bayt) ve sıralama, filtre, aramayı bu kodlar üzerinde yapar. Bir milyon satırda aynı tarayıcıda AG Grid Community'den 12× hızlı görüntüler, 90× hızlı sıralar, 45× hızlı filtreler; Web Worker'da (`WeGridWorkerStore`) elli milyon satırı sıralarken, gruplarken ya da pivotlarken bile sayfa donmaz — [ölçümler](docs/performance.md), [kendi tarayıcınızda tekrarlayın](https://emrecirik.github.io/we-grid/studio/#perf)
 - **Veritabanından bir milyar satır**: `[dataSource]` olarak `WeGridProtocolDataSource` bütün bir tabloyu pencere pencere kaydırır — hayali, bir milyar satırlık bir DuckDB tablosu 0,3 sn'de açılır, 750.000.000. satıra 0,4 sn'de atlar; arama, gruplama ve pivot veritabanında çalışır ([ölçümler](docs/data-sources.md), örnek uygulama: [`big-data`](SampleUsageProjects/big-data))
+- **Hesap tablosu gibi hücre seçimi** (`cellSelection`): sürükleyin, Shift+tıklayın ya da Shift+ok; sağ tıkla Kopyala, **Başlıklarla kopyala** ve **Seçimi dışa aktar** (yalnız o hücreler, CSV / Excel / PDF), alt bilgide sayı / toplam / ortalama / min / maks — AG Grid'in Enterprise'da sattığı özellikler
+- **Seçimden tek sağ tıkla grafik**: sütun, çubuk, çizgi, alan, pasta, halka, dairesel çubuk, huni ya da şelale; gruplar ve tekrar eden kategoriler kendiliğinden toplanır; PNG, SVG, **gerçek ve düzenlenebilir Excel grafiğiyle Excel** olarak indirin, görsel olarak kopyalayın ya da bir çubuğa tıklayıp tabloyu filtreleyin ([doküman](docs/api.md#range-charts))
+- İlişkili kolonların üzerinde **başlık bantları** (`headerGroup`) — başlıkla birlikte yapışkan, Excel'e birleştirilmiş hücre olarak gider — ve görünür kalan **sabit satırlar** (`pinnedTopRows` / `pinnedBottomRows`): hedef ya da geçen yıl toplamı
+- **`<we-chart>`**: düz SVG grafikler, **klavyeyle gezinme** (tek sekme durağı, ok tuşları, değerler sesli okunur), ekran okuyucular için tek cümlelik özet ve şelale grafiği ([doküman](docs/charts.md))
 - Kolon gizle/göster, yeniden adlandır, sürükle-bırak ile sıralama, yeniden boyutlandırma, sabitleme (sol/sağ), içeriğe göre otomatik genişlik
 - Yoğunluk modları (rahat / normal / sıkışık)
 - Kullanıcı bazlı düzen otomatik olarak kalıcı (varsayılan localStorage, backend store eklenebilir)
@@ -180,6 +184,16 @@ tablosunda**, 750.000.000. satıra kaydırılmış; pivotu veritabanı hesaplıy
 ([ölçümler](docs/data-sources.md)):
 
 ![Bir milyar veritabanı satırında big-data örneği, 750.000.000. satıra kaydırılmış, pivot veritabanından](docs/images/big-data-billion.png)
+
+### Bir hücre bloğu seçin — kopyalayın, dışa aktarın, grafiğini çizin
+
+Hücrelerin üzerinde sürükleyin, alt bilgi toplamı göstersin; bloğa sağ tıklayıp kopyalayın (başlıklı ya da başlıksız), yalnız o hücreleri dışa aktarın ya da grafiğini çizin. Üstteki başlık bantları (`headerGroup`) müşteri, ürün ve tutar kolonlarını gruplar. [we-grid Studio](https://emrecirik.github.io/we-grid/studio/)'da deneyin.
+
+![we-grid Studio'da seçilmiş bir hücre bloğu; alt bilgide sayı, toplam, ortalama, min ve maks, sağ tık menüsü Grafik oluştur'da açık](docs/images/range-selection.png)
+
+Grafik, kategori ve seriler seçilmiş olarak açılır — tekrar eden kategoriler toplanır — ve PNG, SVG ya da gerçek, düzenlenebilir Excel grafiğiyle Excel olarak iner.
+
+![Aralık grafiği penceresi: kategoriye göre adet, sütun grafiği; grafik tipleri, kategoriler, seriler ve dışa aktarma düğmeleri](docs/images/range-chart.png)
 
 ### Kolon menüsü — son kullanıcının değiştirebildiği her şey
 

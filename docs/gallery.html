@@ -282,7 +282,7 @@
 
     <dl class="facts">
       <div class="fact"><dt>Sample apps</dt><dd>4</dd></div>
-      <div class="fact"><dt>Unit tests</dt><dd>804 passing</dd></div>
+      <div class="fact"><dt>Unit tests</dt><dd>858 passing</dd></div>
       <div class="fact"><dt>CSS framework deps</dt><dd>0</dd></div>
       <div class="fact"><dt>Icon font deps</dt><dd>0 — inline SVG</dd></div>
       <div class="fact"><dt>Angular</dt><dd>18 &ndash; 22</dd></div>
@@ -291,6 +291,49 @@
   </header>
 
   <main class="log">
+    <section class="shot">
+      <div class="shot__head">
+        <span class="symbol">cellSelection · headerGroup</span>
+        <h2>Select a block, like a spreadsheet</h2>
+        <p>
+          Drag over cells, Shift+click or Shift+arrows: the footer counts, sums, averages and finds the
+          min and max. A right click copies the block (with headers if you like), exports just those
+          cells to CSV, Excel or PDF, or charts them. Header bands group the customer, product and
+          amount columns. In AG Grid these are Enterprise features; here they are MIT.
+        </p>
+      </div>
+      <figure class="frame">
+        <img src="images/range-selection.png"
+             alt="A block of cells selected in we-grid Studio, the footer showing count, sum, average, min and max, and the right-click menu open on Chart range.">
+        <figcaption>
+          <span><b>studio</b> — Data grid tab</span>
+          <span>Chrome, Windows 11</span>
+        </figcaption>
+      </figure>
+    </section>
+
+    <section class="shot">
+      <div class="shot__head">
+        <span class="symbol">Chart range</span>
+        <h2>A chart from the selection, an editable chart in Excel</h2>
+        <p>
+          The chart opens with its category and series picked and repeated categories summed. Nine
+          types, stacked, values on the bars, switched axes. It downloads as PNG or SVG, as an
+          <b>Excel file with a native Excel chart</b> over its data, or copies as an image; a click on
+          a bar can filter the grid. The plot is keyboard navigable and described in one sentence for
+          screen readers.
+        </p>
+      </div>
+      <figure class="frame">
+        <img src="images/range-chart.png"
+             alt="The range chart dialog: quantity by category as a column chart, with chart types, categories, series and export buttons.">
+        <figcaption>
+          <span><b>studio</b> — Data grid tab, Chart range</span>
+          <span>Chrome, Windows 11</span>
+        </figcaption>
+      </figure>
+    </section>
+
     <section class="shot">
       <div class="shot__head">
         <span class="symbol">AG Grid Community 36.3, same rows</span>

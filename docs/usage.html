@@ -286,6 +286,7 @@
       <li><a href="#server">Filtering the whole table</a></li>
       <li><a href="#export">Excel / CSV / PDF export</a></li>
       <li><a href="#import">Excel / CSV import</a></li>
+      <li><a href="#cells">Cell selection, charts, bands, pinned rows</a></li>
       <li><a href="#editing">Add, edit, delete rows</a></li>
       <li><a href="#theming">Theming &amp; language</a></li>
     </ul>
@@ -645,6 +646,48 @@ checklistValues: WeGridChecklistValuesProvider = (request) =&gt;
     filter: this.currentFilter
   }).subscribe(...);
 }</code></pre>
+    </section>
+
+    <!-- ── Cell selection, charts, bands, pinned rows ─────────────────── -->
+    <section>
+      <span class="symbol">[cellSelection]</span>
+      <h2 id="cells">Cell selection, charts, bands and pinned rows</h2>
+      <p>
+        <code>cellSelection</code> lets the user select a block of cells — drag, Shift+click or
+        Shift+arrows. Ctrl+C copies it for Excel; a right click offers <b>Copy</b>, <b>Copy with
+        headers</b>, <b>Export selection</b> (CSV, Excel or PDF of just those cells) and <b>Chart range</b>;
+        the footer shows count, sum, average, min and max. The chart dialog picks the category and the
+        series, sums repeated categories, and downloads PNG, SVG or an Excel file with a native, editable
+        Excel chart; a click on a bar can filter the grid.
+      </p>
+<pre><code>&lt;we-grid
+  gridKey="orders"
+  [columns]="columns"
+  [data]="orders"
+  trackByField="id"
+  [cellSelection]="true"
+  [pinnedTopRows]="[target]"
+  [maxHeight]="600"
+  (cellRangeChange)="range = $event"
+&gt;&lt;/we-grid&gt;</code></pre>
+<pre><code>columns: WeGridColumnDef&lt;Order&gt;[] = [
+  { field: 'orderNo', header: 'Order' },
+  { field: 'customer', header: 'Customer', headerGroup: 'Customer' },
+  { field: 'city', header: 'City', headerGroup: 'Customer' },
+  { field: 'qty', header: 'Qty', type: 'integer', headerGroup: 'Amount' },
+  { field: 'total', header: 'Total', type: 'currency', headerGroup: 'Amount' }
+];</code></pre>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>Option</th><th>What it does</th></tr></thead>
+          <tbody>
+            <tr><td><code>cellSelection</code></td><td>Block selection, copy, copy with headers, export selection, Chart range, footer statistics. Off, the markup is unchanged.</td></tr>
+            <tr><td><code>headerGroup</code></td><td>Neighbouring columns with the same text share a band above their headers — sticky with the header, merged cells in the Excel export.</td></tr>
+            <tr><td><code>pinnedTopRows</code> / <code>pinnedBottomRows</code></td><td>Rows held above / below the data (a target, last year's total): not sorted, filtered or exported, and in view in a <code>maxHeight</code> grid.</td></tr>
+            <tr><td><code>openRangeChart(type?)</code></td><td>Opens the chart dialog from your own button — over the block, or the filtered rows.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </section>
 
     <!-- ── Import ──────────────────────────────────────────────────── -->
