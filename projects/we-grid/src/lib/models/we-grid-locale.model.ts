@@ -423,7 +423,7 @@ export interface WeGridLocale {
   chartLegend: string;
   /** Gauge/progress target caption — `value` is already formatted */
   chartTarget: (value: string) => string;
-  chartTypeLabels: Record<'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'radialBar' | 'funnel' | 'waterfall', string>;
+  chartTypeLabels: Record<'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'radialBar' | 'funnel' | 'waterfall' | 'heatmap', string>;
   chartStacked: string;
   chartInsert: string;
   chartRemove: string;
@@ -862,7 +862,7 @@ export const weGridLocaleEn: WeGridLocale = {
   chartOther: 'Other',
   chartLegend: 'Legend',
   chartTarget: (value) => `Target: ${value}`,
-  chartTypeLabels: { column: 'Column', bar: 'Bar', line: 'Line', area: 'Area', pie: 'Pie', donut: 'Donut', radialBar: 'Radial bar', funnel: 'Funnel', waterfall: 'Waterfall' },
+  chartTypeLabels: { column: 'Column', bar: 'Bar', line: 'Line', area: 'Area', pie: 'Pie', donut: 'Donut', radialBar: 'Radial bar', funnel: 'Funnel', waterfall: 'Waterfall', heatmap: 'Heatmap' },
   chartStacked: 'Stacked',
   chartInsert: 'Chart',
   chartRemove: 'Remove chart',
@@ -1296,7 +1296,7 @@ export const weGridLocaleTr: WeGridLocale = {
   chartOther: 'Diğer',
   chartLegend: 'Açıklama',
   chartTarget: (value) => `Hedef: ${value}`,
-  chartTypeLabels: { column: 'Sütun', bar: 'Çubuk', line: 'Çizgi', area: 'Alan', pie: 'Pasta', donut: 'Halka', radialBar: 'Dairesel çubuk', funnel: 'Huni', waterfall: 'Şelale' },
+  chartTypeLabels: { column: 'Sütun', bar: 'Çubuk', line: 'Çizgi', area: 'Alan', pie: 'Pasta', donut: 'Halka', radialBar: 'Dairesel çubuk', funnel: 'Huni', waterfall: 'Şelale', heatmap: 'Isı haritası' },
   chartStacked: 'Yığılmış',
   chartInsert: 'Grafik',
   chartRemove: 'Grafiği kaldır',

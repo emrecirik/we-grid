@@ -31,6 +31,7 @@ import {
   weChartColor,
   weChartColumnLabelFits,
   weChartFold,
+  weChartHeatShade,
   weChartLabelCollides,
   weChartLabelColor,
   weChartLabelFitsInside,
@@ -52,6 +53,8 @@ interface Mark {
   color: string;
   series: number;
   category: number;
+  /** Heatmap cells: the value as the colour's strength */
+  opacity?: number;
 }
 
 interface ValueLabel {
@@ -78,8 +81,8 @@ const PIE_LIKE: readonly WeChartType[] = ['pie', 'donut', 'radialBar', 'funnel']
 const SPARKLINE_HEIGHT = 40;
 
 /**
- * `<we-chart>` — column, bar, line, area, pie, donut, gauge, radial bar, progress, funnel and
- * sparkline charts in plain SVG, themed by the grid's
+ * `<we-chart>` — column, bar, line, area, pie, donut, gauge, radial bar, progress, funnel,
+ * sparkline, waterfall and heatmap charts in plain SVG, themed by the grid's
  * CSS variables (`--we-grid-chart-1` … `-8`). Hovering shows the values, the legend names every
  * series, and a table view carries the same numbers for screen readers and print.
  */
@@ -137,6 +140,9 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   hits: Hit[] = [];
   ticks: { value: number; pos: number; label: string }[] = [];
   xLabels: { pos: number; text: string; anchor: 'middle' | 'end' }[] = [];
+  /** Heatmap: the series names down the left, and the colour scale from lowest to highest value */
+  rowLabels: { pos: number; text: string }[] = [];
+  swatches: { x: number; y: number; w: number; h: number; opacity: number }[] = [];
   plot = { left: 0, top: 12, right: 0, bottom: 0 };
   baseline = 0;
   hover: { x: number; y: number; category: number; series: number | null } | null = null;
@@ -190,7 +196,7 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   /** Legend entries — series, or for a pie the categories */
   get legend(): { label: string; color: string }[] {
     if (this.categorical) return this.shown.categories.map((label, i) => ({ label, color: weChartColor(i) }));
-    if (this.type === 'gauge' || this.type === 'progress' || this.type === 'sparkline') return [];
+    if (this.type === 'gauge' || this.type === 'progress' || this.type === 'sparkline' || this.type === 'heatmap') return [];
     return this.shown.series.length > 1 ? this.shown.series.map((s, i) => ({ label: s.name, color: weChartColor(i) })) : [];
   }
 
@@ -293,7 +299,12 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     const seriesCount = this.categorical || this.type === 'waterfall' ? 1 : Math.max(1, this.shown.series.length);
     const at = this.kbd ?? { category: -1, series: 0 };
     const along = this.horizontal ? { next: 'ArrowDown', prev: 'ArrowUp' } : { next: 'ArrowRight', prev: 'ArrowLeft' };
-    const across = this.horizontal ? { next: 'ArrowRight', prev: 'ArrowLeft' } : { next: 'ArrowUp', prev: 'ArrowDown' };
+    // A heatmap's first series is the top row
+    const across = this.horizontal
+      ? { next: 'ArrowRight', prev: 'ArrowLeft' }
+      : this.type === 'heatmap'
+        ? { next: 'ArrowDown', prev: 'ArrowUp' }
+        : { next: 'ArrowUp', prev: 'ArrowDown' };
     let { category, series } = at;
     if (event.key === along.next) category = Math.min(n - 1, category + 1);
     else if (event.key === along.prev) category = Math.max(0, category - 1);
@@ -311,7 +322,7 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     event.preventDefault();
     this.kbd = { category: Math.max(0, category), series };
     this.liveText = this.pointLabel(this.kbd.category, this.kbd.series);
-    this.hoverCategory(this.kbd.category);
+    this.hoverCategory(this.kbd.category, this.kbd.series);
   }
 
   onPlotBlur(): void {
@@ -324,13 +335,19 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     return this.type !== 'sparkline' && this.type !== 'gauge';
   }
 
+  /** A mark faded while another is hovered — another category, or on a heatmap another cell */
+  dimmed(m: Mark): boolean {
+    return !!this.hover && (this.hover.category !== m.category || (this.type === 'heatmap' && this.hover.series !== m.series));
+  }
+
   /** The mark or dot the arrow keys are on */
   isKbd(category: number, series: number): boolean {
     return !!this.kbd && this.kbd.category === category && (this.categorical || this.kbd.series === series);
   }
 
-  hoverCategory(category: number): void {
-    const hit = this.hits.find((h) => h.category === category);
+  /** Hover for a category — the one cell of `series` where the chart has one per series (heatmap) */
+  hoverCategory(category: number, series?: number): void {
+    const hit = this.hits.find((h) => h.category === category && h.series === series) ?? this.hits.find((h) => h.category === category);
     if (hit) this.onHit(hit);
   }
 
@@ -373,6 +390,9 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
       this.shown = first
         ? { categories: [...this.data.categories, this.locale.chartTotal], series: [{ name: first.name, values: [...first.values, steps[steps.length - 1].to] }] }
         : { categories: [], series: [] };
+    } else if (this.type === 'heatmap') {
+      // Every series is a row of its own: folding rows into "Other" would add up unrelated cells
+      this.shown = this.data;
     } else this.shown = weChartFold(this.data, WE_CHART_MAX_SERIES, otherLabel);
     this.kbd = null;
     this.summaryText = this.summarize();
@@ -384,6 +404,8 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     this.hits = [];
     this.ticks = [];
     this.xLabels = [];
+    this.rowLabels = [];
+    this.swatches = [];
     this.hideTip();
     if (!this.shown.categories.length || !this.shown.series.length) return;
     if (this.isPie) this.layoutPie();
@@ -392,6 +414,7 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     else if (this.type === 'progress') this.layoutProgress();
     else if (this.type === 'funnel') this.layoutFunnel();
     else if (this.type === 'sparkline') this.layoutSparkline();
+    else if (this.type === 'heatmap') this.layoutHeatmap();
     else this.layoutCartesian();
   }
 
@@ -507,6 +530,53 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
         this.labels.push({ x: this.width / 2, y: y + barH / 2 + 4, text, anchor: 'middle', color: inside ? weChartLabelColor(c) : undefined });
       }
     });
+  }
+
+  /**
+   * A grid of cells, one row per series and one column per category, the first chart colour stronger
+   * the higher the value; empty values leave their cell blank. A scale under it runs from lowest to highest.
+   */
+  private layoutHeatmap(): void {
+    const { categories, series } = this.shown;
+    const all = series.flatMap((s) => s.values).filter((v): v is number => v !== null && Number.isFinite(v));
+    if (!all.length) return;
+    const lo = Math.min(...all);
+    const hi = Math.max(...all);
+    const nameChars = Math.max(...series.map((s) => Math.min(18, s.name.length)));
+    this.plot = { left: Math.min(this.width * 0.3, 10 + nameChars * 6.5), top: 4, right: this.width - 4, bottom: this.h - 44 };
+    const p = this.plot;
+    const cellW = (p.right - p.left) / categories.length;
+    const cellH = (p.bottom - p.top) / series.length;
+    const gap = Math.min(2, cellW / 4, cellH / 4);
+    series.forEach((s, si) => {
+      const y = p.top + si * cellH;
+      // Row names thinned out like the column labels, so they never overlap
+      if (si % Math.max(1, Math.ceil(14 / cellH)) === 0) this.rowLabels.push({ pos: y + cellH / 2 + 4, text: s.name.length > 18 ? `${s.name.slice(0, 17)}…` : s.name });
+      categories.forEach((_, c) => {
+        const v = s.values[c];
+        const x = p.left + c * cellW;
+        this.hits.push({ x, y, w: cellW, h: cellH, category: c, series: si });
+        if (v === null || v === undefined || !Number.isFinite(v)) return;
+        const opacity = weChartHeatShade(v, lo, hi);
+        this.marks.push({ d: weChartRoundRect(x + gap / 2, y + gap / 2, cellW - gap, cellH - gap, Math.min(3, gap)), color: weChartColor(0), series: si, category: c, opacity });
+        const text = this.format(v);
+        if (this.showValues && cellH >= 14 && weChartLabelWidth(text) + 4 <= cellW) {
+          this.labels.push({ x: x + cellW / 2, y: y + cellH / 2 + 4, text, anchor: 'middle', color: opacity > 0.8 ? weChartLabelColor(0) : undefined });
+        }
+      });
+    });
+    const every = Math.max(1, Math.ceil(Math.min(120, Math.max(...categories.map((c) => Math.min(18, c.length))) * 6.5 + 8) / cellW));
+    categories.forEach((text, c) => {
+      if (c % every === 0) this.xLabels.push({ pos: p.left + c * cellW + cellW / 2, text: text.length > 18 ? `${text.slice(0, 17)}…` : text, anchor: 'middle' });
+    });
+    // The scale: five steps between the lowest and the highest value, on one line at the bottom right
+    const sw = 18;
+    const high = this.format(hi);
+    const sx = p.right - weChartLabelWidth(high) - 6 - 5 * sw;
+    const sy = this.h - 6;
+    for (let k = 0; k < 5; k++) this.swatches.push({ x: sx + k * sw, y: sy - 9, w: sw - 1, h: 10, opacity: weChartHeatShade(k, 0, 4) });
+    this.labels.push({ x: sx - 6, y: sy, text: this.format(lo), anchor: 'end', cls: 'we-chart__scale-label' });
+    this.labels.push({ x: p.right, y: sy, text: high, anchor: 'end', cls: 'we-chart__scale-label' });
   }
 
   /** A line (the first series with a faint area) over the data's own range — no axes, no labels */

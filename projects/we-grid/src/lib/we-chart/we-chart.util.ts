@@ -1,5 +1,5 @@
 /** The chart forms `<we-chart>` draws */
-export type WeChartType = 'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'gauge' | 'radialBar' | 'progress' | 'funnel' | 'sparkline' | 'waterfall';
+export type WeChartType = 'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'gauge' | 'radialBar' | 'progress' | 'funnel' | 'sparkline' | 'waterfall' | 'heatmap';
 
 /**
  * `<we-chart>`'s `pointClick`. `series` is null when a whole category was clicked (the empty part
@@ -139,6 +139,15 @@ function relativeLuminance(hex: string): number {
 export function weChartLabelColor(index: number): string {
   const slot = Math.min(index, WE_CHART_MAX_SERIES - 1);
   return relativeLuminance(FALLBACK[slot]) > 0.45 ? '#1a1a1a' : '#fff';
+}
+
+/**
+ * A heatmap cell's fill opacity: `lo` faintest (0.12, still visible against the background), `hi`
+ * full colour. Every cell is full colour when all values are equal.
+ */
+export function weChartHeatShade(value: number, lo: number, hi: number): number {
+  const t = hi > lo ? (value - lo) / (hi - lo) : 1;
+  return Math.round((0.12 + 0.88 * Math.min(1, Math.max(0, t))) * 100) / 100;
 }
 
 /** Whether a stacked column/bar segment is tall/wide enough (px) to hold its value label inside */

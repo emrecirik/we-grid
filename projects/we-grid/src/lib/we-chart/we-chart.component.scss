@@ -222,6 +222,15 @@
   pointer-events: none;
 }
 
+.we-chart__swatch {
+  pointer-events: none;
+}
+
+.we-chart__scale-label {
+  fill: var(--we-grid-muted-color, #878a99);
+  font-weight: 400;
+}
+
 .we-chart__track {
   fill: var(--we-grid-border-color, #dee2e6);
 }

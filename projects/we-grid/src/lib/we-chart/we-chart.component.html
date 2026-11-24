@@ -72,6 +72,17 @@
           }
         }
 
+        @if (type === 'heatmap') {
+          @for (l of rowLabels; track $index) {
+            <text class="we-chart__tick" [attr.x]="plot.left - 6" [attr.y]="l.pos" text-anchor="end">{{ l.text }}</text>
+          }
+          @for (l of xLabels; track $index) {
+            <text class="we-chart__tick" [attr.x]="l.pos" [attr.y]="plot.bottom + 16" text-anchor="middle">{{ l.text }}</text>
+          }
+          @for (s of swatches; track $index) {
+            <rect class="we-chart__swatch" [attr.x]="s.x" [attr.y]="s.y" [attr.width]="s.w" [attr.height]="s.h" [style.fill]="color(0)" [style.fill-opacity]="s.opacity" />
+          }
+        }
         @if (!categorical) {
           @for (h of hits; track $index) {
             <rect class="we-chart__hit" [attr.x]="h.x" [attr.y]="h.y" [attr.width]="h.w" [attr.height]="h.h" (mouseenter)="onHit(h)" (click)="onPoint(h.category, h.series)" />
@@ -84,15 +95,16 @@
           <path
             class="we-chart__mark"
             [class.we-chart__mark--slice]="isPie"
-            [class.we-chart__mark--dim]="hover && hover.category !== m.category"
+            [class.we-chart__mark--dim]="dimmed(m)"
             [class.we-chart__mark--kbd]="isKbd(m.category, m.series)"
             [attr.d]="m.d"
             [style.fill]="m.color"
+            [style.fill-opacity]="m.opacity"
             [attr.tabindex]="clickable ? 0 : null"
             [attr.role]="clickable ? 'button' : null"
             [attr.aria-label]="clickable ? pointLabel(m.category, m.series) : null"
-            (mouseenter)="hoverCategory(m.category)"
-            (focus)="hoverCategory(m.category)"
+            (mouseenter)="hoverCategory(m.category, m.series)"
+            (focus)="hoverCategory(m.category, m.series)"
             (blur)="hideTip()"
             (click)="onPoint(m.category, m.series)"
             (keydown.enter)="onPoint(m.category, m.series, $event)"
@@ -162,11 +174,14 @@
         </div>
       } @else {
         @for (s of shown.series; track $index; let i = $index) {
-          <div class="we-chart__tip-row">
-            <span class="we-chart__key" [style.background]="color(i)"></span>
-            <span class="we-chart__muted">{{ s.name }}</span>
-            <span class="we-chart__tip-value">{{ format(s.values[hover.category]) }}</span>
-          </div>
+          <!-- A heatmap cell is one value, not the whole column -->
+          @if (type !== 'heatmap' || i === hover.series) {
+            <div class="we-chart__tip-row">
+              <span class="we-chart__key" [style.background]="color(type === 'heatmap' ? 0 : i)"></span>
+              <span class="we-chart__muted">{{ s.name }}</span>
+              <span class="we-chart__tip-value">{{ format(s.values[hover.category]) }}</span>
+            </div>
+          }
         }
       }
     </div>

@@ -69,7 +69,7 @@ describe('WeGridComponent — range charts', () => {
     (document.querySelector('[data-item-id="we-range-chart"]') as HTMLElement).click();
     TestBed.inject(ApplicationRef).tick();
     const ids = Array.from(document.querySelectorAll('[data-parent-id="we-range-chart"]')).map((el) => el.getAttribute('data-item-id'));
-    expect(ids).toEqual(['column', 'bar', 'line', 'area', 'pie', 'donut', 'radialBar', 'funnel', 'waterfall'].map((t) => `we-range-chart-${t}`));
+    expect(ids).toEqual(['column', 'bar', 'line', 'area', 'pie', 'donut', 'radialBar', 'funnel', 'waterfall', 'heatmap'].map((t) => `we-range-chart-${t}`));
     (document.querySelector('[data-item-id="we-range-chart-bar"]') as HTMLElement).click();
     fixture.detectChanges();
 

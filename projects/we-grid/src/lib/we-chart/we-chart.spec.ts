@@ -11,6 +11,7 @@ import {
   weChartColor,
   weChartColumnLabelFits,
   weChartFold,
+  weChartHeatShade,
   weChartLabelCollides,
   weChartLabelColor,
   weChartLabelFitsInside,
@@ -28,6 +29,12 @@ describe('we-chart utils', () => {
     expect(weChartTicks(-20, 80)).toEqual([-20, 0, 20, 40, 60, 80]);
     expect(weChartTicks(0, 0)).toEqual([0, 1]);
     expect(weChartTicks(0, 1.2)).toEqual([0, 0.25, 0.5, 0.75, 1, 1.25]);
+  });
+
+  it('shades heatmap cells from faint to full colour', () => {
+    expect([0, 5, 10].map((v) => weChartHeatShade(v, 0, 10))).toEqual([0.12, 0.56, 1]);
+    expect(weChartHeatShade(-3, 0, 10)).toBe(0.12);
+    expect(weChartHeatShade(7, 7, 7)).toBe(1);
   });
 
   it('folds series past the palette into Other — never a ninth colour', () => {
@@ -244,6 +251,29 @@ describe('WeChartComponent — pointClick and the KPI chart types', () => {
     expect(texts()).toEqual(['30', 'Total']);
     set({ centerLabel: undefined });
     expect(texts()).toEqual([]);
+  });
+
+  it('draws a heatmap cell per value, a blank for none, with one cell in the tooltip and arrow keys across rows', () => {
+    set({ type: 'heatmap', showValues: true });
+    const marks = Array.from(el().querySelectorAll<SVGPathElement>('.we-chart__mark'));
+    expect(marks.length).toBe(5); // North's March is empty
+    expect(marks.map((m) => m.style.fillOpacity)).toEqual(['0.34', '0.78', '0.12', '0.56', '1']); // 5 … 25
+    expect(el().querySelectorAll('.we-chart__swatch').length).toBe(5);
+    expect(el().querySelector('.we-chart__legend')).toBeNull();
+    expect(texts()).toEqual(['10', '20', '5', '15', '25', '5', '25']);
+    marks[3].dispatchEvent(new MouseEvent('mouseenter'));
+    fixture.detectChanges();
+    const rows = Array.from(document.querySelectorAll('.we-chart__tip-row')).map((r) => r.textContent!.replace(/\s+/g, '').trim());
+    expect(rows).toEqual(['South15']);
+    expect(el().querySelectorAll('.we-chart__mark--dim').length).toBe(4);
+    const svg = el().querySelector('svg')!;
+    svg.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+    svg.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+    svg.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+    expect(host.clicks).toEqual([{ category: 'Jan', series: 'South', value: 5, index: 0 }]);
+    marks[4].dispatchEvent(new MouseEvent('click'));
+    expect(host.clicks[1]).toEqual({ category: 'Mar', series: 'South', value: 25, index: 2 });
+    set({ type: 'column' });
   });
 
   it('draws a gauge of the first series total, coloured against the target', () => {
