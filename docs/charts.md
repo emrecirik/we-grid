@@ -36,6 +36,19 @@ export class SalesChartComponent {
 | `valueFormatter` | `(n: number) => string` | locale number | Text of values in the tooltip and the table |
 | `showTable` | `boolean` | `false` | Start in the table view |
 | `showValues` | `boolean` | `false` | *(0.54.0)* Draw each data point's value on the chart, using `valueFormatter` |
+| `showSummary` | `boolean` | `false` | *(0.59.0)* Show the chart's one-sentence summary under it — highest, lowest, total, trend. Screen readers get it either way |
+
+**Waterfall** *(0.59.0)*: `type="waterfall"` draws the first series as changes — each bar starts
+where the running total stands and rises (success colour) or falls (danger colour) by its value,
+and a last **Total** bar (`chartTotal`) shows where it ends. Empty values move nothing.
+
+**Keyboard and screen readers** *(0.59.0)*: the plot is one tab stop (not on a gauge or a sparkline, which show one value or a trend). The arrow keys move a ring
+from value to value — along the categories with ←/→ (↑/↓ on a bar chart) and across the series with
+↑/↓ — Home/End jump to the ends, Enter or Space fires `pointClick`, Esc leaves. Each value is
+announced in a polite live region, and the plot is described by a deterministic summary
+(`weChartSummary` + the locale's `chartSummaryText`): how many values, the highest and lowest point,
+the total, and whether the first series rose, fell or stayed within 5 %. No language model, the same
+sentence every time. When the chart is clickable each mark also stays focusable, as before.
 
 Series colours are the theme's `--we-grid-chart-1` … `--we-grid-chart-8`, always in that order: a
 series keeps its colour when others are filtered out. The default eight were checked for

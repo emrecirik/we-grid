@@ -37,7 +37,17 @@
     </div>
   } @else {
     <div class="we-chart__plot" (mouseleave)="hideTip()">
-      <svg [attr.viewBox]="'0 0 ' + width + ' ' + h" [attr.width]="width" [attr.height]="h" role="img" [attr.aria-label]="title || locale.chartLabel">
+      <svg
+        [attr.viewBox]="'0 0 ' + width + ' ' + h"
+        [attr.width]="width"
+        [attr.height]="h"
+        role="img"
+        [attr.aria-label]="title || locale.chartLabel"
+        [attr.aria-describedby]="type !== 'sparkline' ? summaryId : null"
+        [attr.tabindex]="steppable ? 0 : null"
+        (keydown)="onPlotKey($event)"
+        (blur)="onPlotBlur()"
+      >
         @if (axes) {
           @for (t of ticks; track t.value) {
             @if (horizontal) {
@@ -75,6 +85,7 @@
             class="we-chart__mark"
             [class.we-chart__mark--slice]="isPie"
             [class.we-chart__mark--dim]="hover && hover.category !== m.category"
+            [class.we-chart__mark--kbd]="isKbd(m.category, m.series)"
             [attr.d]="m.d"
             [style.fill]="m.color"
             [attr.tabindex]="clickable ? 0 : null"
@@ -99,6 +110,7 @@
             [attr.cx]="d.x"
             [attr.cy]="d.y"
             r="4"
+            [class.we-chart__mark--kbd]="isKbd(d.category, d.series)"
             [style.fill]="d.color"
             [attr.tabindex]="clickable ? 0 : null"
             [attr.role]="clickable ? 'button' : null"
@@ -120,6 +132,13 @@
       </svg>
     </div>
 
+    @if (type !== 'sparkline') {
+      <p class="we-chart__sr" [id]="summaryId">{{ summaryText }} {{ locale.chartKeyboardHint }}</p>
+      <p class="we-chart__sr" aria-live="polite">{{ liveText }}</p>
+      @if (showSummary) {
+        <p class="we-chart__summary">{{ summaryText }}</p>
+      }
+    }
     @if (legend.length) {
       <ul class="we-chart__legend" [attr.aria-label]="locale.chartLegend">
         @for (item of legend; track $index) {

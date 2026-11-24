@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+### Added
+
+- `<we-chart>` keyboard navigation: the plot is one tab stop; the arrow keys move between values
+  (and series), Home/End jump to the ends, Enter or Space fires `pointClick`, each value is
+  announced in a live region. Clickable marks stay focusable as before.
+- `<we-chart>` text summary — the plot's accessible description, and visible under the chart with
+  `showSummary`: how many values, the highest and lowest point, the total and the trend, worked out
+  by `weChartSummary` (deterministic, no language model) and worded by `chartSummaryText`.
+- `type="waterfall"` for `<we-chart>` and the range chart dialog: the first series as rises and
+  falls from a running total, with a closing Total bar (`weChartWaterfall`).
+- Locale keys `chartTotal`, `chartSummaryText`, `chartKeyboardHint` and `chartTypeLabels.waterfall`
+  in every shipped locale — a hand-written full locale needs them.
+
 ## 0.58.0 — 2026-11-24
 
 A minor release: header bands (`headerGroup`) and pinned rows (`pinnedTopRows` /

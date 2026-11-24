@@ -55,6 +55,9 @@ export function weChartToSvg(chartHost: Element, options: WeChartSvgOptions = {}
     const style = STYLE_PROPS.map((p) => `${p}:${computed.getPropertyValue(p)}`).join(';');
     target[i].setAttribute('style', style);
     target[i].removeAttribute('class');
+    // Focus and description belong to the live chart, not to a picture of it
+    target[i].removeAttribute('tabindex');
+    target[i].removeAttribute('aria-describedby');
   });
   source.forEach((el, i) => el.matches(DROP_SELECTOR) && target[i].remove());
 

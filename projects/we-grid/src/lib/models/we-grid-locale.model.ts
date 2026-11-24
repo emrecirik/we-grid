@@ -423,10 +423,19 @@ export interface WeGridLocale {
   chartLegend: string;
   /** Gauge/progress target caption — `value` is already formatted */
   chartTarget: (value: string) => string;
-  chartTypeLabels: Record<'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'radialBar' | 'funnel', string>;
+  chartTypeLabels: Record<'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'radialBar' | 'funnel' | 'waterfall', string>;
   chartStacked: string;
   chartInsert: string;
   chartRemove: string;
+  /** The last bar of a waterfall chart, where the running total ends */
+  chartTotal: string;
+  /**
+   * The chart's text summary — read by screen readers, shown with `showSummary`. `high` and `low`
+   * are "category · series: value", `trend` is the first series from its first to its last value.
+   */
+  chartSummaryText: (s: { count: number; high: string; low: string; total: string; trend: 'up' | 'down' | 'flat' | null }) => string;
+  /** Read out when the plot takes keyboard focus */
+  chartKeyboardHint: string;
   /** Range charts (`cellSelection`): the right-click entry and the chart dialog */
   chartRange: string;
   chartType: string;
@@ -853,10 +862,13 @@ export const weGridLocaleEn: WeGridLocale = {
   chartOther: 'Other',
   chartLegend: 'Legend',
   chartTarget: (value) => `Target: ${value}`,
-  chartTypeLabels: { column: 'Column', bar: 'Bar', line: 'Line', area: 'Area', pie: 'Pie', donut: 'Donut', radialBar: 'Radial bar', funnel: 'Funnel' },
+  chartTypeLabels: { column: 'Column', bar: 'Bar', line: 'Line', area: 'Area', pie: 'Pie', donut: 'Donut', radialBar: 'Radial bar', funnel: 'Funnel', waterfall: 'Waterfall' },
   chartStacked: 'Stacked',
   chartInsert: 'Chart',
   chartRemove: 'Remove chart',
+  chartTotal: 'Total',
+  chartSummaryText: (s) => `${s.count} values. Highest ${s.high}, lowest ${s.low}, total ${s.total}.${s.trend === 'up' ? ' Rising overall.' : s.trend === 'down' ? ' Falling overall.' : s.trend === 'flat' ? ' Flat overall.' : ''}`,
+  chartKeyboardHint: 'Arrow keys move between values, Enter selects',
   chartRange: 'Chart range',
   chartType: 'Chart type',
   chartCategory: 'Categories',
@@ -1284,10 +1296,13 @@ export const weGridLocaleTr: WeGridLocale = {
   chartOther: 'Diğer',
   chartLegend: 'Açıklama',
   chartTarget: (value) => `Hedef: ${value}`,
-  chartTypeLabels: { column: 'Sütun', bar: 'Çubuk', line: 'Çizgi', area: 'Alan', pie: 'Pasta', donut: 'Halka', radialBar: 'Dairesel çubuk', funnel: 'Huni' },
+  chartTypeLabels: { column: 'Sütun', bar: 'Çubuk', line: 'Çizgi', area: 'Alan', pie: 'Pasta', donut: 'Halka', radialBar: 'Dairesel çubuk', funnel: 'Huni', waterfall: 'Şelale' },
   chartStacked: 'Yığılmış',
   chartInsert: 'Grafik',
   chartRemove: 'Grafiği kaldır',
+  chartTotal: 'Toplam',
+  chartSummaryText: (s) => `${s.count} değer. En yüksek ${s.high}, en düşük ${s.low}, toplam ${s.total}.${s.trend === 'up' ? ' Genel eğilim artış.' : s.trend === 'down' ? ' Genel eğilim düşüş.' : s.trend === 'flat' ? ' Genel eğilim yatay.' : ''}`,
+  chartKeyboardHint: 'Ok tuşları değerler arasında gezer, Enter seçer',
   chartRange: 'Grafik oluştur',
   chartType: 'Grafik tipi',
   chartCategory: 'Kategoriler',

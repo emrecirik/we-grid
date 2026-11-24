@@ -39,6 +39,8 @@ describe('weChartToSvg', () => {
     expect(doc.querySelector('parsererror')).toBeNull();
     expect(image.svg).not.toContain('var(--');
     expect(image.svg).not.toContain('class=');
+    expect(image.svg).not.toContain('tabindex');
+    expect(image.svg).not.toContain('aria-describedby');
     expect(image.svg).toContain('fill="rgb(1, 2, 3)"');
     const texts = Array.from(doc.querySelectorAll('text')).map((t) => t.textContent);
     expect(texts).toContain('Sales <2026>');

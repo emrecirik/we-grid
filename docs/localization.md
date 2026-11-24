@@ -250,6 +250,11 @@ parser's own messages are English too.
   `chartNoSeries`
 - `chartTypeLabels` gained `radialBar` and `funnel`
 
+## Keys added in 0.59.0
+
+- Charts: `chartTotal` (a waterfall's last bar), `chartSummaryText(s)` (the chart in one sentence),
+  `chartKeyboardHint`; `chartTypeLabels` gained `waterfall`
+
 ## Keys added in 0.56.0
 
 - `loadFailed` — the notice when a `dataSource` can't deliver rows

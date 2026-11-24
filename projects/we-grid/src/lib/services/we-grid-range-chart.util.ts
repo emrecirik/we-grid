@@ -3,9 +3,9 @@ import { WeGridXlsxCell, WeGridXlsxChart, WeGridXlsxSheet } from './we-grid-xlsx
 import { weGridColumnLetter } from './we-grid-formula.util';
 
 /** The chart types a range chart offers */
-export type WeGridRangeChartType = 'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'radialBar' | 'funnel';
+export type WeGridRangeChartType = 'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'radialBar' | 'funnel' | 'waterfall';
 
-export const WE_GRID_RANGE_CHART_TYPES: readonly WeGridRangeChartType[] = ['column', 'bar', 'line', 'area', 'pie', 'donut', 'radialBar', 'funnel'];
+export const WE_GRID_RANGE_CHART_TYPES: readonly WeGridRangeChartType[] = ['column', 'bar', 'line', 'area', 'pie', 'donut', 'radialBar', 'funnel', 'waterfall'];
 
 /** How rows that share a category become one point; `'none'` keeps one point per row */
 export type WeGridRangeChartAggregate = 'none' | 'sum' | 'avg' | 'count' | 'min' | 'max';

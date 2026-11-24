@@ -39,8 +39,12 @@ import {
   weChartRoundRect,
   weChartStackedLabelFits,
   weChartStatusColor,
-  weChartTicks
+  weChartSummary,
+  weChartTicks,
+  weChartWaterfall
 } from './we-chart.util';
+
+let nextChartId = 0;
 
 interface Mark {
   /** SVG path of the mark */
@@ -107,6 +111,8 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   @Input() target?: number;
   /** Donut: show the total in the middle, with this caption under it (`''` for the total alone) */
   @Input() centerLabel?: string;
+  /** Shows the chart's text summary (highest, lowest, total, trend) under it — screen readers get it either way */
+  @Input() showSummary = false;
 
   /** A mark (bar, point, slice, ring, row, funnel step) or a category band was clicked, or Enter pressed on it */
   @Output() pointClick = new EventEmitter<WeChartPointClickEvent>();
@@ -115,6 +121,13 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
 
   width = 600;
   shown: WeChartData = { categories: [], series: [] };
+  /** The chart in one sentence — the plot's accessible description */
+  summaryText = '';
+  readonly summaryId = `we-chart-summary-${nextChartId++}`;
+  /** The value the arrow keys are on, while the plot has keyboard focus */
+  kbd: { category: number; series: number } | null = null;
+  /** What the polite live region last announced */
+  liveText = '';
   marks: Mark[] = [];
   lines: { d: string; area: string | null; color: string; series: number }[] = [];
   dots: { x: number; y: number; color: string; series: number; category: number }[] = [];
@@ -163,7 +176,7 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
 
   /** Charts with value and category axes */
   get axes(): boolean {
-    return this.type === 'column' || this.type === 'bar' || this.type === 'line' || this.type === 'area';
+    return this.type === 'column' || this.type === 'bar' || this.type === 'line' || this.type === 'area' || this.type === 'waterfall';
   }
 
   get clickable(): boolean {
@@ -270,6 +283,52 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   }
 
   /** Hover from a mark or dot drawn over the category bands */
+  /**
+   * Arrow keys on the plot: along the categories, and across the series (Up/Down; on a bar chart the
+   * other way round). Home/End jump to the ends, Enter or Space selects, Esc leaves.
+   */
+  onPlotKey(event: KeyboardEvent): void {
+    const n = this.shown.categories.length;
+    if (!n || !this.steppable) return;
+    const seriesCount = this.categorical || this.type === 'waterfall' ? 1 : Math.max(1, this.shown.series.length);
+    const at = this.kbd ?? { category: -1, series: 0 };
+    const along = this.horizontal ? { next: 'ArrowDown', prev: 'ArrowUp' } : { next: 'ArrowRight', prev: 'ArrowLeft' };
+    const across = this.horizontal ? { next: 'ArrowRight', prev: 'ArrowLeft' } : { next: 'ArrowUp', prev: 'ArrowDown' };
+    let { category, series } = at;
+    if (event.key === along.next) category = Math.min(n - 1, category + 1);
+    else if (event.key === along.prev) category = Math.max(0, category - 1);
+    else if (event.key === across.next) series = (series + 1) % seriesCount;
+    else if (event.key === across.prev) series = (series - 1 + seriesCount) % seriesCount;
+    else if (event.key === 'Home') category = 0;
+    else if (event.key === 'End') category = n - 1;
+    else if ((event.key === 'Enter' || event.key === ' ') && this.kbd) {
+      this.onPoint(this.kbd.category, this.kbd.series, event);
+      return;
+    } else if (event.key === 'Escape') {
+      this.onPlotBlur();
+      return;
+    } else return;
+    event.preventDefault();
+    this.kbd = { category: Math.max(0, category), series };
+    this.liveText = this.pointLabel(this.kbd.category, this.kbd.series);
+    this.hoverCategory(this.kbd.category);
+  }
+
+  onPlotBlur(): void {
+    this.kbd = null;
+    this.hideTip();
+  }
+
+  /** Whether the arrow keys have values to step through — not on a sparkline, nor on a gauge's one value */
+  get steppable(): boolean {
+    return this.type !== 'sparkline' && this.type !== 'gauge';
+  }
+
+  /** The mark or dot the arrow keys are on */
+  isKbd(category: number, series: number): boolean {
+    return !!this.kbd && this.kbd.category === category && (this.categorical || this.kbd.series === series);
+  }
+
   hoverCategory(category: number): void {
     const hit = this.hits.find((h) => h.category === category);
     if (hit) this.onHit(hit);
@@ -307,7 +366,16 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     if (this.categorical) this.shown = byCategory(1);
     else if (this.type === 'progress') this.shown = byCategory(2);
     else if (this.type === 'gauge') this.shown = { categories: this.data.categories, series: this.data.series.slice(0, 1) };
-    else this.shown = weChartFold(this.data, WE_CHART_MAX_SERIES, otherLabel);
+    else if (this.type === 'waterfall') {
+      // The first series' changes, and a last bar for where they end
+      const first = this.data.series[0];
+      const steps = weChartWaterfall(first?.values ?? []);
+      this.shown = first
+        ? { categories: [...this.data.categories, this.locale.chartTotal], series: [{ name: first.name, values: [...first.values, steps[steps.length - 1].to] }] }
+        : { categories: [], series: [] };
+    } else this.shown = weChartFold(this.data, WE_CHART_MAX_SERIES, otherLabel);
+    this.kbd = null;
+    this.summaryText = this.summarize();
     this.tracks = [];
     this.marks = [];
     this.lines = [];
@@ -325,6 +393,18 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
     else if (this.type === 'funnel') this.layoutFunnel();
     else if (this.type === 'sparkline') this.layoutSparkline();
     else this.layoutCartesian();
+  }
+
+  /** The chart in one sentence, for screen readers and `showSummary` */
+  private summarize(): string {
+    // A waterfall's total bar is not one more value
+    const data = this.type === 'waterfall' ? { categories: this.data.categories, series: this.data.series.slice(0, 1) } : this.shown;
+    const facts = weChartSummary(data);
+    if (!facts) return this.locale.chartNoData;
+    const many = data.series.length > 1;
+    const say = (p: { category: string; series: string; value: number }) => `${p.category}${many ? ` · ${p.series}` : ''}: ${this.format(p.value)}`;
+    const count = data.series.reduce((a, s) => a + s.values.filter((v) => v !== null).length, 0);
+    return this.locale.chartSummaryText({ count, high: say(facts.high), low: say(facts.low), total: this.format(facts.total), trend: facts.trend });
   }
 
   /** A half ring from 9 to 3 o'clock — the first series' total over `max`, coloured by its share of `target` */
@@ -502,10 +582,11 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
   private layoutCartesian(): void {
     const { categories, series } = this.shown;
     const n = categories.length;
-    // Stacked totals (positive and negative separately) or the plain extremes
-    let min = 0;
-    let max = 0;
-    for (let c = 0; c < n; c++) {
+    const steps = this.type === 'waterfall' ? weChartWaterfall(this.data.series[0]?.values ?? []) : null;
+    // Stacked totals (positive and negative separately) or the plain extremes; a waterfall's running totals
+    let min = steps ? Math.min(0, ...steps.flatMap((s) => [s.from, s.to])) : 0;
+    let max = steps ? Math.max(0, ...steps.flatMap((s) => [s.from, s.to])) : 0;
+    for (let c = 0; c < n && !steps; c++) {
       let pos = 0;
       let neg = 0;
       for (const s of series) {
@@ -558,6 +639,23 @@ export class WeChartComponent implements OnChanges, AfterViewInit, OnDestroy {
       if (c % every) return;
       this.xLabels.push({ pos: bandStart(c) + bandLen / 2, text: text.length > 18 ? `${text.slice(0, 17)}…` : text, anchor: this.horizontal ? 'end' : 'middle' });
     });
+
+    if (steps) {
+      const thickness = Math.max(2, Math.min(36, bandLen * 0.6));
+      const colors = { up: 'var(--we-grid-success-color, #0ab39c)', down: 'var(--we-grid-danger-color, #f06548)', total: weChartColor(0) };
+      steps.forEach((step, c) => {
+        const across = bandStart(c) + (bandLen - thickness) / 2;
+        if (step.from !== step.to) {
+          const base = toPos(step.from);
+          const tip = toPos(step.to);
+          this.marks.push({ d: weChartBarPath('column', across, thickness, base, tip, 3), color: colors[step.kind], series: 0, category: c });
+          const v = series[0].values[c];
+          if (this.showValues && v !== null && v !== undefined) this.labels.push(...this.barLabel(v, across, thickness, base, tip, 0, p));
+        }
+        this.hits.push({ x: bandStart(c), y: p.top, w: bandLen, h: p.bottom - p.top, category: c, series: null });
+      });
+      return;
+    }
 
     if (this.type === 'column' || this.type === 'bar') {
       const groups = this.stacked ? 1 : series.length;

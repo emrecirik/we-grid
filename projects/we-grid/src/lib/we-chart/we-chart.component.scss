@@ -267,3 +267,37 @@
   border: 0;
   background: transparent;
 }
+
+// The plot takes keyboard focus as one stop; the arrow keys move a ring from value to value
+.we-chart__plot svg:focus {
+  outline: none;
+}
+
+.we-chart__plot svg:focus-visible {
+  outline: 2px solid var(--we-grid-accent-color, #405189);
+  outline-offset: 2px;
+  border-radius: var(--we-grid-radius, 0.25rem);
+}
+
+.we-chart__mark--kbd {
+  stroke: var(--we-grid-font-color, #212529);
+  stroke-width: 2px;
+}
+
+// Read by screen readers only — the summary and the value the arrow keys are on
+.we-chart__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.we-chart__summary {
+  margin: 0.5rem 0 0;
+  color: var(--we-grid-muted-color, #878a99);
+}

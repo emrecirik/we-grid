@@ -1,5 +1,5 @@
 /** The chart forms `<we-chart>` draws */
-export type WeChartType = 'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'gauge' | 'radialBar' | 'progress' | 'funnel' | 'sparkline';
+export type WeChartType = 'column' | 'bar' | 'line' | 'area' | 'pie' | 'donut' | 'gauge' | 'radialBar' | 'progress' | 'funnel' | 'sparkline' | 'waterfall';
 
 /**
  * `<we-chart>`'s `pointClick`. `series` is null when a whole category was clicked (the empty part
@@ -192,4 +192,63 @@ export function weChartFromRows<T>(
       })
     }))
   };
+}
+
+/** One bar of a waterfall: where it starts and ends on the value axis, and what it shows */
+export interface WeChartWaterfallStep {
+  from: number;
+  to: number;
+  kind: 'up' | 'down' | 'total';
+}
+
+/**
+ * A waterfall from the first series: each category moves the running total by its value, and a
+ * last bar shows where it ends. Empty values move nothing.
+ */
+export function weChartWaterfall(values: readonly (number | null)[]): WeChartWaterfallStep[] {
+  const steps: WeChartWaterfallStep[] = [];
+  let at = 0;
+  for (const v of values) {
+    const delta = v ?? 0;
+    steps.push({ from: at, to: at + delta, kind: delta < 0 ? 'down' : 'up' });
+    at += delta;
+  }
+  steps.push({ from: 0, to: at, kind: 'total' });
+  return steps;
+}
+
+/** What a chart says in words — the facts behind `<we-chart>`'s text summary */
+export interface WeChartSummary {
+  /** The point with the highest value, and with the lowest */
+  high: { category: string; series: string; value: number };
+  low: { category: string; series: string; value: number };
+  total: number;
+  /** The first series from its first to its last value: up or down by more than 5 %, else flat; null under 3 categories */
+  trend: 'up' | 'down' | 'flat' | null;
+}
+
+/** The facts for a chart's text summary; null when it has no values */
+export function weChartSummary(data: WeChartData): WeChartSummary | null {
+  let high: WeChartSummary['high'] | null = null;
+  let low: WeChartSummary['low'] | null = null;
+  let total = 0;
+  for (const s of data.series) {
+    s.values.forEach((v, c) => {
+      if (v === null || !Number.isFinite(v)) return;
+      total += v;
+      const point = { category: data.categories[c] ?? '', series: s.name, value: v };
+      if (!high || v > high.value) high = point;
+      if (!low || v < low.value) low = point;
+    });
+  }
+  if (!high || !low) return null;
+  const first = data.series[0]?.values.filter((v): v is number => v !== null && Number.isFinite(v)) ?? [];
+  let trend: WeChartSummary['trend'] = null;
+  if (data.categories.length >= 3 && first.length >= 2) {
+    const a = first[0];
+    const b = first[first.length - 1];
+    const change = (b - a) / (Math.abs(a) || Math.abs(b) || 1);
+    trend = change > 0.05 ? 'up' : change < -0.05 ? 'down' : 'flat';
+  }
+  return { high, low, total, trend };
 }
