@@ -2,7 +2,9 @@
 
 All notable changes to this project are documented in this file.
 
-## Unreleased
+## 0.59.1 — 2026-11-24
+
+A patch release: two fixes found while building the Studio pages.
 
 ### Fixed
 
