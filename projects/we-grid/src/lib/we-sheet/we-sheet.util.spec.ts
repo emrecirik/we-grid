@@ -25,7 +25,9 @@ import {
   weSheetShiftFormula,
   weSheetSortRange,
   weSheetRemoveDuplicates,
-  weSheetStats
+  weSheetStats,
+  weSheetOffsets,
+  weSheetWindow
 } from './we-sheet.util';
 
 describe('we-sheet utils', () => {
@@ -420,5 +422,27 @@ describe('weSheetReplaceRange', () => {
     expect(same.change).toBeNull();
     expect(same.data.cells['B4'].v).toBe('=SUM(B2:B3)');
     expect(weSheetReplaceRange(base, 'nope', [[1]])).toBeNull();
+  });
+});
+
+describe('weSheetWindow', () => {
+  const sizes = weSheetOffsets(Array.from({ length: 100 }, () => 10));
+
+  it('takes the items meeting the span, the rest as padding before and after', () => {
+    expect(weSheetWindow(sizes, 0, 200, 300, [])).toEqual({ stuck: 0, start: 20, end: 30, padBefore: 200, padAfter: 700 });
+    expect(weSheetWindow(sizes, 0, -50, 25, [])).toEqual({ stuck: 0, start: 0, end: 3, padBefore: 0, padAfter: 970 });
+  });
+
+  it('keeps the stuck items out of the padding', () => {
+    expect(weSheetWindow(sizes, 2, 500, 600, [])).toEqual({ stuck: 2, start: 50, end: 60, padBefore: 480, padAfter: 400 });
+  });
+
+  it('draws a span crossing an edge whole, and one leaving the stuck items with them', () => {
+    expect(weSheetWindow(sizes, 0, 200, 300, [[15, 22], [28, 33]])).toEqual({ stuck: 0, start: 15, end: 34, padBefore: 150, padAfter: 660 });
+    expect(weSheetWindow(sizes, 1, 500, 600, [[0, 4]]).stuck).toBe(5);
+  });
+
+  it('works out an empty window past the end', () => {
+    expect(weSheetWindow(sizes, 0, 5000, 6000, [])).toEqual({ stuck: 0, start: 100, end: 100, padBefore: 1000, padAfter: 0 });
   });
 });

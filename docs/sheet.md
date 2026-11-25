@@ -76,6 +76,8 @@ All formula functions, their Turkish names and the error values are listed in
 | `readonly` | `boolean` | `false` | No editing; selection, copy and export remain |
 | `exportFileName` | `string` | `'sheet'` | File name of exports, without extension |
 | `height` | `number \| string` | `420` | Height of the scrolling area (px or any CSS length) |
+| `virtualScroll` *(0.62.0)* | `boolean` | `false` | Draws only the rows near the view (300px beyond it on each side); a spacer row above and below keeps the scrollbar exact. Frozen rows, the header row and merges reaching into the view are always drawn whole. See `docs/performance.md` |
+| `virtualColumns` *(0.62.0)* | `boolean` | `false` | The same for columns, with a spacer cell per side; frozen columns are always drawn |
 | `importSheets` *(0.21.0)* | `(sheets) => void` | — | Takes the worksheets of an opened Excel file with more than one — `<we-workbook>` sets it |
 | `xlsxSheets` *(0.20.0)* | `() => { name, data }[]` | this sheet | The sheets the Excel export writes, when this sheet is one of several — `<we-workbook>` sets it |
 
@@ -139,7 +141,7 @@ never inject CSS or markup. Formulas are evaluated by the formula engine — nev
 `weSheetAddress`, `weSheetParseAddress`, `weSheetRangeLabel`, `weSheetParseInput`,
 `weSheetParseNumber`, `weSheetShiftFormula`, `weSheetStats`, `weSheetSortRange`,
 `weSheetFormatValue`, `weSheetSanitize`, `weSheetEmpty`, `weSheetInsert`, `weSheetMoveReferences`,
-`weSheetAutoSum`, `weSheetFill`, `weSheetCleanList` *(0.17.0)*, `weSheetSanitizeFormats` *(0.18.0)*, `weSheetFromCells` *(0.21.0)*, `weSheetMoveSheetReferences` *(0.16.0)* — the pure functions the component is built
+`weSheetAutoSum`, `weSheetFill`, `weSheetCleanList` *(0.17.0)*, `weSheetSanitizeFormats` *(0.18.0)*, `weSheetFromCells` *(0.21.0)*, `weSheetMoveSheetReferences` *(0.16.0)*, `weSheetWindow` and `weSheetOffsets` *(0.62.0, which rows or columns `virtualScroll` / `virtualColumns` draw)* — the pure functions the component is built
 on, exported for servers and tests.
 
 ## Workbooks: several sheets *(0.14.0)*
@@ -163,7 +165,7 @@ interface WeWorkbookData {
 
 Inputs: `workbookKey`, `store` *(0.51.0)*, `data` (given at start, the stored workbook is not loaded
 at all — saving under `workbookKey` still goes on), `readonly`, `height`, `rows`, `cols` (size of a
-new sheet), `exportFileName`. Outputs: `dataChange` (every change, switching tabs included),
+new sheet), `exportFileName`, `virtualScroll` and `virtualColumns` *(0.62.0, handed to every sheet)*. Outputs: `dataChange` (every change, switching tabs included),
 `contentChange` *(0.51.0)* (changes worth saving — not switching tabs), `storeError` *(0.51.0)*
 (the store failed; the tab bar also shows a notice). A change still waiting out the debounce is
 written when the workbook is destroyed.

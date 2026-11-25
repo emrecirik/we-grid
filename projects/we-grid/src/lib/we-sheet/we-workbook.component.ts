@@ -68,6 +68,10 @@ export class WeWorkbookComponent implements OnInit, OnChanges, OnDestroy {
   @Input() data?: WeWorkbookData | null;
   @Input() readonly = false;
   @Input() height: number | string = 420;
+  /** Pass-through to every sheet's `virtualScroll` — only the rows near the view are drawn */
+  @Input() virtualScroll = false;
+  /** Pass-through to every sheet's `virtualColumns` — only the columns near the view are drawn */
+  @Input() virtualColumns = false;
   /** Size of a new sheet */
   @Input() rows = 50;
   @Input() cols = 12;

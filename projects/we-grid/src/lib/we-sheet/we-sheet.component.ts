@@ -10,12 +10,14 @@ import {
   HostListener,
   Inject,
   Input,
+  NgZone,
   OnChanges,
   OnDestroy,
   OnInit,
   Output,
   SimpleChanges,
-  ViewChild
+  ViewChild,
+  AfterViewInit
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -74,7 +76,9 @@ import {
   weSheetShiftFormula,
   weSheetSortRange,
   weSheetRemoveDuplicates,
-  weSheetStats
+  weSheetStats,
+  weSheetOffsets,
+  weSheetWindow
 } from './we-sheet.util';
 
 interface Pos {
@@ -97,6 +101,8 @@ interface CellView {
 }
 
 const DEFAULT_WIDTH = 104;
+/** px `virtualScroll` / `virtualColumns` draw beyond each side of the view, so a short scroll needs no re-render */
+const WE_SHEET_OVERSCAN_PX = 300;
 let sheetCount = 0;
 const UNDO_LIMIT = 100;
 
@@ -128,7 +134,7 @@ export interface WeSheetSuggestion {
   styleUrls: ['./we-sheet.component.scss'],
   changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
+export class WeSheetComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   /** Saves and restores the sheet under this key through `store` (or `WE_SHEET_STORE`) */
   @Input() sheetKey?: string;
   /** Where `sheetKey` saves — wins over the `WE_SHEET_STORE` token, so one screen can keep its sheet in a record of its own */
@@ -144,6 +150,14 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   @Input() exportFileName = 'sheet';
   /** Fixed height of the scrolling area — CSS length or pixels */
   @Input() height: number | string = 420;
+  /**
+   * Draws only the rows near the scrolled-to part of the sheet (WE_SHEET_OVERSCAN_PX beyond it on
+   * each side); one spacer row above and one below stand in for the rest. Frozen rows, the header
+   * row and merges are drawn whole. For sheets of hundreds of rows and more.
+   */
+  @Input() virtualScroll = false;
+  /** The same for columns: one spacer cell per side stands in for the columns left out; frozen columns are always drawn */
+  @Input() virtualColumns = false;
   /**
    * Other sheets a formula can read (`Sales!B2`, `'Q 1'!A1:C9`) — `<we-workbook>` passes its sheets
    * here. Returns null for an unknown name (→ `#REF!`).
@@ -184,6 +198,35 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   /** The open filter of a header cell: its column and the distinct texts below it */
   filterMenu: { col: number; x: number; y: number; values: { text: string; label: string; shown: boolean }[] } | null = null;
   colIndexes: number[] = [];
+  /** The rows and columns the template draws — `visibleRows` and `colIndexes` themselves unless virtualScroll / virtualColumns cut them */
+  drawnRows: number[] = [];
+  drawnCols: number[] = [];
+  /** Heights (px) of the spacer rows and widths of the spacer columns standing in for what isn't drawn */
+  padTop = 0;
+  padBottom = 0;
+  padLeft = 0;
+  padRight = 0;
+  /**
+   * A row being edited stays drawn when the window scrolls away from it, with a spacer between it
+   * and the window: the spacer's height and the row it follows (-1: none)
+   */
+  padMid = 0;
+  padMidAfter = -1;
+  /** Position in `visibleRows` of each drawn row — for the stripes */
+  private drawnIndexes: number[] = [];
+  /** Heights of rows seen drawn, by row; what the spacers count for rows not drawn since they last changed */
+  private readonly measuredRows = new Map<number, number>();
+  /** Bumped whenever a row height the spacers count changes — the cached offsets are rebuilt then */
+  private measureVersion = 0;
+  private rowGeometry: { key: unknown[]; at: number[]; spans: ([number, number] | null)[] } | null = null;
+  private colGeometry: { key: unknown[]; at: number[]; spans: ([number, number] | null)[] } | null = null;
+  /** A row of the default height, in px — measured from the drawn rows */
+  private defaultRowPx = 29;
+  /** What a row's border adds to the height a row of its own height (`heights`) sets */
+  private rowExtraPx = 1;
+  private windowKey: unknown[] | null = null;
+  private windowObserver: ResizeObserver | null = null;
+  private destroyed = false;
 
   active: Pos = { col: 0, row: 0 };
   anchor: Pos = { col: 0, row: 0 };
@@ -243,8 +286,268 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     @Inject(WE_SHEET_STORE) private readonly defaultStore: WeSheetStore,
     private readonly sanitizer: DomSanitizer,
     private readonly cdr: ChangeDetectorRef,
-    private readonly host: ElementRef<HTMLElement>
+    private readonly host: ElementRef<HTMLElement>,
+    private readonly ngZone: NgZone
   ) {}
+
+  ngAfterViewInit(): void {
+    this.bindWindow();
+  }
+
+  // ─── Row and column windows (virtualScroll / virtualColumns) ─────────
+
+  /** Spacer cells per row (left and right), for the colspan of a full-width row */
+  get drawnColSpan(): number {
+    return this.drawnCols.length + 1 + (this.padLeft ? 1 : 0) + (this.padRight ? 1 : 0);
+  }
+
+  /** A drawn row's position among the visible rows — `i` itself unless the rows are windowed */
+  stripeIndex(i: number): number {
+    return this.drawnIndexes[i] ?? i;
+  }
+
+  /** The active cell is in the DOM — not so once the windows scrolled away from it */
+  get activeDrawn(): boolean {
+    return (!this.virtualScroll || this.drawnRows.includes(this.active.row)) && (!this.virtualColumns || this.drawnCols.includes(this.active.col));
+  }
+
+  private rowPx(row: number): number {
+    const own = this.rowHeight(row);
+    return this.measuredRows.get(row) ?? (own === null ? this.defaultRowPx : own + this.rowExtraPx);
+  }
+
+  /**
+   * Picks `drawnRows` / `drawnCols` and the spacers for the scroll position; true when what is drawn
+   * changed. Without virtualScroll / virtualColumns they are `visibleRows` / `colIndexes` themselves.
+   */
+  private updateWindow(): boolean {
+    if (!this.virtualScroll && !this.virtualColumns) {
+      // No reads of the scroll box: a sheet without windows never pays a layout for this
+      const changed = this.drawnRows !== this.visibleRows || this.drawnCols !== this.colIndexes;
+      this.drawnRows = this.visibleRows;
+      this.drawnCols = this.colIndexes;
+      this.padTop = this.padBottom = this.padLeft = this.padRight = this.padMid = 0;
+      this.padMidAfter = -1;
+      this.drawnIndexes = [];
+      this.windowKey = null;
+      return changed;
+    }
+    const box = this.scrollRef?.nativeElement;
+    const edit = this.editing ? `${this.editing.col}:${this.editing.row}` : null;
+    const key = [this.virtualScroll, this.virtualColumns, this.visibleRows, this.colIndexes, this.sheet, this.mergeRanges, this.measureVersion, this.defaultRowPx, this.rowExtraPx, edit, box?.scrollTop, box?.scrollLeft, box?.clientWidth, box?.clientHeight];
+    if (this.windowKey && key.every((v, i) => v === this.windowKey![i])) return false;
+    this.windowKey = key;
+    const prev = [this.drawnRows, this.drawnCols, this.padTop, this.padBottom, this.padLeft, this.padRight, this.padMid, this.padMidAfter];
+    // Rows first: a merge holds columns in the window only where its rows are drawn
+    let rowDrawn: (span: [number, number]) => boolean = () => true;
+    if (this.virtualScroll) {
+      const rows = this.visibleRows;
+      const geo = this.rowGeometryFor(rows);
+      const top = box?.scrollTop ?? 0;
+      const height = box?.clientHeight || 600;
+      const stuckRows = Math.max(this.frozenRows, this.sheet.headerRow ? 1 : 0);
+      const firstFree = rows.findIndex((r) => r >= stuckRows);
+      const spans = geo.spans.filter((x): x is [number, number] => x !== null);
+      const win = weSheetWindow(geo.at, firstFree === -1 ? rows.length : firstFree, top - WE_SHEET_OVERSCAN_PX, top + height + WE_SHEET_OVERSCAN_PX, spans);
+      const at = geo.at;
+      const n = rows.length;
+      const indexes: number[] = [];
+      for (let i = 0; i < win.stuck; i++) indexes.push(i);
+      this.padTop = win.padBefore;
+      this.padBottom = win.padAfter;
+      this.padMid = 0;
+      this.padMidAfter = -1;
+      // The row being edited stays in the DOM (its editor keeps focus and keys) with a spacer
+      // between it and the window — the spacers still add up to the rows left out
+      const e = this.editing ? rows.indexOf(this.editing.row) : -1;
+      if (e >= win.stuck && e < win.start) {
+        indexes.push(e);
+        this.padTop = at[e] - at[win.stuck];
+        this.padMid = at[win.start] - at[e + 1];
+        this.padMidAfter = rows[e];
+      }
+      for (let i = win.start; i < win.end; i++) indexes.push(i);
+      if (e >= win.end && e < n) {
+        this.padMid = at[e] - at[win.end];
+        this.padMidAfter = indexes.length ? rows[indexes[indexes.length - 1]] : -1;
+        indexes.push(e);
+        this.padBottom = at[n] - at[e + 1];
+        if (this.padMidAfter === -1) {
+          this.padTop += this.padMid;
+          this.padMid = 0;
+        }
+      }
+      if (!this.padMid) this.padMidAfter = -1;
+      this.drawnRows = indexes.length === n ? rows : indexes.map((i) => rows[i]);
+      this.drawnIndexes = indexes;
+      rowDrawn = ([a, b]) => a < win.stuck || (a < win.end && b >= win.start) || (e >= a && e <= b);
+    } else {
+      this.drawnRows = this.visibleRows;
+      this.padTop = this.padBottom = this.padMid = 0;
+      this.padMidAfter = -1;
+      this.drawnIndexes = [];
+    }
+    if (this.virtualColumns) {
+      const cols = this.colIndexes;
+      const geo = this.colGeometryFor(cols);
+      const left = box?.scrollLeft ?? 0;
+      const width = box?.clientWidth || 1200;
+      const firstFree = cols.findIndex((c) => c >= this.frozenCols);
+      const rowSpans = this.virtualScroll ? this.rowGeometryFor(this.visibleRows).spans : null;
+      // A merge counts only where its rows are drawn: a title across row 1 mustn't hold every column in row 500
+      const spans = geo.spans.filter((x, m): x is [number, number] => x !== null && (rowSpans === null || (rowSpans[m] !== null && rowDrawn(rowSpans[m]!))));
+      const win = weSheetWindow(geo.at, firstFree === -1 ? cols.length : firstFree, left - WE_SHEET_OVERSCAN_PX, left + width + WE_SHEET_OVERSCAN_PX, spans);
+      let { start, end } = win;
+      // The column being edited stays drawn too — the window widens to it
+      const e = this.editing ? cols.indexOf(this.editing.col) : -1;
+      if (e >= win.stuck) {
+        start = Math.min(start, e);
+        end = Math.max(end, e + 1);
+      }
+      this.drawnCols = win.stuck === 0 && start === 0 && end === cols.length ? cols : [...cols.slice(0, win.stuck), ...cols.slice(start, end)];
+      this.padLeft = geo.at[start] - geo.at[win.stuck];
+      this.padRight = geo.at[cols.length] - geo.at[end];
+    } else {
+      this.drawnCols = this.colIndexes;
+      this.padLeft = this.padRight = 0;
+    }
+    const next = [this.drawnRows, this.drawnCols, this.padTop, this.padBottom, this.padLeft, this.padRight, this.padMid, this.padMidAfter];
+    return next.some((v, i) => {
+      const was = prev[i];
+      return Array.isArray(v) && Array.isArray(was) ? v.length !== was.length || v.some((x, k) => x !== was[k]) : v !== was;
+    });
+  }
+
+  /** Where each visible row starts and the merges as row spans (by merge) — rebuilt when the rows or their heights change, not per scroll */
+  private rowGeometryFor(rows: number[]): { at: number[]; spans: ([number, number] | null)[] } {
+    const key = [rows, this.mergeRanges, this.sheet.heights, this.measureVersion, this.defaultRowPx, this.rowExtraPx];
+    if (this.rowGeometry && key.every((v, i) => v === this.rowGeometry!.key[i])) return this.rowGeometry;
+    const index = new Map(rows.map((r, i) => [r, i]));
+    // A merge is shown or hidden whole (applyFilters), so its last row is visible with its first
+    const spans = this.mergeRanges.map((m): [number, number] | null => {
+      const a = index.get(m.r1);
+      return a === undefined ? null : [a, index.get(m.r2) ?? a];
+    });
+    this.rowGeometry = { key, at: weSheetOffsets(rows.map((r) => this.rowPx(r))), spans };
+    return this.rowGeometry;
+  }
+
+  /** The same for the shown columns */
+  private colGeometryFor(cols: number[]): { at: number[]; spans: ([number, number] | null)[] } {
+    const key = [cols, this.mergeRanges, this.sheet.widths];
+    if (this.colGeometry && key.every((v, i) => v === this.colGeometry!.key[i])) return this.colGeometry;
+    const index = new Map(cols.map((c, i) => [c, i]));
+    // A hidden column inside a merge: the merge's shown columns are the span
+    const spans = this.mergeRanges.map((m): [number, number] | null => {
+      let a = -1;
+      let b = -1;
+      for (let c = m.c1; c <= m.c2; c++) {
+        const i = index.get(c);
+        if (i === undefined) continue;
+        if (a === -1) a = i;
+        b = i;
+      }
+      return a === -1 ? null : [a, b];
+    });
+    this.colGeometry = { key, at: weSheetOffsets(cols.map((c) => this.width(c))), spans };
+    return this.colGeometry;
+  }
+
+  /** Re-picks the window on scroll and resize — outside the zone, rendering only when it changed */
+  private readonly onWindowScroll = (): void => {
+    if (!this.updateWindow()) return;
+    this.cdr.detectChanges();
+    this.measureDrawnRows();
+  };
+
+  /**
+   * Reads the drawn rows' heights, so the spacers count rows seen once at their real height and
+   * the rest at the measured default. Picks the window again once when the default moved.
+   */
+  private measureDrawnRows(): void {
+    if (!this.virtualScroll) return;
+    const trs = this.scrollRef.nativeElement.querySelectorAll<HTMLElement>('tbody > tr:not(.we-sheet__pad-row)');
+    let plain = Infinity;
+    trs.forEach((tr, i) => {
+      const row = this.drawnRows[i];
+      if (row === undefined) return;
+      const px = tr.offsetHeight;
+      if (!px) return;
+      if (this.measuredRows.get(row) !== px) {
+        this.measuredRows.set(row, px);
+        this.measureVersion++;
+      }
+      // Wrapped text makes a row taller, never shorter: the lowest of the plain rows is the default
+      if (this.rowHeight(row) === null) plain = Math.min(plain, px);
+    });
+    // A row of its own height sets it on the row number and on each cell; padding and borders
+    // (unless border-box) come on top, and the taller of the two makes the row
+    const extra = (cell: Element | null | undefined): number => {
+      if (!cell) return 0;
+      const st = getComputedStyle(cell);
+      if (st.boxSizing === 'border-box') return 0;
+      return (parseFloat(st.paddingTop) || 0) + (parseFloat(st.paddingBottom) || 0) + (parseFloat(st.borderTopWidth) || 0) + (parseFloat(st.borderBottomWidth) || 0);
+    };
+    const rowExtra = trs[0] ? Math.max(extra(trs[0].querySelector('th')), extra(trs[0].querySelector('td.we-sheet__cell'))) : this.rowExtraPx;
+    const defaultRow = plain === Infinity ? this.defaultRowPx : plain;
+    if (rowExtra !== this.rowExtraPx || defaultRow !== this.defaultRowPx) {
+      this.rowExtraPx = rowExtra;
+      this.defaultRowPx = defaultRow;
+      this.windowKey = null;
+      if (this.updateWindow()) this.cdr.detectChanges();
+    }
+  }
+
+  private bindWindow(): void {
+    const box = this.scrollRef?.nativeElement;
+    if (!box || !(this.virtualScroll || this.virtualColumns) || this.windowObserver) return;
+    this.ngZone.runOutsideAngular(() => {
+      box.addEventListener('scroll', this.onWindowScroll, { passive: true });
+      this.windowObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(this.onWindowScroll);
+      this.windowObserver?.observe(box);
+      // The first window was picked before the scroll area could be measured
+      requestAnimationFrame(() => {
+        if (this.destroyed || !(this.virtualScroll || this.virtualColumns)) return;
+        this.windowKey = null;
+        this.onWindowScroll();
+        this.measureDrawnRows();
+      });
+    });
+  }
+
+  private unbindWindow(): void {
+    this.scrollRef?.nativeElement.removeEventListener('scroll', this.onWindowScroll);
+    this.windowObserver?.disconnect();
+    this.windowObserver = null;
+  }
+
+  /**
+   * Scrolls a cell the windows left out near the middle of the view and draws it, so the code
+   * that scrolls the active cell into view finds it in the DOM.
+   */
+  private revealInWindow(pos: Pos): void {
+    const box = this.scrollRef.nativeElement;
+    if (this.virtualScroll && !this.drawnRows.includes(pos.row)) {
+      let y = 0;
+      for (const r of this.visibleRows) {
+        if (r === pos.row) break;
+        y += this.rowPx(r);
+      }
+      box.scrollTop = Math.max(0, y - box.clientHeight / 2);
+    }
+    if (this.virtualColumns && !this.drawnCols.includes(pos.col)) {
+      let x = 0;
+      for (const c of this.colIndexes) {
+        if (c === pos.col) break;
+        x += this.width(c);
+      }
+      box.scrollLeft = Math.max(0, x - box.clientWidth / 2);
+    }
+    if (this.updateWindow()) {
+      this.cdr.detectChanges();
+      this.measureDrawnRows();
+    }
+  }
 
   ngOnInit(): void {
     this.save$.pipe(debounceTime(400), takeUntil(this.destroy$)).subscribe(() => this.flushSave());
@@ -267,6 +570,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
+    if ((changes['virtualScroll'] && !changes['virtualScroll'].firstChange) || (changes['virtualColumns'] && !changes['virtualColumns'].firstChange)) {
+      this.unbindWindow();
+      this.updateWindow();
+      this.bindWindow();
+    }
     // Another sheet changed: what was read of the others is stale — also when new data comes along with it
     const resolverChanged = (changes['resolveSheet'] && !changes['resolveSheet'].firstChange) || (changes['resolveName'] && !changes['resolveName'].firstChange);
     if (resolverChanged) this.otherSheets.clear();
@@ -313,6 +621,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
   ngOnDestroy(): void {
     // A change still waiting out the debounce is written now, not dropped with the component
     this.flushSave();
+    this.unbindWindow();
+    this.destroyed = true;
     this.destroy$.next();
     this.destroy$.complete();
   }
@@ -585,12 +895,15 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     if (this.rowResizing) {
       const h = Math.max(12, Math.min(400, this.rowResizing.startHeight + event.clientY - this.rowResizing.startY));
       this.sheet = { ...this.sheet, heights: { ...(this.sheet.heights ?? {}), [String(this.rowResizing.row + 1)]: Math.round(h) } };
+      if (this.measuredRows.delete(this.rowResizing.row)) this.measureVersion++;
+      this.updateWindow();
       this.cdr.markForCheck();
       return;
     }
     if (!this.resizing) return;
     const w = Math.max(30, Math.min(1000, this.resizing.startWidth + event.clientX - this.resizing.startX));
     this.sheet = { ...this.sheet, widths: { ...(this.sheet.widths ?? {}), [weGridColumnLetter(this.resizing.col)]: Math.round(w) } };
+    this.updateWindow();
     this.cdr.markForCheck();
   }
 
@@ -843,8 +1156,11 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
 
   startEdit(initial: string | null): void {
     if (this.readonly || this.hiddenRows.has(this.active.row)) return;
+    // The editor lives in the cell — a cell the windows scrolled away from is drawn first
+    if (this.virtualScroll || this.virtualColumns) this.revealInWindow(this.active);
     const raw = this.rawText(this.active.col, this.active.row);
     this.editing = { ...this.active, text: initial ?? raw, fromBar: false };
+    if (this.virtualScroll || this.virtualColumns) this.updateWindow();
     this.barText = this.editing.text;
     this.cdr.detectChanges();
     const el = this.editorRef?.nativeElement;
@@ -2171,6 +2487,13 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     const data = (input && weSheetSanitize(input)) || weSheetEmpty(this.clampRows(this.rows), this.clampCols(this.cols));
     this.undoStack = [];
     this.redoStack = [];
+    if (this.virtualScroll || this.virtualColumns) {
+      // Another sheet (a workbook tab): the old scroll position would pick a window of rows it doesn't have
+      this.scrollRef.nativeElement.scrollTop = 0;
+      this.scrollRef.nativeElement.scrollLeft = 0;
+    }
+    this.measuredRows.clear();
+    this.measureVersion++;
     this.apply(data, emit);
   }
 
@@ -2191,7 +2514,27 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.apply(next);
   }
 
+  /**
+   * Drops the measured heights a change can make wrong. Rows that moved or changed height (insert,
+   * delete, heights, hidden rows, filters, merges) clear them all; an edit only those of the rows it
+   * touched — the selection's — so the spacers above don't shift with every typed value.
+   */
+  private forgetMeasuredRows(before: WeSheetData, after: WeSheetData): void {
+    if (!this.measuredRows.size) return;
+    const moved =
+      before.rows !== after.rows || before.heights !== after.heights || before.hidden !== after.hidden || before.filters !== after.filters || before.merges !== after.merges || before.headerRow !== after.headerRow;
+    if (moved) {
+      this.measuredRows.clear();
+    } else {
+      const s = this.selection;
+      for (let r = s.r1; r <= s.r2; r++) this.measuredRows.delete(r);
+      if (this.editing) this.measuredRows.delete(this.editing.row);
+    }
+    this.measureVersion++;
+  }
+
   private apply(data: WeSheetData, emit = true): void {
+    this.forgetMeasuredRows(this.sheet, data);
     this.sheet = data;
     this.evaluator = new WeGridSheetEvaluator(
       (c, r) => this.withNames(this.sheet.cells[weSheetAddress(c, r)]?.v ?? null, this.sheet),
@@ -2514,6 +2857,7 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
     this.applyFilters();
     this.applyMerges();
     this.rebuildChart();
+    this.updateWindow();
   }
 
   private rawText(col: number, row: number): string {
@@ -2685,6 +3029,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
       queueMicrotask(() => {
         // Only the sheet's own scroller moves — scrollIntoView would scroll the page around it too
         const box = this.scrollRef.nativeElement;
+        // A cell the windows left out is drawn first, then scrolled into view like any other
+        if (this.virtualScroll || this.virtualColumns) this.revealInWindow(focus);
         const el = box.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(focus.col, focus.row)}"]`);
         if (!el) return;
         let headTop = box.querySelector<HTMLElement>('thead')?.offsetHeight ?? 0;
@@ -2693,7 +3039,8 @@ export class WeSheetComponent implements OnInit, OnChanges, OnDestroy {
         const stuckRows = Math.max(this.frozenRows, this.sheet.headerRow ? 1 : 0);
         if (focus.row >= stuckRows) {
           for (let r = 0; r < stuckRows; r++) {
-            if (!this.hiddenRows.has(r)) headTop += box.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(0, r)}"]`)?.offsetHeight ?? 28;
+            // Column A may not be drawn under virtualColumns — the row's height is known without it
+            if (!this.hiddenRows.has(r)) headTop += this.virtualScroll || this.virtualColumns ? this.rowPx(r) : (box.querySelector<HTMLElement>(`[data-cell="${weSheetAddress(0, r)}"]`)?.offsetHeight ?? 28);
           }
         }
         if (focus.col >= this.frozenCols) for (let c = 0; c < this.frozenCols; c++) headLeft += this.width(c);

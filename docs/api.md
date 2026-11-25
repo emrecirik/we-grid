@@ -271,7 +271,7 @@ Adding or removing a column needs no bump.
 ## `<we-sheet>` (`WeSheetComponent`) *(0.9.0)*
 
 A spreadsheet component — inputs `sheetKey`, `store` (0.51.0), `data`, `rows`, `cols`, `readonly`, `exportFileName`, `xlsxSheets`, `importSheets`,
-`height`; outputs `dataChange`, `structureChange`, `storeError` (0.51.0); method `replaceRange(range, values)` (0.51.0); token `WE_SHEET_STORE` (`WeSheetStore`, default
+`height`, `virtualScroll` and `virtualColumns` (0.62.0 — only the rows and columns near the view are drawn; frozen panes, the header row and merges always whole); outputs `dataChange`, `structureChange`, `storeError` (0.51.0); method `replaceRange(range, values)` (0.51.0); token `WE_SHEET_STORE` (`WeSheetStore`, default
 `LocalStorageSheetStore`); models `WeSheetData`, `WeSheetCell`, `WeSheetNumberFormat`. Full
 reference in [sheet.md](sheet.md).
 
@@ -285,7 +285,7 @@ can't come from a source — the pivot says so (`pivotFormulaFromSource`) instea
 a source that fails shows `loadFailed` above the table.
 
 A pivot table — inputs `data`, `fields`, `config` (`WePivotConfig`, two-way), `gridKey`,
-`exportFormats`, `maxHeight`, `maxColumns`, `chart` (`WeChartType | null`, 0.12.0); outputs `configChange`,
+`exportFormats`, `maxHeight`, `maxColumns`, `chart` (`WeChartType | null`, 0.12.0), `virtualScroll` and `virtualColumns` (0.62.0, handed to the result grid); outputs `configChange`,
 `chartChange` (0.12.0), `cellClick` (`WePivotCellClickEvent`, 0.55.0 — `{ rowValues, columnValues, valueField, value }`
 with the raw members behind the cell; a row header cell reports its own field and the outer ones, `valueField` `''`).
 A field's `formatter` labels the pivot's row and column members (0.55.0). `wePivot()` for the table
@@ -308,7 +308,7 @@ focusable buttons and Enter fires it.
 
 ## `<we-workbook>` (`WeWorkbookComponent`) *(0.14.0)*
 
-Several sheets behind tabs — inputs `workbookKey`, `store` (0.51.0), `data` (`WeWorkbookData`), `readonly`, `height`,
+Several sheets behind tabs — inputs `workbookKey`, `store` (0.51.0), `data` (`WeWorkbookData`), `readonly`, `height`, `virtualScroll` and `virtualColumns` (0.62.0, handed to every sheet),
 `rows`, `cols`, `exportFileName`; outputs `dataChange`, `contentChange` and `storeError` (0.51.0); method
 `replaceRange(sheetName, range, values)` (0.51.0). See [sheet.md](sheet.md#workbooks-several-sheets-0140).
 

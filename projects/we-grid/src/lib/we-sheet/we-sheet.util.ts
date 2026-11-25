@@ -283,12 +283,30 @@ export function weSheetRemoveDuplicates(data: WeSheetData, range: WeSheetRange, 
   return { data: { ...data, cells }, removed };
 }
 
+// Building an Intl formatter costs far more than using one — a 1000 × 70 sheet spent seconds on it
+const numberFormats = new Map<string, Intl.NumberFormat>();
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+
+function weSheetNumberFormat(locale: string, options: Intl.NumberFormatOptions): Intl.NumberFormat {
+  const key = locale + JSON.stringify(options);
+  let f = numberFormats.get(key);
+  if (!f) numberFormats.set(key, (f = new Intl.NumberFormat(locale, options)));
+  return f;
+}
+
+function weSheetDateFormat(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = locale + JSON.stringify(options);
+  let f = dateFormats.get(key);
+  if (!f) dateFormats.set(key, (f = new Intl.DateTimeFormat(locale, options)));
+  return f;
+}
+
 /** Formats a computed value for display — errors show their code */
 export function weSheetFormatValue(value: unknown, format: WeSheetNumberFormat | undefined, intlLocale: string, currency: string, decimals?: number): string {
   if (value === null || value === undefined) return '';
   if (value instanceof WeGridFormulaError) return value.code;
   if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? '' : new Intl.DateTimeFormat(intlLocale, { dateStyle: 'medium' }).format(value);
+    return Number.isNaN(value.getTime()) ? '' : weSheetDateFormat(intlLocale, { dateStyle: 'medium' }).format(value);
   }
   if (typeof value === 'boolean') return value ? 'TRUE' : 'FALSE';
   if (typeof value !== 'number') return String(value);
@@ -296,27 +314,27 @@ export function weSheetFormatValue(value: unknown, format: WeSheetNumberFormat |
   const fixed = decimals !== undefined && decimals >= 0 && decimals <= 10 ? { minimumFractionDigits: decimals, maximumFractionDigits: decimals } : null;
   switch (format ?? 'general') {
     case 'number':
-      return new Intl.NumberFormat(intlLocale, fixed ?? { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
+      return weSheetNumberFormat(intlLocale, fixed ?? { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(value);
     case 'integer':
-      return new Intl.NumberFormat(intlLocale, { maximumFractionDigits: 0 }).format(value);
+      return weSheetNumberFormat(intlLocale, { maximumFractionDigits: 0 }).format(value);
     case 'currency':
-      return new Intl.NumberFormat(intlLocale, { style: 'currency', currency, ...(fixed ?? {}) }).format(value);
+      return weSheetNumberFormat(intlLocale, { style: 'currency', currency, ...(fixed ?? {}) }).format(value);
     case 'percent':
-      return new Intl.NumberFormat(intlLocale, { style: 'percent', ...(fixed ?? { maximumFractionDigits: 2 }) }).format(value);
+      return weSheetNumberFormat(intlLocale, { style: 'percent', ...(fixed ?? { maximumFractionDigits: 2 }) }).format(value);
     case 'date': {
       // Excel serial date — day 1 is 1900-01-01 (with Excel's 1900 leap-year quirk)
       const ms = Date.UTC(1899, 11, 30) + Math.round(value) * 86400000;
-      return new Intl.DateTimeFormat(intlLocale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(ms));
+      return weSheetDateFormat(intlLocale, { dateStyle: 'medium', timeZone: 'UTC' }).format(new Date(ms));
     }
     case 'time': {
       // The fraction of the day, to the second
       const seconds = Math.round((((value % 1) + 1) % 1) * 86400) % 86400;
-      return new Intl.DateTimeFormat(intlLocale, { timeStyle: seconds % 60 ? 'medium' : 'short', timeZone: 'UTC' }).format(new Date(seconds * 1000));
+      return weSheetDateFormat(intlLocale, { timeStyle: seconds % 60 ? 'medium' : 'short', timeZone: 'UTC' }).format(new Date(seconds * 1000));
     }
     case 'text':
       return String(value);
     default:
-      return new Intl.NumberFormat(intlLocale, fixed ? { ...fixed, useGrouping: false } : { maximumFractionDigits: 10, useGrouping: false }).format(value);
+      return weSheetNumberFormat(intlLocale, fixed ? { ...fixed, useGrouping: false } : { maximumFractionDigits: 10, useGrouping: false }).format(value);
   }
 }
 
@@ -1481,4 +1499,59 @@ export function weSheetReplaceRange(
     range: weSheetRangeLabel({ c1: block.c1, r1: block.r1, c2: block.c1 + width - 1, r2: block.r1 + rowsNeeded - 1 }),
     change: count ? { axis: 'row', at, count } : null
   };
+}
+
+/** The slice of rows (or columns) `virtualScroll` / `virtualColumns` draw — see weSheetWindow */
+export interface WeSheetWindow {
+  /** Items 0 … stuck-1 are always drawn: frozen panes, the header row, merges reaching out of them */
+  stuck: number;
+  /** Items start … end-1 are drawn after the stuck ones */
+  start: number;
+  end: number;
+  /** Total size in px of the items left out before `start` and after `end - 1` */
+  padBefore: number;
+  padAfter: number;
+}
+
+/** Running totals of `sizes`: item i starts at `at[i]`, the last ends at `at[sizes.length]` — what weSheetWindow takes */
+export function weSheetOffsets(sizes: readonly number[]): number[] {
+  const at = new Array<number>(sizes.length + 1);
+  at[0] = 0;
+  for (let i = 0; i < sizes.length; i++) at[i + 1] = at[i] + sizes[i];
+  return at;
+}
+
+/**
+ * Which items meet the span `from`…`to` (px from the first item); `at` holds where each item starts
+ * (weSheetOffsets). The first `stuck` items are always drawn, and every `span` (an inclusive item
+ * range, a merge) is drawn whole or not at all — one reaching out of the stuck items joins them,
+ * one crossing the window's edge pulls the edge out to cover it.
+ */
+export function weSheetWindow(at: readonly number[], stuck: number, from: number, to: number, spans: readonly (readonly [number, number])[]): WeSheetWindow {
+  const n = at.length - 1;
+  let s = Math.min(stuck, n);
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const [a, b] of spans) {
+      if (a < s && b >= s) {
+        s = Math.min(n, b + 1);
+        grew = true;
+      }
+    }
+  }
+  let start = s;
+  while (start < n && at[start + 1] <= from) start++;
+  let end = start;
+  while (end < n && at[end] < to) end++;
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const [a, b] of spans) {
+      if (a >= s && a < end && b >= start && (a < start || b >= end)) {
+        start = Math.min(start, a);
+        end = Math.max(end, Math.min(n, b + 1));
+        grew = true;
+      }
+    }
+  }
+  return { stuck: s, start, end, padBefore: at[start] - at[s], padAfter: at[n] - at[end] };
 }

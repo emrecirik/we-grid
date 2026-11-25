@@ -8,6 +8,8 @@
     [importSheets]="importSheets"
     [readonly]="readonly"
     [height]="height"
+    [virtualScroll]="virtualScroll"
+    [virtualColumns]="virtualColumns"
     [exportFileName]="exportFileName + ' - ' + book.sheets[book.active].name"
     (dataChange)="onSheetChange(book.active, $event)"
     (structureChange)="onStructureChange(book.active, $event)"

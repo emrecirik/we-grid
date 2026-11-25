@@ -453,6 +453,13 @@
   position: relative;
 }
 
+// virtualScroll / virtualColumns: the stand-ins for the rows and columns not drawn — only their size counts
+.we-sheet__pad-row td,
+.we-sheet__pad-cell {
+  padding: 0;
+  border: 0;
+}
+
 .we-sheet__row--alt .we-sheet__cell {
   background:
     linear-gradient(var(--we-grid-stripe-bg, rgba(0, 0, 0, 0.025)), var(--we-grid-stripe-bg, rgba(0, 0, 0, 0.025))),

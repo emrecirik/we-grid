@@ -38,6 +38,7 @@ per row, so a computed Total can be pivoted like any field.
 | `exportFormats` | `WeGridExportFormat[]` | `['xlsx', 'csv', 'pdf']` | The result grid's export buttons |
 | `maxHeight` | `number \| string` | `520` | Height of the result grid |
 | `maxColumns` | `number` | `200` | Most value columns; beyond that a note says the rest were left out |
+| `virtualScroll` / `virtualColumns` *(0.62.0)* | `boolean` | `false` | Handed to the result grid: only the result rows (grouped ones included) and value columns in view are drawn — for pivots with thousands of row members or many value columns |
 | `chart` *(0.12.0)* | `WeChartType \| null` | `null` | Shows the pivot as a chart above the table — two-way with `(chartChange)`; the chart buttons switch it |
 
 Values without a field count the rows. A numeric field starts as Sum, anything else as Count. The

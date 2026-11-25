@@ -255,7 +255,7 @@
     aria-multiselectable="true"
     [attr.aria-rowcount]="sheet.rows + 1"
     [attr.aria-colcount]="sheet.cols + 1"
-    [attr.aria-activedescendant]="editing && !editing.fromBar ? null : uid + '-' + columnLetters[active.col] + (active.row + 1)"
+    [attr.aria-activedescendant]="(editing && !editing.fromBar) || ((virtualScroll || virtualColumns) && !activeDrawn) ? null : uid + '-' + columnLetters[active.col] + (active.row + 1)"
     [style.height]="heightCss"
     (keydown)="onGridKeydown($event)"
     (copy)="onCopy($event)"
@@ -265,8 +265,14 @@
     <table class="we-sheet__table" role="presentation">
       <colgroup>
         <col class="we-sheet__col-rowhead" />
-        @for (c of colIndexes; track c) {
+        @if (padLeft) {
+          <col [style.width.px]="padLeft" />
+        }
+        @for (c of drawnCols; track c) {
           <col [style.width.px]="width(c)" />
+        }
+        @if (padRight) {
+          <col [style.width.px]="padRight" />
         }
       </colgroup>
       <thead>
@@ -274,7 +280,11 @@
           <th class="we-sheet__corner" role="columnheader">
             <button type="button" class="we-sheet__corner-btn" (click)="selectAll()" [attr.aria-label]="locale.sheetSelectAll" [title]="locale.sheetSelectAll" tabindex="-1"></button>
           </th>
-          @for (c of colIndexes; track c) {
+          <!-- virtualColumns: one spacer stands in for the columns left out on each side; frozen columns still stick past it -->
+          @if (padLeft) {
+            <th class="we-sheet__pad-cell" aria-hidden="true"></th>
+          }
+          @for (c of drawnCols; track c) {
             <th
               role="columnheader"
               class="we-sheet__colhead"
@@ -288,13 +298,23 @@
               <span class="we-sheet__resize" (mousedown)="onResizeStart($event, c)" aria-hidden="true"></span>
             </th>
           }
+          @if (padRight) {
+            <th class="we-sheet__pad-cell" aria-hidden="true"></th>
+          }
         </tr>
       </thead>
       <tbody>
-        @for (r of visibleRows; track r; let i = $index) {
-          <tr role="row" [class.we-sheet__row--alt]="sheet.striped && i % 2 === (sheet.headerRow ? 0 : 1)" [class.we-sheet__row--header]="sheet.headerRow && r === 0">
+        <!-- virtualScroll: one spacer row stands in for the rows left out above, one for those below; frozen rows still stick past it -->
+        @if (padTop) {
+          <tr class="we-sheet__pad-row" aria-hidden="true"><td [attr.colspan]="drawnColSpan" [style.height.px]="padTop"></td></tr>
+        }
+        @for (r of drawnRows; track r; let i = $index) {
+          <tr role="row" [class.we-sheet__row--alt]="sheet.striped && (virtualScroll ? stripeIndex(i) : i) % 2 === (sheet.headerRow ? 0 : 1)" [class.we-sheet__row--header]="sheet.headerRow && r === 0">
             <th role="rowheader" class="we-sheet__rowhead" [class.we-sheet__rowhead--frozen]="r < frozenRows" [class.we-sheet__rowhead--after-hidden]="isAfterHiddenRow(r)" [style.top]="r < frozenRows ? frozenTop(r) : null" [class.we-sheet__head--on]="r >= selection.r1 && r <= selection.r2" [style.height.px]="rowHeight(r)" (click)="onRowHeaderClick($event, r)">{{ r + 1 }}@if (!readonly) {<span class="we-sheet__row-resize" (mousedown)="onRowResizeStart($event, r)" (dblclick)="resetRowHeight($event, r)" aria-hidden="true"></span>}</th>
-            @for (c of colIndexes; track c) {
+            @if (padLeft) {
+              <td class="we-sheet__pad-cell" aria-hidden="true"></td>
+            }
+            @for (c of drawnCols; track c) {
               @if (!view[r][c].covered) {
               <td
                 [style.height.px]="rowHeight(r)"
@@ -382,7 +402,17 @@
               </td>
               }
             }
+            @if (padRight) {
+              <td class="we-sheet__pad-cell" aria-hidden="true"></td>
+            }
           </tr>
+          @if (r === padMidAfter) {
+            <!-- Between a row being edited and the window it scrolled away from -->
+            <tr class="we-sheet__pad-row" aria-hidden="true"><td [attr.colspan]="drawnColSpan" [style.height.px]="padMid"></td></tr>
+          }
+        }
+        @if (padBottom) {
+          <tr class="we-sheet__pad-row" aria-hidden="true"><td [attr.colspan]="drawnColSpan" [style.height.px]="padBottom"></td></tr>
         }
       </tbody>
     </table>

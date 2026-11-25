@@ -174,3 +174,56 @@ describe('WePivotComponent', () => {
     ]);
   });
 });
+
+interface Reading {
+  region: string;
+  site: string;
+  month: number;
+  value: number;
+}
+
+@Component({
+  standalone: true,
+  imports: [WePivotComponent],
+  template: `<div style="width: 700px"><we-pivot [data]="data" [fields]="fields" [config]="config" [maxHeight]="300" [virtualScroll]="true" [virtualColumns]="true" /></div>`
+})
+class WideHostComponent {
+  fields: WeGridColumnDef<Reading>[] = [
+    { field: 'region', header: 'Region' },
+    { field: 'site', header: 'Site' },
+    { field: 'month', header: 'Month', type: 'integer' },
+    { field: 'value', header: 'Value', type: 'number' }
+  ];
+  // 400 sites in 4 regions × 60 months: 400 result rows under 4 group headers, 60 value columns
+  data: Reading[] = Array.from({ length: 400 * 60 }, (_, i) => ({
+    region: `R${Math.floor(i / 60) % 4}`,
+    site: `S${String(Math.floor(i / 60)).padStart(3, '0')}`,
+    month: i % 60,
+    value: i % 97
+  }));
+  config: WePivotConfig = { rows: ['region', 'site'], columns: ['month'], values: [{ field: 'value', aggregate: 'sum' }] };
+}
+
+describe('WePivotComponent — virtualScroll and virtualColumns', () => {
+  it('draws a bounded window of the grouped result rows and value columns', async () => {
+    TestBed.configureTestingModule({ imports: [WideHostComponent], providers: [{ provide: WE_GRID_LAYOUT_STORE, useClass: NullStore }] });
+    const fixture = TestBed.createComponent(WideHostComponent);
+    document.body.appendChild(fixture.nativeElement);
+    fixture.detectChanges();
+    await fixture.whenStable();
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    const inner = fixture.debugElement.query((d) => d.componentInstance instanceof WeGridComponent).componentInstance as WeGridComponent<Record<string, unknown>>;
+    expect(inner.virtualScroll).toBeTrue();
+    expect(inner.virtualColumns).toBeTrue();
+    expect(inner.renderColumns.length).toBeGreaterThan(60);
+    expect(el.querySelectorAll('tr.we-grid__group-row').length).toBeGreaterThan(0);
+    const rows = el.querySelectorAll('tbody > tr.we-grid__row, tbody > tr.we-grid__group-row');
+    expect(rows.length).toBeGreaterThan(5);
+    expect(rows.length).toBeLessThan(60);
+    const cells = el.querySelectorAll('tbody > tr.we-grid__row')[0].querySelectorAll(':scope > td:not(.we-grid__col-pad)').length;
+    expect(cells).toBeLessThan(20);
+    fixture.destroy();
+    el.remove();
+  });
+});

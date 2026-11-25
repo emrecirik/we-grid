@@ -49,6 +49,10 @@ export class WePivotComponent<T = Record<string, unknown>> implements OnChanges,
   @Input() maxHeight: number | string = 520;
   /** Most value columns before the rest are left out */
   @Input() maxColumns = 200;
+  /** Pass-through to the result grid's `virtualScroll` — only the result rows in view are drawn */
+  @Input() virtualScroll = false;
+  /** Pass-through to the result grid's `virtualColumns` — only the value columns in view are drawn */
+  @Input() virtualColumns = false;
 
   /** Shows the pivot as a chart above the table — null for none; the user switches it */
   @Input() chart: WeChartType | null = null;
