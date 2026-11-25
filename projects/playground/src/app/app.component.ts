@@ -156,6 +156,20 @@ export class AppComponent {
     { field: 'updatedAt', header: 'Updated', type: 'date', width: 140 }
   ];
 
+  /** Section 18 — a wide table: 120 columns, the first pinned left and the last right */
+  wideColumns: WeGridColumnDef<Record<string, number>>[] = Array.from({ length: 120 }, (_, c) => ({
+    field: c === 0 ? 'id' : `m${c}`,
+    header: c === 0 ? 'Id' : c === 119 ? 'Total' : `Metric ${c}`,
+    type: 'number' as const,
+    width: c === 0 ? 80 : 110,
+    pinned: c === 0 ? ('left' as const) : c === 119 ? ('right' as const) : undefined
+  }));
+  wideData: Record<string, number>[] = Array.from({ length: 5000 }, (_, r) => {
+    const row: Record<string, number> = { id: r + 1 };
+    for (let c = 1; c < 120; c++) row[`m${c}`] = (r * 31 + c * 17) % 1000;
+    return row;
+  });
+
   // ─── 2. Custom cell template (weGridCell) ────────────────────────
   templateColumns: WeGridColumnDef<Product>[] = [
     { field: 'code', header: 'Code', width: 120 },

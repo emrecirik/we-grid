@@ -443,4 +443,22 @@
       exportFileName="bands"
     ></we-grid>
   </section>
+
+  <section class="demo">
+    <h2>18. Column virtualization (<code>virtualColumns</code>)</h2>
+    <p class="demo__hint">
+      120 columns × 5,000 rows: only the columns near the viewport are in the DOM (Id is pinned left, Total right),
+      and only the rows in view (<code>virtualScroll</code>). Scroll sideways and the window follows.
+    </p>
+    <we-grid
+      gridKey="playground-wide"
+      [columns]="wideColumns"
+      [data]="wideData"
+      trackByField="id"
+      [virtualColumns]="true"
+      [virtualScroll]="true"
+      [maxHeight]="360"
+      [cellSelection]="true"
+    ></we-grid>
+  </section>
 </div>
