@@ -175,9 +175,37 @@ A remote backend can implement the same `WeGridDataSource` interface — `load({
 sort, filters, search })` returning `{ rows, total }` — and the grid scrolls through any number of
 rows it has.
 
+## Wide tables: `virtualColumns`
+
+`virtualScroll` keeps the rows in the DOM to the ones in view, but every drawn row still draws every
+column — a hundred columns and thirty rows are 3,000 cells. `[virtualColumns]="true"` draws only the
+unpinned columns that meet the horizontal viewport, widened by 300px on each side; the columns left
+out on either side become one empty spacer cell per row, as wide as they are together, so the
+scrollbar and every column's position stay exact. Pinned columns are always drawn.
+
+```html
+<we-grid [columns]="columns" [data]="rows" [virtualScroll]="true" [virtualColumns]="true" />
+```
+
+The first render of thirty rows × one hundred columns of 100px in a 600px-wide grid (Karma, headless
+Chrome 158 on the development machine, render plus layout, median of five): **516 ms** with every
+column drawn, **76 ms** with `virtualColumns`, which draws 12 cells a row instead of 100. The
+times vary with the machine's load (other runs: 822 ms against 95 ms); the ratio stays at 7–9×. Use it when a grid has many more columns than fit on screen; with a
+dozen columns it saves nothing.
+
+The window moves as the grid scrolls sideways and only re-renders when a column enters or leaves it.
+Header bands are cut at the window's edges. Copy, export, search and the cell range work on the
+data, not the DOM; the arrow keys scroll a range onto a column that isn't drawn. "Fit to content"
+measures the text from the data; a column that isn't drawn borrows another header's buttons for the
+width they take, as a hidden column does.
+
 ## Limits today
 
 - Rows of very different heights (wrapped text, open details) make the scrollbar approximate
   under virtual scrolling; the rows themselves are always right.
+- Under `virtualColumns` a header cell is sized border included (`box-sizing: border-box`), so
+  columns are 1px narrower inside than without it.
+- Under `virtualColumns`, tabbing through headers or cells relies on the browser's scroll event to
+  extend the column window; a fast key repeat can reach the window's edge before it catches up.
 - A search on a number column checks the characters of its first 256 cells before formatting every
   row; a formatter whose output characters change with the value beyond those could be missed.

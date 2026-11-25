@@ -680,6 +680,17 @@
   border: 0;
 }
 
+// virtualColumns: the stand-in for the unpinned columns left out of the DOM — only its width counts
+.we-grid__table .we-grid__col-pad {
+  padding: 0;
+}
+
+// virtualColumns: a header cell is exactly its column's width (border included), so a spacer as wide
+// as the columns it stands for lines every drawn column up at the x it has with all of them drawn
+.we-grid__table--virtual-columns > thead > tr > th {
+  box-sizing: border-box;
+}
+
 // ─── Grouping (opt-in, grouping=true) ─────────────────────────────────
 .we-grid__group-row td {
   padding: 0.4rem 0.6rem;

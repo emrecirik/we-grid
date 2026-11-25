@@ -346,6 +346,7 @@
     <table
       class="we-grid__table"
       [class.we-grid__table--banded]="headerBands.length > 0"
+      [class.we-grid__table--virtual-columns]="virtualColumns"
       [attr.role]="treeActive ? 'treegrid' : 'grid'"
       [style.width.px]="tableWidthPx"
       [attr.aria-rowcount]="rowTotal"
@@ -360,7 +361,7 @@
           @if (selectable !== 'none') {
             <col [style.width.px]="selectColWidthPx" />
           }
-          @for (col of renderColumns; track col.field) {
+          @for (col of viewColumns; track col.field) {
             <col [style.width.px]="col.width" />
           }
           @if (hasRowActions) {
@@ -414,107 +415,114 @@
               }
             </th>
           }
-          @for (col of renderColumns; track col.field) {
-            <th
-              #thRef
-              cdkDrag
-              cdkDragLockAxis="x"
-              cdkDragPreviewClass="we-grid__drag-preview"
-              [cdkDragData]="col"
-              [cdkDragDisabled]="col.lockOrder"
-              role="columnheader"
-              tabindex="0"
-              scope="col"
-              [attr.aria-sort]="col.sortable ? ariaSort(col) : null"
-              [style.width.px]="col.width"
-              [style.min-width.px]="col.minWidth"
-              [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
-              [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
-              [class.we-grid__th--pinned-left]="col.pinned === 'left'"
-              [class.we-grid__th--pinned-right]="col.pinned === 'right'"
-              [class.we-grid__th--sortable]="col.sortable"
-              [class.we-grid__th--locked-order]="col.lockOrder"
-              [attr.title]="headerTitle(col)"
-              (contextmenu)="onHeaderContextMenu($event, col)"
-              (keydown)="onHeaderKeydown($event, col, thRef)"
-            >
-              <div class="we-grid__th-inner">
-                <span class="we-grid__th-label" [style.text-align]="col.align" (click)="onHeaderLabelClick(col, $event)">
-                  @if (getHeaderTemplate(col); as headerTmpl) {
-                    <ng-container *ngTemplateOutlet="headerTmpl; context: headerContext(col)"></ng-container>
-                  } @else {
-                    {{ displayHeader(col) }}
+          @for (col of viewColumns; track col.field) {
+            @if (isColPad(col)) {
+              <th class="we-grid__col-pad" aria-hidden="true" [style.width.px]="col.width"></th>
+            } @else {
+              <th
+                #thRef
+                cdkDrag
+                cdkDragLockAxis="x"
+                cdkDragPreviewClass="we-grid__drag-preview"
+                [cdkDragData]="col"
+                [cdkDragDisabled]="col.lockOrder"
+                (cdkDragStarted)="onColumnDragStarted()"
+                (cdkDragEnded)="onColumnDragEnded()"
+                role="columnheader"
+                tabindex="0"
+                scope="col"
+                [attr.aria-colindex]="colIndex(col)"
+                [attr.aria-sort]="col.sortable ? ariaSort(col) : null"
+                [style.width.px]="col.width"
+                [style.min-width.px]="col.minWidth"
+                [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                [class.we-grid__th--pinned-left]="col.pinned === 'left'"
+                [class.we-grid__th--pinned-right]="col.pinned === 'right'"
+                [class.we-grid__th--sortable]="col.sortable"
+                [class.we-grid__th--locked-order]="col.lockOrder"
+                [attr.title]="headerTitle(col)"
+                (contextmenu)="onHeaderContextMenu($event, col)"
+                (keydown)="onHeaderKeydown($event, col, thRef)"
+              >
+                <div class="we-grid__th-inner">
+                  <span class="we-grid__th-label" [style.text-align]="col.align" (click)="onHeaderLabelClick(col, $event)">
+                    @if (getHeaderTemplate(col); as headerTmpl) {
+                      <ng-container *ngTemplateOutlet="headerTmpl; context: headerContext(col)"></ng-container>
+                    } @else {
+                      {{ displayHeader(col) }}
+                    }
+                  </span>
+                  @if (col.headerHint) {
+                    <!-- Pointer and click events stop here: the icon is not a drag handle, a sort toggle or a menu -->
+                    <span
+                      #hintIcon
+                      class="we-grid__th-hint"
+                      tabindex="0"
+                      role="img"
+                      [attr.aria-label]="locale.headerHintAria + ': ' + col.headerHint"
+                      [attr.aria-describedby]="hintOpenFor === hintIcon ? hintId : null"
+                      [innerHTML]="icon('info')"
+                      (mouseenter)="showHeaderHint(hintIcon, col)"
+                      (mouseleave)="hideHeaderHint()"
+                      (focus)="showHeaderHint(hintIcon, col)"
+                      (blur)="hideHeaderHint()"
+                      (keydown)="onHeaderHintKeydown($event)"
+                      (click)="$event.stopPropagation()"
+                      (mousedown)="$event.stopPropagation()"
+                      (touchstart)="$event.stopPropagation()"
+                      (pointerdown)="$event.stopPropagation()"
+                      (contextmenu)="$event.stopPropagation()"
+                    ></span>
                   }
-                </span>
-                @if (col.headerHint) {
-                  <!-- Pointer and click events stop here: the icon is not a drag handle, a sort toggle or a menu -->
-                  <span
-                    #hintIcon
-                    class="we-grid__th-hint"
-                    tabindex="0"
-                    role="img"
-                    [attr.aria-label]="locale.headerHintAria + ': ' + col.headerHint"
-                    [attr.aria-describedby]="hintOpenFor === hintIcon ? hintId : null"
-                    [innerHTML]="icon('info')"
-                    (mouseenter)="showHeaderHint(hintIcon, col)"
-                    (mouseleave)="hideHeaderHint()"
-                    (focus)="showHeaderHint(hintIcon, col)"
-                    (blur)="hideHeaderHint()"
-                    (keydown)="onHeaderHintKeydown($event)"
-                    (click)="$event.stopPropagation()"
-                    (mousedown)="$event.stopPropagation()"
-                    (touchstart)="$event.stopPropagation()"
-                    (pointerdown)="$event.stopPropagation()"
-                    (contextmenu)="$event.stopPropagation()"
-                  ></span>
-                }
-                @if (col.sortable && currentSort?.field === col.field) {
-                  <span
-                    class="we-grid__sort-icon"
-                    [innerHTML]="currentSort?.direction === 'asc' ? icon('sortAsc') : icon('sortDesc')"
-                    aria-hidden="true"
-                  ></span>
-                } @else if (thenBy.length) {
-                  @if (thenSortOf(col); as then) {
-                    <span class="we-grid__sort-icon we-grid__sort-icon--then">
-                      <span aria-hidden="true" [innerHTML]="then.direction === 'asc' ? icon('sortAsc') : icon('sortDesc')"></span><span class="we-grid__sort-order" aria-hidden="true">{{ then.order }}</span>
-                      <span class="we-grid__sr-only">{{ locale.sortThenBy(then.order, then.direction === 'asc') }}</span>
-                    </span>
+                  @if (col.sortable && currentSort?.field === col.field) {
+                    <span
+                      class="we-grid__sort-icon"
+                      [innerHTML]="currentSort?.direction === 'asc' ? icon('sortAsc') : icon('sortDesc')"
+                      aria-hidden="true"
+                    ></span>
+                  } @else if (thenBy.length) {
+                    @if (thenSortOf(col); as then) {
+                      <span class="we-grid__sort-icon we-grid__sort-icon--then">
+                        <span aria-hidden="true" [innerHTML]="then.direction === 'asc' ? icon('sortAsc') : icon('sortDesc')"></span><span class="we-grid__sort-order" aria-hidden="true">{{ then.order }}</span>
+                        <span class="we-grid__sr-only">{{ locale.sortThenBy(then.order, then.direction === 'asc') }}</span>
+                      </span>
+                    }
                   }
-                }
-                @if (showFilterIcon(col)) {
+                  @if (showFilterIcon(col)) {
+                    <button
+                      type="button"
+                      class="we-grid__th-filter-btn"
+                      [class.we-grid__th-filter-btn--active]="isColumnFilterActive(col)"
+                      (click)="onFilterIconClick($event, col, thRef)"
+                      [attr.aria-label]="locale.filterAriaLabel + ': ' + displayHeader(col)"
+                      [attr.aria-pressed]="isColumnFilterActive(col)"
+                      [title]="locale.filterAriaLabel"
+                    >
+                      <span [innerHTML]="isColumnFilterActive(col) ? icon('filterFilled') : icon('filter')" aria-hidden="true"></span>
+                    </button>
+                  }
                   <button
                     type="button"
-                    class="we-grid__th-filter-btn"
-                    [class.we-grid__th-filter-btn--active]="isColumnFilterActive(col)"
-                    (click)="onFilterIconClick($event, col, thRef)"
-                    [attr.aria-label]="locale.filterAriaLabel + ': ' + displayHeader(col)"
-                    [attr.aria-pressed]="isColumnFilterActive(col)"
-                    [title]="locale.filterAriaLabel"
+                    class="we-grid__th-menu-btn"
+                    (click)="onHeaderContextMenu($event, col)"
+                    [attr.aria-label]="locale.columns + ': ' + displayHeader(col)"
                   >
-                    <span [innerHTML]="isColumnFilterActive(col) ? icon('filterFilled') : icon('filter')" aria-hidden="true"></span>
+                    <span [innerHTML]="icon('settings')" aria-hidden="true"></span>
                   </button>
-                }
-                <button
-                  type="button"
-                  class="we-grid__th-menu-btn"
-                  (click)="onHeaderContextMenu($event, col)"
-                  [attr.aria-label]="locale.columns + ': ' + displayHeader(col)"
-                >
-                  <span [innerHTML]="icon('settings')" aria-hidden="true"></span>
-                </button>
-              </div>
-              <div
-                class="we-grid__resize-handle"
-                role="separator"
-                aria-orientation="vertical"
-                tabindex="0"
-                [attr.aria-label]="locale.columnResizeAria(displayHeader(col))"
-                (pointerdown)="onResizeStart($event, col, thRef)"
-                (dblclick)="onResizeHandleDblClick($event, col)"
-                (keydown)="onResizeKeydown($event, col, thRef)"
-              ></div>
-            </th>
+                </div>
+                <div
+                  class="we-grid__resize-handle"
+                  role="separator"
+                  aria-orientation="vertical"
+                  tabindex="0"
+                  [attr.aria-label]="locale.columnResizeAria(displayHeader(col))"
+                  (pointerdown)="onResizeStart($event, col, thRef)"
+                  (dblclick)="onResizeHandleDblClick($event, col)"
+                  (keydown)="onResizeKeydown($event, col, thRef)"
+                ></div>
+              </th>
+            }
           }
           @if (hasRowActions) {
             <th class="we-grid__action-col" scope="col" [style.width.px]="actionColWidthPx">{{ locale.actionsColumn }}</th>
@@ -528,94 +536,98 @@
             @if (selectable !== 'none') {
               <th class="we-grid__select-col" scope="col" [style.left.px]="expandColWidthPx"></th>
             }
-            @for (col of renderColumns; track col.field) {
-              <th
-                scope="col"
-                class="we-grid__filter-cell"
-                [style.width.px]="col.width"
-                [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
-                [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
-                [class.we-grid__th--pinned-left]="col.pinned === 'left'"
-                [class.we-grid__th--pinned-right]="col.pinned === 'right'"
-              >
-                @if (col.filterable) {
-                  @if (col.headerFilterMode === 'checklist') {
-                    <button
-                      type="button"
-                      #checklistBtn
-                      class="we-grid__filter-checklist-btn"
-                      [class.we-grid__filter-checklist-btn--active]="isColumnFilterActive(col)"
-                      (click)="onFilterIconClick($event, col, checklistBtn)"
-                      [attr.aria-label]="locale.filterAriaLabel + ': ' + displayHeader(col)"
-                      [title]="checklistButtonLabel(col)"
-                    >
-                      <span class="we-grid__filter-checklist-text">{{ checklistButtonLabel(col) }}</span>
-                      <span class="we-grid__filter-checklist-caret" [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
-                    </button>
-                  } @else if (valueKind(col) === 'boolean') {
-                    <select
-                      class="we-grid__filter-select"
-                      [attr.aria-label]="locale.filterAriaLabel + ': ' + displayHeader(col)"
-                      [ngModel]="getFilterState(col).value"
-                      (ngModelChange)="setFilterValue(col, $event)"
-                    >
-                      <option value="all">{{ locale.all }}</option>
-                      <option value="true">{{ locale.yes }}</option>
-                      <option value="false">{{ locale.no }}</option>
-                    </select>
-                  } @else {
-                    <div class="we-grid__filter-controls">
-                      @if (valueKind(col) === 'number') {
-                        <select
-                          class="we-grid__filter-op"
-                          [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + displayHeader(col)"
-                          [ngModel]="getFilterState(col).operator"
-                          (ngModelChange)="setFilterOperator(col, $event)"
-                        >
-                          @for (op of filterOperatorsFor(col); track op) {
-                            <option [value]="op">{{ filterOperatorLabel(col, op) }}</option>
+            @for (col of viewColumns; track col.field) {
+              @if (isColPad(col)) {
+                <th class="we-grid__col-pad" aria-hidden="true" [style.width.px]="col.width"></th>
+              } @else {
+                <th
+                  scope="col"
+                  class="we-grid__filter-cell"
+                  [style.width.px]="col.width"
+                  [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                  [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                  [class.we-grid__th--pinned-left]="col.pinned === 'left'"
+                  [class.we-grid__th--pinned-right]="col.pinned === 'right'"
+                >
+                  @if (col.filterable) {
+                    @if (col.headerFilterMode === 'checklist') {
+                      <button
+                        type="button"
+                        #checklistBtn
+                        class="we-grid__filter-checklist-btn"
+                        [class.we-grid__filter-checklist-btn--active]="isColumnFilterActive(col)"
+                        (click)="onFilterIconClick($event, col, checklistBtn)"
+                        [attr.aria-label]="locale.filterAriaLabel + ': ' + displayHeader(col)"
+                        [title]="checklistButtonLabel(col)"
+                      >
+                        <span class="we-grid__filter-checklist-text">{{ checklistButtonLabel(col) }}</span>
+                        <span class="we-grid__filter-checklist-caret" [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+                      </button>
+                    } @else if (valueKind(col) === 'boolean') {
+                      <select
+                        class="we-grid__filter-select"
+                        [attr.aria-label]="locale.filterAriaLabel + ': ' + displayHeader(col)"
+                        [ngModel]="getFilterState(col).value"
+                        (ngModelChange)="setFilterValue(col, $event)"
+                      >
+                        <option value="all">{{ locale.all }}</option>
+                        <option value="true">{{ locale.yes }}</option>
+                        <option value="false">{{ locale.no }}</option>
+                      </select>
+                    } @else {
+                      <div class="we-grid__filter-controls">
+                        @if (valueKind(col) === 'number') {
+                          <select
+                            class="we-grid__filter-op"
+                            [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + displayHeader(col)"
+                            [ngModel]="getFilterState(col).operator"
+                            (ngModelChange)="setFilterOperator(col, $event)"
+                          >
+                            @for (op of filterOperatorsFor(col); track op) {
+                              <option [value]="op">{{ filterOperatorLabel(col, op) }}</option>
+                            }
+                          </select>
+                          @if (getFilterState(col).operator === 'between') {
+                            <input type="number" step="any" class="we-grid__filter-input we-grid__filter-input--sm" placeholder="min" [ngModel]="filterInputNumber(col, 'value')" (ngModelChange)="setFilterValue(col, $event, 'value')" />
+                            <input type="number" step="any" class="we-grid__filter-input we-grid__filter-input--sm" placeholder="max" [ngModel]="filterInputNumber(col, 'value2')" (ngModelChange)="setFilterValue(col, $event, 'value2')" />
+                          } @else {
+                            <input type="number" step="any" class="we-grid__filter-input" [placeholder]="locale.value" [ngModel]="filterInputNumber(col, 'value')" (ngModelChange)="setFilterValue(col, $event, 'value')" />
                           }
-                        </select>
-                        @if (getFilterState(col).operator === 'between') {
-                          <input type="number" step="any" class="we-grid__filter-input we-grid__filter-input--sm" placeholder="min" [ngModel]="filterInputNumber(col, 'value')" (ngModelChange)="setFilterValue(col, $event, 'value')" />
-                          <input type="number" step="any" class="we-grid__filter-input we-grid__filter-input--sm" placeholder="max" [ngModel]="filterInputNumber(col, 'value2')" (ngModelChange)="setFilterValue(col, $event, 'value2')" />
+                        } @else if (valueKind(col) === 'date') {
+                          <select
+                            class="we-grid__filter-op"
+                            [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + displayHeader(col)"
+                            [ngModel]="getFilterState(col).operator"
+                            (ngModelChange)="setFilterOperator(col, $event)"
+                          >
+                            @for (op of filterOperatorsFor(col); track op) {
+                              <option [value]="op">{{ filterOperatorLabel(col, op) }}</option>
+                            }
+                          </select>
+                          @if (getFilterState(col).operator === 'between') {
+                            <input type="date" class="we-grid__filter-input we-grid__filter-input--sm" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
+                            <input type="date" class="we-grid__filter-input we-grid__filter-input--sm" [ngModel]="getFilterState(col).value2" (ngModelChange)="setFilterValue(col, $event, 'value2')" />
+                          } @else {
+                            <input type="date" class="we-grid__filter-input" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
+                          }
                         } @else {
-                          <input type="number" step="any" class="we-grid__filter-input" [placeholder]="locale.value" [ngModel]="filterInputNumber(col, 'value')" (ngModelChange)="setFilterValue(col, $event, 'value')" />
+                          <select
+                            class="we-grid__filter-op"
+                            [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + displayHeader(col)"
+                            [ngModel]="getFilterState(col).operator"
+                            (ngModelChange)="setFilterOperator(col, $event)"
+                          >
+                            @for (op of filterOperatorsFor(col); track op) {
+                              <option [value]="op">{{ filterOperatorLabel(col, op) }}</option>
+                            }
+                          </select>
+                          <input type="text" class="we-grid__filter-input" [placeholder]="locale.value" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
                         }
-                      } @else if (valueKind(col) === 'date') {
-                        <select
-                          class="we-grid__filter-op"
-                          [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + displayHeader(col)"
-                          [ngModel]="getFilterState(col).operator"
-                          (ngModelChange)="setFilterOperator(col, $event)"
-                        >
-                          @for (op of filterOperatorsFor(col); track op) {
-                            <option [value]="op">{{ filterOperatorLabel(col, op) }}</option>
-                          }
-                        </select>
-                        @if (getFilterState(col).operator === 'between') {
-                          <input type="date" class="we-grid__filter-input we-grid__filter-input--sm" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
-                          <input type="date" class="we-grid__filter-input we-grid__filter-input--sm" [ngModel]="getFilterState(col).value2" (ngModelChange)="setFilterValue(col, $event, 'value2')" />
-                        } @else {
-                          <input type="date" class="we-grid__filter-input" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
-                        }
-                      } @else {
-                        <select
-                          class="we-grid__filter-op"
-                          [attr.aria-label]="locale.filterAriaLabel + ' ' + locale.value + ': ' + displayHeader(col)"
-                          [ngModel]="getFilterState(col).operator"
-                          (ngModelChange)="setFilterOperator(col, $event)"
-                        >
-                          @for (op of filterOperatorsFor(col); track op) {
-                            <option [value]="op">{{ filterOperatorLabel(col, op) }}</option>
-                          }
-                        </select>
-                        <input type="text" class="we-grid__filter-input" [placeholder]="locale.value" [ngModel]="getFilterState(col).value" (ngModelChange)="setFilterValue(col, $event, 'value')" />
-                      }
-                    </div>
+                      </div>
+                    }
                   }
-                }
-              </th>
+                </th>
+              }
             }
             @if (hasRowActions) {
               <th class="we-grid__action-col" scope="col"></th>
@@ -641,25 +653,29 @@
             @if (selectable !== 'none') {
               <td class="we-grid__select-col" [style.left.px]="expandColWidthPx"></td>
             }
-            @for (col of renderColumns; track col.field) {
-              <td
-                [style.width.px]="col.width"
-                [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
-                [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
-                [class.we-grid__td--pinned-left]="col.pinned === 'left'"
-                [class.we-grid__td--pinned-right]="col.pinned === 'right'"
-              >
-                @if (col.editable) {
-                  <we-grid-cell-editor
-                    [column]="$any(col)"
-                  [scale]="inputScale(col)"
-                    [value]="draftValue(col)"
-                    [invalid]="hasDraftError(col)"
-                    [disabled]="!!edit?.saving"
-                    (valueChange)="setDraftValue(col, $event)"
-                  />
-                }
-              </td>
+            @for (col of viewColumns; track col.field) {
+              @if (isColPad(col)) {
+                <td class="we-grid__col-pad" aria-hidden="true"></td>
+              } @else {
+                <td
+                  [style.width.px]="col.width"
+                  [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                  [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                  [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+                  [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+                >
+                  @if (col.editable) {
+                    <we-grid-cell-editor
+                      [column]="$any(col)"
+                    [scale]="inputScale(col)"
+                      [value]="draftValue(col)"
+                      [invalid]="hasDraftError(col)"
+                      [disabled]="!!edit?.saving"
+                      (valueChange)="setDraftValue(col, $event)"
+                    />
+                  }
+                </td>
+              }
             }
             @if (hasRowActions) {
               <td class="we-grid__action-col">
@@ -698,8 +714,12 @@
               @if (selectable !== 'none') {
                 <td class="we-grid__select-col"></td>
               }
-              @for (col of renderColumns; track col.field) {
-                <td [style.width.px]="col.width"><div class="we-grid__skeleton-bar"></div></td>
+              @for (col of viewColumns; track col.field) {
+                @if (isColPad(col)) {
+                  <td class="we-grid__col-pad" aria-hidden="true"></td>
+                } @else {
+                  <td [style.width.px]="col.width"><div class="we-grid__skeleton-bar"></div></td>
+                }
               }
               @if (hasRowActions) {
                 <td class="we-grid__action-col"></td>
@@ -739,8 +759,12 @@
                 @if (selectable !== 'none') {
                   <td class="we-grid__select-col"></td>
                 }
-                @for (col of renderColumns; track col.field) {
-                  <td [style.width.px]="col.width"><div class="we-grid__skeleton-bar"></div></td>
+                @for (col of viewColumns; track col.field) {
+                  @if (isColPad(col)) {
+                    <td class="we-grid__col-pad" aria-hidden="true"></td>
+                  } @else {
+                    <td [style.width.px]="col.width"><div class="we-grid__skeleton-bar"></div></td>
+                  }
                 }
                 @if (hasRowActions) {
                   <td class="we-grid__action-col"></td>
@@ -776,28 +800,32 @@
                     <span class="we-grid__summary-count">{{ countText(groupCount(item.section)) }}</span>
                   </td>
                 }
-                @for (col of renderColumns; track col.field; let first = $first) {
-                  <td
-                    class="we-grid__group-footer-cell"
-                    [style.width.px]="col.width"
-                    [style.text-align]="col.align"
-                    [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
-                    [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
-                    [class.we-grid__td--pinned-left]="col.pinned === 'left'"
-                    [class.we-grid__td--pinned-right]="col.pinned === 'right'"
-                    [attr.title]="groupFooterCellText(item.section, col)"
-                  >
-                    @if (first) {
-                      <!-- Which group this footer closes — with several levels the footers stack up -->
-                      <span class="we-grid__group-footer-label">{{ item.section.label }}</span>
-                      @if (selectable === 'none') {
-                        <span class="we-grid__summary-count">{{ countText(groupCount(item.section)) }} {{ locale.recordsLabel }}</span>
+                @for (col of viewColumns; track col.field; let first = $first) {
+                  @if (isColPad(col)) {
+                    <td class="we-grid__col-pad" aria-hidden="true"></td>
+                  } @else {
+                    <td
+                      class="we-grid__group-footer-cell"
+                      [style.width.px]="col.width"
+                      [style.text-align]="col.align"
+                      [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                      [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                      [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+                      [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+                      [attr.title]="groupFooterCellText(item.section, col)"
+                    >
+                      @if (first) {
+                        <!-- Which group this footer closes — with several levels the footers stack up -->
+                        <span class="we-grid__group-footer-label">{{ item.section.label }}</span>
+                        @if (selectable === 'none') {
+                          <span class="we-grid__summary-count">{{ countText(groupCount(item.section)) }} {{ locale.recordsLabel }}</span>
+                        }
                       }
-                    }
-                    @if (groupFooterCellText(item.section, col); as text) {
-                      <span class="we-grid__summary-value">{{ text }}</span>
-                    }
-                  </td>
+                      @if (groupFooterCellText(item.section, col); as text) {
+                        <span class="we-grid__summary-value">{{ text }}</span>
+                      }
+                    </td>
+                  }
                 }
                 @if (hasRowActions) {
                   <td class="we-grid__action-col"></td>
@@ -851,74 +879,79 @@
                     />
                   </td>
                 }
-                @for (col of renderColumns; track col.field) {
-                  <td
-                    [style.width.px]="col.width"
-                    [style.text-align]="col.align"
-                    [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
-                    [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
-                    [class.we-grid__td--wrap]="col.wrap"
-                    [class.we-grid__td--nowrap]="!col.wrap"
-                    [class.we-grid__td--pinned-left]="col.pinned === 'left'"
-                    [class.we-grid__td--pinned-right]="col.pinned === 'right'"
-                    [attr.title]="col.wrap || getCellTemplate(col) ? null : formatCell(item.row, col)"
-                    [class.we-grid__td--active]="isActiveCell(item.row, col)"
-                    [class.we-grid__td--overflow]="col.allowOverflow"
-                    [class.we-grid__td--range]="cellSelection && isInRange(item.row, col)"
-                    [class.we-grid__td--range-focus]="cellSelection && isRangeFocus(item.row, col)"
-                    [attr.data-we-grid-field]="cellSelection ? col.field : null"
-                    [attr.aria-selected]="cellSelection ? isInRange(item.row, col) : null"
-                    [ngStyle]="cellCss(item.row, col)"
-                    [style.padding-inline-start]="isTreeCell(item, col) ? treeIndent(item.tree) : null"
-                    (mousedown)="onCellMouseDown($event, item.row, col)"
-                    (click)="onCellClick($event, item.row, col, item.index)"
-                    (dblclick)="onCellDblClick($event, col)"
-                    (contextmenu)="onCellContextMenu($event, col, item.row)"
-                  >
-                    @if (isTreeCell(item, col)) {
-                      @if (item.tree?.hasChildren) {
-                        <button
-                          type="button"
-                          class="we-grid__tree-toggle"
-                          [class.we-grid__tree-toggle--open]="item.tree?.expanded"
-                          [attr.aria-expanded]="item.tree?.expanded"
-                          [attr.aria-label]="item.tree?.expanded ? locale.treeCollapseRow(treeRowLabel(item.row)) : locale.treeExpandRow(treeRowLabel(item.row))"
-                          (click)="onTreeToggleClick($event, item.row)"
-                        >
-                          <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
-                        </button>
-                      } @else {
-                        <span class="we-grid__tree-spacer" aria-hidden="true"></span>
+                @for (col of viewColumns; track col.field) {
+                  @if (isColPad(col)) {
+                    <td class="we-grid__col-pad" aria-hidden="true"></td>
+                  } @else {
+                    <td
+                      [style.width.px]="col.width"
+                      [style.text-align]="col.align"
+                      [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                      [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                      [class.we-grid__td--wrap]="col.wrap"
+                      [class.we-grid__td--nowrap]="!col.wrap"
+                      [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+                      [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+                      [attr.title]="col.wrap || getCellTemplate(col) ? null : formatCell(item.row, col)"
+                      [class.we-grid__td--active]="isActiveCell(item.row, col)"
+                      [class.we-grid__td--overflow]="col.allowOverflow"
+                      [class.we-grid__td--range]="cellSelection && isInRange(item.row, col)"
+                      [class.we-grid__td--range-focus]="cellSelection && isRangeFocus(item.row, col)"
+                      [attr.data-we-grid-field]="cellSelection ? col.field : null"
+                      [attr.aria-selected]="cellSelection ? isInRange(item.row, col) : null"
+                    [attr.aria-colindex]="colIndex(col)"
+                      [ngStyle]="cellCss(item.row, col)"
+                      [style.padding-inline-start]="isTreeCell(item, col) ? treeIndent(item.tree) : null"
+                      (mousedown)="onCellMouseDown($event, item.row, col)"
+                      (click)="onCellClick($event, item.row, col, item.index)"
+                      (dblclick)="onCellDblClick($event, col)"
+                      (contextmenu)="onCellContextMenu($event, col, item.row)"
+                    >
+                      @if (isTreeCell(item, col)) {
+                        @if (item.tree?.hasChildren) {
+                          <button
+                            type="button"
+                            class="we-grid__tree-toggle"
+                            [class.we-grid__tree-toggle--open]="item.tree?.expanded"
+                            [attr.aria-expanded]="item.tree?.expanded"
+                            [attr.aria-label]="item.tree?.expanded ? locale.treeCollapseRow(treeRowLabel(item.row)) : locale.treeExpandRow(treeRowLabel(item.row))"
+                            (click)="onTreeToggleClick($event, item.row)"
+                          >
+                            <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+                          </button>
+                        } @else {
+                          <span class="we-grid__tree-spacer" aria-hidden="true"></span>
+                        }
                       }
-                    }
-                    @if (isCellEditing(item.row, col)) {
-                      <we-grid-cell-editor
-                        [column]="$any(col)"
-                    [scale]="inputScale(col)"
-                        [value]="draftValue(col)"
-                        [invalid]="hasDraftError(col)"
-                        [disabled]="!!edit?.saving"
-                        (valueChange)="setDraftValue(col, $event)"
-                      />
-                    } @else {
-                      @if (getCellTemplate(col); as tmpl) {
-                        <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(item.row, col, item.index)"></ng-container>
+                      @if (isCellEditing(item.row, col)) {
+                        <we-grid-cell-editor
+                          [column]="$any(col)"
+                      [scale]="inputScale(col)"
+                          [value]="draftValue(col)"
+                          [invalid]="hasDraftError(col)"
+                          [disabled]="!!edit?.saving"
+                          (valueChange)="setDraftValue(col, $event)"
+                        />
                       } @else {
-                        @if (cellLink(item.row, col); as href) {
-                            <a
-                              class="we-grid__cell-link"
-                              [href]="href"
-                              [attr.target]="col.type === 'url' ? '_blank' : null"
-                              [attr.rel]="col.type === 'url' ? 'noopener noreferrer' : null"
-                              (click)="$event.stopPropagation()"
-                              >{{ formatCell(item.row, col) }}</a
-                            >
-                          } @else {
-                            {{ formatCell(item.row, col) }}
-                          }
+                        @if (getCellTemplate(col); as tmpl) {
+                          <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(item.row, col, item.index)"></ng-container>
+                        } @else {
+                          @if (cellLink(item.row, col); as href) {
+                              <a
+                                class="we-grid__cell-link"
+                                [href]="href"
+                                [attr.target]="col.type === 'url' ? '_blank' : null"
+                                [attr.rel]="col.type === 'url' ? 'noopener noreferrer' : null"
+                                (click)="$event.stopPropagation()"
+                                >{{ formatCell(item.row, col) }}</a
+                              >
+                            } @else {
+                              {{ formatCell(item.row, col) }}
+                            }
+                        }
                       }
-                    }
-                  </td>
+                    </td>
+                  }
                 }
                 @if (hasRowActions) {
                   <td class="we-grid__action-col" (click)="$event.stopPropagation()">
@@ -1013,24 +1046,28 @@
                 <span class="we-grid__summary-count">{{ countText(totalRecordCountForSummary) }}</span>
               </td>
             }
-            @for (col of renderColumns; track col.field; let first = $first) {
-              <td
-                class="we-grid__summary-cell"
-                [style.width.px]="col.width"
-                [style.text-align]="col.align"
-                [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
-                [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
-                [class.we-grid__td--pinned-left]="col.pinned === 'left'"
-                [class.we-grid__td--pinned-right]="col.pinned === 'right'"
-                [attr.title]="summaryCellText(col)"
-              >
-                @if (first && selectable === 'none') {
-                  <span class="we-grid__summary-count" [title]="countText(totalRecordCountForSummary) + ' ' + locale.recordsLabel">{{ countText(totalRecordCountForSummary) }} {{ locale.recordsLabel }}</span>
-                }
-                @if (summaryCellText(col); as text) {
-                  <span class="we-grid__summary-value">{{ text }}</span>
-                }
-              </td>
+            @for (col of viewColumns; track col.field; let first = $first) {
+              @if (isColPad(col)) {
+                <td class="we-grid__col-pad" aria-hidden="true"></td>
+              } @else {
+                <td
+                  class="we-grid__summary-cell"
+                  [style.width.px]="col.width"
+                  [style.text-align]="col.align"
+                  [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                  [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                  [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+                  [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+                  [attr.title]="summaryCellText(col)"
+                >
+                  @if (first && selectable === 'none') {
+                    <span class="we-grid__summary-count" [title]="countText(totalRecordCountForSummary) + ' ' + locale.recordsLabel">{{ countText(totalRecordCountForSummary) }} {{ locale.recordsLabel }}</span>
+                  }
+                  @if (summaryCellText(col); as text) {
+                    <span class="we-grid__summary-value">{{ text }}</span>
+                  }
+                </td>
+              }
             }
             @if (hasRowActions) {
               <td class="we-grid__action-col"></td>
@@ -1197,25 +1234,29 @@
       @if (selectable !== 'none') {
         <td class="we-grid__select-col" [style.left.px]="expandColWidthPx" [style.top.px]="top" [style.bottom.px]="bottom"></td>
       }
-      @for (col of renderColumns; track col.field) {
-        <td
-          [style.text-align]="col.align"
-          [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
-          [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
-          [style.top.px]="top"
-          [style.bottom.px]="bottom"
-          [class.we-grid__td--wrap]="col.wrap"
-          [class.we-grid__td--nowrap]="!col.wrap"
-          [class.we-grid__td--pinned-left]="col.pinned === 'left'"
-          [class.we-grid__td--pinned-right]="col.pinned === 'right'"
-          [ngStyle]="cellCss(row, col)"
-        >
-          @if (getCellTemplate(col); as tmpl) {
-            <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(row, col, -1)"></ng-container>
-          } @else {
-            {{ formatCell(row, col) }}
-          }
-        </td>
+      @for (col of viewColumns; track col.field) {
+        @if (isColPad(col)) {
+          <td class="we-grid__col-pad" aria-hidden="true"></td>
+        } @else {
+          <td
+            [style.text-align]="col.align"
+            [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+            [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+            [style.top.px]="top"
+            [style.bottom.px]="bottom"
+            [class.we-grid__td--wrap]="col.wrap"
+            [class.we-grid__td--nowrap]="!col.wrap"
+            [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+            [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+            [ngStyle]="cellCss(row, col)"
+          >
+            @if (getCellTemplate(col); as tmpl) {
+              <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(row, col, -1)"></ng-container>
+            } @else {
+              {{ formatCell(row, col) }}
+            }
+          </td>
+        }
       }
       @if (hasRowActions) {
         <td class="we-grid__action-col" [style.top.px]="top" [style.bottom.px]="bottom"></td>

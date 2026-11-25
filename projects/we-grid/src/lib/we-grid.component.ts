@@ -214,6 +214,9 @@ const WE_GRID_TREE_MAX_DEPTH = 32;
 /** Width in px of the row-action column added when `editable` or `allowDelete` is on */
 const WE_GRID_ACTION_COL_WIDTH = 92;
 
+/** Width in px `virtualColumns` renders beyond each side of the viewport, so a short scroll needs no re-render */
+const WE_GRID_COLUMN_OVERSCAN_PX = 300;
+
 /**
  * Upper bound of the automatic fit when the column declares no `maxWidth`. The automatic pass runs
  * without anyone asking, so a single long free-text value must not stretch the table; an explicit
@@ -456,6 +459,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    */
   @Input() virtualScroll = false;
 
+  /**
+   * Renders only the unpinned columns near the horizontal viewport (plus WE_GRID_COLUMN_OVERSCAN_PX
+   * on each side); the ones left out are stood in for by one empty spacer cell per side, so the
+   * table keeps its full width. Pinned columns are always rendered. For grids of a hundred columns
+   * and more; works with or without `virtualScroll`.
+   */
+  @Input() virtualColumns = false;
+
   /** Row height in px used by `virtualScroll`; measured from the rendered rows when left out */
   @Input() rowHeight?: number;
 
@@ -679,6 +690,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   internalColumns: WeGridInternalColumn<T>[] = [];
   renderColumns: WeGridInternalColumn<T>[] = [];
+  /**
+   * The columns the template draws: `renderColumns` itself, or under `virtualColumns` the window of
+   * it with a spacer (`isColPad`) in place of each run of unpinned columns left out.
+   */
+  viewColumns: WeGridInternalColumn<T>[] = [];
+  // Stand-ins, not columns: only `field` (the track key) and `width` (the skipped columns' sum) are read
+  private readonly colPadStart = { field: '\u0000we-grid-pad-start', width: 0, headerGroup: null } as unknown as WeGridInternalColumn<T>;
+  private readonly colPadEnd = { field: '\u0000we-grid-pad-end', width: 0, headerGroup: null } as unknown as WeGridInternalColumn<T>;
   displayData: T[] = [];
   density: WeGridDensity = 'normal';
   /** The user's zebra choice and rules — undefined until they make one, so the inputs decide */
@@ -1028,7 +1047,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   /** Total column count for the empty row's colspan and the detail row's single cell */
   get totalColSpan(): number {
     return (
-      this.renderColumns.length +
+      this.viewColumns.length +
       (this.selectable !== 'none' ? 1 : 0) +
       (this.showExpandCol ? 1 : 0) +
       (this.hasRowActions ? 1 : 0)
@@ -1287,6 +1306,11 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       this.unbindVirtualScroll();
       this.bindVirtualScroll();
     }
+    if (changes['virtualColumns'] && !changes['virtualColumns'].firstChange) {
+      this.unbindColumnWindow();
+      this.bindColumnWindow();
+      this.updateColumnWindow();
+    }
     if ((changes['virtualScroll'] || changes['rowHeight']) && !changes['data']) {
       this.updateVirtualWindow();
       if (this.virtualActive) this.scheduleVirtualMeasure();
@@ -1311,6 +1335,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.syncViewportObserver();
     this.bindVirtualScroll();
     if (this.virtualActive) this.scheduleVirtualMeasure();
+    this.bindColumnWindow();
   }
 
   ngAfterContentInit(): void {
@@ -1334,6 +1359,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     this.hideHeaderHint();
     if (this.liveTimer) clearTimeout(this.liveTimer);
     this.unbindVirtualScroll();
+    this.unbindColumnWindow();
     this.viewportObserver?.disconnect();
     this.viewportObserver = null;
     this.destroy$.next();
@@ -1408,8 +1434,155 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     }
 
     this.renderColumns = [...left, ...middle, ...right];
-    this.headerBands = this.renderColumns.some((c) => c.headerGroup) ? weGridHeaderBands(this.renderColumns) : [];
+    this.updateColumnWindow();
     this.resolveTreeColumn();
+  }
+
+  isColPad(col: WeGridInternalColumn<T>): boolean {
+    return col === this.colPadStart || col === this.colPadEnd;
+  }
+
+  /**
+   * Picks `viewColumns` (see virtualColumns) for the current horizontal scroll position and the
+   * header bands over them, so a band over columns partly left out spans only the drawn ones.
+   * True when the drawn set changed.
+   */
+  private updateColumnWindow(): boolean {
+    const all = this.renderColumns;
+    let next = all;
+    let padStart = 0;
+    let padEnd = 0;
+    if (this.virtualColumns) {
+      const area = this.scrollAreaRef?.nativeElement;
+      this.windowKey = { scrollLeft: area?.scrollLeft ?? NaN, clientWidth: area?.clientWidth ?? NaN, columns: all };
+      const viewport = area?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 0) || 1200;
+      // Math.abs: in a right-to-left grid scrollLeft runs from 0 down to negative values
+      const from = Math.abs(area?.scrollLeft ?? 0) - WE_GRID_COLUMN_OVERSCAN_PX;
+      const to = from + viewport + 2 * WE_GRID_COLUMN_OVERSCAN_PX;
+      const left: WeGridInternalColumn<T>[] = [];
+      const middle: WeGridInternalColumn<T>[] = [];
+      const right: WeGridInternalColumn<T>[] = [];
+      // renderColumns is left-pinned, unpinned, right-pinned in that order, so x is each unpinned column's start
+      let x = this.expandColWidthPx + this.selectColWidthPx;
+      for (const col of all) {
+        if (col.pinned === 'right') right.push(col);
+        else if (col.pinned === 'left') left.push(col);
+        else if (x + col.width <= from) padStart += col.width;
+        else if (x >= to) padEnd += col.width;
+        else middle.push(col);
+        if (col.pinned !== 'right') x += col.width;
+      }
+      next = [...left, ...(padStart ? [this.colPadStart] : []), ...middle, ...(padEnd ? [this.colPadEnd] : []), ...right];
+      const prev = this.viewColumns;
+      if (
+        prev !== all &&
+        padStart === this.colPadStart.width &&
+        padEnd === this.colPadEnd.width &&
+        prev.length === next.length &&
+        prev.every((c, i) => c === next[i])
+      ) {
+        return false;
+      }
+    } else if (this.viewColumns === all) {
+      return false;
+    }
+    this.colPadStart.width = padStart;
+    this.colPadEnd.width = padEnd;
+    this.viewColumns = next;
+    this.colIndexes = this.virtualColumns ? new Map(all.map((c, i) => [c, i + 1])) : null;
+    this.headerBands = all.some((c) => c.headerGroup) ? weGridHeaderBands(next) : [];
+    return true;
+  }
+
+  /** What the last window was picked for — a scroll that changed none of it (a vertical one) does no work */
+  private windowKey: { scrollLeft: number; clientWidth: number; columns: WeGridInternalColumn<T>[] } | null = null;
+
+  /** Position of each column among all of them (1-based) under virtualColumns, for `aria-colindex` */
+  private colIndexes: Map<WeGridInternalColumn<T>, number> | null = null;
+
+  colIndex(col: WeGridInternalColumn<T>): number | null {
+    return this.colIndexes?.get(col) ?? null;
+  }
+
+  /** Re-picks the column window on horizontal scroll and resize — outside the zone, rendering only when it changed */
+  private readonly onColumnWindowScroll = (): void => {
+    const area = this.scrollAreaRef?.nativeElement;
+    const key = this.windowKey;
+    if (this.dragColumns || (area && key && key.scrollLeft === area.scrollLeft && key.clientWidth === area.clientWidth && key.columns === this.renderColumns)) return;
+    if (this.updateColumnWindow()) this.cdr.detectChanges();
+  };
+
+  /**
+   * The headers rendered when a column drag started — the drop list's indices count these. Held
+   * until the drop is applied: the window waits, and a scroll meanwhile can't shift the mapping.
+   */
+  private dragColumns: WeGridInternalColumn<T>[] | null = null;
+
+  onColumnDragStarted(): void {
+    this.dragColumns = this.viewColumns.filter((c) => !this.isColPad(c));
+  }
+
+  onColumnDragEnded(): void {
+    // The CDK emits `ended` before `dropped`; the snapshot must outlive the drop, and a drag that
+    // ends without one still lets the window catch up
+    setTimeout(() => {
+      if (!this.dragColumns) return;
+      this.dragColumns = null;
+      if (this.updateColumnWindow()) this.cdr.markForCheck();
+    });
+  }
+
+  private columnResizeObserver: ResizeObserver | null = null;
+
+  private bindColumnWindow(): void {
+    const area = this.scrollAreaRef?.nativeElement;
+    if (!area || !this.virtualColumns || this.columnResizeObserver) return;
+    this.ngZone.runOutsideAngular(() => {
+      area.addEventListener('scroll', this.onColumnWindowScroll, { passive: true });
+      if (typeof ResizeObserver !== 'undefined') {
+        this.columnResizeObserver = new ResizeObserver(this.onColumnWindowScroll);
+        this.columnResizeObserver.observe(area);
+      }
+    });
+    // The first window was picked before the scroll area could be measured
+    afterNextRender(() => this.onColumnWindowScroll(), { injector: this.injector });
+  }
+
+  private unbindColumnWindow(): void {
+    this.scrollAreaRef?.nativeElement.removeEventListener('scroll', this.onColumnWindowScroll);
+    this.columnResizeObserver?.disconnect();
+    this.columnResizeObserver = null;
+  }
+
+  /**
+   * Scrolls an unpinned column fully into view and draws it — the keyboard's twin of scrolling
+   * there, for a column `virtualColumns` left out of the DOM.
+   */
+  private revealColumn(field: string): void {
+    const area = this.scrollAreaRef?.nativeElement;
+    if (!this.virtualColumns || !area) return;
+    let x = this.expandColWidthPx + this.selectColWidthPx;
+    let leftPinned = x;
+    let rightPinned = this.actionColWidthPx;
+    let start = -1;
+    let width = 0;
+    for (const col of this.renderColumns) {
+      if (col.pinned === 'right') {
+        rightPinned += col.width;
+        continue;
+      }
+      if (col.pinned === 'left') leftPinned += col.width;
+      else if (col.field === field) [start, width] = [x, col.width];
+      x += col.width;
+    }
+    if (start === -1) return;
+    const scroll = Math.abs(area.scrollLeft);
+    const sign = area.scrollLeft < 0 || this.isRtl ? -1 : 1;
+    let next = scroll;
+    if (start - leftPinned < scroll) next = start - leftPinned;
+    else if (start + width > scroll + area.clientWidth - rightPinned) next = start + width - area.clientWidth + rightPinned;
+    if (next !== scroll) area.scrollLeft = sign * next;
+    this.updateColumnWindow();
   }
 
   private persistLayout(): void {
@@ -2073,6 +2246,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     if (!col) return;
     col.format = format ?? this.columnDefs.find((d) => d.field === col.field)?.format;
     this.renderColumns = [...this.renderColumns];
+    this.updateColumnWindow();
     this.formatCache = null;
     this.scheduleLayoutSave();
     this.cdr.markForCheck();
@@ -4965,6 +5139,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     const col = columns[Math.min(columns.length - 1, Math.max(0, c + step[1]))];
     const next = { key: this.rowKey(row), field: col.field };
     this.setCellRange(event.shiftKey ? { anchor, focus: next } : { anchor: next, focus: next });
+    this.revealColumn(next.field);
     this.focusRangeRow(next.key);
     return true;
   }
@@ -5307,6 +5482,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
           col.width = next;
           // If a pinned column's width changed, the offset of subsequent pinned columns must be recomputed too
           if (col.pinned) this.recomputeRenderColumns();
+          else this.updateColumnWindow();
           // NOTE: staying outside the zone and triggering this component's own CD directly —
           // ngZone.run(...) here would trigger ApplicationRef.tick() and cancel out the benefit of
           // runOutsideAngular (clientX is an integer, so this fires on nearly every drag event).
@@ -5338,10 +5514,16 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
 
   // ─── Column drag-and-drop reordering ─────────────────────────────────
   onColumnDrop(event: CdkDragDrop<WeGridInternalColumn<T>[]>): void {
-    if (event.previousIndex === event.currentIndex) return;
-    const moving = this.renderColumns[event.previousIndex];
-    if (moving && !this.dropSortPredicate(event.currentIndex, { data: moving })) return;
-    moveItemInArray(this.renderColumns, event.previousIndex, event.currentIndex);
+    const from = this.dragRenderIndex(event.previousIndex);
+    const to = this.dragRenderIndex(event.currentIndex);
+    const moving = this.renderColumns[from];
+    const allowed = event.previousIndex !== event.currentIndex && !(moving && !this.dropSortPredicate(event.currentIndex, { data: moving }));
+    this.dragColumns = null;
+    if (!allowed) {
+      if (this.updateColumnWindow()) this.cdr.markForCheck();
+      return;
+    }
+    moveItemInArray(this.renderColumns, from, to);
     this.renumberColumnOrder();
     // When the order changes, pinned columns' left/right offsets must also be recomputed —
     // otherwise the DOM order changes but the old offsets remain, and pinned columns overlap on horizontal scroll.
@@ -5373,11 +5555,26 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
       event.preventDefault();
       const towardsEnd = (event.key === 'ArrowRight') !== this.isRtl;
       const moved = this.moveColumn(col, event.shiftKey ? (towardsEnd ? 'last' : 'first') : towardsEnd ? 1 : -1);
-      if (moved) {
-        // The header element moves with its column; keep the keyboard on it
-        setTimeout(() => thEl.focus());
-      }
+      if (moved) this.focusMovedHeader(col, thEl);
     }
+  }
+
+  /**
+   * Keeps the keyboard on a header after its column moved. The element moves with its column — but
+   * under virtualColumns a column moved out of the window loses it, so the column is scrolled into
+   * view and its new header focused.
+   */
+  private focusMovedHeader(col: WeGridInternalColumn<T>, thEl: HTMLElement | null): void {
+    setTimeout(() => {
+      if (!this.virtualColumns) {
+        thEl?.focus();
+        return;
+      }
+      this.revealColumn(col.field);
+      this.cdr.detectChanges();
+      const headers = (this.elementRef.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('.we-grid__header-row th[role="columnheader"]');
+      headers[this.viewColumns.filter((c) => !this.isColPad(c)).indexOf(col)]?.focus();
+    });
   }
 
   private get isRtl(): boolean {
@@ -5456,6 +5653,14 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
     return reached === pos ? null : group[reached];
   }
 
+  /** A drop list index counts the rendered headers only; this is the same column's index in `renderColumns` */
+  private dragRenderIndex(index: number): number {
+    if (!this.virtualColumns) return index;
+    const rendered = this.dragColumns ?? this.viewColumns.filter((c) => !this.isColPad(c));
+    // Past the last rendered header (a drop at the very end): the last column of all
+    return index < rendered.length ? this.renderColumns.indexOf(rendered[index]) : this.renderColumns.length - 1;
+  }
+
   /** Writes the visible order back to `order`, hidden columns after the visible ones */
   private renumberColumnOrder(): void {
     this.renderColumns.forEach((c, i) => (c.order = i));
@@ -5466,9 +5671,10 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
    * Drag-and-drop guard: a locked column's place can't be taken, a drag can't cross one, and a
    * column pinned to one side can't be dropped among the other side's columns.
    */
-  readonly dropSortPredicate = (index: number, drag: { data: unknown }): boolean => {
+  readonly dropSortPredicate = (dropIndex: number, drag: { data: unknown }): boolean => {
     const dragged = drag.data as WeGridInternalColumn<T>;
     if (dragged.lockOrder) return false;
+    const index = this.dragRenderIndex(dropIndex);
     const target = this.renderColumns[index];
     if (!target || target === dragged) return true;
     if (target.lockOrder) return false;
@@ -5746,7 +5952,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         const col = this.internalColumns.find((c) => c.field === action.field);
         const towardsEnd = (action.direction === 'right') !== this.isRtl;
         // moveColumn already saves and re-renders
-        if (col) this.moveColumn(col, towardsEnd ? 1 : -1);
+        if (col && this.moveColumn(col, towardsEnd ? 1 : -1) && this.virtualColumns) this.focusMovedHeader(col, null);
         this.cdr.markForCheck();
         return;
       }
@@ -5909,7 +6115,7 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
         if (width > cells) cells = width;
       }
     }
-    const cellPadding = this.horizontalPadding(host.querySelector<HTMLElement>('tbody:not(.we-grid__pinned-body) .we-grid__row td')) ?? 16;
+    const cellPadding = this.horizontalPadding(host.querySelector<HTMLElement>('tbody:not(.we-grid__pinned-body) .we-grid__row td:not(.we-grid__col-pad)')) ?? 16;
     // A few px of slack — canvas text metrics and the rendered text don't round the same way
     const fitted = Math.max(col.minWidth, Math.ceil(Math.max(header, cells + cellPadding)) + 4);
     const bound = col.maxWidth ?? maxWidth;
@@ -5925,7 +6131,8 @@ export class WeGridComponent<T> implements OnInit, OnChanges, AfterContentInit, 
   private headerChromeWidth(col: WeGridInternalColumn<T>): number {
     const host = this.elementRef.nativeElement as HTMLElement;
     const headers = Array.from(host.querySelectorAll<HTMLElement>('.we-grid__header-row th[role="columnheader"]'));
-    const th = headers[this.renderColumns.indexOf(col)] ?? headers[0];
+    // A column virtualColumns left out of the DOM measures another header's chrome, as a hidden column does
+    const th = headers[this.viewColumns.filter((c) => !this.isColPad(c)).indexOf(col)] ?? headers[0];
     const inner = th?.querySelector<HTMLElement>('.we-grid__th-inner');
     const innerStyle = inner ? this.computedStyle(inner) : null;
     if (!inner || !innerStyle) return 64;
