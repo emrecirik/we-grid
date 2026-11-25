@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.61.0 — 2026-11-25
+
+### Added
+
+- `virtualColumns` input: only the unpinned columns near the horizontal viewport (300px beyond each
+  side) are rendered; one spacer cell per side stands in for the rest, so the width and the
+  scrollbar stay exact. Pinned columns are always rendered; header bands are cut at the window's
+  edges; drawn cells carry `aria-colindex`; the arrow keys scroll a cell range onto a column that
+  isn't drawn. The first render of 30 rows × 100 columns takes 76 ms instead of 516 ms. Off by
+  default — the markup is unchanged without it.
+
 ## 0.60.0 — 2026-11-24
 
 A minor release: a heatmap chart type. Nothing changes for existing chart types.
