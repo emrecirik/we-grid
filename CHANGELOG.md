@@ -2,7 +2,10 @@
 
 All notable changes to this project are documented in this file.
 
-## 0.61.0 — 2026-11-25
+## 0.61.1 — 2026-11-25
+
+0.61.0 was tagged but never published: its release run lost the test browser in a heavy existing
+spec. 0.61.1 is the same feature with the fix below.
 
 ### Added
 
@@ -12,6 +15,12 @@ All notable changes to this project are documented in this file.
   edges; drawn cells carry `aria-colindex`; the arrow keys scroll a cell range onto a column that
   isn't drawn. The first render of 30 rows × 100 columns takes 76 ms instead of 516 ms. Off by
   default — the markup is unchanged without it.
+
+### Fixed
+
+- Rows of a grid without `virtualColumns` render with no per-cell branch, as in 0.60.0. A first cut
+  wrapped every body cell in a spacer check even with the option off, which made 2,500-row grids
+  about 10% slower to build.
 
 ## 0.60.0 — 2026-11-24
 
