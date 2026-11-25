@@ -2,6 +2,27 @@
 
 All notable changes to this project are documented in this file.
 
+## 0.62.0 — 2026-11-25
+
+### Added
+
+- `<we-sheet>` `virtualScroll` and `virtualColumns`: only the rows and columns near the view are
+  drawn (300px beyond it on each side); a spacer row above and below and a spacer cell on each side
+  keep the scrollbars and every cell's position exact, custom row heights and widths included.
+  Frozen rows and columns, the header row and a merge reaching into the view are always drawn whole.
+  The arrow keys, Ctrl+arrows, find and typing scroll a far cell into view and draw it; a cell being
+  edited stays drawn while the sheet scrolls away from it; copy works on the content. The first render of a read-only 1000 × 70 sheet takes 0.24 s instead of 7.7 s. Off by
+  default — the markup is unchanged without them. `<we-workbook>` hands both to its sheets.
+- `<we-pivot>` `virtualScroll` and `virtualColumns`, handed to the result grid — grouped result
+  rows included.
+- `weSheetWindow(offsets, stuck, from, to, spans)` and `weSheetOffsets(sizes)`, the window arithmetic
+  behind them.
+
+### Changed
+
+- `<we-sheet>` formats numbers and dates with one cached `Intl` formatter per format instead of a
+  new one per cell: building a 1000 × 70 sheet's cells took 2.5 s, now 0.4 s. The text is the same.
+
 ## 0.61.1 — 2026-11-25
 
 0.61.0 was tagged but never published: its release run lost the test browser in a heavy existing
