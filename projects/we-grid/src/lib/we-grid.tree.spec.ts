@@ -569,7 +569,7 @@ describe('WeGridComponent — tree rows', () => {
     expect(host.grid.treeAllExpanded).toBeTrue();
   });
 
-  it('19. performance: 500 roots + 2000 children, all open, render within ~30% of 2500 flat rows', () => {
+  it('19. performance: 500 roots + 2000 children, all open, render within ~30% of 2500 flat rows', async () => {
     const roots: Node[] = Array.from({ length: 500 }, (_, r) => ({
       key: `R${r}`,
       kind: 'parent' as const,
@@ -603,20 +603,28 @@ describe('WeGridComponent — tree rows', () => {
     };
     const median = (values: number[]): number => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
 
+    // A pause between renders: twelve of them in one block held the browser for 20 s on a busy
+    // machine, and Karma dropped it as disconnected
+    const pause = (): Promise<void> => new Promise((resolve) => setTimeout(resolve));
     // A warm-up of each, then alternating runs, so neither side pays for JIT warm-up or the other's garbage
     once(false);
+    await pause();
     once(true);
+    await pause();
     const flatRuns: number[] = [];
     const treeRuns: number[] = [];
     for (let i = 0; i < 5; i++) {
       flatRuns.push(once(false));
+      await pause();
       treeRuns.push(once(true));
+      await pause();
     }
     const flatMs = median(flatRuns);
     const treeMs = median(treeRuns);
     // Loose bound so a busy CI machine doesn't flake it: the target is 1.3×, the limit leaves room for noise
     expect(treeMs).withContext(`flat ${flatMs.toFixed(0)}ms, tree ${treeMs.toFixed(0)}ms`).toBeLessThan(flatMs * 1.3 + 150);
-  });
+    // Twelve renders of 2500 rows take longer than Jasmine's default 5 s for an async spec
+  }, 60_000);
 });
 
 describe('WeGridComponent — tree rows in Turkish', () => {

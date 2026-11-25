@@ -217,7 +217,7 @@ describe('WeGridComponent virtualColumns', () => {
     expect(dataFields().length).toBeLessThan(20);
   });
 
-  it('performance: a screen of rows × 100 columns draws a fraction of the cells with the columns windowed', () => {
+  it('performance: a screen of rows × 100 columns draws a fraction of the cells with the columns windowed', async () => {
     const drawn = { on: { rows: 0, cells: 0 }, off: { rows: 0, cells: 0 } };
     const once = (virtualColumns: boolean): number => {
       const f = TestBed.createComponent(HostComponent);
@@ -238,14 +238,19 @@ describe('WeGridComponent virtualColumns', () => {
       return elapsed;
     };
     const median = (values: number[]): number => [...values].sort((a, b) => a - b)[Math.floor(values.length / 2)];
-    once(false);
-    once(true);
+    // A pause between renders: one long block of them starves Karma's socket and disconnects the run
+    const pause = (): Promise<void> => new Promise((resolve) => setTimeout(resolve));
     const off: number[] = [];
     const on: number[] = [];
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       off.push(once(false));
+      await pause();
       on.push(once(true));
+      await pause();
     }
+    // The first of each warmed the code up
+    off.shift();
+    on.shift();
     // eslint-disable-next-line no-console
     console.log(
       `[we-grid] ${drawn.off.rows} rows × 100 columns, first render: virtualColumns off ${median(off).toFixed(1)} ms (${drawn.off.cells} cells a row), ` +
@@ -256,7 +261,8 @@ describe('WeGridComponent virtualColumns', () => {
     expect(drawn.off.rows).toBe(30);
     expect(drawn.off.cells).toBe(COLUMN_COUNT);
     expect(drawn.on.cells).toBeLessThan(20);
-  });
+    // Eight renders of 100 columns can take longer than Jasmine's default 5 s for an async spec on a slow runner
+  }, 30_000);
 
   it('maps a drop to the headers rendered when the drag started, even after a scroll during the drag', async () => {
     await create();
