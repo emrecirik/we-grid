@@ -879,10 +879,84 @@
                     />
                   </td>
                 }
-                @for (col of viewColumns; track col.field) {
-                  @if (isColPad(col)) {
-                    <td class="we-grid__col-pad" aria-hidden="true"></td>
-                  } @else {
+                @if (virtualColumns) {
+                  @for (col of viewColumns; track col.field) {
+                    @if (isColPad(col)) {
+                      <td class="we-grid__col-pad" aria-hidden="true"></td>
+                    } @else {
+                      <td
+                        [style.width.px]="col.width"
+                        [style.text-align]="col.align"
+                        [style.left.px]="col.pinned === 'left' ? col.pinnedOffset : null"
+                        [style.right.px]="col.pinned === 'right' ? col.pinnedOffset : null"
+                        [class.we-grid__td--wrap]="col.wrap"
+                        [class.we-grid__td--nowrap]="!col.wrap"
+                        [class.we-grid__td--pinned-left]="col.pinned === 'left'"
+                        [class.we-grid__td--pinned-right]="col.pinned === 'right'"
+                        [attr.title]="col.wrap || getCellTemplate(col) ? null : formatCell(item.row, col)"
+                        [class.we-grid__td--active]="isActiveCell(item.row, col)"
+                        [class.we-grid__td--overflow]="col.allowOverflow"
+                        [class.we-grid__td--range]="cellSelection && isInRange(item.row, col)"
+                        [class.we-grid__td--range-focus]="cellSelection && isRangeFocus(item.row, col)"
+                        [attr.data-we-grid-field]="cellSelection ? col.field : null"
+                        [attr.aria-selected]="cellSelection ? isInRange(item.row, col) : null"
+                      [attr.aria-colindex]="colIndex(col)"
+                        [ngStyle]="cellCss(item.row, col)"
+                        [style.padding-inline-start]="isTreeCell(item, col) ? treeIndent(item.tree) : null"
+                        (mousedown)="onCellMouseDown($event, item.row, col)"
+                        (click)="onCellClick($event, item.row, col, item.index)"
+                        (dblclick)="onCellDblClick($event, col)"
+                        (contextmenu)="onCellContextMenu($event, col, item.row)"
+                      >
+                        @if (isTreeCell(item, col)) {
+                          @if (item.tree?.hasChildren) {
+                            <button
+                              type="button"
+                              class="we-grid__tree-toggle"
+                              [class.we-grid__tree-toggle--open]="item.tree?.expanded"
+                              [attr.aria-expanded]="item.tree?.expanded"
+                              [attr.aria-label]="item.tree?.expanded ? locale.treeCollapseRow(treeRowLabel(item.row)) : locale.treeExpandRow(treeRowLabel(item.row))"
+                              (click)="onTreeToggleClick($event, item.row)"
+                            >
+                              <span [innerHTML]="icon('chevronRight')" aria-hidden="true"></span>
+                            </button>
+                          } @else {
+                            <span class="we-grid__tree-spacer" aria-hidden="true"></span>
+                          }
+                        }
+                        @if (isCellEditing(item.row, col)) {
+                          <we-grid-cell-editor
+                            [column]="$any(col)"
+                        [scale]="inputScale(col)"
+                            [value]="draftValue(col)"
+                            [invalid]="hasDraftError(col)"
+                            [disabled]="!!edit?.saving"
+                            (valueChange)="setDraftValue(col, $event)"
+                          />
+                        } @else {
+                          @if (getCellTemplate(col); as tmpl) {
+                            <ng-container *ngTemplateOutlet="tmpl; context: buildCellContext(item.row, col, item.index)"></ng-container>
+                          } @else {
+                            @if (cellLink(item.row, col); as href) {
+                                <a
+                                  class="we-grid__cell-link"
+                                  [href]="href"
+                                  [attr.target]="col.type === 'url' ? '_blank' : null"
+                                  [attr.rel]="col.type === 'url' ? 'noopener noreferrer' : null"
+                                  (click)="$event.stopPropagation()"
+                                  >{{ formatCell(item.row, col) }}</a
+                                >
+                              } @else {
+                                {{ formatCell(item.row, col) }}
+                              }
+                          }
+                        }
+                      </td>
+                    }
+                  }
+                } @else {
+                  <!-- No column window: no per-cell branch, so a grid without virtualColumns renders as fast as before -->
+                  @for (col of renderColumns; track col.field) {
                     <td
                       [style.width.px]="col.width"
                       [style.text-align]="col.align"
@@ -899,7 +973,6 @@
                       [class.we-grid__td--range-focus]="cellSelection && isRangeFocus(item.row, col)"
                       [attr.data-we-grid-field]="cellSelection ? col.field : null"
                       [attr.aria-selected]="cellSelection ? isInRange(item.row, col) : null"
-                    [attr.aria-colindex]="colIndex(col)"
                       [ngStyle]="cellCss(item.row, col)"
                       [style.padding-inline-start]="isTreeCell(item, col) ? treeIndent(item.tree) : null"
                       (mousedown)="onCellMouseDown($event, item.row, col)"
